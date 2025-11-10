@@ -1,0 +1,515 @@
+<template>
+  <div class="app-container">
+    <!-- 机构信息卡片 -->
+    <el-card class="institution-card" shadow="hover">
+      <div slot="header" class="card-header">
+        <span class="title">
+          <i class="el-icon-office-building"></i>
+          我的入驻申请信息
+        </span>
+        <el-tag v-if="institutionInfo.status === '0'" type="warning">待审批</el-tag>
+        <el-tag v-else-if="institutionInfo.status === '1'" type="success">已入驻</el-tag>
+        <el-tag v-else-if="institutionInfo.status === '2'" type="info">驳回补充</el-tag>
+        <el-tag v-else-if="institutionInfo.status === '3'" type="danger">不通过</el-tag>
+        <el-tag v-else type="info">未知状态</el-tag>
+      </div>
+
+      <el-descriptions :column="3" border v-if="institutionInfo.applyId">
+        <el-descriptions-item label="机构名称">{{ institutionInfo.institutionName }}</el-descriptions-item>
+        <el-descriptions-item label="注册资金">{{ institutionInfo.registeredCapital }}万元</el-descriptions-item>
+        <el-descriptions-item label="所属街道">{{ institutionInfo.street }}</el-descriptions-item>
+        <el-descriptions-item label="社会统一信用代码">{{ institutionInfo.creditCode }}</el-descriptions-item>
+        <el-descriptions-item label="机构备案号">{{ institutionInfo.recordNumber }}</el-descriptions-item>
+        <el-descriptions-item label="机构联系人">{{ institutionInfo.contactPerson }}</el-descriptions-item>
+        <el-descriptions-item label="联系电话">{{ institutionInfo.contactPhone }}</el-descriptions-item>
+        <el-descriptions-item label="成立日期">{{ parseTime(institutionInfo.establishDate, '{y}-{m}-{d}') }}</el-descriptions-item>
+        <el-descriptions-item label="兴办机构">{{ institutionInfo.organizer }}</el-descriptions-item>
+        <el-descriptions-item label="申请时间" :span="2">{{ parseTime(institutionInfo.applyTime, '{y}-{m}-{d} {h}:{i}') }}</el-descriptions-item>
+        <el-descriptions-item label="监管余额" v-if="institutionInfo.supervisionBalance">
+          <span style="color: #F56C6C; font-weight: bold; font-size: 16px;">
+            ¥{{ formatMoney(institutionInfo.supervisionBalance) }}
+          </span>
+        </el-descriptions-item>
+      </el-descriptions>
+
+      <div v-if="!institutionInfo.applyId" class="no-data">
+        <el-empty description="暂无入驻申请记录">
+          <el-button type="primary" @click="handleApply">提交入驻申请</el-button>
+        </el-empty>
+      </div>
+    </el-card>
+
+    <!-- 操作按钮 -->
+    <el-row :gutter="20" class="operation-buttons" v-if="institutionInfo.applyId">
+      <el-col :span="12">
+        <el-card class="operation-card" shadow="hover">
+          <div class="operation-content">
+            <i class="el-icon-edit"></i>
+            <div>
+              <h4>维护信息</h4>
+              <p>更新机构基本信息</p>
+            </div>
+          </div>
+          <el-button
+            type="primary"
+            @click="handleMaintain"
+            v-if="institutionInfo.status === '1'"
+          >
+            维护信息
+          </el-button>
+        </el-card>
+      </el-col>
+
+      <el-col :span="12">
+        <el-card class="operation-card" shadow="hover">
+          <div class="operation-content">
+            <i class="el-icon-unlock"></i>
+            <div>
+              <h4>解除监管</h4>
+              <p>申请解除资金监管</p>
+            </div>
+          </div>
+          <el-button
+            type="warning"
+            @click="handleReleaseSupervision"
+            v-if="institutionInfo.status === '1'"
+          >
+            申请解除监管
+          </el-button>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <!-- 待审批状态的特殊操作 -->
+    <el-row v-if="institutionInfo.status === '0'">
+      <el-col :span="24">
+        <el-alert
+          title="您的入驻申请正在审批中"
+          type="info"
+          description="民政部门正在审核您的入驻申请，请耐心等待。您也可以撤回申请重新提交。"
+          show-icon
+          :closable="false">
+        </el-alert>
+        <div style="text-align: center; margin-top: 20px;">
+          <el-button @click="handleWithdraw" type="info">撤回申请</el-button>
+          <el-button @click="handleCheckStatus" type="primary">查看申请状态</el-button>
+        </div>
+      </el-col>
+    </el-row>
+
+    <!-- 驳回补充状态 -->
+    <el-row v-if="institutionInfo.status === '2'">
+      <el-col :span="24">
+        <el-alert
+          title="申请需要补充材料"
+          type="warning"
+          description="您的入驻申请已被驳回，需要补充相关材料后重新提交。"
+          show-icon
+          :closable="false">
+        </el-alert>
+        <div style="text-align: center; margin-top: 20px;">
+          <el-button @click="handleResubmit" type="primary">重新提交申请</el-button>
+        </div>
+      </el-col>
+    </el-row>
+
+    <!-- 不通过状态 -->
+    <el-row v-if="institutionInfo.status === '3'">
+      <el-col :span="24">
+        <el-alert
+          title="申请未通过"
+          type="error"
+          description="很抱歉，您的入驻申请未通过审核。您可以查看具体原因并重新提交申请。"
+          show-icon
+          :closable="false">
+        </el-alert>
+        <div style="text-align: center; margin-top: 20px;">
+          <el-button @click="handleReapply" type="primary">重新申请入驻</el-button>
+        </div>
+      </el-col>
+    </el-row>
+
+    <!-- 申请详情对话框 -->
+    <el-dialog title="入驻申请详情" :visible.sync="detailOpen" width="1000px" append-to-body>
+      <el-descriptions :column="2" border>
+        <el-descriptions-item label="机构名称">{{ currentInstitution.institutionName }}</el-descriptions-item>
+        <el-descriptions-item label="统一信用代码">{{ currentInstitution.creditCode }}</el-descriptions-item>
+        <el-descriptions-item label="机构备案号">{{ currentInstitution.recordNumber }}</el-descriptions-item>
+        <el-descriptions-item label="注册资金">{{ currentInstitution.registeredCapital }}万元</el-descriptions-item>
+        <el-descriptions-item label="注册地址" :span="2">{{ currentInstitution.registeredAddress }}</el-descriptions-item>
+        <el-descriptions-item label="所属街道/区域">{{ currentInstitution.street }}</el-descriptions-item>
+        <el-descriptions-item label="机构联系人">{{ currentInstitution.contactPerson }}</el-descriptions-item>
+        <el-descriptions-item label="联系电话">{{ currentInstitution.contactPhone }}</el-descriptions-item>
+        <el-descriptions-item label="实际经营地址" :span="2">{{ currentInstitution.actualAddress }}</el-descriptions-item>
+        <el-descriptions-item label="成立日期">{{ parseTime(currentInstitution.establishDate, '{y}-{m}-{d}') }}</el-descriptions-item>
+        <el-descriptions-item label="兴办机构">{{ currentInstitution.organizer }}</el-descriptions-item>
+        <el-descriptions-item label="负责人姓名">{{ currentInstitution.responsibleName }}</el-descriptions-item>
+        <el-descriptions-item label="负责人身份证号">{{ currentInstitution.responsibleIdCard }}</el-descriptions-item>
+        <el-descriptions-item label="负责人居住地" :span="2">{{ currentInstitution.responsibleAddress }}</el-descriptions-item>
+        <el-descriptions-item label="负责人电话">{{ currentInstitution.responsiblePhone }}</el-descriptions-item>
+        <el-descriptions-item label="养老机构类型">{{ getInstitutionTypeText(currentInstitution.institutionType) }}</el-descriptions-item>
+        <el-descriptions-item label="床位数">{{ currentInstitution.bedCount }}张</el-descriptions-item>
+        <el-descriptions-item label="收费区间">{{ currentInstitution.feeRange }}</el-descriptions-item>
+        <el-descriptions-item label="固定资产净额">{{ currentInstitution.fixedAssets }}万元</el-descriptions-item>
+        <el-descriptions-item label="监管账户">{{ currentInstitution.supervisionAccount }}</el-descriptions-item>
+        <el-descriptions-item label="基本账户">{{ currentInstitution.basicAccount }}</el-descriptions-item>
+        <el-descriptions-item label="申请状态">
+          <el-tag v-if="currentInstitution.status === '0'" type="warning">待审批</el-tag>
+          <el-tag v-else-if="currentInstitution.status === '1'" type="success">已入驻</el-tag>
+          <el-tag v-else-if="currentInstitution.status === '2'" type="info">驳回补充</el-tag>
+          <el-tag v-else-if="currentInstitution.status === '3'" type="danger">不通过</el-tag>
+          <el-tag v-else type="info">未知状态</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="申请时间">{{ parseTime(currentInstitution.applyTime, '{y}-{m}-{d} {h}:{i}') }}</el-descriptions-item>
+      </el-descriptions>
+
+      <!-- 上传材料 -->
+      <el-divider content-position="left">上传材料</el-divider>
+      <el-row :gutter="20">
+        <el-col :span="8" v-if="currentInstitution.businessLicense">
+          <el-card shadow="hover">
+            <div slot="header">营业执照</div>
+            <el-image :src="currentInstitution.businessLicense" style="width: 100%; height: 200px;" fit="contain"></el-image>
+          </el-card>
+        </el-col>
+        <el-col :span="8" v-if="currentInstitution.approvalCertificate">
+          <el-card shadow="hover">
+            <div slot="header">社会福利机构设置批准证书</div>
+            <el-image :src="currentInstitution.approvalCertificate" style="width: 100%; height: 200px;" fit="contain"></el-image>
+          </el-card>
+        </el-col>
+        <el-col :span="8" v-if="currentInstitution.supervisionAgreement">
+          <el-card shadow="hover">
+            <div slot="header">三方监管协议</div>
+            <el-image :src="currentInstitution.supervisionAgreement" style="width: 100%; height: 200px;" fit="contain"></el-image>
+          </el-card>
+        </el-col>
+      </el-row>
+
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="detailOpen = false">关闭</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 信息维护对话框 -->
+    <el-dialog title="维护机构信息" :visible.sync="maintainOpen" width="800px" append-to-body>
+      <el-form ref="maintainForm" :model="maintainForm" :rules="maintainRules" label-width="120px">
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="机构联系人" prop="contactPerson">
+              <el-input v-model="maintainForm.contactPerson" placeholder="请输入机构联系人" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="联系电话" prop="contactPhone">
+              <el-input v-model="maintainForm.contactPhone" placeholder="请输入联系电话" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="实际经营地址" prop="actualAddress">
+              <el-input v-model="maintainForm.actualAddress" placeholder="请输入实际经营地址" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="床位数" prop="bedCount">
+              <el-input-number v-model="maintainForm.bedCount" :min="0" />
+              <span style="margin-left: 5px;">张</span>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="收费区间" prop="feeRange">
+              <el-input v-model="maintainForm.feeRange" placeholder="如：2000-5000元/月" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="固定资产净额" prop="fixedAssets">
+              <el-input-number v-model="maintainForm.fixedAssets" :min="0" :precision="2" />
+              <span style="margin-left: 5px;">万元</span>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="监管账户" prop="supervisionAccount">
+              <el-input v-model="maintainForm.supervisionAccount" placeholder="请输入监管账户" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="基本账户" prop="basicAccount">
+              <el-input v-model="maintainForm.basicAccount" placeholder="请输入基本账户" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button type="primary" @click="submitMaintain">确 定</el-button>
+        <el-button @click="maintainOpen = false">取 消</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 申请解除监管对话框 -->
+    <el-dialog title="申请解除监管" :visible.sync="releaseOpen" width="600px" append-to-body>
+      <el-alert
+        title="重要提示"
+        type="warning"
+        description="申请解除监管后，民政部门将进行审批。审批通过后，监管账户中的资金将划拨至机构基本账户。"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 20px;">
+      </el-alert>
+
+      <el-descriptions :column="1" border style="margin-bottom: 20px;">
+        <el-descriptions-item label="机构名称">{{ releaseForm.institutionName }}</el-descriptions-item>
+        <el-descriptions-item label="监管账户">{{ releaseForm.supervisionAccount }}</el-descriptions-item>
+        <el-descriptions-item label="监管余额">
+          <span style="color: #F56C6C; font-weight: bold; font-size: 16px;">¥{{ formatMoney(releaseForm.supervisionBalance || 0) }}</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="基本账户">{{ releaseForm.basicAccount }}</el-descriptions-item>
+      </el-descriptions>
+
+      <el-form ref="releaseForm" :model="releaseForm" :rules="releaseRules" label-width="100px">
+        <el-form-item label="解除原因" prop="releaseReason">
+          <el-input v-model="releaseForm.releaseReason" type="textarea" :rows="4" placeholder="请输入申请解除监管的原因" />
+        </el-form-item>
+      </el-form>
+
+      <div slot="footer" class="dialog-footer">
+        <el-button type="primary" @click="submitReleaseSupervision">提交申请</el-button>
+        <el-button @click="releaseOpen = false">取 消</el-button>
+      </div>
+    </el-dialog>
+  </div>
+</template>
+
+<script>
+import { getInstitutionApply, updateInstitutionApply, releaseSupervision, withdrawApply } from "@/api/pension/institutionApplyList";
+
+export default {
+  name: "InstitutionApplyList",
+  data() {
+    return {
+      loading: false,
+      // 机构信息
+      institutionInfo: {},
+      // 当前机构详情
+      currentInstitution: {},
+      // 弹出层状态
+      detailOpen: false,
+      maintainOpen: false,
+      releaseOpen: false,
+      // 维护表单
+      maintainForm: {},
+      maintainRules: {
+        contactPerson: [
+          { required: true, message: "机构联系人不能为空", trigger: "blur" }
+        ],
+        contactPhone: [
+          { required: true, message: "联系电话不能为空", trigger: "blur" },
+          { pattern: /^1[3456789]\d{9}$/, message: "请输入正确的手机号码", trigger: "blur" }
+        ],
+        actualAddress: [
+          { required: true, message: "实际经营地址不能为空", trigger: "blur" }
+        ],
+        bedCount: [
+          { required: true, message: "床位数不能为空", trigger: "blur" }
+        ],
+        feeRange: [
+          { required: true, message: "收费区间不能为空", trigger: "blur" }
+        ],
+        supervisionAccount: [
+          { required: true, message: "监管账户不能为空", trigger: "blur" }
+        ],
+        basicAccount: [
+          { required: true, message: "基本账户不能为空", trigger: "blur" }
+        ]
+      },
+      // 解除监管表单
+      releaseForm: {},
+      releaseRules: {
+        releaseReason: [
+          { required: true, message: "解除原因不能为空", trigger: "blur" },
+          { min: 10, message: "解除原因至少10个字符", trigger: "blur" }
+        ]
+      }
+    };
+  },
+  created() {
+    this.loadInstitutionInfo();
+  },
+  methods: {
+    /** 加载机构信息 */
+    loadInstitutionInfo() {
+      this.loading = true;
+      // 获取当前用户的机构信息（假设applyId为1）
+      getInstitutionApply(1).then(response => {
+        this.institutionInfo = response.data || {};
+        this.loading = false;
+      }).catch(() => {
+        this.institutionInfo = {};
+        this.loading = false;
+      });
+    },
+    /** 查看详情 */
+    handleDetail() {
+      this.currentInstitution = { ...this.institutionInfo };
+      this.detailOpen = true;
+    },
+    /** 维护信息 */
+    handleMaintain() {
+      this.maintainForm = { ...this.institutionInfo };
+      this.maintainOpen = true;
+    },
+    /** 提交维护信息 */
+    submitMaintain() {
+      this.$refs["maintainForm"].validate(valid => {
+        if (valid) {
+          updateInstitutionApply(this.maintainForm.applyId, this.maintainForm).then(response => {
+            this.$modal.msgSuccess("信息更新成功");
+            this.maintainOpen = false;
+            this.loadInstitutionInfo();
+          });
+        }
+      });
+    },
+    /** 申请解除监管 */
+    handleReleaseSupervision() {
+      this.releaseForm = {
+        applyId: this.institutionInfo.applyId,
+        institutionName: this.institutionInfo.institutionName,
+        supervisionAccount: this.institutionInfo.supervisionAccount,
+        basicAccount: this.institutionInfo.basicAccount,
+        supervisionBalance: this.institutionInfo.supervisionBalance,
+        releaseReason: ''
+      };
+      this.releaseOpen = true;
+    },
+    /** 提交解除监管申请 */
+    submitReleaseSupervision() {
+      this.$refs["releaseForm"].validate(valid => {
+        if (valid) {
+          releaseSupervision(this.releaseForm.applyId, this.releaseForm).then(response => {
+            this.$modal.msgSuccess("解除监管申请已提交，请等待民政部门审批");
+            this.releaseOpen = false;
+            this.loadInstitutionInfo();
+          });
+        }
+      });
+    },
+    /** 撤回申请 */
+    handleWithdraw() {
+      this.$confirm('是否确认撤回入驻申请？撤回后可以重新提交。', "撤回申请", {
+        type: 'warning'
+      }).then(() => {
+        withdrawApply(this.institutionInfo.applyId).then(() => {
+          this.$modal.msgSuccess("申请已撤回");
+          this.loadInstitutionInfo();
+        });
+      });
+    },
+    /** 重新提交申请 */
+    handleResubmit() {
+      this.$router.push('/pension/institution/apply');
+    },
+    /** 重新申请 */
+    handleReapply() {
+      this.$router.push('/pension/institution/apply');
+    },
+    /** 查看申请状态 */
+    handleCheckStatus() {
+      this.handleDetail();
+    },
+    /** 提交入驻申请 */
+    handleApply() {
+      this.$router.push('/pension/institution/apply');
+    },
+    /** 获取机构类型文本 */
+    getInstitutionTypeText(type) {
+      const typeMap = {
+        'nursing_home': '养老院',
+        'service_center': '养老服务中心',
+        'day_care': '日间照料中心',
+        'senior_apartment': '养老公寓',
+        'other': '其他'
+      };
+      return typeMap[type] || type;
+    },
+    /** 格式化金额 */
+    formatMoney(amount) {
+      if (!amount) return '0';
+      return parseFloat(amount).toLocaleString('zh-CN', { minimumFractionDigits: 2 });
+    }
+  }
+};
+</script>
+
+<style scoped>
+.institution-card {
+  margin-bottom: 20px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-header .title {
+  font-size: 18px;
+  font-weight: bold;
+  color: #303133;
+}
+
+.card-header .title i {
+  margin-right: 8px;
+  color: #409EFF;
+}
+
+.no-data {
+  text-align: center;
+  padding: 40px 0;
+}
+
+.operation-buttons {
+  margin-bottom: 20px;
+}
+
+.operation-card {
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+}
+
+.operation-content {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.operation-content i {
+  font-size: 32px;
+  color: #409EFF;
+  margin-right: 15px;
+}
+
+.operation-content h4 {
+  margin: 0 0 5px 0;
+  font-size: 16px;
+  color: #303133;
+}
+
+.operation-content p {
+  margin: 0;
+  font-size: 14px;
+  color: #909399;
+}
+
+.operation-content div {
+  flex: 1;
+}
+</style>

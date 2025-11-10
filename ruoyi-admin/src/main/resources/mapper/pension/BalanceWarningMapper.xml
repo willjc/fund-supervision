@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.mapper.pension.BalanceWarningMapper">
+
+    <resultMap type="BalanceWarning" id="BalanceWarningResult">
+        <result property="warningId"    column="warning_id"    />
+        <result property="accountId"    column="account_id"    />
+        <result property="elderId"      column="elder_id"      />
+        <result property="institutionId" column="institution_id" />
+        <result property="warningType"  column="warning_type"  />
+        <result property="currentBalance" column="current_balance" />
+        <result property="availableMonths" column="available_months" />
+        <result property="monthlyFee"   column="monthly_fee"   />
+        <result property="warningMessage" column="warning_reason" />
+        <result property="warningStatus" column="warning_status" />
+        <result property="handler"      column="handler"       />
+        <result property="handleTime"   column="handle_time"   />
+        <result property="handleRemark" column="handle_remark" />
+        <result property="notifyStatus" column="is_notified" />
+        <result property="lastNotifyTime" column="notify_time" />
+        <result property="createTime"   column="create_time"   />
+        <result property="remark"       column="remark"        />
+        <!-- 关联字段 -->
+        <result property="elderName"    column="elder_name"    />
+        <result property="institutionName" column="institution_name" />
+        <result property="accountNo"    column="account_no"    />
+    </resultMap>
+
+    <sql id="selectBalanceWarningVo">
+        select warning_id, account_id, elder_id, institution_id, warning_type, current_balance, available_months, monthly_fee, warning_reason, suggestion, warning_status, handler, handle_time, handle_remark, is_notified, notify_time, create_time, remark from balance_warning
+    </sql>
+
+    <sql id="selectBalanceWarningWithRelations">
+        select bw.warning_id, bw.account_id, bw.elder_id, bw.institution_id, bw.warning_type,
+               bw.current_balance, bw.available_months, bw.monthly_fee, bw.warning_reason,
+               bw.suggestion, bw.warning_status, bw.handler, bw.handle_time, bw.handle_remark,
+               bw.is_notified, bw.notify_time, bw.create_time, bw.remark,
+               ei.elder_name, pi.institution_name, ai.account_no
+        from balance_warning bw
+        left join elder_info ei on bw.elder_id = ei.elder_id
+        left join pension_institution pi on bw.institution_id = pi.institution_id
+        left join account_info ai on bw.account_id = ai.account_id
+    </sql>
+
+    <select id="selectBalanceWarningList" parameterType="BalanceWarning" resultMap="BalanceWarningResult">
+        <include refid="selectBalanceWarningWithRelations"/>
+        <where>
+            <if test="accountId != null "> and bw.account_id = #{accountId}</if>
+            <if test="elderId != null "> and bw.elder_id = #{elderId}</if>
+            <if test="institutionId != null "> and bw.institution_id = #{institutionId}</if>
+            <if test="warningType != null  and warningType != ''"> and bw.warning_type = #{warningType}</if>
+            <if test="warningStatus != null  and warningStatus != ''"> and bw.warning_status = #{warningStatus}</if>
+            <if test="handler != null  and handler != ''"> and bw.handler like concat('%', #{handler}, '%')</if>
+            <if test="notifyStatus != null  and notifyStatus != ''"> and bw.is_notified = #{notifyStatus}</if>
+        </where>
+        order by bw.create_time desc
+    </select>
+
+    <select id="selectBalanceWarningByWarningId" parameterType="Long" resultMap="BalanceWarningResult">
+        <include refid="selectBalanceWarningWithRelations"/>
+        where bw.warning_id = #{warningId}
+    </select>
+
+    <select id="selectBalanceWarningByInstitutionId" parameterType="Long" resultMap="BalanceWarningResult">
+        <include refid="selectBalanceWarningWithRelations"/>
+        where bw.institution_id = #{institutionId}
+        order by bw.create_time desc
+    </select>
+
+    <insert id="insertBalanceWarning" parameterType="BalanceWarning" useGeneratedKeys="true" keyProperty="warningId">
+        insert into balance_warning
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="accountId != null">account_id,</if>
+            <if test="elderId != null">elder_id,</if>
+            <if test="institutionId != null">institution_id,</if>
+            <if test="warningType != null and warningType != ''">warning_type,</if>
+            <if test="currentBalance != null">current_balance,</if>
+            <if test="availableMonths != null">available_months,</if>
+            <if test="monthlyFee != null">monthly_fee,</if>
+            <if test="warningMessage != null and warningMessage != ''">warning_reason,</if>
+            <if test="warningStatus != null and warningStatus != ''">warning_status,</if>
+            <if test="handler != null and handler != ''">handler,</if>
+            <if test="handleTime != null">handle_time,</if>
+            <if test="handleRemark != null and handleRemark != ''">handle_remark,</if>
+            <if test="notifyStatus != null and notifyStatus != ''">is_notified,</if>
+            <if test="lastNotifyTime != null">notify_time,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="remark != null and remark != ''">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="accountId != null">#{accountId},</if>
+            <if test="elderId != null">#{elderId},</if>
+            <if test="institutionId != null">#{institutionId},</if>
+            <if test="warningType != null and warningType != ''">#{warningType},</if>
+            <if test="currentBalance != null">#{currentBalance},</if>
+            <if test="availableMonths != null">#{availableMonths},</if>
+            <if test="monthlyFee != null">#{monthlyFee},</if>
+            <if test="warningMessage != null and warningMessage != ''">#{warningMessage},</if>
+            <if test="warningStatus != null and warningStatus != ''">#{warningStatus},</if>
+            <if test="handler != null and handler != ''">#{handler},</if>
+            <if test="handleTime != null">#{handleTime},</if>
+            <if test="handleRemark != null and handleRemark != ''">#{handleRemark},</if>
+            <if test="notifyStatus != null and notifyStatus != ''">#{notifyStatus},</if>
+            <if test="lastNotifyTime != null">#{lastNotifyTime},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="remark != null and remark != ''">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateBalanceWarning" parameterType="BalanceWarning">
+        update balance_warning
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="accountId != null">account_id = #{accountId},</if>
+            <if test="elderId != null">elder_id = #{elderId},</if>
+            <if test="institutionId != null">institution_id = #{institutionId},</if>
+            <if test="warningType != null and warningType != ''">warning_type = #{warningType},</if>
+            <if test="currentBalance != null">current_balance = #{currentBalance},</if>
+            <if test="availableMonths != null">available_months = #{availableMonths},</if>
+            <if test="monthlyFee != null">monthly_fee = #{monthlyFee},</if>
+            <if test="warningMessage != null and warningMessage != ''">warning_reason = #{warningMessage},</if>
+            <if test="warningStatus != null and warningStatus != ''">warning_status = #{warningStatus},</if>
+            <if test="handler != null and handler != ''">handler = #{handler},</if>
+            <if test="handleTime != null">handle_time = #{handleTime},</if>
+            <if test="handleRemark != null and handleRemark != ''">handle_remark = #{handleRemark},</if>
+            <if test="notifyStatus != null and notifyStatus != ''">is_notified = #{notifyStatus},</if>
+            <if test="lastNotifyTime != null">notify_time = #{lastNotifyTime},</if>
+            <if test="remark != null and remark != ''">remark = #{remark},</if>
+        </trim>
+        where warning_id = #{warningId}
+    </update>
+
+    <delete id="deleteBalanceWarningByWarningId" parameterType="Long">
+        delete from balance_warning where warning_id = #{warningId}
+    </delete>
+
+    <delete id="deleteBalanceWarningByWarningIds" parameterType="String">
+        delete from balance_warning where warning_id in
+        <foreach item="warningId" collection="array" open="(" separator="," close=")">
+            #{warningId}
+        </foreach>
+    </delete>
+
+    <!-- 统计查询 -->
+    <select id="selectWarningStatisticsByType" parameterType="Long" resultType="java.util.Map">
+        select warning_type, count(*) as count
+        from balance_warning
+        where institution_id = #{institutionId}
+        group by warning_type
+    </select>
+
+    <select id="selectWarningStatisticsByStatus" parameterType="Long" resultType="java.util.Map">
+        select warning_status, count(*) as count
+        from balance_warning
+        where institution_id = #{institutionId}
+        group by warning_status
+    </select>
+
+    <select id="selectCriticalWarnings" parameterType="Long" resultMap="BalanceWarningResult">
+        <include refid="selectBalanceWarningWithRelations"/>
+        where bw.institution_id = #{institutionId} and bw.warning_type = '1'
+        order by bw.create_time desc
+    </select>
+
+    <delete id="deleteHandledWarnings" parameterType="Long">
+        delete from balance_warning
+        where institution_id = #{institutionId} and warning_status = '1'
+    </delete>
+
+    <select id="selectUnhandledWarning" resultMap="BalanceWarningResult">
+        <include refid="selectBalanceWarningVo"/>
+        where account_id = #{accountId} and warning_type = #{warningType} and warning_status = '0'
+        order by create_time desc
+        limit 1
+    </select>
+
+</mapper>

@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.mapper.OrderItemMapper">
+
+    <resultMap type="OrderItem" id="OrderItemResult">
+        <result property="itemId"    column="item_id"    />
+        <result property="orderId"    column="order_id"    />
+        <result property="orderNo"    column="order_no"    />
+        <result property="itemName"    column="item_name"    />
+        <result property="itemType"    column="item_type"    />
+        <result property="itemDescription"    column="item_description"    />
+        <result property="unitPrice"    column="unit_price"    />
+        <result property="quantity"    column="quantity"    />
+        <result property="totalAmount"    column="total_amount"    />
+        <result property="servicePeriod"    column="service_period"    />
+        <result property="createBy"   column="create_by"   />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy"   column="update_by"   />
+        <result property="updateTime" column="update_time" />
+        <result property="remark"     column="remark"     />
+    </resultMap>
+
+    <sql id="selectOrderItemVo">
+        select item_id, order_id, order_no, item_name, item_type, item_description, unit_price, quantity, total_amount, service_period, create_by, create_time, update_by, update_time, remark from order_item
+    </sql>
+
+    <select id="selectOrderItemList" parameterType="OrderItem" resultMap="OrderItemResult">
+        <include refid="selectOrderItemVo"/>
+        <where>
+            <if test="orderId != null "> and order_id = #{orderId}</if>
+            <if test="orderNo != null  and orderNo != ''"> and order_no like concat('%', #{orderNo}, '%')</if>
+            <if test="itemName != null  and itemName != ''"> and item_name like concat('%', #{itemName}, '%')</if>
+            <if test="itemType != null  and itemType != ''"> and item_type = #{itemType}</if>
+        </where>
+        order by create_time desc
+    </select>
+
+    <select id="selectOrderItemByItemId" parameterType="Long" resultMap="OrderItemResult">
+        <include refid="selectOrderItemVo"/>
+        where item_id = #{itemId}
+    </select>
+
+    <select id="selectOrderItemsByOrderId" parameterType="Long" resultMap="OrderItemResult">
+        <include refid="selectOrderItemVo"/>
+        where order_id = #{orderId}
+        order by create_time desc
+    </select>
+
+    <insert id="insertOrderItem" parameterType="OrderItem" useGeneratedKeys="true" keyProperty="itemId">
+        insert into order_item
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="orderId != null">order_id,</if>
+            <if test="orderNo != null and orderNo != ''">order_no,</if>
+            <if test="itemName != null and itemName != ''">item_name,</if>
+            <if test="itemType != null and itemType != ''">item_type,</if>
+            <if test="itemDescription != null">item_description,</if>
+            <if test="unitPrice != null">unit_price,</if>
+            <if test="quantity != null">quantity,</if>
+            <if test="totalAmount != null">total_amount,</if>
+            <if test="servicePeriod != null and servicePeriod != ''">service_period,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null and updateBy != ''">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="orderId != null">#{orderId},</if>
+            <if test="orderNo != null and orderNo != ''">#{orderNo},</if>
+            <if test="itemName != null and itemName != ''">#{itemName},</if>
+            <if test="itemType != null and itemType != ''">#{itemType},</if>
+            <if test="itemDescription != null">#{itemDescription},</if>
+            <if test="unitPrice != null">#{unitPrice},</if>
+            <if test="quantity != null">#{quantity},</if>
+            <if test="totalAmount != null">#{totalAmount},</if>
+            <if test="servicePeriod != null and servicePeriod != ''">#{servicePeriod},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null and updateBy != ''">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateOrderItem" parameterType="OrderItem">
+        update order_item
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="orderId != null">order_id = #{orderId},</if>
+            <if test="orderNo != null and orderNo != ''">order_no = #{orderNo},</if>
+            <if test="itemName != null and itemName != ''">item_name = #{itemName},</if>
+            <if test="itemType != null and itemType != ''">item_type = #{itemType},</if>
+            <if test="itemDescription != null">item_description = #{itemDescription},</if>
+            <if test="unitPrice != null">unit_price = #{unitPrice},</if>
+            <if test="quantity != null">quantity = #{quantity},</if>
+            <if test="totalAmount != null">total_amount = #{totalAmount},</if>
+            <if test="servicePeriod != null and servicePeriod != ''">service_period = #{servicePeriod},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where item_id = #{itemId}
+    </update>
+
+    <delete id="deleteOrderItemByItemId" parameterType="Long">
+        delete from order_item where item_id = #{itemId}
+    </delete>
+
+    <delete id="deleteOrderItemByItemIds" parameterType="String">
+        delete from order_item where item_id in
+        <foreach item="itemId" collection="array" open="(" separator="," close=")">
+            #{itemId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteOrderItemByOrderId" parameterType="Long">
+        delete from order_item where order_id = #{orderId}
+    </delete>
+
+</mapper>

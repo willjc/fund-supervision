@@ -1,0 +1,100 @@
+## 问题修复总结 - 2025-01-09
+
+### 问题1: 详情对话框缺少字段
+**状态**: ✅ 已修复
+
+**修改文件**: institutionApplyList.vue
+
+**添加的显示内容**:
+1. 负责人信息区块（姓名、身份证号、居住地、电话）
+2. 经营信息区块（收费区间等）
+3. 申请状态信息（审批人、审批时间、审批意见）
+4. 上传材料展示（营业执照、批准证书、监管协议）
+5. 图片预览功能（点击可放大）
+
+### 问题2: 草稿保存后不显示  
+**状态**: ✅ 已修复
+
+**根本原因**: 数据库表缺少前端表单使用的字段
+
+**修改内容**:
+
+#### 1. 数据库新增字段
+```sql
+ALTER TABLE pension_institution 
+  ADD COLUMN street VARCHAR(200) COMMENT '所属街道/区域',
+  ADD COLUMN organizer VARCHAR(200) COMMENT '兴办机构',
+  ADD COLUMN responsible_name VARCHAR(50) COMMENT '负责人姓名',
+  ADD COLUMN responsible_id_card VARCHAR(18) COMMENT '负责人身份证号',
+  ADD COLUMN responsible_address VARCHAR(500) COMMENT '负责人居住地',
+  ADD COLUMN responsible_phone VARCHAR(20) COMMENT '负责人电话',
+  ADD COLUMN fee_range VARCHAR(100) COMMENT '收费区间',
+  ADD COLUMN business_license VARCHAR(500) COMMENT '营业执照文件路径',
+  ADD COLUMN approval_certificate VARCHAR(500) COMMENT '批准证书文件路径',
+  ADD COLUMN supervision_agreement VARCHAR(500) COMMENT '监管协议文件路径';
+```
+
+#### 2. 前端字段名修正
+修改文件: apply.vue
+- `establishDate` → `establishedDate` (统一使用数据库字段名)
+
+#### 3. 后端代码更新 ✅ 已完成
+文件: PensionInstitution.java 和 PensionInstitutionMapper.xml
+
+**已添加的10个属性**:
+```java
+private String street;              // 所属街道/区域
+private String organizer;           // 兴办机构
+private String responsibleName;     // 负责人姓名
+private String responsibleIdCard;   // 负责人身份证号
+private String responsibleAddress;  // 负责人居住地
+private String responsiblePhone;    // 负责人电话
+private String feeRange;            // 收费区间
+private String businessLicense;     // 营业执照文件路径
+private String approvalCertificate; // 批准证书文件路径
+private String supervisionAgreement;// 监管协议文件路径
+```
+
+**已完成的更新**:
+- ✅ PensionInstitution.java: 添加10个字段及getter/setter方法
+- ✅ PensionInstitution.java: 更新toString()方法包含新字段
+- ✅ PensionInstitutionMapper.xml: 更新resultMap映射
+- ✅ PensionInstitutionMapper.xml: 更新selectVo查询语句
+- ✅ PensionInstitutionMapper.xml: 更新insertPensionInstitution插入语句
+- ✅ PensionInstitutionMapper.xml: 更新updatePensionInstitution更新语句
+
+### 测试步骤
+
+1. **重启后端应用** ⚠️ 重要
+   - 在IDE中停止当前运行的应用
+   - 重新运行 RuoYiApplication.java
+   - 确保应用成功启动,没有编译错误
+
+2. **测试草稿功能**
+   - 进入"机构入驻申请"页面
+   - 填写部分信息（包括负责人信息）
+   - 点击"保存草稿"
+   - 进入"机构入驻列表"页面
+   - **预期**: 看到状态为"草稿"的记录
+
+4. **测试详情功能**
+   - 点击任意记录的"详情"按钮
+   - **预期**: 看到完整的信息，包括负责人信息和上传的材料图片
+
+### 已修改的文件清单
+
+| 文件 | 修改内容 | 状态 |
+|------|---------|------|
+| pension_institution表 | 新增10个字段 | ✅ 已完成 |
+| apply.vue | 修正字段名 establishedDate | ✅ 已完成 |
+| institutionApplyList.vue | 详情对话框增加完整信息展示 | ✅ 已完成 |
+| PensionInstitution.java | 添加10个新字段及getter/setter | ✅ 已完成 |
+| PensionInstitutionMapper.xml | 更新所有SQL映射 | ✅ 已完成 |
+
+### 注意事项
+
+1. ⚠️ **必须重启后端应用** - 实体类和Mapper修改后必须重启才能生效
+2. ✅ 数据库、后端实体类、MyBatis映射文件已全部更新完成
+3. ✅ 前端已正确使用数据库字段名，三层代码已对齐
+4. 现在可以测试草稿保存和详情展示功能了
+

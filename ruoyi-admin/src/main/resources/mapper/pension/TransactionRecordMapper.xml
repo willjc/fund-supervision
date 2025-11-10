@@ -1,0 +1,271 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.mapper.pension.TransactionRecordMapper">
+
+    <resultMap type="TransactionRecord" id="TransactionRecordResult">
+        <result property="transactionId"    column="transaction_id"    />
+        <result property="accountId"       column="account_id"       />
+        <result property="elderId"         column="elder_id"         />
+        <result property="institutionId"   column="institution_id"   />
+        <result property="transactionNo"   column="transaction_no"   />
+        <result property="transactionType" column="transaction_type" />
+        <result property="businessType"    column="business_type"    />
+        <result property="amount"          column="amount"           />
+        <result property="balanceBefore"   column="balance_before"   />
+        <result property="balanceAfter"    column="balance_after"    />
+        <result property="serviceBalance"  column="service_balance"  />
+        <result property="depositBalance"  column="deposit_balance"  />
+        <result property="memberBalance"   column="member_balance"   />
+        <result property="transactionDate" column="transaction_date" />
+        <result property="relatedOrderId" column="related_order_id" />
+        <result property="relatedTransferId" column="related_transfer_id" />
+        <result property="counterparty"    column="counterparty"     />
+        <result property="businessDesc"    column="business_desc"    />
+        <result property="operator"        column="operator"         />
+        <result property="createTime"      column="create_time"      />
+                <result property="remark"          column="remark"           />
+        <!-- 关联字段 -->
+        <result property="elderName"      column="elder_name"       />
+        <result property="institutionName" column="institution_name" />
+    </resultMap>
+
+    <sql id="selectTransactionRecordVo">
+        select transaction_id, account_id, elder_id, institution_id, transaction_no, transaction_type,
+               business_type, amount, balance_before, balance_after, service_balance, deposit_balance,
+               member_balance, transaction_date, related_order_id, related_transfer_id, counterparty,
+               business_desc, operator, create_time, remark
+        from transaction_record
+    </sql>
+
+    <sql id="selectTransactionRecordWithRelations">
+        select tr.transaction_id, tr.account_id, tr.elder_id, tr.institution_id, tr.transaction_no,
+               tr.transaction_type, tr.business_type, tr.amount, tr.balance_before, tr.balance_after,
+               tr.service_balance, tr.deposit_balance, tr.member_balance, tr.transaction_date,
+               tr.related_order_id, tr.related_transfer_id, tr.counterparty, tr.business_desc,
+               tr.operator, tr.create_time, tr.remark,
+               ei.elder_name, pi.institution_name
+        from transaction_record tr
+        left join elder_info ei on tr.elder_id = ei.elder_id
+        left join pension_institution pi on tr.institution_id = pi.institution_id
+    </sql>
+
+    <select id="selectTransactionRecordList" parameterType="TransactionRecord" resultMap="TransactionRecordResult">
+        <include refid="selectTransactionRecordWithRelations"/>
+        <where>
+            <if test="accountId != null "> and tr.account_id = #{accountId}</if>
+            <if test="elderId != null "> and tr.elder_id = #{elderId}</if>
+            <if test="institutionId != null "> and tr.institution_id = #{institutionId}</if>
+            <if test="transactionNo != null and transactionNo != ''"> and tr.transaction_no like concat('%', #{transactionNo}, '%')</if>
+            <if test="transactionType != null and transactionType != ''"> and tr.transaction_type = #{transactionType}</if>
+            <if test="businessType != null and businessType != ''"> and tr.business_type = #{businessType}</if>
+            <if test="amount != null "> and tr.amount = #{amount}</if>
+            <if test="counterparty != null and counterparty != ''"> and tr.counterparty like concat('%', #{counterparty}, '%')</if>
+            <if test="operator != null and operator != ''"> and tr.operator like concat('%', #{operator}, '%')</if>
+            <if test="params.beginTime != null and params.beginTime != ''">
+                and date_format(tr.transaction_date,'%y%m%d') &gt;= date_format(#{params.beginTime},'%y%m%d')
+            </if>
+            <if test="params.endTime != null and params.endTime != ''">
+                and date_format(tr.transaction_date,'%y%m%d') &lt;= date_format(#{params.endTime},'%y%m%d')
+            </if>
+        </where>
+        order by tr.transaction_date desc
+    </select>
+
+    <select id="selectTransactionRecordByTransactionId" parameterType="Long" resultMap="TransactionRecordResult">
+        <include refid="selectTransactionRecordWithRelations"/>
+        where tr.transaction_id = #{transactionId}
+    </select>
+
+    <select id="selectTransactionRecordByAccountId" parameterType="Long" resultMap="TransactionRecordResult">
+        <include refid="selectTransactionRecordWithRelations"/>
+        where tr.account_id = #{accountId}
+        order by tr.transaction_date desc
+    </select>
+
+    <select id="selectTransactionRecordByInstitutionId" parameterType="Long" resultMap="TransactionRecordResult">
+        <include refid="selectTransactionRecordWithRelations"/>
+        where tr.institution_id = #{institutionId}
+        order by tr.transaction_date desc
+    </select>
+
+    <select id="selectTransactionRecordByElderId" parameterType="Long" resultMap="TransactionRecordResult">
+        <include refid="selectTransactionRecordWithRelations"/>
+        where tr.elder_id = #{elderId}
+        order by tr.transaction_date desc
+    </select>
+
+    <select id="selectTransactionRecordByTransferId" parameterType="Long" resultMap="TransactionRecordResult">
+        <include refid="selectTransactionRecordWithRelations"/>
+        where tr.related_transfer_id = #{transferId}
+        order by tr.transaction_date desc
+    </select>
+
+    <select id="selectTransactionStatistics" parameterType="Long" resultType="java.util.Map">
+        select
+            transaction_type,
+            count(*) as transaction_count,
+            sum(amount) as total_amount,
+            sum(case when transaction_type = '1' then amount else 0 end) as income_amount,
+            sum(case when transaction_type = '2' then amount else 0 end) as expense_amount
+        from transaction_record
+        where account_id = #{accountId}
+        <if test="businessType != null and businessType != ''">
+            and business_type = #{businessType}
+        </if>
+        <if test="startDate != null">
+            and transaction_date &gt;= #{startDate}
+        </if>
+        <if test="endDate != null">
+            and transaction_date &lt;= #{endDate}
+        </if>
+        group by transaction_type
+    </select>
+
+    <select id="selectLatestTransactions" resultMap="TransactionRecordResult">
+        <include refid="selectTransactionRecordVo"/>
+        where account_id = #{accountId}
+        order by transaction_date desc
+        limit #{limit}
+    </select>
+
+    <!-- 统计查询 -->
+    <select id="selectTransactionStatisticsByType" resultType="java.util.Map">
+        select
+            transaction_type,
+            sum(amount) as totalAmount,
+            count(*) as count
+        from transaction_record
+        where institution_id = #{institutionId}
+        <if test="startDate != null and startDate != ''">
+            and date_format(transaction_date, '%Y-%m-%d') &gt;= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            and date_format(transaction_date, '%Y-%m-%d') &lt;= #{endDate}
+        </if>
+        group by transaction_type
+    </select>
+
+    <select id="selectTransactionStatisticsByBusinessType" resultType="java.util.Map">
+        select
+            business_type,
+            sum(amount) as totalAmount,
+            count(*) as count
+        from transaction_record
+        where institution_id = #{institutionId}
+        <if test="startDate != null and startDate != ''">
+            and date_format(transaction_date, '%Y-%m-%d') &gt;= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            and date_format(transaction_date, '%Y-%m-%d') &lt;= #{endDate}
+        </if>
+        group by business_type
+    </select>
+
+    <select id="selectTodayTransactionSummary" resultType="java.util.Map">
+        select
+            count(*) as totalCount,
+            sum(amount) as totalAmount,
+            sum(case when transaction_type = '1' then 1 else 0 end) as incomeCount,
+            sum(case when transaction_type = '1' then amount else 0 end) as incomeAmount,
+            sum(case when transaction_type = '2' then 1 else 0 end) as expenseCount,
+            sum(case when transaction_type = '2' then amount else 0 end) as expenseAmount
+        from transaction_record
+        where institution_id = #{institutionId}
+        and date_format(transaction_date, '%Y-%m-%d') = #{today}
+    </select>
+
+    <select id="selectAbnormalTransactions" resultMap="TransactionRecordResult">
+        <include refid="selectTransactionRecordWithRelations"/>
+        where 1=1
+        and (amount &lt; 0 or balance_before &lt; 0 or balance_after &lt; 0)
+        order by tr.transaction_date desc
+    </select>
+
+    <insert id="insertTransactionRecord" parameterType="TransactionRecord" useGeneratedKeys="true" keyProperty="transactionId">
+        insert into transaction_record
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="accountId != null">account_id,</if>
+            <if test="elderId != null">elder_id,</if>
+            <if test="institutionId != null">institution_id,</if>
+            <if test="transactionNo != null and transactionNo != ''">transaction_no,</if>
+            <if test="transactionType != null and transactionType != ''">transaction_type,</if>
+            <if test="businessType != null and businessType != ''">business_type,</if>
+            <if test="amount != null">amount,</if>
+            <if test="balanceBefore != null">balance_before,</if>
+            <if test="balanceAfter != null">balance_after,</if>
+            <if test="serviceBalance != null">service_balance,</if>
+            <if test="depositBalance != null">deposit_balance,</if>
+            <if test="memberBalance != null">member_balance,</if>
+            <if test="transactionDate != null">transaction_date,</if>
+            <if test="relatedOrderId != null">related_order_id,</if>
+            <if test="relatedTransferId != null">related_transfer_id,</if>
+            <if test="counterparty != null and counterparty != ''">counterparty,</if>
+            <if test="businessDesc != null and businessDesc != ''">business_desc,</if>
+            <if test="operator != null and operator != ''">operator,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="remark != null and remark != ''">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="accountId != null">#{accountId},</if>
+            <if test="elderId != null">#{elderId},</if>
+            <if test="institutionId != null">#{institutionId},</if>
+            <if test="transactionNo != null and transactionNo != ''">#{transactionNo},</if>
+            <if test="transactionType != null and transactionType != ''">#{transactionType},</if>
+            <if test="businessType != null and businessType != ''">#{businessType},</if>
+            <if test="amount != null">#{amount},</if>
+            <if test="balanceBefore != null">#{balanceBefore},</if>
+            <if test="balanceAfter != null">#{balanceAfter},</if>
+            <if test="serviceBalance != null">#{serviceBalance},</if>
+            <if test="depositBalance != null">#{depositBalance},</if>
+            <if test="memberBalance != null">#{memberBalance},</if>
+            <if test="transactionDate != null">#{transactionDate},</if>
+            <if test="relatedOrderId != null">#{relatedOrderId},</if>
+            <if test="relatedTransferId != null">#{relatedTransferId},</if>
+            <if test="counterparty != null and counterparty != ''">#{counterparty},</if>
+            <if test="businessDesc != null and businessDesc != ''">#{businessDesc},</if>
+            <if test="operator != null and operator != ''">#{operator},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="remark != null and remark != ''">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateTransactionRecord" parameterType="TransactionRecord">
+        update transaction_record
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="accountId != null">account_id = #{accountId},</if>
+            <if test="elderId != null">elder_id = #{elderId},</if>
+            <if test="institutionId != null">institution_id = #{institutionId},</if>
+            <if test="transactionNo != null and transactionNo != ''">transaction_no = #{transactionNo},</if>
+            <if test="transactionType != null and transactionType != ''">transaction_type = #{transactionType},</if>
+            <if test="businessType != null and businessType != ''">business_type = #{businessType},</if>
+            <if test="amount != null">amount = #{amount},</if>
+            <if test="balanceBefore != null">balance_before = #{balanceBefore},</if>
+            <if test="balanceAfter != null">balance_after = #{balanceAfter},</if>
+            <if test="serviceBalance != null">service_balance = #{serviceBalance},</if>
+            <if test="depositBalance != null">deposit_balance = #{depositBalance},</if>
+            <if test="memberBalance != null">member_balance = #{memberBalance},</if>
+            <if test="transactionDate != null">transaction_date = #{transactionDate},</if>
+            <if test="relatedOrderId != null">related_order_id = #{relatedOrderId},</if>
+            <if test="relatedTransferId != null">related_transfer_id = #{relatedTransferId},</if>
+            <if test="counterparty != null and counterparty != ''">counterparty = #{counterparty},</if>
+            <if test="businessDesc != null and businessDesc != ''">business_desc = #{businessDesc},</if>
+            <if test="operator != null and operator != ''">operator = #{operator},</if>
+            <if test="remark != null and remark != ''">remark = #{remark},</if>
+        </trim>
+        where transaction_id = #{transactionId}
+    </update>
+
+    <delete id="deleteTransactionRecordByTransactionId" parameterType="Long">
+        delete from transaction_record where transaction_id = #{transactionId}
+    </delete>
+
+    <delete id="deleteTransactionRecordByTransactionIds" parameterType="String">
+        delete from transaction_record where transaction_id in
+        <foreach item="transactionId" collection="array" open="(" separator="," close=")">
+            #{transactionId}
+        </foreach>
+    </delete>
+
+</mapper>

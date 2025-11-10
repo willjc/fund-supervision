@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.mapper.ElderInfoMapper">
+
+    <resultMap type="ElderInfo" id="ElderInfoResult">
+        <result property="elderId"    column="elder_id"    />
+        <result property="elderName"  column="elder_name"  />
+        <result property="gender"     column="gender"     />
+        <result property="idCard"     column="id_card"     />
+        <result property="birthDate"  column="birth_date"  />
+        <result property="age"        column="age"        />
+        <result property="phone"      column="phone"      />
+        <result property="address"    column="address"    />
+        <result property="emergencyContact"    column="emergency_contact"    />
+        <result property="emergencyPhone"    column="emergency_phone"    />
+        <result property="healthStatus"    column="health_status"    />
+        <result property="careLevel"    column="care_level"    />
+        <result property="specialNeeds"    column="special_needs"    />
+        <result property="photoPath"    column="photo_path"    />
+        <result property="status"     column="status"     />
+        <result property="createBy"   column="create_by"   />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy"   column="update_by"   />
+        <result property="updateTime" column="update_time" />
+        <result property="remark"     column="remark"     />
+    </resultMap>
+
+    <sql id="selectElderInfoVo">
+        select elder_id, elder_name, gender, id_card, birth_date, age, phone, address,
+               emergency_contact, emergency_phone, health_status, care_level, special_needs,
+               photo_path, status, create_by, create_time, update_by, update_time, remark
+        from elder_info
+    </sql>
+
+    <select id="selectElderInfoList" parameterType="ElderInfo" resultMap="ElderInfoResult">
+        <include refid="selectElderInfoVo"/>
+        <where>
+            <if test="elderName != null  and elderName != ''"> and elder_name like concat('%', #{elderName}, '%')</if>
+            <if test="gender != null  and gender != ''"> and gender = #{gender}</if>
+            <if test="idCard != null  and idCard != ''"> and id_card = #{idCard}</if>
+            <if test="phone != null  and phone != ''"> and phone = #{phone}</if>
+            <if test="careLevel != null  and careLevel != ''"> and care_level = #{careLevel}</if>
+            <if test="status != null  and status != ''"> and status = #{status}</if>
+        </where>
+        order by create_time desc
+    </select>
+
+    <select id="selectElderInfoByElderId" parameterType="Long" resultMap="ElderInfoResult">
+        <include refid="selectElderInfoVo"/>
+        where elder_id = #{elderId}
+    </select>
+
+    <select id="selectElderInfoByIdCard" parameterType="String" resultMap="ElderInfoResult">
+        <include refid="selectElderInfoVo"/>
+        where id_card = #{idCard}
+    </select>
+
+    <insert id="insertElderInfo" parameterType="ElderInfo" useGeneratedKeys="true" keyProperty="elderId">
+        insert into elder_info
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="elderName != null and elderName != ''">elder_name,</if>
+            <if test="gender != null and gender != ''">gender,</if>
+            <if test="idCard != null and idCard != ''">id_card,</if>
+            <if test="birthDate != null">birth_date,</if>
+            <if test="age != null">age,</if>
+            <if test="phone != null and phone != ''">phone,</if>
+            <if test="address != null and address != ''">address,</if>
+            <if test="emergencyContact != null and emergencyContact != ''">emergency_contact,</if>
+            <if test="emergencyPhone != null and emergencyPhone != ''">emergency_phone,</if>
+            <if test="healthStatus != null and healthStatus != ''">health_status,</if>
+            <if test="careLevel != null">care_level,</if>
+            <if test="specialNeeds != null and specialNeeds != ''">special_needs,</if>
+            <if test="photoPath != null and photoPath != ''">photo_path,</if>
+            <if test="status != null">status,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null and updateBy != ''">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="elderName != null and elderName != ''">#{elderName},</if>
+            <if test="gender != null and gender != ''">#{gender},</if>
+            <if test="idCard != null and idCard != ''">#{idCard},</if>
+            <if test="birthDate != null">#{birthDate},</if>
+            <if test="age != null">#{age},</if>
+            <if test="phone != null and phone != ''">#{phone},</if>
+            <if test="address != null and address != ''">#{address},</if>
+            <if test="emergencyContact != null and emergencyContact != ''">#{emergencyContact},</if>
+            <if test="emergencyPhone != null and emergencyPhone != ''">#{emergencyPhone},</if>
+            <if test="healthStatus != null and healthStatus != ''">#{healthStatus},</if>
+            <if test="careLevel != null">#{careLevel},</if>
+            <if test="specialNeeds != null and specialNeeds != ''">#{specialNeeds},</if>
+            <if test="photoPath != null and photoPath != ''">#{photoPath},</if>
+            <if test="status != null">#{status},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null and updateBy != ''">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateElderInfo" parameterType="ElderInfo">
+        update elder_info
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="elderName != null and elderName != ''">elder_name = #{elderName},</if>
+            <if test="gender != null and gender != ''">gender = #{gender},</if>
+            <if test="idCard != null and idCard != ''">id_card = #{idCard},</if>
+            <if test="birthDate != null">birth_date = #{birthDate},</if>
+            <if test="age != null">age = #{age},</if>
+            <if test="phone != null and phone != ''">phone = #{phone},</if>
+            <if test="address != null and address != ''">address = #{address},</if>
+            <if test="emergencyContact != null and emergencyContact != ''">emergency_contact = #{emergencyContact},</if>
+            <if test="emergencyPhone != null and emergencyPhone != ''">emergency_phone = #{emergencyPhone},</if>
+            <if test="healthStatus != null and healthStatus != ''">health_status = #{healthStatus},</if>
+            <if test="careLevel != null">care_level = #{careLevel},</if>
+            <if test="specialNeeds != null and specialNeeds != ''">special_needs = #{specialNeeds},</if>
+            <if test="photoPath != null and photoPath != ''">photo_path = #{photoPath},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where elder_id = #{elderId}
+    </update>
+
+    <delete id="deleteElderInfoByElderId" parameterType="Long">
+        delete from elder_info where elder_id = #{elderId}
+    </delete>
+
+    <delete id="deleteElderInfoByElderIds" parameterType="String">
+        delete from elder_info where elder_id in
+        <foreach item="elderId" collection="array" open="(" separator="," close=")">
+            #{elderId}
+        </foreach>
+    </delete>
+
+</mapper>

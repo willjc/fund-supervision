@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.mapper.ReleaseSupervisionMapper">
+
+    <resultMap type="ReleaseSupervision" id="ReleaseSupervisionResult">
+        <result property="releaseId"    column="release_id"    />
+        <result property="applyNo"    column="apply_no"    />
+        <result property="institutionId"    column="institution_id"    />
+        <result property="institutionName"    column="institution_name"    />
+        <result property="creditCode"    column="credit_code"    />
+        <result property="legalPerson"    column="legal_person"    />
+        <result property="contactPerson"    column="contact_person"    />
+        <result property="contactPhone"    column="contact_phone"    />
+        <result property="releaseReason"    column="release_reason"    />
+        <result property="supervisionBalance"    column="supervision_balance"    />
+        <result property="serviceFeeBalance"    column="service_fee_balance"    />
+        <result property="depositBalance"    column="deposit_balance"    />
+        <result property="memberFeeBalance"    column="member_fee_balance"    />
+        <result property="supervisionBank"    column="supervision_bank"    />
+        <result property="supervisionAccount"    column="supervision_account"    />
+        <result property="basicBank"    column="basic_bank"    />
+        <result property="basicAccount"    column="basic_account"    />
+        <result property="applyStatus"    column="apply_status"    />
+        <result property="applyTime"    column="apply_time"    />
+        <result property="approver"    column="approver"    />
+        <result property="approveTime"    column="approve_time"    />
+        <result property="approveRemark"    column="approve_remark"    />
+        <result property="rejectReason"    column="reject_reason"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+    </resultMap>
+
+    <sql id="selectReleaseSupervisionVo">
+        select release_id, apply_no, institution_id, institution_name, credit_code, legal_person, contact_person, contact_phone,
+               release_reason, supervision_balance, service_fee_balance, deposit_balance, member_fee_balance,
+               supervision_bank, supervision_account, basic_bank, basic_account, apply_status, apply_time,
+               approver, approve_time, approve_remark, reject_reason, create_time, update_time
+        from release_supervision
+    </sql>
+
+    <select id="selectReleaseSupervisionList" parameterType="ReleaseSupervision" resultMap="ReleaseSupervisionResult">
+        <include refid="selectReleaseSupervisionVo"/>
+        <where>
+            <if test="institutionName != null  and institutionName != ''"> and institution_name like concat('%', #{institutionName}, '%')</if>
+            <if test="applyStatus != null  and applyStatus != ''"> and apply_status = #{applyStatus}</if>
+            <if test="params.beginTime != null and params.beginTime != ''">
+                and date_format(apply_time,'%y%m%d') &gt;= date_format(#{params.beginTime},'%y%m%d')
+            </if>
+            <if test="params.endTime != null and params.endTime != ''">
+                and date_format(apply_time,'%y%m%d') &lt;= date_format(#{params.endTime},'%y%m%d')
+            </if>
+        </where>
+        order by apply_time desc
+    </select>
+
+    <select id="selectReleaseSupervisionByReleaseId" parameterType="Long" resultMap="ReleaseSupervisionResult">
+        <include refid="selectReleaseSupervisionVo"/>
+        where release_id = #{releaseId}
+    </select>
+
+    <insert id="insertReleaseSupervision" parameterType="ReleaseSupervision" useGeneratedKeys="true" keyProperty="releaseId">
+        insert into release_supervision
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="applyNo != null and applyNo != ''">apply_no,</if>
+            <if test="institutionId != null">institution_id,</if>
+            <if test="institutionName != null and institutionName != ''">institution_name,</if>
+            <if test="creditCode != null and creditCode != ''">credit_code,</if>
+            <if test="legalPerson != null">legal_person,</if>
+            <if test="contactPerson != null">contact_person,</if>
+            <if test="contactPhone != null">contact_phone,</if>
+            <if test="releaseReason != null and releaseReason != ''">release_reason,</if>
+            <if test="supervisionBalance != null">supervision_balance,</if>
+            <if test="serviceFeeBalance != null">service_fee_balance,</if>
+            <if test="depositBalance != null">deposit_balance,</if>
+            <if test="memberFeeBalance != null">member_fee_balance,</if>
+            <if test="supervisionBank != null">supervision_bank,</if>
+            <if test="supervisionAccount != null">supervision_account,</if>
+            <if test="basicBank != null">basic_bank,</if>
+            <if test="basicAccount != null">basic_account,</if>
+            <if test="applyStatus != null and applyStatus != ''">apply_status,</if>
+            <if test="applyTime != null">apply_time,</if>
+            <if test="createTime != null">create_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="applyNo != null and applyNo != ''">#{applyNo},</if>
+            <if test="institutionId != null">#{institutionId},</if>
+            <if test="institutionName != null and institutionName != ''">#{institutionName},</if>
+            <if test="creditCode != null and creditCode != ''">#{creditCode},</if>
+            <if test="legalPerson != null">#{legalPerson},</if>
+            <if test="contactPerson != null">#{contactPerson},</if>
+            <if test="contactPhone != null">#{contactPhone},</if>
+            <if test="releaseReason != null and releaseReason != ''">#{releaseReason},</if>
+            <if test="supervisionBalance != null">#{supervisionBalance},</if>
+            <if test="serviceFeeBalance != null">#{serviceFeeBalance},</if>
+            <if test="depositBalance != null">#{depositBalance},</if>
+            <if test="memberFeeBalance != null">#{memberFeeBalance},</if>
+            <if test="supervisionBank != null">#{supervisionBank},</if>
+            <if test="supervisionAccount != null">#{supervisionAccount},</if>
+            <if test="basicBank != null">#{basicBank},</if>
+            <if test="basicAccount != null">#{basicAccount},</if>
+            <if test="applyStatus != null and applyStatus != ''">#{applyStatus},</if>
+            <if test="applyTime != null">#{applyTime},</if>
+            <if test="createTime != null">#{createTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updateReleaseSupervision" parameterType="ReleaseSupervision">
+        update release_supervision
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="applyStatus != null and applyStatus != ''">apply_status = #{applyStatus},</if>
+            <if test="approver != null">approver = #{approver},</if>
+            <if test="approveTime != null">approve_time = #{approveTime},</if>
+            <if test="approveRemark != null">approve_remark = #{approveRemark},</if>
+            <if test="rejectReason != null">reject_reason = #{rejectReason},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </trim>
+        where release_id = #{releaseId}
+    </update>
+
+    <delete id="deleteReleaseSupervisionByReleaseId" parameterType="Long">
+        delete from release_supervision where release_id = #{releaseId}
+    </delete>
+
+    <delete id="deleteReleaseSupervisionByReleaseIds" parameterType="String">
+        delete from release_supervision where release_id in
+        <foreach item="releaseId" collection="array" open="(" separator="," close=")">
+            #{releaseId}
+        </foreach>
+    </delete>
+
+    <select id="selectReleaseStatistics" resultType="java.util.Map">
+        select
+            count(*) as totalCount,
+            sum(case when apply_status = '0' then 1 else 0 end) as pendingCount,
+            sum(case when apply_status = '1' then 1 else 0 end) as approvedCount,
+            sum(case when apply_status = '2' then 1 else 0 end) as rejectedCount
+        from release_supervision
+    </select>
+
+</mapper>

@@ -1,0 +1,524 @@
+<template>
+  <div class="app-container">
+    <!-- 步骤条 -->
+    <el-steps :active="activeStep" finish-status="success" align-center style="margin-bottom: 30px;">
+      <el-step title="注册信息"></el-step>
+      <el-step title="负责人信息"></el-step>
+      <el-step title="经营信息"></el-step>
+      <el-step title="上传材料"></el-step>
+      <el-step title="提交申请"></el-step>
+    </el-steps>
+
+    <!-- 表单内容 -->
+    <el-form ref="applyForm" :model="applyForm" :rules="applyRules" label-width="120px">
+
+      <!-- 步骤1：注册信息 -->
+      <div v-show="activeStep === 0">
+        <el-card header="注册信息" shadow="never">
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-form-item label="养老机构名称" prop="institutionName">
+                <el-input v-model="applyForm.institutionName" placeholder="请输入养老机构名称" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="注册资金" prop="registeredCapital">
+                <el-input-number v-model="applyForm.registeredCapital" :min="0" :precision="2" />
+                <span style="margin-left: 5px;">万元</span>
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="20">
+            <el-col :span="24">
+              <el-form-item label="注册地址" prop="registeredAddress">
+                <el-input v-model="applyForm.registeredAddress" placeholder="请输入注册地址" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-form-item label="所属街道/区域" prop="street">
+                <el-input v-model="applyForm.street" placeholder="请输入所属街道/区域" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="社会统一信用代码" prop="creditCode">
+                <el-input v-model="applyForm.creditCode" placeholder="请输入社会统一信用代码" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-form-item label="机构备案号" prop="recordNumber">
+                <el-input v-model="applyForm.recordNumber" placeholder="请输入机构备案号" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="机构联系人" prop="contactPerson">
+                <el-input v-model="applyForm.contactPerson" placeholder="请输入机构联系人" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-form-item label="联系电话" prop="contactPhone">
+                <el-input v-model="applyForm.contactPhone" placeholder="请输入联系电话" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="成立日期" prop="establishDate">
+                <el-date-picker
+                  v-model="applyForm.establishDate"
+                  type="date"
+                  placeholder="选择成立日期"
+                  style="width: 100%"
+                />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-form-item label="实际经营地址" prop="actualAddress">
+                <el-input v-model="applyForm.actualAddress" placeholder="请输入实际经营地址" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="兴办机构" prop="organizer">
+                <el-input v-model="applyForm.organizer" placeholder="请输入兴办机构" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+        </el-card>
+      </div>
+
+      <!-- 步骤2：负责人信息 -->
+      <div v-show="activeStep === 1">
+        <el-card header="负责人信息" shadow="never">
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-form-item label="姓名" prop="responsibleName">
+                <el-input v-model="applyForm.responsibleName" placeholder="请输入负责人姓名" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="身份证号" prop="responsibleIdCard">
+                <el-input v-model="applyForm.responsibleIdCard" placeholder="请输入负责人身份证号" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="20">
+            <el-col :span="24">
+              <el-form-item label="居住地" prop="responsibleAddress">
+                <el-input v-model="applyForm.responsibleAddress" placeholder="请输入负责人居住地" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-form-item label="联系电话" prop="responsiblePhone">
+                <el-input v-model="applyForm.responsiblePhone" placeholder="请输入负责人联系电话" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+        </el-card>
+      </div>
+
+      <!-- 步骤3：经营信息 -->
+      <div v-show="activeStep === 2">
+        <el-card header="经营信息" shadow="never">
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-form-item label="养老机构类型" prop="institutionType">
+                <el-select v-model="applyForm.institutionType" placeholder="请选择养老机构类型" style="width: 100%">
+                  <el-option label="养老院" value="nursing_home" />
+                  <el-option label="养老服务中心" value="service_center" />
+                  <el-option label="日间照料中心" value="day_care" />
+                  <el-option label="养老公寓" value="senior_apartment" />
+                  <el-option label="其他" value="other" />
+                </el-select>
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="床位数" prop="bedCount">
+                <el-input-number v-model="applyForm.bedCount" :min="0" />
+                <span style="margin-left: 5px;">张</span>
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-form-item label="收费区间" prop="feeRange">
+                <el-input v-model="applyForm.feeRange" placeholder="如：2000-5000元/月" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="固定资产净额" prop="fixedAssets">
+                <el-input-number v-model="applyForm.fixedAssets" :min="0" :precision="2" />
+                <span style="margin-left: 5px;">万元</span>
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-form-item label="监管账户" prop="supervisionAccount">
+                <el-input v-model="applyForm.supervisionAccount" placeholder="请输入监管账户" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="基本账户" prop="basicAccount">
+                <el-input v-model="applyForm.basicAccount" placeholder="请输入基本账户" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+        </el-card>
+      </div>
+
+      <!-- 步骤4：上传材料 -->
+      <div v-show="activeStep === 3">
+        <el-card header="上传材料" shadow="never">
+          <el-form-item label="营业执照" prop="businessLicense">
+            <el-upload
+              class="upload-demo"
+              action="/api/common/upload"
+              :on-success="(response) => handleUploadSuccess(response, 'businessLicense')"
+              :on-remove="() => handleRemove('businessLicense')"
+              :file-list="businessLicenseFiles"
+              list-type="picture"
+              :limit="1"
+            >
+              <el-button size="small" type="primary">点击上传</el-button>
+              <div slot="tip" class="el-upload__tip">请上传营业执照扫描件，支持jpg/png格式</div>
+            </el-upload>
+          </el-form-item>
+
+          <el-form-item label="社会福利机构设置批准证书" prop="approvalCertificate">
+            <el-upload
+              class="upload-demo"
+              action="/api/common/upload"
+              :on-success="(response) => handleUploadSuccess(response, 'approvalCertificate')"
+              :on-remove="() => handleRemove('approvalCertificate')"
+              :file-list="approvalCertificateFiles"
+              list-type="picture"
+              :limit="1"
+            >
+              <el-button size="small" type="primary">点击上传</el-button>
+              <div slot="tip" class="el-upload__tip">请上传社会福利机构设置批准证书</div>
+            </el-upload>
+          </el-form-item>
+
+          <el-form-item label="三方监管协议" prop="supervisionAgreement">
+            <el-upload
+              class="upload-demo"
+              action="/api/common/upload"
+              :on-success="(response) => handleUploadSuccess(response, 'supervisionAgreement')"
+              :on-remove="() => handleRemove('supervisionAgreement')"
+              :file-list="supervisionAgreementFiles"
+              list-type="picture"
+              :limit="1"
+            >
+              <el-button size="small" type="primary">点击上传</el-button>
+              <div slot="tip" class="el-upload__tip">请上传三方监管协议扫描件</div>
+            </el-upload>
+          </el-form-item>
+        </el-card>
+      </div>
+
+      <!-- 步骤5：提交申请 -->
+      <div v-show="activeStep === 4">
+        <el-card header="申请信息确认" shadow="never">
+          <el-descriptions :column="2" border>
+            <el-descriptions-item label="养老机构名称">{{ applyForm.institutionName }}</el-descriptions-item>
+            <el-descriptions-item label="注册资金">{{ applyForm.registeredCapital }}万元</el-descriptions-item>
+            <el-descriptions-item label="注册地址" :span="2">{{ applyForm.registeredAddress }}</el-descriptions-item>
+            <el-descriptions-item label="所属街道/区域">{{ applyForm.street }}</el-descriptions-item>
+            <el-descriptions-item label="社会统一信用代码">{{ applyForm.creditCode }}</el-descriptions-item>
+            <el-descriptions-item label="机构备案号">{{ applyForm.recordNumber }}</el-descriptions-item>
+            <el-descriptions-item label="机构联系人">{{ applyForm.contactPerson }}</el-descriptions-item>
+            <el-descriptions-item label="联系电话">{{ applyForm.contactPhone }}</el-descriptions-item>
+            <el-descriptions-item label="实际经营地址" :span="2">{{ applyForm.actualAddress }}</el-descriptions-item>
+            <el-descriptions-item label="兴办机构">{{ applyForm.organizer }}</el-descriptions-item>
+            <el-descriptions-item label="负责人姓名">{{ applyForm.responsibleName }}</el-descriptions-item>
+            <el-descriptions-item label="负责人身份证号">{{ applyForm.responsibleIdCard }}</el-descriptions-item>
+            <el-descriptions-item label="负责人居住地" :span="2">{{ applyForm.responsibleAddress }}</el-descriptions-item>
+            <el-descriptions-item label="负责人电话">{{ applyForm.responsiblePhone }}</el-descriptions-item>
+            <el-descriptions-item label="养老机构类型">{{ getInstitutionTypeText(applyForm.institutionType) }}</el-descriptions-item>
+            <el-descriptions-item label="床位数">{{ applyForm.bedCount }}张</el-descriptions-item>
+            <el-descriptions-item label="收费区间">{{ applyForm.feeRange }}</el-descriptions-item>
+            <el-descriptions-item label="固定资产净额">{{ applyForm.fixedAssets }}万元</el-descriptions-item>
+            <el-descriptions-item label="监管账户">{{ applyForm.supervisionAccount }}</el-descriptions-item>
+            <el-descriptions-item label="基本账户">{{ applyForm.basicAccount }}</el-descriptions-item>
+          </el-descriptions>
+
+          <div style="margin-top: 20px;">
+            <h4>已上传材料：</h4>
+            <ul>
+              <li v-if="businessLicenseFiles.length > 0">营业执照：{{ businessLicenseFiles[0].name }}</li>
+              <li v-if="approvalCertificateFiles.length > 0">社会福利机构设置批准证书：{{ approvalCertificateFiles[0].name }}</li>
+              <li v-if="supervisionAgreementFiles.length > 0">三方监管协议：{{ supervisionAgreementFiles[0].name }}</li>
+            </ul>
+          </div>
+        </el-card>
+      </div>
+
+      <!-- 操作按钮 -->
+      <div style="margin-top: 20px; text-align: center;">
+        <el-button v-if="activeStep > 0" @click="prevStep">上一步</el-button>
+        <el-button v-if="activeStep < 4" type="primary" @click="nextStep">下一步</el-button>
+        <el-button v-if="activeStep === 4" type="success" @click="submitApply" :loading="submitting">提交申请</el-button>
+        <el-button @click="saveDraft">保存草稿</el-button>
+      </div>
+    </el-form>
+  </div>
+</template>
+
+<script>
+import { submitInstitutionApply, saveDraftApply } from "@/api/pension/institutionApply";
+
+export default {
+  name: "PensionInstitutionApply",
+  data() {
+    return {
+      activeStep: 0,
+      submitting: false,
+      // 文件列表
+      businessLicenseFiles: [],
+      approvalCertificateFiles: [],
+      supervisionAgreementFiles: [],
+      // 申请表单
+      applyForm: {
+        // 注册信息
+        institutionName: '',
+        registeredCapital: null,
+        registeredAddress: '',
+        street: '',
+        creditCode: '',
+        recordNumber: '',
+        contactPerson: '',
+        contactPhone: '',
+        establishDate: null,
+        actualAddress: '',
+        organizer: '',
+        // 负责人信息
+        responsibleName: '',
+        responsibleIdCard: '',
+        responsibleAddress: '',
+        responsiblePhone: '',
+        // 经营信息
+        institutionType: '',
+        bedCount: null,
+        feeRange: '',
+        fixedAssets: null,
+        supervisionAccount: '',
+        basicAccount: '',
+        // 上传材料
+        businessLicense: '',
+        approvalCertificate: '',
+        supervisionAgreement: ''
+      },
+      // 表单校验规则
+      applyRules: {
+        institutionName: [
+          { required: true, message: "养老机构名称不能为空", trigger: "blur" }
+        ],
+        registeredCapital: [
+          { required: true, message: "注册资金不能为空", trigger: "blur" }
+        ],
+        registeredAddress: [
+          { required: true, message: "注册地址不能为空", trigger: "blur" }
+        ],
+        street: [
+          { required: true, message: "所属街道/区域不能为空", trigger: "blur" }
+        ],
+        creditCode: [
+          { required: true, message: "社会统一信用代码不能为空", trigger: "blur" },
+          { pattern: /^[0-9A-Z]{18}$/, message: "请输入正确的统一信用代码", trigger: "blur" }
+        ],
+        recordNumber: [
+          { required: true, message: "机构备案号不能为空", trigger: "blur" }
+        ],
+        contactPerson: [
+          { required: true, message: "机构联系人不能为空", trigger: "blur" }
+        ],
+        contactPhone: [
+          { required: true, message: "联系电话不能为空", trigger: "blur" },
+          { pattern: /^1[3456789]\d{9}$/, message: "请输入正确的手机号码", trigger: "blur" }
+        ],
+        establishDate: [
+          { required: true, message: "成立日期不能为空", trigger: "change" }
+        ],
+        actualAddress: [
+          { required: true, message: "实际经营地址不能为空", trigger: "blur" }
+        ],
+        organizer: [
+          { required: true, message: "兴办机构不能为空", trigger: "blur" }
+        ],
+        responsibleName: [
+          { required: true, message: "负责人姓名不能为空", trigger: "blur" }
+        ],
+        responsibleIdCard: [
+          { required: true, message: "负责人身份证号不能为空", trigger: "blur" },
+          { pattern: /^[1-9]\d{5}(18|19|20)\d{2}((0[1-9])|(1[0-2]))(([0-2][1-9])|10|20|30|31)\d{3}[0-9Xx]$/, message: "请输入正确的身份证号", trigger: "blur" }
+        ],
+        responsibleAddress: [
+          { required: true, message: "负责人居住地不能为空", trigger: "blur" }
+        ],
+        responsiblePhone: [
+          { required: true, message: "负责人联系电话不能为空", trigger: "blur" },
+          { pattern: /^1[3456789]\d{9}$/, message: "请输入正确的手机号码", trigger: "blur" }
+        ],
+        institutionType: [
+          { required: true, message: "养老机构类型不能为空", trigger: "change" }
+        ],
+        bedCount: [
+          { required: true, message: "床位数不能为空", trigger: "blur" }
+        ],
+        feeRange: [
+          { required: true, message: "收费区间不能为空", trigger: "blur" }
+        ],
+        fixedAssets: [
+          { required: true, message: "固定资产净额不能为空", trigger: "blur" }
+        ],
+        supervisionAccount: [
+          { required: true, message: "监管账户不能为空", trigger: "blur" }
+        ],
+        basicAccount: [
+          { required: true, message: "基本账户不能为空", trigger: "blur" }
+        ]
+      }
+    };
+  },
+  methods: {
+    // 下一步
+    nextStep() {
+      this.$refs["applyForm"].validateField(Object.keys(this.applyRules).slice(0, this.getStepFieldsCount()), (valid) => {
+        if (!valid) {
+          this.activeStep++;
+        }
+      });
+    },
+    // 上一步
+    prevStep() {
+      this.activeStep--;
+    },
+    // 获取当前步骤需要校验的字段数量
+    getStepFieldsCount() {
+      const stepFields = [9, 4, 6, 0, 0]; // 每个步骤的字段数量
+      let count = 0;
+      for (let i = 0; i <= this.activeStep; i++) {
+        count += stepFields[i];
+      }
+      return count;
+    },
+    // 文件上传成功
+    handleUploadSuccess(response, field) {
+      if (response.code === 200) {
+        this.applyForm[field] = response.url;
+        if (field === 'businessLicense') {
+          this.businessLicenseFiles = [{ name: response.fileName, url: response.url }];
+        } else if (field === 'approvalCertificate') {
+          this.approvalCertificateFiles = [{ name: response.fileName, url: response.url }];
+        } else if (field === 'supervisionAgreement') {
+          this.supervisionAgreementFiles = [{ name: response.fileName, url: response.url }];
+        }
+      }
+    },
+    // 移除文件
+    handleRemove(field) {
+      this.applyForm[field] = '';
+      if (field === 'businessLicense') {
+        this.businessLicenseFiles = [];
+      } else if (field === 'approvalCertificate') {
+        this.approvalCertificateFiles = [];
+      } else if (field === 'supervisionAgreement') {
+        this.supervisionAgreementFiles = [];
+      }
+    },
+    // 提交申请
+    submitApply() {
+      // 检查是否上传了所有必需材料
+      if (!this.applyForm.businessLicense || !this.applyForm.approvalCertificate || !this.applyForm.supervisionAgreement) {
+        this.$modal.msgError("请上传所有必需材料后再提交申请");
+        return;
+      }
+
+      this.$refs["applyForm"].validate(valid => {
+        if (valid) {
+          this.submitting = true;
+          submitInstitutionApply(this.applyForm).then(response => {
+            this.$modal.msgSuccess("申请提交成功，请等待民政部门审批");
+            // 重置表单
+            this.resetForm();
+            this.activeStep = 0;
+          }).catch(() => {
+            this.submitting = false;
+          });
+        }
+      });
+    },
+    // 保存草稿
+    saveDraft() {
+      saveDraftApply(this.applyForm).then(response => {
+        this.$modal.msgSuccess("草稿保存成功");
+      });
+    },
+    // 重置表单
+    resetForm() {
+      this.applyForm = {
+        institutionName: '',
+        registeredCapital: null,
+        registeredAddress: '',
+        street: '',
+        creditCode: '',
+        recordNumber: '',
+        contactPerson: '',
+        contactPhone: '',
+        establishDate: null,
+        actualAddress: '',
+        organizer: '',
+        responsibleName: '',
+        responsibleIdCard: '',
+        responsibleAddress: '',
+        responsiblePhone: '',
+        institutionType: '',
+        bedCount: null,
+        feeRange: '',
+        fixedAssets: null,
+        supervisionAccount: '',
+        basicAccount: '',
+        businessLicense: '',
+        approvalCertificate: '',
+        supervisionAgreement: ''
+      };
+      this.businessLicenseFiles = [];
+      this.approvalCertificateFiles = [];
+      this.supervisionAgreementFiles = [];
+      this.submitting = false;
+    },
+    // 获取机构类型文本
+    getInstitutionTypeText(type) {
+      const typeMap = {
+        'nursing_home': '养老院',
+        'service_center': '养老服务中心',
+        'day_care': '日间照料中心',
+        'senior_apartment': '养老公寓',
+        'other': '其他'
+      };
+      return typeMap[type] || type;
+    }
+  }
+};
+</script>
+
+<style scoped>
+.el-steps {
+  margin-bottom: 30px;
+}
+
+.el-card {
+  margin-bottom: 20px;
+}
+
+.upload-demo {
+  margin-top: 10px;
+}
+</style>

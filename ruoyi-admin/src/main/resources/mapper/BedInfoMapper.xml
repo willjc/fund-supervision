@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.mapper.BedInfoMapper">
+
+    <resultMap type="BedInfo" id="BedInfoResult">
+        <result property="bedId"    column="bed_id"    />
+        <result property="institutionId"    column="institution_id"    />
+        <result property="roomNumber"    column="room_number"    />
+        <result property="bedNumber"    column="bed_number"    />
+        <result property="bedType"    column="bed_type"    />
+        <result property="bedStatus"    column="bed_status"    />
+        <result property="price"    column="price"    />
+        <result property="floorNumber"    column="floor_number"    />
+        <result property="roomArea"    column="room_area"    />
+        <result property="hasBathroom"    column="has_bathroom"    />
+        <result property="hasBalcony"    column="has_balcony"    />
+        <result property="facilities"    column="facilities"    />
+        <result property="createBy"   column="create_by"   />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy"   column="update_by"   />
+        <result property="updateTime" column="update_time" />
+        <result property="remark"     column="remark"     />
+        <result property="institutionName" column="institution_name" />
+    </resultMap>
+
+    <sql id="selectBedInfoVo">
+        select b.bed_id, b.institution_id, b.room_number, b.bed_number, b.bed_type, b.bed_status,
+               b.price, b.floor_number, b.room_area, b.has_bathroom, b.has_balcony, b.facilities,
+               b.create_by, b.create_time, b.update_by, b.update_time, b.remark,
+               i.institution_name
+        from bed_info b
+        left join pension_institution i on b.institution_id = i.institution_id
+    </sql>
+
+    <select id="selectBedInfoList" parameterType="BedInfo" resultMap="BedInfoResult">
+        <include refid="selectBedInfoVo"/>
+        <where>
+            <!-- 数据权限过滤: 如果传入了currentUserId,则只查询该用户有权限的机构的床位 -->
+            <if test="currentUserId != null">
+                and b.institution_id in (
+                    select institution_id from sys_user_institution where user_id = #{currentUserId}
+                )
+            </if>
+            <if test="institutionId != null "> and b.institution_id = #{institutionId}</if>
+            <if test="roomNumber != null  and roomNumber != ''"> and b.room_number like concat('%', #{roomNumber}, '%')</if>
+            <if test="bedNumber != null  and bedNumber != ''"> and b.bed_number like concat('%', #{bedNumber}, '%')</if>
+            <if test="bedType != null  and bedType != ''"> and b.bed_type = #{bedType}</if>
+            <if test="bedStatus != null  and bedStatus != ''"> and b.bed_status = #{bedStatus}</if>
+            <if test="price != null "> and b.price = #{price}</if>
+            <if test="floorNumber != null "> and b.floor_number = #{floorNumber}</if>
+        </where>
+        order by b.floor_number, b.room_number, b.bed_number
+    </select>
+
+    <select id="selectAvailableBeds" parameterType="Long" resultMap="BedInfoResult">
+        <include refid="selectBedInfoVo"/>
+        where b.institution_id = #{institutionId} and b.bed_status = '0'
+        order by b.floor_number, b.room_number, b.bed_number
+    </select>
+
+    <select id="selectBedInfoByBedId" parameterType="Long" resultMap="BedInfoResult">
+        <include refid="selectBedInfoVo"/>
+        where b.bed_id = #{bedId}
+    </select>
+
+    <insert id="insertBedInfo" parameterType="BedInfo" useGeneratedKeys="true" keyProperty="bedId">
+        insert into bed_info
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="institutionId != null">institution_id,</if>
+            <if test="roomNumber != null and roomNumber != ''">room_number,</if>
+            <if test="bedNumber != null and bedNumber != ''">bed_number,</if>
+            <if test="bedType != null">bed_type,</if>
+            <if test="bedStatus != null">bed_status,</if>
+            <if test="price != null">price,</if>
+            <if test="floorNumber != null">floor_number,</if>
+            <if test="roomArea != null">room_area,</if>
+            <if test="hasBathroom != null">has_bathroom,</if>
+            <if test="hasBalcony != null">has_balcony,</if>
+            <if test="facilities != null and facilities != ''">facilities,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null and updateBy != ''">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="institutionId != null">#{institutionId},</if>
+            <if test="roomNumber != null and roomNumber != ''">#{roomNumber},</if>
+            <if test="bedNumber != null and bedNumber != ''">#{bedNumber},</if>
+            <if test="bedType != null">#{bedType},</if>
+            <if test="bedStatus != null">#{bedStatus},</if>
+            <if test="price != null">#{price},</if>
+            <if test="floorNumber != null">#{floorNumber},</if>
+            <if test="roomArea != null">#{roomArea},</if>
+            <if test="hasBathroom != null">#{hasBathroom},</if>
+            <if test="hasBalcony != null">#{hasBalcony},</if>
+            <if test="facilities != null and facilities != ''">#{facilities},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null and updateBy != ''">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateBedInfo" parameterType="BedInfo">
+        update bed_info
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="institutionId != null">institution_id = #{institutionId},</if>
+            <if test="roomNumber != null and roomNumber != ''">room_number = #{roomNumber},</if>
+            <if test="bedNumber != null and bedNumber != ''">bed_number = #{bedNumber},</if>
+            <if test="bedType != null">bed_type = #{bedType},</if>
+            <if test="bedStatus != null">bed_status = #{bedStatus},</if>
+            <if test="price != null">price = #{price},</if>
+            <if test="floorNumber != null">floor_number = #{floorNumber},</if>
+            <if test="roomArea != null">room_area = #{roomArea},</if>
+            <if test="hasBathroom != null">has_bathroom = #{hasBathroom},</if>
+            <if test="hasBalcony != null">has_balcony = #{hasBalcony},</if>
+            <if test="facilities != null and facilities != ''">facilities = #{facilities},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where bed_id = #{bedId}
+    </update>
+
+    <update id="updateBedStatus">
+        update bed_info set bed_status = #{bedStatus}
+        where bed_id = #{bedId}
+    </update>
+
+    <delete id="deleteBedInfoByBedId" parameterType="Long">
+        delete from bed_info where bed_id = #{bedId}
+    </delete>
+
+    <delete id="deleteBedInfoByBedIds" parameterType="String">
+        delete from bed_info where bed_id in
+        <foreach item="bedId" collection="array" open="(" separator="," close=")">
+            #{bedId}
+        </foreach>
+    </delete>
+
+    <select id="selectBedByRoomAndBedNumber" resultMap="BedInfoResult">
+        select bed_id, institution_id, room_number, bed_number, bed_type, bed_status,
+               price, floor_number, room_area, has_bathroom, has_balcony, facilities,
+               create_by, create_time, update_by, update_time, remark
+        from bed_info
+        where institution_id = #{institutionId}
+          and room_number = #{roomNumber}
+          and bed_number = #{bedNumber}
+    </select>
+
+</mapper>

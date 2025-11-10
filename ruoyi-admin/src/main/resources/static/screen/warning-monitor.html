@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>预警监控大屏</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            overflow-x: hidden;
+            overflow-y: auto;
+            min-height: 100vh;
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e293b 100%);
+            color: #ffffff;
+        }
+
+        .bigscreen-container {
+            min-height: 100vh;
+            padding-bottom: 30px;
+        }
+
+        .header {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border-bottom: 2px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .title {
+            font-size: 36px;
+            font-weight: bold;
+            background: linear-gradient(45deg, #ff6b6b, #ffd93d);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+            text-shadow: 0 0 30px rgba(255, 107, 107, 0.5);
+        }
+
+        .subtitle {
+            font-size: 16px;
+            color: #94a3b8;
+            margin-bottom: 10px;
+        }
+
+        .current-time {
+            font-size: 18px;
+            color: #ffd93d;
+            font-weight: bold;
+        }
+
+        .main-content {
+            display: flex;
+            min-height: calc(100vh - 120px);
+            padding: 20px;
+            gap: 20px;
+            width: 100%;
+            max-width: 1920px;
+            margin: 0 auto;
+        }
+
+        .left-panel, .right-panel {
+            width: 25%;
+            min-width: 300px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .center-panel {
+            width: 50%;
+            min-width: 600px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .overview-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .overview-card {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .overview-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(239, 68, 68, 0.3);
+        }
+
+        .overview-card h3 {
+            font-size: 14px;
+            color: #94a3b8;
+            margin-bottom: 10px;
+        }
+
+        .overview-card .value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #ffd93d;
+            margin-bottom: 5px;
+        }
+
+        .overview-card .unit {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .overview-card.high-risk .value {
+            color: #ef4444;
+        }
+
+        .overview-card.processing .value {
+            color: #f59e0b;
+        }
+
+        .overview-card.processed .value {
+            color: #10b981;
+        }
+
+        .chart-container, .warning-list-container, .rank-container {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            flex: 1;
+            min-height: 300px;
+        }
+
+        .chart-title, .warning-list-title, .rank-title {
+            font-size: 16px;
+            color: #ff6b6b;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        .chart {
+            width: 100%;
+            height: 250px;
+        }
+
+        .warning-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .warning-item {
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 3px solid #ef4444;
+            border-radius: 5px;
+            padding: 12px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .warning-item:hover {
+            background: rgba(239, 68, 68, 0.2);
+            transform: translateX(5px);
+        }
+
+        .warning-item.high {
+            border-left-color: #ef4444;
+        }
+
+        .warning-item.medium {
+            border-left-color: #f59e0b;
+        }
+
+        .warning-item.low {
+            border-left-color: #10b981;
+        }
+
+        .warning-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .warning-type {
+            font-weight: bold;
+            color: #ffd93d;
+        }
+
+        .warning-level {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .warning-level.high {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .warning-level.medium {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+        }
+
+        .warning-level.low {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+
+        .warning-institution {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 5px;
+        }
+
+        .warning-description {
+            font-size: 14px;
+            color: #e2e8f0;
+            margin-bottom: 5px;
+        }
+
+        .warning-time {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .rank-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .rank-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin-bottom: 8px;
+            background: rgba(239, 68, 68, 0.1);
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .rank-item:hover {
+            background: rgba(239, 68, 68, 0.2);
+            transform: translateX(5px);
+        }
+
+        .rank-item.top3 {
+            background: rgba(255, 217, 61, 0.1);
+            border-left: 3px solid #ffd93d;
+        }
+
+        .rank-number {
+            width: 30px;
+            font-weight: bold;
+            color: #ffd93d;
+        }
+
+        .rank-institution {
+            flex: 1;
+            font-size: 14px;
+            color: #e2e8f0;
+        }
+
+        .rank-count {
+            font-weight: bold;
+            color: #ff6b6b;
+            margin-right: 10px;
+        }
+
+        .rank-rate {
+            font-size: 12px;
+            color: #10b981;
+        }
+
+        .process-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .process-stat-item {
+            text-align: center;
+            padding: 15px;
+            background: rgba(239, 68, 68, 0.1);
+            border-radius: 8px;
+        }
+
+        .process-stat-label {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 5px;
+        }
+
+        .process-stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffd93d;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #94a3b8;
+        }
+
+        .error {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 20px;
+        }
+
+        .warning-list::-webkit-scrollbar, .rank-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .warning-list::-webkit-scrollbar-track, .rank-list::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 3px;
+        }
+
+        .warning-list::-webkit-scrollbar-thumb, .rank-list::-webkit-scrollbar-thumb {
+            background: rgba(239, 68, 68, 0.5);
+            border-radius: 3px;
+        }
+
+        .warning-list::-webkit-scrollbar-thumb:hover, .rank-list::-webkit-scrollbar-thumb:hover {
+            background: rgba(239, 68, 68, 0.7);
+        }
+
+        @media (max-width: 1600px) {
+            .left-panel, .right-panel {
+                width: 28%;
+                min-width: 280px;
+            }
+            .center-panel {
+                width: 44%;
+                min-width: 500px;
+            }
+        }
+
+        @media (max-width: 1366px) {
+            .title {
+                font-size: 28px;
+            }
+            .left-panel, .right-panel {
+                width: 30%;
+                min-width: 250px;
+            }
+            .center-panel {
+                width: 40%;
+                min-width: 400px;
+            }
+            .chart {
+                height: 200px;
+            }
+        }
+
+        @media (max-width: 1200px) {
+            .main-content {
+                flex-direction: column;
+            }
+            .left-panel, .right-panel, .center-panel {
+                width: 100%;
+                min-width: auto;
+            }
+            .overview-cards {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .overview-cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .process-stats {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="bigscreen-container">
+            <div class="header">
+                <h1 class="title">🚨 预警监控大屏</h1>
+                <p class="subtitle">养老机构智能预警监控中心</p>
+                <div class="current-time">{{ currentTime }}</div>
+            </div>
+
+            <div class="main-content">
+                <div class="left-panel">
+                    <div class="overview-cards">
+                        <div class="overview-card">
+                            <h3>今日预警</h3>
+                            <div class="value">{{ overview.todayWarnings }}</div>
+                            <div class="unit">条</div>
+                        </div>
+                        <div class="overview-card high-risk">
+                            <h3>高风险</h3>
+                            <div class="value">{{ overview.highRiskWarnings }}</div>
+                            <div class="unit">条</div>
+                        </div>
+                        <div class="overview-card processing">
+                            <h3>处理中</h3>
+                            <div class="value">{{ overview.processingWarnings }}</div>
+                            <div class="unit">条</div>
+                        </div>
+                        <div class="overview-card processed">
+                            <h3>已处理</h3>
+                            <div class="value">{{ overview.processedWarnings }}</div>
+                            <div class="unit">条</div>
+                        </div>
+                        <div class="overview-card">
+                            <h3>处理率</h3>
+                            <div class="value">{{ overview.processingRate }}%</div>
+                            <div class="unit">今日</div>
+                        </div>
+                        <div class="overview-card">
+                            <h3>平均处理时间</h3>
+                            <div class="value">{{ overview.avgProcessTime }}</div>
+                            <div class="unit">分钟</div>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <div class="chart-title">预警类型分布</div>
+                        <div id="typeChart" class="chart"></div>
+                    </div>
+
+                    <div class="chart-container">
+                        <div class="chart-title">预警处理统计</div>
+                        <div id="processChart" class="chart"></div>
+                        <div class="process-stats">
+                            <div class="process-stat-item">
+                                <div class="process-stat-label">最快处理</div>
+                                <div class="process-stat-value">{{ processStats.fastProcessTime }}<small style="font-size: 12px; color: #64748b;">分钟</small></div>
+                            </div>
+                            <div class="process-stat-item">
+                                <div class="process-stat-label">最慢处理</div>
+                                <div class="process-stat-value">{{ processStats.slowProcessTime }}<small style="font-size: 12px; color: #64748b;">分钟</small></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="center-panel">
+                    <div class="chart-container">
+                        <div class="chart-title">7天预警趋势</div>
+                        <div id="trendChart" class="chart"></div>
+                    </div>
+
+                    <div class="warning-list-container">
+                        <div class="warning-list-title">实时预警列表</div>
+                        <div class="warning-list">
+                            <div v-for="warning in realtimeWarnings" :key="warning.id"
+                                 :class="['warning-item', warning.level.toLowerCase()]">
+                                <div class="warning-header">
+                                    <span class="warning-type">{{ warning.warningType }}</span>
+                                    <span :class="['warning-level', warning.level.toLowerCase()]">{{ warning.level }}</span>
+                                </div>
+                                <div class="warning-institution">{{ warning.institutionName }}</div>
+                                <div class="warning-description">{{ warning.description }}</div>
+                                <div class="warning-time">{{ formatTime(warning.createTime) }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="right-panel">
+                    <div class="rank-container">
+                        <div class="rank-title">机构预警排行</div>
+                        <div class="rank-list">
+                            <div v-for="(item, index) in institutionRank" :key="item.institutionName"
+                                 :class="['rank-item', index < 3 ? 'top3' : '']">
+                                <span class="rank-number">{{ index + 1 }}</span>
+                                <span class="rank-institution">{{ item.institutionName }}</span>
+                                <span class="rank-count">{{ item.warningCount }}</span>
+                                <span class="rank-rate">{{ item.processingRate }}%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <div class="chart-title">预警级别统计</div>
+                        <div id="levelChart" class="chart"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="loading" class="loading">
+            <p>🔄 数据加载中...</p>
+        </div>
+
+        <div v-if="error" class="error">
+            <p>❌ {{ error }}</p>
+        </div>
+    </div>
+
+    <script>
+        new Vue({
+            el: '#app',
+            data: {
+                loading: false,
+                error: '',
+                currentTime: '',
+                timeTimer: null,
+                dataTimer: null,
+
+                overview: {},
+                warningTypes: [],
+                warningTrends: {},
+                institutionRank: [],
+                realtimeWarnings: [],
+                processStats: {},
+                warningLevels: [],
+
+                charts: {}
+            },
+            mounted() {
+                this.initTime();
+                this.initCharts();
+                this.loadData();
+
+                this.timeTimer = setInterval(() => {
+                    this.updateTime();
+                }, 1000);
+
+                this.dataTimer = setInterval(() => {
+                    this.loadData();
+                }, 30000);
+
+                window.addEventListener('resize', this.handleResize);
+            },
+            beforeDestroy() {
+                if (this.timeTimer) {
+                    clearInterval(this.timeTimer);
+                }
+                if (this.dataTimer) {
+                    clearInterval(this.dataTimer);
+                }
+                window.removeEventListener('resize', this.handleResize);
+                Object.values(this.charts).forEach(chart => {
+                    chart && chart.dispose();
+                });
+            },
+            methods: {
+                initTime() {
+                    this.updateTime();
+                },
+
+                updateTime() {
+                    const now = new Date();
+                    this.currentTime = now.toLocaleString('zh-CN', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
+                },
+
+                initCharts() {
+                    const chartOptions = {
+                        renderer: 'canvas'
+                    };
+
+                    const typeDom = document.getElementById('typeChart');
+                    if (typeDom) {
+                        this.charts.typeChart = echarts.init(typeDom, null, chartOptions);
+                    }
+
+                    const trendDom = document.getElementById('trendChart');
+                    if (trendDom) {
+                        this.charts.trendChart = echarts.init(trendDom, null, chartOptions);
+                    }
+
+                    const processDom = document.getElementById('processChart');
+                    if (processDom) {
+                        this.charts.processChart = echarts.init(processDom, null, chartOptions);
+                    }
+
+                    const levelDom = document.getElementById('levelChart');
+                    if (levelDom) {
+                        this.charts.levelChart = echarts.init(levelDom, null, chartOptions);
+                    }
+                },
+
+                async loadData() {
+                    this.loading = true;
+                    this.error = '';
+
+                    try {
+                        const [
+                            overviewRes,
+                            typesRes,
+                            trendsRes,
+                            rankRes,
+                            realtimeRes,
+                            processRes
+                        ] = await Promise.all([
+                            this.fetchData('/pension/bigscreen/warning/overview'),
+                            this.fetchData('/pension/bigscreen/warning/types'),
+                            this.fetchData('/pension/bigscreen/warning/trends'),
+                            this.fetchData('/pension/bigscreen/warning/institution-rank'),
+                            this.fetchData('/pension/bigscreen/warning/realtime'),
+                            this.fetchData('/pension/bigscreen/warning/process-stats')
+                        ]);
+
+                        this.overview = overviewRes.data;
+                        this.warningTypes = typesRes.data;
+                        this.warningTrends = trendsRes.data;
+                        this.institutionRank = rankRes.data.slice(0, 10);
+                        this.realtimeWarnings = realtimeRes.data.slice(0, 15);
+                        this.processStats = processRes.data;
+                        this.warningLevels = processRes.data.levelStats;
+
+                        this.updateTypeChart();
+                        this.updateTrendChart();
+                        this.updateProcessChart();
+                        this.updateLevelChart();
+
+                    } catch (error) {
+                        console.error('加载数据失败:', error);
+                        this.error = '数据加载失败: ' + error.message;
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async fetchData(url) {
+                    const response = await axios.get(url);
+                    if (response.data.code !== 200) {
+                        throw new Error(response.data.msg || '请求失败');
+                    }
+                    return response.data;
+                },
+
+                updateTypeChart() {
+                    if (!this.charts.typeChart || !this.warningTypes.length) return;
+
+                    const data = this.warningTypes.map(item => ({
+                        name: item.type,
+                        value: item.count,
+                        itemStyle: {
+                            color: `#${item.color.toString(16).padStart(6, '0')}`
+                        }
+                    }));
+
+                    const option = {
+                        tooltip: {
+                            trigger: 'item',
+                            formatter: '{b}: {c} ({d}%)'
+                        },
+                        legend: {
+                            orient: 'vertical',
+                            left: 'left',
+                            textStyle: { color: '#fff' }
+                        },
+                        series: [
+                            {
+                                type: 'pie',
+                                radius: ['20%', '70%'],
+                                center: ['60%', '50%'],
+                                data: data,
+                                emphasis: {
+                                    itemStyle: {
+                                        shadowBlur: 10,
+                                        shadowOffsetX: 0,
+                                        shadowColor: 'rgba(0, 0, 0, 0.5)'
+                                    }
+                                }
+                            }
+                        ]
+                    };
+
+                    this.charts.typeChart.setOption(option);
+                },
+
+                updateTrendChart() {
+                    if (!this.charts.trendChart || !this.warningTrends.dates) return;
+
+                    const option = {
+                        tooltip: {
+                            trigger: 'axis'
+                        },
+                        legend: {
+                            data: ['总预警数', '已处理数'],
+                            textStyle: { color: '#fff' }
+                        },
+                        xAxis: {
+                            type: 'category',
+                            data: this.warningTrends.dates,
+                            axisLabel: {
+                                color: '#fff',
+                                rotate: 45
+                            },
+                            axisLine: { lineStyle: { color: '#ff6b6b' } },
+                            splitLine: { lineStyle: { color: 'rgba(255, 107, 107, 0.1)' } }
+                        },
+                        yAxis: {
+                            type: 'value',
+                            axisLabel: { color: '#fff' },
+                            axisLine: { lineStyle: { color: '#ff6b6b' } },
+                            splitLine: { lineStyle: { color: 'rgba(255, 107, 107, 0.1)' } }
+                        },
+                        series: [
+                            {
+                                name: '总预警数',
+                                type: 'line',
+                                data: this.warningTrends.totalCounts,
+                                itemStyle: { color: '#ff6b6b' },
+                                areaStyle: {
+                                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                        { offset: 0, color: 'rgba(255, 107, 107, 0.8)' },
+                                        { offset: 1, color: 'rgba(255, 107, 107, 0.1)' }
+                                    ])
+                                }
+                            },
+                            {
+                                name: '已处理数',
+                                type: 'line',
+                                data: this.warningTrends.processedCounts,
+                                itemStyle: { color: '#10b981' },
+                                areaStyle: {
+                                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                        { offset: 0, color: 'rgba(16, 185, 129, 0.8)' },
+                                        { offset: 1, color: 'rgba(16, 185, 129, 0.1)' }
+                                    ])
+                                }
+                            }
+                        ]
+                    };
+
+                    this.charts.trendChart.setOption(option);
+                },
+
+                updateProcessChart() {
+                    if (!this.charts.processChart || !this.processStats.statusStats) return;
+
+                    const data = this.processStats.statusStats.map(item => item.count);
+                    const labels = this.processStats.statusStats.map(item => item.status);
+
+                    const option = {
+                        tooltip: {
+                            trigger: 'axis'
+                        },
+                        xAxis: {
+                            type: 'category',
+                            data: labels,
+                            axisLabel: { color: '#fff' },
+                            axisLine: { lineStyle: { color: '#ff6b6b' } }
+                        },
+                        yAxis: {
+                            type: 'value',
+                            axisLabel: { color: '#fff' },
+                            axisLine: { lineStyle: { color: '#ff6b6b' } },
+                            splitLine: { lineStyle: { color: 'rgba(255, 107, 107, 0.1)' } }
+                        },
+                        series: [
+                            {
+                                type: 'bar',
+                                data: data,
+                                itemStyle: {
+                                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                        { offset: 0, color: '#ff6b6b' },
+                                        { offset: 1, color: '#c92a2a' }
+                                    ])
+                                }
+                            }
+                        ]
+                    };
+
+                    this.charts.processChart.setOption(option);
+                },
+
+                updateLevelChart() {
+                    if (!this.charts.levelChart || !this.warningLevels.length) return;
+
+                    const data = this.warningLevels.map(item => ({
+                        name: item.level,
+                        value: item.count,
+                        itemStyle: {
+                            color: item.level === '高' ? '#ef4444' :
+                                   item.level === '中' ? '#f59e0b' : '#10b981'
+                        }
+                    }));
+
+                    const option = {
+                        tooltip: {
+                            trigger: 'item',
+                            formatter: '{b}: {c}'
+                        },
+                        series: [
+                            {
+                                type: 'pie',
+                                radius: '70%',
+                                data: data,
+                                emphasis: {
+                                    itemStyle: {
+                                        shadowBlur: 10,
+                                        shadowOffsetX: 0,
+                                        shadowColor: 'rgba(0, 0, 0, 0.5)'
+                                    }
+                                }
+                            }
+                        ]
+                    };
+
+                    this.charts.levelChart.setOption(option);
+                },
+
+                formatTime(timestamp) {
+                    const date = new Date(timestamp);
+                    return date.toLocaleString('zh-CN', {
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                },
+
+                handleResize() {
+                    Object.values(this.charts).forEach(chart => {
+                        chart && chart.resize();
+                    });
+                }
+            }
+        });
+    </script>
+</body>
+</html>

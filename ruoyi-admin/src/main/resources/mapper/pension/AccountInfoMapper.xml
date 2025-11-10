@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.mapper.pension.AccountInfoMapper">
+
+    <resultMap type="AccountInfo" id="AccountInfoResult">
+        <result property="accountId"    column="account_id"    />
+        <result property="elderId"    column="elder_id"    />
+        <result property="institutionId"    column="institution_id"    />
+        <result property="accountNo"    column="account_no"    />
+        <result property="accountName"    column="account_name"    />
+        <result property="accountStatus"    column="account_status"    />
+        <result property="totalBalance"    column="total_balance"    />
+        <result property="serviceBalance"    column="service_balance"    />
+        <result property="depositBalance"    column="deposit_balance"    />
+        <result property="memberBalance"    column="member_balance"    />
+        <result property="createBy"   column="create_by"   />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy"   column="update_by"   />
+        <result property="updateTime" column="update_time" />
+        <result property="remark"     column="remark"     />
+        <!-- 关联字段 -->
+        <result property="elderName"    column="elder_name"    />
+        <result property="idCard"    column="id_card"    />
+        <result property="institutionName"    column="institution_name"    />
+    </resultMap>
+
+    <sql id="selectAccountInfoVo">
+        select a.account_id, a.elder_id, a.institution_id, a.account_no, a.account_name,
+               a.account_status, a.total_balance, a.service_balance, a.deposit_balance, a.member_balance,
+               a.create_by, a.create_time, a.update_by, a.update_time, a.remark,
+               e.elder_name, e.id_card, i.institution_name
+        from account_info a
+        left join elder_info e on a.elder_id = e.elder_id
+        left join pension_institution i on a.institution_id = i.institution_id
+    </sql>
+
+    <select id="selectAccountInfoList" parameterType="AccountInfo" resultMap="AccountInfoResult">
+        <include refid="selectAccountInfoVo"/>
+        <where>
+            <if test="elderId != null "> and a.elder_id = #{elderId}</if>
+            <if test="institutionId != null "> and a.institution_id = #{institutionId}</if>
+            <if test="accountNo != null  and accountNo != ''"> and a.account_no like concat('%', #{accountNo}, '%')</if>
+            <if test="accountName != null  and accountName != ''"> and a.account_name like concat('%', #{accountName}, '%')</if>
+            <if test="accountStatus != null  and accountStatus != ''"> and a.account_status = #{accountStatus}</if>
+            <if test="elderName != null  and elderName != ''"> and e.elder_name like concat('%', #{elderName}, '%')</if>
+            <if test="institutionName != null  and institutionName != ''"> and i.institution_name like concat('%', #{institutionName}, '%')</if>
+        </where>
+        order by a.create_time desc
+    </select>
+
+    <select id="selectAccountInfoByAccountId" parameterType="Long" resultMap="AccountInfoResult">
+        <include refid="selectAccountInfoVo"/>
+        where a.account_id = #{accountId}
+    </select>
+
+    <select id="selectAccountInfoByElderId" parameterType="Long" resultMap="AccountInfoResult">
+        <include refid="selectAccountInfoVo"/>
+        where a.elder_id = #{elderId}
+    </select>
+
+    <select id="selectAccountInfoByInstitutionId" parameterType="Long" resultMap="AccountInfoResult">
+        <include refid="selectAccountInfoVo"/>
+        where a.institution_id = #{institutionId}
+        order by a.create_time desc
+    </select>
+
+    <select id="selectAccountBalanceSummary" parameterType="Long" resultType="map">
+        SELECT
+            COUNT(*) as account_count,
+            IFNULL(SUM(total_balance), 0) as total_balance_sum,
+            IFNULL(SUM(service_balance), 0) as service_balance_sum,
+            IFNULL(SUM(deposit_balance), 0) as deposit_balance_sum,
+            IFNULL(SUM(member_balance), 0) as member_balance_sum,
+            IFNULL(AVG(total_balance), 0) as avg_balance
+        FROM account_info
+        WHERE institution_id = #{institutionId} AND account_status = '1'
+    </select>
+
+    <select id="selectLowBalanceAccounts" parameterType="Integer" resultMap="AccountInfoResult">
+        <include refid="selectAccountInfoVo"/>
+        where a.account_status = '1'
+        and a.service_balance &lt; (
+            SELECT AVG(monthly_fee)
+            FROM elder_check_in ec
+            WHERE ec.check_in_status = '1'
+            AND ec.elder_id = a.elder_id
+        ) * #{months}
+        order by a.service_balance asc
+    </select>
+
+    <insert id="insertAccountInfo" parameterType="AccountInfo" useGeneratedKeys="true" keyProperty="accountId">
+        insert into account_info
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="elderId != null">elder_id,</if>
+            <if test="institutionId != null">institution_id,</if>
+            <if test="accountNo != null and accountNo != ''">account_no,</if>
+            <if test="accountName != null and accountName != ''">account_name,</if>
+            <if test="accountStatus != null">account_status,</if>
+            <if test="totalBalance != null">total_balance,</if>
+            <if test="serviceBalance != null">service_balance,</if>
+            <if test="depositBalance != null">deposit_balance,</if>
+            <if test="memberBalance != null">member_balance,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="elderId != null">#{elderId},</if>
+            <if test="institutionId != null">#{institutionId},</if>
+            <if test="accountNo != null and accountNo != ''">#{accountNo},</if>
+            <if test="accountName != null and accountName != ''">#{accountName},</if>
+            <if test="accountStatus != null">#{accountStatus},</if>
+            <if test="totalBalance != null">#{totalBalance},</if>
+            <if test="serviceBalance != null">#{serviceBalance},</if>
+            <if test="depositBalance != null">#{depositBalance},</if>
+            <if test="memberBalance != null">#{memberBalance},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateAccountInfo" parameterType="AccountInfo">
+        update account_info
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="elderId != null">elder_id = #{elderId},</if>
+            <if test="institutionId != null">institution_id = #{institutionId},</if>
+            <if test="accountName != null and accountName != ''">account_name = #{accountName},</if>
+            <if test="accountStatus != null">account_status = #{accountStatus},</if>
+            <if test="totalBalance != null">total_balance = #{totalBalance},</if>
+            <if test="serviceBalance != null">service_balance = #{serviceBalance},</if>
+            <if test="depositBalance != null">deposit_balance = #{depositBalance},</if>
+            <if test="memberBalance != null">member_balance = #{memberBalance},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where account_id = #{accountId}
+    </update>
+
+    <update id="updateAccountBalance">
+        update account_info
+        set total_balance = #{totalBalance},
+            service_balance = #{serviceBalance},
+            deposit_balance = #{depositBalance},
+            member_balance = #{memberBalance},
+            update_time = NOW()
+        where account_id = #{accountId}
+    </update>
+
+    <delete id="deleteAccountInfoByAccountId" parameterType="Long">
+        delete from account_info where account_id = #{accountId}
+    </delete>
+
+    <delete id="deleteAccountInfoByAccountIds" parameterType="String">
+        delete from account_info where account_id in
+        <foreach item="accountId" collection="array" open="(" separator="," close=")">
+            #{accountId}
+        </foreach>
+    </delete>
+</mapper>

@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>郑州市养老机构分布大数据平台</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            font-family: 'Microsoft YaHei', 'Arial', sans-serif;
+            overflow-x: hidden;
+            overflow-y: auto;
+            background: linear-gradient(135deg, #0c1445 0%, #1e3c72 50%, #2a5298 100%);
+            min-height: 100vh;
+        }
+
+        .bigscreen-container {
+            width: 100%;
+            min-height: 100vh;
+            color: #fff;
+            position: relative;
+            padding-bottom: 50px;
+        }
+
+        .header {
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+            background: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .title {
+            font-size: 36px;
+            font-weight: bold;
+            background: linear-gradient(90deg, #00d4ff, #ffffff, #00d4ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { text-shadow: 0 0 20px rgba(0, 212, 255, 0.5); }
+            to { text-shadow: 0 0 30px rgba(0, 212, 255, 0.8), 0 0 40px rgba(0, 212, 255, 0.4); }
+        }
+
+        .time {
+            font-size: 18px;
+            color: #00d4ff;
+            font-weight: bold;
+        }
+
+        .main-content {
+            display: flex;
+            min-height: calc(100vh - 80px);
+            padding: 20px;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .left-panel, .right-panel {
+            width: 25%;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .center-panel {
+            width: 50%;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .stat-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .card {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, #00d4ff, #0099ff, #00d4ff);
+            border-radius: 10px;
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 212, 255, 0.4);
+        }
+
+        .card-title {
+            font-size: 14px;
+            color: #aaa;
+            margin-bottom: 10px;
+        }
+
+        .card-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #00d4ff;
+            margin-bottom: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover .card-value {
+            transform: scale(1.1);
+            color: #00ff88;
+        }
+
+        .card-unit {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .chart-container, .map-container, .status-container {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            flex: 1;
+            position: relative;
+        }
+
+        .chart-container::before, .map-container::before, .status-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+            animation: scan 3s linear infinite;
+        }
+
+        @keyframes scan {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .chart-title, .map-title, .status-title {
+            font-size: 16px;
+            color: #00d4ff;
+            margin-bottom: 15px;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .chart {
+            height: 250px;
+        }
+
+        .map-chart {
+            height: 400px;
+        }
+
+        .realtime-bar {
+            display: flex;
+            justify-content: space-around;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .realtime-item {
+            text-align: center;
+            padding: 10px;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .realtime-item:hover {
+            background: rgba(0, 212, 255, 0.1);
+            transform: scale(1.05);
+        }
+
+        .realtime-label {
+            display: block;
+            font-size: 12px;
+            color: #aaa;
+            margin-bottom: 8px;
+        }
+
+        .realtime-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #00ff88;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+        }
+
+        .realtime-value.warning {
+            color: #ff6b6b;
+            text-shadow: 0 0 10px rgba(255, 107, 107, 0.5);
+        }
+
+        .status-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            border-left: 3px solid #00d4ff;
+            transition: all 0.3s ease;
+        }
+
+        .status-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(5px);
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 255, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+        }
+
+        .status-dot.pending {
+            background: #ffc107;
+        }
+
+        .status-dot.approved {
+            background: #28a745;
+        }
+
+        .status-dot.rejected {
+            background: #dc3545;
+        }
+
+        .status-label {
+            flex: 1;
+            font-size: 14px;
+        }
+
+        .status-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #00d4ff;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(0, 212, 255, 0.3);
+            border-top: 3px solid #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            font-size: 16px;
+            z-index: 9999;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 1920px) {
+            .title {
+                font-size: 32px;
+            }
+            .main-content {
+                gap: 15px;
+                padding: 15px;
+            }
+        }
+
+        @media (max-width: 1366px) {
+            .title {
+                font-size: 28px;
+            }
+            .header {
+                padding: 0 20px;
+            }
+            .stat-cards {
+                grid-template-columns: 1fr;
+            }
+            .left-panel, .right-panel {
+                width: 30%;
+            }
+            .center-panel {
+                width: 40%;
+            }
+            .chart {
+                height: 200px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+            .left-panel, .right-panel, .center-panel {
+                width: 100%;
+            }
+            .realtime-bar {
+                flex-wrap: wrap;
+            }
+            .status-cards {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="loading-overlay" v-if="loading">
+            <div class="loading-spinner"></div>
+        </div>
+
+        <div class="error-message" v-if="error">
+            {{ error }}
+            <button @click="error = ''" style="margin-left: 10px; padding: 5px 10px;">重试</button>
+        </div>
+
+        <div class="bigscreen-container">
+            <div class="header">
+                <h1 class="title">郑州市养老机构分布大数据平台</h1>
+                <div class="time">{{ currentTime }}</div>
+            </div>
+
+            <div class="main-content">
+                <!-- 左侧区域 -->
+                <div class="left-panel">
+                    <!-- 机构统计卡片 -->
+                    <div class="stat-cards">
+                        <div class="card">
+                            <div class="card-title">机构总数</div>
+                            <div class="card-value">{{ statistics.totalInstitutions || 0 }}</div>
+                            <div class="card-unit">家</div>
+                        </div>
+                        <div class="card">
+                            <div class="card-title">已审批机构</div>
+                            <div class="card-value">{{ statistics.approvedInstitutions || 0 }}</div>
+                            <div class="card-unit">家</div>
+                        </div>
+                        <div class="card">
+                            <div class="card-title">入住老人</div>
+                            <div class="card-value">{{ statistics.totalElders || 0 }}</div>
+                            <div class="card-unit">人</div>
+                        </div>
+                        <div class="card">
+                            <div class="card-title">床位总数</div>
+                            <div class="card-value">{{ statistics.totalBeds || 0 }}</div>
+                            <div class="card-unit">张</div>
+                        </div>
+                    </div>
+
+                    <!-- 机构等级分布饼图 -->
+                    <div class="chart-container">
+                        <div class="chart-title">机构等级分布</div>
+                        <div id="levelChart" class="chart"></div>
+                    </div>
+
+                    <!-- 床位使用情况饼图 -->
+                    <div class="chart-container">
+                        <div class="chart-title">床位使用情况</div>
+                        <div id="bedChart" class="chart"></div>
+                    </div>
+                </div>
+
+                <!-- 中间区域 - 地图 -->
+                <div class="center-panel">
+                    <div class="map-container">
+                        <div class="map-title">郑州市养老机构地理分布</div>
+                        <div id="mapChart" class="map-chart"></div>
+                    </div>
+
+                    <!-- 实时数据条 -->
+                    <div class="realtime-bar">
+                        <div class="realtime-item">
+                            <span class="realtime-label">今日入住</span>
+                            <span class="realtime-value">{{ realtimeData.todayCheckins || 0 }}</span>
+                        </div>
+                        <div class="realtime-item">
+                            <span class="realtime-label">今日退住</span>
+                            <span class="realtime-value">{{ realtimeData.todayCheckouts || 0 }}</span>
+                        </div>
+                        <div class="realtime-item">
+                            <span class="realtime-label">今日缴费</span>
+                            <span class="realtime-value">{{ realtimeData.todayPayments || 0 }}</span>
+                        </div>
+                        <div class="realtime-item">
+                            <span class="realtime-label">活跃预警</span>
+                            <span class="realtime-value warning">{{ realtimeData.activeWarnings || 0 }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧区域 -->
+                <div class="right-panel">
+                    <!-- 老人年龄分布柱状图 -->
+                    <div class="chart-container">
+                        <div class="chart-title">老人年龄分布</div>
+                        <div id="ageChart" class="chart"></div>
+                    </div>
+
+                    <!-- 床位使用率趋势图 -->
+                    <div class="chart-container">
+                        <div class="chart-title">近7天床位使用率趋势</div>
+                        <div id="trendChart" class="chart"></div>
+                    </div>
+
+                    <!-- 机构审批状态 -->
+                    <div class="status-container">
+                        <div class="status-title">机构审批状态</div>
+                        <div class="status-list">
+                            <div class="status-item">
+                                <span class="status-dot pending"></span>
+                                <span class="status-label">待审批</span>
+                                <span class="status-value">{{ statistics.pendingInstitutions || 0 }}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-dot approved"></span>
+                                <span class="status-label">已审批</span>
+                                <span class="status-value">{{ statistics.approvedInstitutions || 0 }}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-dot rejected"></span>
+                                <span class="status-label">已驳回</span>
+                                <span class="status-value">{{ statistics.rejectedInstitutions || 0 }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        new Vue({
+            el: '#app',
+            data: {
+                loading: false,
+                error: '',
+                currentTime: '',
+                timer: null,
+                statistics: {},
+                realtimeData: {},
+                charts: {},
+                apiBaseUrl: 'http://localhost:8080' // 后端API地址
+            },
+            mounted() {
+                this.initTime();
+                this.initCharts();
+                this.loadData();
+
+                // 时间每秒更新
+                this.timeTimer = setInterval(() => {
+                    this.updateTime();
+                }, 1000); // 1秒更新一次时间
+
+                // 定时刷新数据
+                this.dataTimer = setInterval(() => {
+                    this.loadRealtimeData();
+                }, 30000); // 30秒刷新一次数据
+
+                // 监听窗口大小变化
+                window.addEventListener('resize', this.handleResize);
+            },
+            beforeDestroy() {
+                if (this.timeTimer) {
+                    clearInterval(this.timeTimer);
+                }
+                if (this.dataTimer) {
+                    clearInterval(this.dataTimer);
+                }
+                window.removeEventListener('resize', this.handleResize);
+                // 销毁图表实例
+                Object.values(this.charts).forEach(chart => {
+                    chart && chart.dispose();
+                });
+            },
+            methods: {
+                initTime() {
+                    this.updateTime();
+                },
+
+                updateTime() {
+                    const now = new Date();
+                    this.currentTime = now.toLocaleString('zh-CN', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
+                },
+
+                initCharts() {
+                    this.$nextTick(() => {
+                        this.initMapChart();
+                        this.initLevelChart();
+                        this.initBedChart();
+                        this.initAgeChart();
+                        this.initTrendChart();
+                    });
+                },
+
+                initMapChart() {
+                    const chartDom = document.getElementById('mapChart');
+                    if (chartDom) {
+                        this.charts.mapChart = echarts.init(chartDom);
+                    }
+                },
+
+                initLevelChart() {
+                    const chartDom = document.getElementById('levelChart');
+                    if (chartDom) {
+                        this.charts.levelChart = echarts.init(chartDom);
+                    }
+                },
+
+                initBedChart() {
+                    const chartDom = document.getElementById('bedChart');
+                    if (chartDom) {
+                        this.charts.bedChart = echarts.init(chartDom);
+                    }
+                },
+
+                initAgeChart() {
+                    const chartDom = document.getElementById('ageChart');
+                    if (chartDom) {
+                        this.charts.ageChart = echarts.init(chartDom);
+                    }
+                },
+
+                initTrendChart() {
+                    const chartDom = document.getElementById('trendChart');
+                    if (chartDom) {
+                        this.charts.trendChart = echarts.init(chartDom);
+                    }
+                },
+
+                async loadData() {
+                    this.loading = true;
+                    this.error = '';
+
+                    try {
+                        // 并行加载所有数据
+                        const [
+                            distributionRes,
+                            statisticsRes,
+                            levelsRes,
+                            bedRes,
+                            ageRes,
+                            realtimeRes
+                        ] = await Promise.all([
+                            this.fetchData('/pension/bigscreen/institution/distribution'),
+                            this.fetchData('/pension/bigscreen/institution/statistics'),
+                            this.fetchData('/pension/bigscreen/institution/levels'),
+                            this.fetchData('/pension/bigscreen/bed/usage'),
+                            this.fetchData('/pension/bigscreen/elder/age-distribution'),
+                            this.fetchData('/pension/bigscreen/realtime')
+                        ]);
+
+                        this.statistics = statisticsRes.data;
+                        this.realtimeData = realtimeRes.data;
+
+                        // 更新图表
+                        this.updateMapChart(distributionRes.data);
+                        this.updateLevelChart(levelsRes.data);
+                        this.updateBedChart(bedRes.data);
+                        this.updateAgeChart(ageRes.data);
+                        this.updateTrendChart();
+                    } catch (error) {
+                        console.error('加载数据失败:', error);
+                        this.error = '数据加载失败，请检查网络连接或稍后重试';
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                loadRealtimeData() {
+                    this.fetchData('/pension/bigscreen/realtime')
+                        .then(response => {
+                            this.realtimeData = response.data;
+                        })
+                        .catch(error => {
+                            console.error('加载实时数据失败:', error);
+                        });
+                },
+
+                async fetchData(url) {
+                    try {
+                        const response = await axios.get(this.apiBaseUrl + url, {
+                            timeout: 10000
+                        });
+                        return response.data;
+                    } catch (error) {
+                        if (error.code === 'ECONNABORTED') {
+                            throw new Error('请求超时，请检查网络连接');
+                        } else if (error.response) {
+                            throw new Error(`服务器错误: ${error.response.status}`);
+                        } else if (error.request) {
+                            throw new Error('无法连接到服务器，请检查后端服务是否启动');
+                        } else {
+                            throw new Error('请求失败: ' + error.message);
+                        }
+                    }
+                },
+
+                updateMapChart(data) {
+                    if (!this.charts.mapChart || !data) return;
+
+                    const option = {
+                        tooltip: {
+                            trigger: 'item',
+                            formatter: '{b}: {c}家',
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            borderColor: '#00d4ff',
+                            borderWidth: 1
+                        },
+                        series: [{
+                            name: '机构数量',
+                            type: 'pie',
+                            radius: ['40%', '70%'],
+                            center: ['50%', '50%'],
+                            roseType: 'radius',
+                            data: data,
+                            itemStyle: {
+                                borderRadius: 8,
+                                borderColor: '#00d4ff',
+                                borderWidth: 2
+                            },
+                            label: {
+                                show: true,
+                                formatter: '{b}\n{c}家',
+                                color: '#fff',
+                                fontSize: 12
+                            },
+                            emphasis: {
+                                itemStyle: {
+                                    shadowBlur: 20,
+                                    shadowOffsetX: 0,
+                                    shadowColor: 'rgba(0, 212, 255, 0.8)'
+                                }
+                            }
+                        }],
+                        color: ['#37a2da', '#32c5e9', '#9fe6b8', '#ffdb5c', '#ff9f7f', '#fb7293', '#e7bcf3', '#8378ea']
+                    };
+
+                    this.charts.mapChart.setOption(option);
+                },
+
+                updateLevelChart(data) {
+                    if (!this.charts.levelChart || !data) return;
+
+                    const option = {
+                        tooltip: {
+                            trigger: 'item',
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            borderColor: '#00d4ff',
+                            borderWidth: 1
+                        },
+                        legend: {
+                            orient: 'vertical',
+                            left: 'left',
+                            textStyle: { color: '#fff' }
+                        },
+                        series: [{
+                            name: '机构等级',
+                            type: 'pie',
+                            radius: '50%',
+                            data: data,
+                            itemStyle: {
+                                borderColor: '#00d4ff',
+                                borderWidth: 2
+                            },
+                            emphasis: {
+                                itemStyle: {
+                                    shadowBlur: 10,
+                                    shadowOffsetX: 0,
+                                    shadowColor: 'rgba(0, 0, 0, 0.5)'
+                                }
+                            }
+                        }],
+                        color: ['#5470c6', '#91cc75', '#fac858', '#ee6666']
+                    };
+
+                    this.charts.levelChart.setOption(option);
+                },
+
+                updateBedChart(data) {
+                    if (!this.charts.bedChart || !data) return;
+
+                    const option = {
+                        tooltip: {
+                            trigger: 'item',
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            borderColor: '#00d4ff',
+                            borderWidth: 1
+                        },
+                        series: [{
+                            name: '床位使用',
+                            type: 'pie',
+                            radius: ['50%', '70%'],
+                            avoidLabelOverlap: false,
+                            label: {
+                                show: false,
+                                position: 'center'
+                            },
+                            emphasis: {
+                                label: {
+                                    show: true,
+                                    fontSize: '18',
+                                    fontWeight: 'bold',
+                                    color: '#fff'
+                                }
+                            },
+                            labelLine: {
+                                show: false
+                            },
+                            data: data,
+                            itemStyle: {
+                                borderColor: '#00d4ff',
+                                borderWidth: 2
+                            }
+                        }],
+                        color: ['#3ba272', '#fc8452', '#9a60b4']
+                    };
+
+                    this.charts.bedChart.setOption(option);
+                },
+
+                updateAgeChart(data) {
+                    if (!this.charts.ageChart || !data) return;
+
+                    const option = {
+                        tooltip: {
+                            trigger: 'axis',
+                            axisPointer: {
+                                type: 'shadow'
+                            },
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            borderColor: '#00d4ff',
+                            borderWidth: 1
+                        },
+                        grid: {
+                            left: '3%',
+                            right: '4%',
+                            bottom: '3%',
+                            containLabel: true
+                        },
+                        xAxis: {
+                            type: 'category',
+                            data: data.map(item => item.name),
+                            axisLabel: { color: '#fff' },
+                            axisLine: { lineStyle: { color: '#00d4ff' } }
+                        },
+                        yAxis: {
+                            type: 'value',
+                            axisLabel: { color: '#fff' },
+                            axisLine: { lineStyle: { color: '#00d4ff' } },
+                            splitLine: { lineStyle: { color: 'rgba(0, 212, 255, 0.1)' } }
+                        },
+                        series: [{
+                            name: '老人数量',
+                            type: 'bar',
+                            data: data.map(item => item.value),
+                            itemStyle: {
+                                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                    { offset: 0, color: '#83bff6' },
+                                    { offset: 0.5, color: '#188df0' },
+                                    { offset: 1, color: '#188df0' }
+                                ]),
+                                borderColor: '#00d4ff',
+                                borderWidth: 2
+                            }
+                        }]
+                    };
+
+                    this.charts.ageChart.setOption(option);
+                },
+
+                updateTrendChart() {
+                    if (!this.charts.trendChart) return;
+
+                    // 生成最近7天的模拟数据
+                    const dates = [];
+                    const values = [];
+                    const today = new Date();
+
+                    for (let i = 6; i >= 0; i--) {
+                        const date = new Date(today);
+                        date.setDate(today.getDate() - i);
+                        dates.push(date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }));
+                        values.push((75 + Math.random() * 15).toFixed(1)); // 75-90%的使用率
+                    }
+
+                    const option = {
+                        tooltip: {
+                            trigger: 'axis',
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            borderColor: '#00d4ff',
+                            borderWidth: 1
+                        },
+                        grid: {
+                            left: '3%',
+                            right: '4%',
+                            bottom: '3%',
+                            containLabel: true
+                        },
+                        xAxis: {
+                            type: 'category',
+                            boundaryGap: false,
+                            data: dates,
+                            axisLabel: { color: '#fff' },
+                            axisLine: { lineStyle: { color: '#00d4ff' } }
+                        },
+                        yAxis: {
+                            type: 'value',
+                            max: 100,
+                            axisLabel: {
+                                color: '#fff',
+                                formatter: '{value}%'
+                            },
+                            axisLine: { lineStyle: { color: '#00d4ff' } },
+                            splitLine: { lineStyle: { color: 'rgba(0, 212, 255, 0.1)' } }
+                        },
+                        series: [{
+                            name: '床位使用率',
+                            type: 'line',
+                            smooth: true,
+                            data: values,
+                            areaStyle: {
+                                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                    { offset: 0, color: 'rgba(130, 194, 255, 0.5)' },
+                                    { offset: 1, color: 'rgba(130, 194, 255, 0.1)' }
+                                ])
+                            },
+                            lineStyle: {
+                                color: '#82c2ff',
+                                width: 3
+                            },
+                            itemStyle: {
+                                color: '#00d4ff',
+                                borderColor: '#fff',
+                                borderWidth: 2
+                            }
+                        }]
+                    };
+
+                    this.charts.trendChart.setOption(option);
+                },
+
+                handleResize() {
+                    Object.values(this.charts).forEach(chart => {
+                        chart && chart.resize();
+                    });
+                }
+            }
+        });
+    </script>
+</body>
+</html>

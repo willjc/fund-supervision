@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.mapper.pension.FundTransferMapper">
+
+    <resultMap type="FundTransfer" id="FundTransferResult">
+        <result property="transferId"    column="transfer_id"    />
+        <result property="institutionId"    column="institution_id"    />
+        <result property="transferNo"    column="transfer_no"    />
+        <result property="transferType"    column="transfer_type"    />
+        <result property="transferAmount"    column="transfer_amount"    />
+        <result property="transferDate"    column="transfer_date"    />
+        <result property="transferPeriod"    column="transfer_period"    />
+        <result property="elderCount"    column="elder_count"    />
+        <result property="transferStatus"    column="transfer_status"    />
+        <result property="bankOrderNo"    column="bank_order_no"    />
+        <result property="failureReason"    column="failure_reason"    />
+        <result property="approveUser"    column="approve_user"    />
+        <result property="approveTime"    column="approve_time"    />
+        <result property="executeUser"    column="execute_user"    />
+        <result property="executeTime"    column="execute_time"    />
+        <result property="createBy"   column="create_by"   />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy"   column="update_by"   />
+        <result property="updateTime" column="update_time" />
+        <result property="remark"     column="remark"     />
+        <!-- 关联字段 -->
+        <result property="institutionName"    column="institution_name"    />
+    </resultMap>
+
+    <sql id="selectFundTransferVo">
+        select ft.transfer_id, ft.institution_id, ft.transfer_no, ft.transfer_type, ft.transfer_amount,
+               ft.transfer_date, ft.transfer_period, ft.elder_count, ft.transfer_status, ft.bank_order_no,
+               ft.failure_reason, ft.approve_user, ft.approve_time, ft.execute_user, ft.execute_time,
+               ft.create_by, ft.create_time, ft.update_by, ft.update_time, ft.remark,
+               pi.institution_name
+        from fund_transfer ft
+        left join pension_institution pi on ft.institution_id = pi.institution_id
+    </sql>
+
+    <select id="selectFundTransferList" parameterType="FundTransfer" resultMap="FundTransferResult">
+        <include refid="selectFundTransferVo"/>
+        <where>
+            <if test="institutionId != null "> and ft.institution_id = #{institutionId}</if>
+            <if test="transferNo != null  and transferNo != ''"> and ft.transfer_no like concat('%', #{transferNo}, '%')</if>
+            <if test="transferType != null  and transferType != ''"> and ft.transfer_type = #{transferType}</if>
+            <if test="transferStatus != null  and transferStatus != ''"> and ft.transfer_status = #{transferStatus}</if>
+            <if test="transferPeriod != null  and transferPeriod != ''"> and ft.transfer_period = #{transferPeriod}</if>
+            <if test="institutionName != null  and institutionName != ''"> and pi.institution_name like concat('%', #{institutionName}, '%')</if>
+            <if test="params.beginTime != null and params.beginTime != ''">
+                and date_format(ft.transfer_date,'%y%m%d') &gt;= date_format(#{params.beginTime},'%y%m%d')
+            </if>
+            <if test="params.endTime != null and params.endTime != ''">
+                and date_format(ft.transfer_date,'%y%m%d') &lt;= date_format(#{params.endTime},'%y%m%d')
+            </if>
+        </where>
+        order by ft.create_time desc
+    </select>
+
+    <select id="selectFundTransferByTransferId" parameterType="Long" resultMap="FundTransferResult">
+        <include refid="selectFundTransferVo"/>
+        where ft.transfer_id = #{transferId}
+    </select>
+
+    <select id="selectFundTransferByInstitutionId" parameterType="Long" resultMap="FundTransferResult">
+        <include refid="selectFundTransferVo"/>
+        where ft.institution_id = #{institutionId}
+        order by ft.create_time desc
+    </select>
+
+    <select id="selectPendingTransfers" resultMap="FundTransferResult">
+        <include refid="selectFundTransferVo"/>
+        where ft.transfer_status = '0'
+        order by ft.create_time asc
+    </select>
+
+    <select id="selectTransferStatistics" parameterType="map" resultType="map">
+        SELECT
+            COUNT(*) as transfer_count,
+            IFNULL(SUM(CASE WHEN transfer_status = '1' THEN transfer_amount ELSE 0 END), 0) as success_amount,
+            IFNULL(SUM(CASE WHEN transfer_status = '2' THEN transfer_amount ELSE 0 END), 0) as failed_amount,
+            IFNULL(SUM(transfer_amount), 0) as total_amount,
+            COUNT(CASE WHEN transfer_status = '1' THEN 1 END) as success_count,
+            COUNT(CASE WHEN transfer_status = '2' THEN 1 END) as failed_count
+        FROM fund_transfer
+        WHERE 1=1
+        <if test="institutionId != null"> and institution_id = #{institutionId}</if>
+        <if test="startDate != null"> and transfer_date &gt;= #{startDate}</if>
+        <if test="endDate != null"> and transfer_date &lt;= #{endDate}</if>
+    </select>
+
+    <insert id="insertFundTransfer" parameterType="FundTransfer" useGeneratedKeys="true" keyProperty="transferId">
+        insert into fund_transfer
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="institutionId != null">institution_id,</if>
+            <if test="transferNo != null and transferNo != ''">transfer_no,</if>
+            <if test="transferType != null and transferType != ''">transfer_type,</if>
+            <if test="transferAmount != null">transfer_amount,</if>
+            <if test="transferDate != null">transfer_date,</if>
+            <if test="transferPeriod != null and transferPeriod != ''">transfer_period,</if>
+            <if test="elderCount != null">elder_count,</if>
+            <if test="transferStatus != null">transfer_status,</if>
+            <if test="bankOrderNo != null and bankOrderNo != ''">bank_order_no,</if>
+            <if test="failureReason != null">failure_reason,</if>
+            <if test="approveUser != null and approveUser != ''">approve_user,</if>
+            <if test="approveTime != null">approve_time,</if>
+            <if test="executeUser != null and executeUser != ''">execute_user,</if>
+            <if test="executeTime != null">execute_time,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="institutionId != null">#{institutionId},</if>
+            <if test="transferNo != null and transferNo != ''">#{transferNo},</if>
+            <if test="transferType != null and transferType != ''">#{transferType},</if>
+            <if test="transferAmount != null">#{transferAmount},</if>
+            <if test="transferDate != null">#{transferDate},</if>
+            <if test="transferPeriod != null and transferPeriod != ''">#{transferPeriod},</if>
+            <if test="elderCount != null">#{elderCount},</if>
+            <if test="transferStatus != null">#{transferStatus},</if>
+            <if test="bankOrderNo != null and bankOrderNo != ''">#{bankOrderNo},</if>
+            <if test="failureReason != null">#{failureReason},</if>
+            <if test="approveUser != null and approveUser != ''">#{approveUser},</if>
+            <if test="approveTime != null">#{approveTime},</if>
+            <if test="executeUser != null and executeUser != ''">#{executeUser},</if>
+            <if test="executeTime != null">#{executeTime},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateFundTransfer" parameterType="FundTransfer">
+        update fund_transfer
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="institutionId != null">institution_id = #{institutionId},</if>
+            <if test="transferType != null and transferType != ''">transfer_type = #{transferType},</if>
+            <if test="transferAmount != null">transfer_amount = #{transferAmount},</if>
+            <if test="transferDate != null">transfer_date = #{transferDate},</if>
+            <if test="transferPeriod != null and transferPeriod != ''">transfer_period = #{transferPeriod},</if>
+            <if test="elderCount != null">elder_count = #{elderCount},</if>
+            <if test="transferStatus != null">transfer_status = #{transferStatus},</if>
+            <if test="bankOrderNo != null and bankOrderNo != ''">bank_order_no = #{bankOrderNo},</if>
+            <if test="failureReason != null">failure_reason = #{failureReason},</if>
+            <if test="approveUser != null and approveUser != ''">approve_user = #{approveUser},</if>
+            <if test="approveTime != null">approve_time = #{approveTime},</if>
+            <if test="executeUser != null and executeUser != ''">execute_user = #{executeUser},</if>
+            <if test="executeTime != null">execute_time = #{executeTime},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where transfer_id = #{transferId}
+    </update>
+
+    <update id="approveFundTransfer">
+        update fund_transfer
+        set transfer_status = #{transferStatus},
+            approve_user = #{approveUser},
+            approve_time = #{approveTime}
+        <if test="failureReason != null and failureReason != ''">, failure_reason = #{failureReason}</if>
+        where transfer_id = #{transferId}
+    </update>
+
+    <update id="executeFundTransfer">
+        update fund_transfer
+        set transfer_status = #{transferStatus},
+            execute_user = #{executeUser},
+            execute_time = #{executeTime}
+        <if test="bankOrderNo != null and bankOrderNo != ''">, bank_order_no = #{bankOrderNo}</if>
+        where transfer_id = #{transferId}
+    </update>
+
+    <delete id="deleteFundTransferByTransferId" parameterType="Long">
+        delete from fund_transfer where transfer_id = #{transferId}
+    </delete>
+
+    <delete id="deleteFundTransferByTransferIds" parameterType="String">
+        delete from fund_transfer where transfer_id in
+        <foreach item="transferId" collection="array" open="(" separator="," close=")">
+            #{transferId}
+        </foreach>
+    </delete>
+</mapper>

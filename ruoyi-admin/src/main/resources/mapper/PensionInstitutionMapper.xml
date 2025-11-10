@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.mapper.PensionInstitutionMapper">
+
+    <resultMap type="PensionInstitution" id="PensionInstitutionResult">
+        <result property="institutionId"    column="institution_id"    />
+        <result property="institutionName"  column="institution_name"  />
+        <result property="creditCode"       column="credit_code"       />
+        <result property="registeredCapital" column="registered_capital" />
+        <result property="registeredAddress" column="registered_address" />
+        <result property="street"           column="street"            />
+        <result property="actualAddress"    column="actual_address"    />
+        <result property="legalPerson"      column="legal_person"      />
+        <result property="contactPerson"    column="contact_person"    />
+        <result property="contactPhone"     column="contact_phone"     />
+        <result property="contactEmail"     column="contact_email"     />
+        <result property="businessScope"    column="business_scope"    />
+        <result property="institutionType"  column="institution_type"  />
+        <result property="bedCount"         column="bed_count"         />
+        <result property="feeRange"         column="fee_range"         />
+        <result property="establishedDate"   column="established_date"   />
+        <result property="organizer"        column="organizer"         />
+        <result property="responsibleName"  column="responsible_name"  />
+        <result property="responsibleIdCard" column="responsible_id_card" />
+        <result property="responsibleAddress" column="responsible_address" />
+        <result property="responsiblePhone" column="responsible_phone" />
+        <result property="recordNumber"     column="record_number"     />
+        <result property="fixedAssets"      column="fixed_assets"      />
+        <result property="businessLicense"  column="business_license"  />
+        <result property="approvalCertificate" column="approval_certificate" />
+        <result property="supervisionAgreement" column="supervision_agreement" />
+        <result property="bankAccount"      column="bank_account"      />
+        <result property="superviseAccount" column="supervise_account" />
+        <result property="status"           column="status"            />
+        <result property="applyTime"        column="apply_time"        />
+        <result property="approveTime"      column="approve_time"      />
+        <result property="approveUser"      column="approve_user"      />
+        <result property="approveRemark"    column="approve_remark"    />
+        <result property="blacklistFlag"    column="blacklist_flag"    />
+        <result property="createBy"         column="create_by"         />
+        <result property="createTime"       column="create_time"       />
+        <result property="updateBy"         column="update_by"         />
+        <result property="updateTime"       column="update_time"       />
+        <result property="remark"           column="remark"            />
+    </resultMap>
+
+    <sql id="selectPensionInstitutionVo">
+        select institution_id, institution_name, credit_code, registered_capital,
+               registered_address, street, actual_address, legal_person, contact_person,
+               contact_phone, contact_email, business_scope, institution_type,
+               bed_count, fee_range, established_date, organizer, responsible_name,
+               responsible_id_card, responsible_address, responsible_phone, record_number,
+               fixed_assets, business_license, approval_certificate, supervision_agreement,
+               bank_account, supervise_account, status, apply_time, approve_time,
+               approve_user, approve_remark, blacklist_flag, create_by, create_time,
+               update_by, update_time, remark
+        from pension_institution
+    </sql>
+
+    <select id="selectPensionInstitutionList" parameterType="PensionInstitution" resultMap="PensionInstitutionResult">
+        <include refid="selectPensionInstitutionVo"/>
+        <where>
+            <!-- 数据权限过滤: 如果传入了currentUserId,则只查询该用户有权限的机构 -->
+            <if test="currentUserId != null">
+                and institution_id in (
+                    select institution_id from sys_user_institution where user_id = #{currentUserId}
+                )
+            </if>
+            <if test="institutionName != null and institutionName != ''"> and institution_name like concat('%', #{institutionName}, '%')</if>
+            <if test="creditCode != null and creditCode != ''"> and credit_code = #{creditCode}</if>
+            <if test="contactPerson != null and contactPerson != ''"> and contact_person like concat('%', #{contactPerson}, '%')</if>
+            <if test="contactPhone != null and contactPhone != ''"> and contact_phone = #{contactPhone}</if>
+            <if test="status != null and status != ''"> and status = #{status}</if>
+            <if test="institutionType != null and institutionType != ''"> and institution_type = #{institutionType}</if>
+        </where>
+        order by create_time desc
+    </select>
+
+    <select id="selectPensionInstitutionByInstitutionId" parameterType="Long" resultMap="PensionInstitutionResult">
+        <include refid="selectPensionInstitutionVo"/>
+        where institution_id = #{institutionId}
+    </select>
+
+    <insert id="insertPensionInstitution" parameterType="PensionInstitution" useGeneratedKeys="true" keyProperty="institutionId">
+        insert into pension_institution
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="institutionName != null and institutionName != ''">institution_name,</if>
+            <if test="creditCode != null and creditCode != ''">credit_code,</if>
+            <if test="registeredCapital != null">registered_capital,</if>
+            <if test="registeredAddress != null and registeredAddress != ''">registered_address,</if>
+            <if test="street != null and street != ''">street,</if>
+            <if test="actualAddress != null and actualAddress != ''">actual_address,</if>
+            <if test="legalPerson != null and legalPerson != ''">legal_person,</if>
+            <if test="contactPerson != null and contactPerson != ''">contact_person,</if>
+            <if test="contactPhone != null and contactPhone != ''">contact_phone,</if>
+            <if test="contactEmail != null and contactEmail != ''">contact_email,</if>
+            <if test="businessScope != null and businessScope != ''">business_scope,</if>
+            <if test="institutionType != null and institutionType != ''">institution_type,</if>
+            <if test="bedCount != null">bed_count,</if>
+            <if test="feeRange != null and feeRange != ''">fee_range,</if>
+            <if test="establishedDate != null">established_date,</if>
+            <if test="organizer != null and organizer != ''">organizer,</if>
+            <if test="responsibleName != null and responsibleName != ''">responsible_name,</if>
+            <if test="responsibleIdCard != null and responsibleIdCard != ''">responsible_id_card,</if>
+            <if test="responsibleAddress != null and responsibleAddress != ''">responsible_address,</if>
+            <if test="responsiblePhone != null and responsiblePhone != ''">responsible_phone,</if>
+            <if test="recordNumber != null and recordNumber != ''">record_number,</if>
+            <if test="fixedAssets != null">fixed_assets,</if>
+            <if test="businessLicense != null and businessLicense != ''">business_license,</if>
+            <if test="approvalCertificate != null and approvalCertificate != ''">approval_certificate,</if>
+            <if test="supervisionAgreement != null and supervisionAgreement != ''">supervision_agreement,</if>
+            <if test="bankAccount != null and bankAccount != ''">bank_account,</if>
+            <if test="superviseAccount != null and superviseAccount != ''">supervise_account,</if>
+            <if test="status != null">status,</if>
+            <if test="applyTime != null">apply_time,</if>
+            <if test="approveTime != null">approve_time,</if>
+            <if test="approveUser != null and approveUser != ''">approve_user,</if>
+            <if test="approveRemark != null">approve_remark,</if>
+            <if test="blacklistFlag != null">blacklist_flag,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null and updateBy != ''">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="institutionName != null and institutionName != ''">#{institutionName},</if>
+            <if test="creditCode != null and creditCode != ''">#{creditCode},</if>
+            <if test="registeredCapital != null">#{registeredCapital},</if>
+            <if test="registeredAddress != null and registeredAddress != ''">#{registeredAddress},</if>
+            <if test="street != null and street != ''">#{street},</if>
+            <if test="actualAddress != null and actualAddress != ''">#{actualAddress},</if>
+            <if test="legalPerson != null and legalPerson != ''">#{legalPerson},</if>
+            <if test="contactPerson != null and contactPerson != ''">#{contactPerson},</if>
+            <if test="contactPhone != null and contactPhone != ''">#{contactPhone},</if>
+            <if test="contactEmail != null and contactEmail != ''">#{contactEmail},</if>
+            <if test="businessScope != null and businessScope != ''">#{businessScope},</if>
+            <if test="institutionType != null and institutionType != ''">#{institutionType},</if>
+            <if test="bedCount != null">#{bedCount},</if>
+            <if test="feeRange != null and feeRange != ''">#{feeRange},</if>
+            <if test="establishedDate != null">#{establishedDate},</if>
+            <if test="organizer != null and organizer != ''">#{organizer},</if>
+            <if test="responsibleName != null and responsibleName != ''">#{responsibleName},</if>
+            <if test="responsibleIdCard != null and responsibleIdCard != ''">#{responsibleIdCard},</if>
+            <if test="responsibleAddress != null and responsibleAddress != ''">#{responsibleAddress},</if>
+            <if test="responsiblePhone != null and responsiblePhone != ''">#{responsiblePhone},</if>
+            <if test="recordNumber != null and recordNumber != ''">#{recordNumber},</if>
+            <if test="fixedAssets != null">#{fixedAssets},</if>
+            <if test="businessLicense != null and businessLicense != ''">#{businessLicense},</if>
+            <if test="approvalCertificate != null and approvalCertificate != ''">#{approvalCertificate},</if>
+            <if test="supervisionAgreement != null and supervisionAgreement != ''">#{supervisionAgreement},</if>
+            <if test="bankAccount != null and bankAccount != ''">#{bankAccount},</if>
+            <if test="superviseAccount != null and superviseAccount != ''">#{superviseAccount},</if>
+            <if test="status != null">#{status},</if>
+            <if test="applyTime != null">#{applyTime},</if>
+            <if test="approveTime != null">#{approveTime},</if>
+            <if test="approveUser != null and approveUser != ''">#{approveUser},</if>
+            <if test="approveRemark != null">#{approveRemark},</if>
+            <if test="blacklistFlag != null">#{blacklistFlag},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null and updateBy != ''">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updatePensionInstitution" parameterType="PensionInstitution">
+        update pension_institution
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="institutionName != null and institutionName != ''">institution_name = #{institutionName},</if>
+            <if test="creditCode != null and creditCode != ''">credit_code = #{creditCode},</if>
+            <if test="registeredCapital != null">registered_capital = #{registeredCapital},</if>
+            <if test="registeredAddress != null and registeredAddress != ''">registered_address = #{registeredAddress},</if>
+            <if test="street != null and street != ''">street = #{street},</if>
+            <if test="actualAddress != null and actualAddress != ''">actual_address = #{actualAddress},</if>
+            <if test="legalPerson != null and legalPerson != ''">legal_person = #{legalPerson},</if>
+            <if test="contactPerson != null and contactPerson != ''">contact_person = #{contactPerson},</if>
+            <if test="contactPhone != null and contactPhone != ''">contact_phone = #{contactPhone},</if>
+            <if test="contactEmail != null and contactEmail != ''">contact_email = #{contactEmail},</if>
+            <if test="businessScope != null and businessScope != ''">business_scope = #{businessScope},</if>
+            <if test="institutionType != null and institutionType != ''">institution_type = #{institutionType},</if>
+            <if test="bedCount != null">bed_count = #{bedCount},</if>
+            <if test="feeRange != null and feeRange != ''">fee_range = #{feeRange},</if>
+            <if test="establishedDate != null">established_date = #{establishedDate},</if>
+            <if test="organizer != null and organizer != ''">organizer = #{organizer},</if>
+            <if test="responsibleName != null and responsibleName != ''">responsible_name = #{responsibleName},</if>
+            <if test="responsibleIdCard != null and responsibleIdCard != ''">responsible_id_card = #{responsibleIdCard},</if>
+            <if test="responsibleAddress != null and responsibleAddress != ''">responsible_address = #{responsibleAddress},</if>
+            <if test="responsiblePhone != null and responsiblePhone != ''">responsible_phone = #{responsiblePhone},</if>
+            <if test="recordNumber != null and recordNumber != ''">record_number = #{recordNumber},</if>
+            <if test="fixedAssets != null">fixed_assets = #{fixedAssets},</if>
+            <if test="businessLicense != null and businessLicense != ''">business_license = #{businessLicense},</if>
+            <if test="approvalCertificate != null and approvalCertificate != ''">approval_certificate = #{approvalCertificate},</if>
+            <if test="supervisionAgreement != null and supervisionAgreement != ''">supervision_agreement = #{supervisionAgreement},</if>
+            <if test="bankAccount != null and bankAccount != ''">bank_account = #{bankAccount},</if>
+            <if test="superviseAccount != null and superviseAccount != ''">supervise_account = #{superviseAccount},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="applyTime != null">apply_time = #{applyTime},</if>
+            <if test="approveTime != null">approve_time = #{approveTime},</if>
+            <if test="approveUser != null and approveUser != ''">approve_user = #{approveUser},</if>
+            <if test="approveRemark != null">approve_remark = #{approveRemark},</if>
+            <if test="blacklistFlag != null">blacklist_flag = #{blacklistFlag},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where institution_id = #{institutionId}
+    </update>
+
+    <update id="approveInstitution" parameterType="PensionInstitution">
+        update pension_institution
+        set status = #{status},
+            approve_time = #{approveTime},
+            approve_user = #{approveUser},
+            approve_remark = #{approveRemark}
+        where institution_id = #{institutionId}
+    </update>
+
+    <update id="updateDraft" parameterType="PensionInstitution">
+        update pension_institution
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="institutionName != null and institutionName != ''">institution_name = #{institutionName},</if>
+            <if test="creditCode != null and creditCode != ''">credit_code = #{creditCode},</if>
+            <if test="registeredCapital != null">registered_capital = #{registeredCapital},</if>
+            <if test="registeredAddress != null and registeredAddress != ''">registered_address = #{registeredAddress},</if>
+            <if test="street != null and street != ''">street = #{street},</if>
+            <if test="actualAddress != null and actualAddress != ''">actual_address = #{actualAddress},</if>
+            <if test="legalPerson != null and legalPerson != ''">legal_person = #{legalPerson},</if>
+            <if test="contactPerson != null and contactPerson != ''">contact_person = #{contactPerson},</if>
+            <if test="contactPhone != null and contactPhone != ''">contact_phone = #{contactPhone},</if>
+            <if test="contactEmail != null and contactEmail != ''">contact_email = #{contactEmail},</if>
+            <if test="businessScope != null and businessScope != ''">business_scope = #{businessScope},</if>
+            <if test="institutionType != null and institutionType != ''">institution_type = #{institutionType},</if>
+            <if test="bedCount != null">bed_count = #{bedCount},</if>
+            <if test="feeRange != null and feeRange != ''">fee_range = #{feeRange},</if>
+            <if test="establishedDate != null">established_date = #{establishedDate},</if>
+            <if test="organizer != null and organizer != ''">organizer = #{organizer},</if>
+            <if test="responsibleName != null and responsibleName != ''">responsible_name = #{responsibleName},</if>
+            <if test="responsibleIdCard != null and responsibleIdCard != ''">responsible_id_card = #{responsibleIdCard},</if>
+            <if test="responsibleAddress != null and responsibleAddress != ''">responsible_address = #{responsibleAddress},</if>
+            <if test="responsiblePhone != null and responsiblePhone != ''">responsible_phone = #{responsiblePhone},</if>
+            <if test="recordNumber != null and recordNumber != ''">record_number = #{recordNumber},</if>
+            <if test="fixedAssets != null">fixed_assets = #{fixedAssets},</if>
+            <if test="businessLicense != null and businessLicense != ''">business_license = #{businessLicense},</if>
+            <if test="approvalCertificate != null and approvalCertificate != ''">approval_certificate = #{approvalCertificate},</if>
+            <if test="supervisionAgreement != null and supervisionAgreement != ''">supervision_agreement = #{supervisionAgreement},</if>
+            <if test="bankAccount != null and bankAccount != ''">bank_account = #{bankAccount},</if>
+            <if test="superviseAccount != null and superviseAccount != ''">supervise_account = #{superviseAccount},</if>
+            status = #{status},
+            apply_time = NULL,
+            approve_time = NULL,
+            approve_user = NULL,
+            approve_remark = NULL,
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where institution_id = #{institutionId}
+    </update>
+
+    <delete id="deletePensionInstitutionByInstitutionId" parameterType="Long">
+        delete from pension_institution where institution_id = #{institutionId}
+    </delete>
+
+    <delete id="deletePensionInstitutionByInstitutionIds" parameterType="String">
+        delete from pension_institution where institution_id in
+        <foreach item="institutionId" collection="array" open="(" separator="," close=")">
+            #{institutionId}
+        </foreach>
+    </delete>
+
+</mapper>

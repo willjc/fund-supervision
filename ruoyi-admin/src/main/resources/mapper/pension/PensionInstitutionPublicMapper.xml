@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.mapper.PensionInstitutionPublicMapper">
+
+    <resultMap type="PensionInstitutionPublic" id="PensionInstitutionPublicResult">
+        <result property="publicId"    column="public_id"    />
+        <result property="institutionId"    column="institution_id"    />
+        <result property="institutionIntro"    column="institution_intro"    />
+        <result property="serviceScope"    column="service_scope"    />
+        <result property="serviceFeatures"    column="service_features"    />
+        <result property="landArea"    column="land_area"    />
+        <result property="buildingArea"    column="building_area"    />
+        <result property="environmentImgs"    column="environment_imgs"    />
+        <result property="rating"    column="rating"    />
+        <result property="feeRangeMin"    column="fee_range_min"    />
+        <result property="feeRangeMax"    column="fee_range_max"    />
+        <result property="acceptElderType"    column="accept_elder_type"    />
+        <result property="isPublished"    column="is_published"    />
+        <result property="createBy"    column="create_by"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"    column="update_by"    />
+        <result property="updateTime"    column="update_time"    />
+        <!-- 关联查询字段 -->
+        <result property="institutionName"    column="institution_name"    />
+        <result property="creditCode"    column="credit_code"    />
+        <result property="recordNumber"    column="record_number"    />
+        <result property="actualAddress"    column="actual_address"    />
+        <result property="bedCount"    column="bed_count"    />
+        <result property="superviseAccount"    column="supervise_account"    />
+        <result property="feeRange"    column="fee_range"    />
+    </resultMap>
+
+    <sql id="selectPensionInstitutionPublicVo">
+        select
+            p.public_id,
+            i.institution_id,
+            p.institution_intro,
+            p.service_scope,
+            p.service_features,
+            p.land_area,
+            p.building_area,
+            p.environment_imgs,
+            p.rating,
+            p.fee_range_min,
+            p.fee_range_max,
+            p.accept_elder_type,
+            p.is_published,
+            p.create_by,
+            p.create_time,
+            p.update_by,
+            p.update_time,
+            i.institution_name,
+            i.credit_code,
+            i.record_number,
+            i.actual_address,
+            i.bed_count,
+            i.supervise_account,
+            i.fee_range
+        from pension_institution i
+        left join pension_institution_public p on i.institution_id = p.institution_id
+    </sql>
+
+    <select id="selectPensionInstitutionPublicList" parameterType="PensionInstitutionPublic" resultMap="PensionInstitutionPublicResult">
+        <include refid="selectPensionInstitutionPublicVo"/>
+        <where>
+            <!-- 只查询已入驻的机构 -->
+            and i.status = '1'
+            <!-- 数据权限过滤: 机构管理员只能查看自己关联的机构 -->
+            <if test="currentUserId != null">
+                and i.institution_id in (
+                    select institution_id from sys_user_institution where user_id = #{currentUserId}
+                )
+            </if>
+            <if test="institutionId != null "> and i.institution_id = #{institutionId}</if>
+            <if test="institutionName != null  and institutionName != ''"> and i.institution_name like concat('%', #{institutionName}, '%')</if>
+            <if test="isPublished != null  and isPublished != ''"> and p.is_published = #{isPublished}</if>
+            <if test="rating != null  and rating != ''"> and p.rating = #{rating}</if>
+        </where>
+        order by p.update_time desc, p.create_time desc, i.create_time desc
+    </select>
+
+    <select id="selectPensionInstitutionPublicByPublicId" parameterType="Long" resultMap="PensionInstitutionPublicResult">
+        <include refid="selectPensionInstitutionPublicVo"/>
+        where p.public_id = #{publicId}
+    </select>
+
+    <select id="selectPensionInstitutionPublicByInstitutionId" parameterType="Long" resultMap="PensionInstitutionPublicResult">
+        <include refid="selectPensionInstitutionPublicVo"/>
+        where p.institution_id = #{institutionId}
+    </select>
+
+    <insert id="insertPensionInstitutionPublic" parameterType="PensionInstitutionPublic" useGeneratedKeys="true" keyProperty="publicId">
+        insert into pension_institution_public
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="institutionId != null">institution_id,</if>
+            <if test="institutionIntro != null">institution_intro,</if>
+            <if test="serviceScope != null">service_scope,</if>
+            <if test="serviceFeatures != null">service_features,</if>
+            <if test="landArea != null">land_area,</if>
+            <if test="buildingArea != null">building_area,</if>
+            <if test="environmentImgs != null">environment_imgs,</if>
+            <if test="rating != null">rating,</if>
+            <if test="feeRangeMin != null">fee_range_min,</if>
+            <if test="feeRangeMax != null">fee_range_max,</if>
+            <if test="acceptElderType != null">accept_elder_type,</if>
+            <if test="isPublished != null">is_published,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="institutionId != null">#{institutionId},</if>
+            <if test="institutionIntro != null">#{institutionIntro},</if>
+            <if test="serviceScope != null">#{serviceScope},</if>
+            <if test="serviceFeatures != null">#{serviceFeatures},</if>
+            <if test="landArea != null">#{landArea},</if>
+            <if test="buildingArea != null">#{buildingArea},</if>
+            <if test="environmentImgs != null">#{environmentImgs},</if>
+            <if test="rating != null">#{rating},</if>
+            <if test="feeRangeMin != null">#{feeRangeMin},</if>
+            <if test="feeRangeMax != null">#{feeRangeMax},</if>
+            <if test="acceptElderType != null">#{acceptElderType},</if>
+            <if test="isPublished != null">#{isPublished},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updatePensionInstitutionPublic" parameterType="PensionInstitutionPublic">
+        update pension_institution_public
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="institutionId != null">institution_id = #{institutionId},</if>
+            <if test="institutionIntro != null">institution_intro = #{institutionIntro},</if>
+            <if test="serviceScope != null">service_scope = #{serviceScope},</if>
+            <if test="serviceFeatures != null">service_features = #{serviceFeatures},</if>
+            <if test="landArea != null">land_area = #{landArea},</if>
+            <if test="buildingArea != null">building_area = #{buildingArea},</if>
+            <if test="environmentImgs != null">environment_imgs = #{environmentImgs},</if>
+            <if test="rating != null">rating = #{rating},</if>
+            <if test="feeRangeMin != null">fee_range_min = #{feeRangeMin},</if>
+            <if test="feeRangeMax != null">fee_range_max = #{feeRangeMax},</if>
+            <if test="acceptElderType != null">accept_elder_type = #{acceptElderType},</if>
+            <if test="isPublished != null">is_published = #{isPublished},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </trim>
+        where public_id = #{publicId}
+    </update>
+
+    <delete id="deletePensionInstitutionPublicByPublicId" parameterType="Long">
+        delete from pension_institution_public where public_id = #{publicId}
+    </delete>
+
+    <delete id="deletePensionInstitutionPublicByPublicIds" parameterType="String">
+        delete from pension_institution_public where public_id in
+        <foreach item="publicId" collection="array" open="(" separator="," close=")">
+            #{publicId}
+        </foreach>
+    </delete>
+
+    <update id="publishPublicity" parameterType="Long">
+        update pension_institution_public set is_published = '1', update_time = sysdate() where public_id = #{publicId}
+    </update>
+
+    <update id="unpublishPublicity" parameterType="Long">
+        update pension_institution_public set is_published = '0', update_time = sysdate() where public_id = #{publicId}
+    </update>
+
+</mapper>

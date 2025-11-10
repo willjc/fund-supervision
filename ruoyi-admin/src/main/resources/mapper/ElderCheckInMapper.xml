@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.mapper.ElderCheckInMapper">
+
+    <resultMap type="ElderCheckIn" id="ElderCheckInResult">
+        <result property="checkInId"    column="check_in_id"    />
+        <result property="elderId"    column="elder_id"    />
+        <result property="institutionId"    column="institution_id"    />
+        <result property="bedId"    column="bed_id"    />
+        <result property="applyDate"    column="apply_date"    />
+        <result property="expectedCheckInDate"    column="expected_check_in_date"    />
+        <result property="actualCheckInDate"    column="actual_check_in_date"    />
+        <result property="checkInStatus"    column="check_in_status"    />
+        <result property="careLevel"    column="care_level"    />
+        <result property="monthlyFee"    column="monthly_fee"    />
+        <result property="depositAmount"    column="deposit_amount"    />
+        <result property="paymentMethod"    column="payment_method"    />
+        <result property="interviewDate"    column="interview_date"    />
+        <result property="interviewResult"    column="interview_result"    />
+        <result property="approvalUser"    column="approval_user"    />
+        <result property="approvalTime"    column="approval_time"    />
+        <result property="approvalRemark"    column="approval_remark"    />
+        <result property="createBy"   column="create_by"   />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy"   column="update_by"   />
+        <result property="updateTime" column="update_time" />
+        <result property="remark"     column="remark"     />
+        <result property="elderName" column="elder_name" />
+        <result property="institutionName" column="institution_name" />
+        <result property="roomNumber" column="room_number" />
+        <result property="bedNumber" column="bed_number" />
+    </resultMap>
+
+    <sql id="selectElderCheckInVo">
+        select c.check_in_id, c.elder_id, c.institution_id, c.bed_id, c.apply_date, c.expected_check_in_date,
+               c.actual_check_in_date, c.check_in_status, c.care_level, c.monthly_fee, c.deposit_amount,
+               c.payment_method, c.interview_date, c.interview_result, c.approval_user, c.approval_time,
+               c.approval_remark, c.create_by, c.create_time, c.update_by, c.update_time, c.remark,
+               e.elder_name, i.institution_name, b.room_number, b.bed_number
+        from elder_check_in c
+        left join elder_info e on c.elder_id = e.elder_id
+        left join pension_institution i on c.institution_id = i.institution_id
+        left join bed_info b on c.bed_id = b.bed_id
+    </sql>
+
+    <select id="selectElderCheckInList" parameterType="ElderCheckIn" resultMap="ElderCheckInResult">
+        <include refid="selectElderCheckInVo"/>
+        <where>
+            <if test="elderId != null "> and c.elder_id = #{elderId}</if>
+            <if test="institutionId != null "> and c.institution_id = #{institutionId}</if>
+            <if test="bedId != null "> and c.bed_id = #{bedId}</if>
+            <if test="elderName != null  and elderName != ''"> and e.elder_name like concat('%', #{elderName}, '%')</if>
+            <if test="checkInStatus != null  and checkInStatus != ''"> and c.check_in_status = #{checkInStatus}</if>
+            <if test="careLevel != null  and careLevel != ''"> and c.care_level = #{careLevel}</if>
+            <if test="approvalUser != null  and approvalUser != ''"> and c.approval_user = #{approvalUser}</if>
+            <if test="params.beginTime != null and params.beginTime != ''"><!-- 开始时间检索 -->
+                and date_format(c.apply_date,'%y%m%d') &gt;= date_format(#{params.beginTime},'%y%m%d')
+            </if>
+            <if test="params.endTime != null and params.endTime != ''"><!-- 结束时间检索 -->
+                and date_format(c.apply_date,'%y%m%d') &lt;= date_format(#{params.endTime},'%y%m%d')
+            </if>
+        </where>
+        order by c.apply_date desc
+    </select>
+
+    <select id="selectElderCheckInByCheckInId" parameterType="Long" resultMap="ElderCheckInResult">
+        <include refid="selectElderCheckInVo"/>
+        where c.check_in_id = #{checkInId}
+    </select>
+
+    <select id="selectCheckInByElderId" parameterType="Long" resultMap="ElderCheckInResult">
+        <include refid="selectElderCheckInVo"/>
+        where c.elder_id = #{elderId}
+        order by c.apply_date desc
+    </select>
+
+    <insert id="insertElderCheckIn" parameterType="ElderCheckIn" useGeneratedKeys="true" keyProperty="checkInId">
+        insert into elder_check_in
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="elderId != null">elder_id,</if>
+            <if test="institutionId != null">institution_id,</if>
+            <if test="bedId != null">bed_id,</if>
+            <if test="applyDate != null">apply_date,</if>
+            <if test="expectedCheckInDate != null">expected_check_in_date,</if>
+            <if test="actualCheckInDate != null">actual_check_in_date,</if>
+            <if test="checkInStatus != null">check_in_status,</if>
+            <if test="careLevel != null">care_level,</if>
+            <if test="monthlyFee != null">monthly_fee,</if>
+            <if test="depositAmount != null">deposit_amount,</if>
+            <if test="paymentMethod != null and paymentMethod != ''">payment_method,</if>
+            <if test="interviewDate != null">interview_date,</if>
+            <if test="interviewResult != null and interviewResult != ''">interview_result,</if>
+            <if test="approvalUser != null and approvalUser != ''">approval_user,</if>
+            <if test="approvalTime != null">approval_time,</if>
+            <if test="approvalRemark != null and approvalRemark != ''">approval_remark,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null and updateBy != ''">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="elderId != null">#{elderId},</if>
+            <if test="institutionId != null">#{institutionId},</if>
+            <if test="bedId != null">#{bedId},</if>
+            <if test="applyDate != null">#{applyDate},</if>
+            <if test="expectedCheckInDate != null">#{expectedCheckInDate},</if>
+            <if test="actualCheckInDate != null">#{actualCheckInDate},</if>
+            <if test="checkInStatus != null">#{checkInStatus},</if>
+            <if test="careLevel != null">#{careLevel},</if>
+            <if test="monthlyFee != null">#{monthlyFee},</if>
+            <if test="depositAmount != null">#{depositAmount},</if>
+            <if test="paymentMethod != null and paymentMethod != ''">#{paymentMethod},</if>
+            <if test="interviewDate != null">#{interviewDate},</if>
+            <if test="interviewResult != null and interviewResult != ''">#{interviewResult},</if>
+            <if test="approvalUser != null and approvalUser != ''">#{approvalUser},</if>
+            <if test="approvalTime != null">#{approvalTime},</if>
+            <if test="approvalRemark != null and approvalRemark != ''">#{approvalRemark},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null and updateBy != ''">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateElderCheckIn" parameterType="ElderCheckIn">
+        update elder_check_in
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="elderId != null">elder_id = #{elderId},</if>
+            <if test="institutionId != null">institution_id = #{institutionId},</if>
+            <if test="bedId != null">bed_id = #{bedId},</if>
+            <if test="applyDate != null">apply_date = #{applyDate},</if>
+            <if test="expectedCheckInDate != null">expected_check_in_date = #{expectedCheckInDate},</if>
+            <if test="actualCheckInDate != null">actual_check_in_date = #{actualCheckInDate},</if>
+            <if test="checkInStatus != null">check_in_status = #{checkInStatus},</if>
+            <if test="careLevel != null">care_level = #{careLevel},</if>
+            <if test="monthlyFee != null">monthly_fee = #{monthlyFee},</if>
+            <if test="depositAmount != null">deposit_amount = #{depositAmount},</if>
+            <if test="paymentMethod != null and paymentMethod != ''">payment_method = #{paymentMethod},</if>
+            <if test="interviewDate != null">interview_date = #{interviewDate},</if>
+            <if test="interviewResult != null and interviewResult != ''">interview_result = #{interviewResult},</if>
+            <if test="approvalUser != null and approvalUser != ''">approval_user = #{approvalUser},</if>
+            <if test="approvalTime != null">approval_time = #{approvalTime},</if>
+            <if test="approvalRemark != null and approvalRemark != ''">approval_remark = #{approvalRemark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where check_in_id = #{checkInId}
+    </update>
+
+    <update id="approveCheckIn">
+        update elder_check_in
+        set check_in_status = #{checkInStatus},
+            approval_user = #{approvalUser},
+            approval_time = now(),
+            approval_remark = #{approvalRemark}
+        where check_in_id = #{checkInId}
+    </update>
+
+    <delete id="deleteElderCheckInByCheckInId" parameterType="Long">
+        delete from elder_check_in where check_in_id = #{checkInId}
+    </delete>
+
+    <delete id="deleteElderCheckInByCheckInIds" parameterType="String">
+        delete from elder_check_in where check_in_id in
+        <foreach item="checkInId" collection="array" open="(" separator="," close=")">
+            #{checkInId}
+        </foreach>
+    </delete>
+
+</mapper>
