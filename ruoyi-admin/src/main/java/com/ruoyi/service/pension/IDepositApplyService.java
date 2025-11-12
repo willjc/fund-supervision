@@ -74,4 +74,33 @@ public interface IDepositApplyService
      * @return 结果
      */
     public int deleteDepositApplyByApplyId(Long applyId);
+
+    /**
+     * 家属审批押金使用申请
+     *
+     * @param applyId 押金使用申请主键
+     * @param opinion 审批意见
+     * @param approver 审批人
+     * @return 结果
+     */
+    public int familyApprove(Long applyId, String opinion, String approver);
+
+    /**
+     * 监管部门审批押金使用申请
+     *
+     * @param applyId 押金使用申请主键
+     * @param approved 是否通过
+     * @param remark 审批意见
+     * @param approver 审批人
+     * @return 结果
+     */
+    public int supervisionApprove(Long applyId, boolean approved, String remark, String approver);
+
+    /**
+     * 撤回押金使用申请
+     *
+     * @param applyId 押金使用申请主键
+     * @return 结果
+     */
+    public int withdrawApply(Long applyId);
 }

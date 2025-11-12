@@ -27,11 +27,13 @@
       </el-form-item>
       <el-form-item label="申请状态" prop="status">
         <el-select v-model="queryParams.status" placeholder="请选择申请状态" clearable>
-          <el-option label="待审批" value="待审批" />
-          <el-option label="审批中" value="审批中" />
-          <el-option label="已通过" value="已通过" />
-          <el-option label="已驳回" value="已驳回" />
-          <el-option label="已撤回" value="已撤回" />
+          <el-option label="草稿" value="draft" />
+          <el-option label="待家属审批" value="pending_family" />
+          <el-option label="家属已审批" value="family_approved" />
+          <el-option label="待监管审批" value="pending_supervision" />
+          <el-option label="已通过" value="approved" />
+          <el-option label="已驳回" value="rejected" />
+          <el-option label="已撤回" value="withdrawn" />
         </el-select>
       </el-form-item>
       <el-form-item label="拨付状态" prop="paymentStatus">
@@ -138,9 +140,9 @@
           <el-tag v-else type="info">{{ scope.row.urgencyLevel }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="申请状态" align="center" prop="status" width="100">
+      <el-table-column label="申请状态" align="center" prop="status" width="120">
         <template slot-scope="scope">
-          <el-tag :type="getStatusType(scope.row.status)">{{ scope.row.status }}</el-tag>
+          <el-tag :type="getStatusType(scope.row.status)">{{ getStatusLabel(scope.row.status) }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column label="拨付状态" align="center" prop="paymentStatus" width="100">
@@ -156,7 +158,7 @@
       </el-table-column>
       <el-table-column label="确认人" align="center" prop="confirmName" width="100" />
       <el-table-column label="审批人" align="center" prop="approver" width="100" />
-      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="200">
+      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="260">
         <template slot-scope="scope">
           <el-button
             size="mini"
@@ -166,15 +168,23 @@
             v-hasPermi="['elder:deposit:query']"
           >详情</el-button>
           <el-button
-            v-if="scope.row.status === '待审批'"
+            v-if="scope.row.status === 'draft' || scope.row.status === 'withdrawn'"
+            size="mini"
+            type="text"
+            icon="el-icon-edit"
+            @click="handleEdit(scope.row)"
+            v-hasPermi="['elder:deposit:edit']"
+          >编辑</el-button>
+          <el-button
+            v-if="scope.row.status !== 'approved' && scope.row.status !== 'rejected' && scope.row.status !== 'withdrawn'"
             size="mini"
             type="text"
             icon="el-icon-back"
-            @click="handleCancel(scope.row)"
-            v-hasPermi="['elder:deposit:cancel']"
+            @click="handleWithdraw(scope.row)"
+            v-hasPermi="['elder:deposit:withdraw']"
           >撤回</el-button>
           <el-button
-            v-if="scope.row.status === '已通过' && scope.row.paymentStatus === '未拨付'"
+            v-if="scope.row.status === 'approved' && scope.row.paymentStatus === '未拨付'"
             size="mini"
             type="text"
             icon="el-icon-money"
@@ -206,10 +216,13 @@
             <span class="amount-text large">￥{{ formatMoney(detailData.amount) }}</span>
           </el-descriptions-item>
           <el-descriptions-item label="使用事由">{{ detailData.purpose }}</el-descriptions-item>
-          <el-descriptions-item label="紧急程度">{{ detailData.urgencyLevel }}</el-descriptions-item>
-          <el-descriptions-item label="期望使用日期">{{ detailData.expectedUseDate }}</el-descriptions-item>
+          <el-descriptions-item label="紧急程度">
+            <el-tag v-if="detailData.urgencyLevel === '非常紧急'" type="danger">{{ detailData.urgencyLevel }}</el-tag>
+            <el-tag v-else-if="detailData.urgencyLevel === '紧急'" type="warning">{{ detailData.urgencyLevel }}</el-tag>
+            <el-tag v-else type="info">{{ detailData.urgencyLevel }}</el-tag>
+          </el-descriptions-item>
           <el-descriptions-item label="申请状态">
-            <el-tag :type="getStatusType(detailData.status)">{{ detailData.status }}</el-tag>
+            <el-tag :type="getStatusType(detailData.status)">{{ getStatusLabel(detailData.status) }}</el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="拨付状态">
             <el-tag v-if="detailData.paymentStatus === '已拨付'" type="success">{{ detailData.paymentStatus }}</el-tag>
@@ -232,13 +245,25 @@
           <el-descriptions-item label="电子签名" :span="2">{{ detailData.signature }}</el-descriptions-item>
         </el-descriptions>
 
-        <el-descriptions title="审批信息" :column="2" border style="margin-top: 20px;" v-if="detailData.status !== '待审批'">
+        <!-- 家属审批信息 -->
+        <el-descriptions title="家属审批信息" :column="2" border style="margin-top: 20px;"
+          v-if="detailData.status && detailData.status !== 'draft' && detailData.status !== 'pending_family'">
+          <el-descriptions-item label="审批人">{{ detailData.familyConfirmName || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="审批时间">{{ detailData.familyApproveTime || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="审批结果" :span="2">
+            <el-tag type="success">已通过</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="审批意见" :span="2">{{ detailData.familyApproveOpinion || '-' }}</el-descriptions-item>
+        </el-descriptions>
+
+        <!-- 监管部门审批信息 -->
+        <el-descriptions title="监管部门审批信息" :column="2" border style="margin-top: 20px;"
+          v-if="detailData.status === 'approved' || detailData.status === 'rejected'">
           <el-descriptions-item label="审批人">{{ detailData.approver || '-' }}</el-descriptions-item>
           <el-descriptions-item label="审批时间">{{ detailData.approveTime || '-' }}</el-descriptions-item>
           <el-descriptions-item label="审批结果" :span="2">
-            <el-tag v-if="detailData.status === '已通过'" type="success">{{ detailData.status }}</el-tag>
-            <el-tag v-else-if="detailData.status === '已驳回'" type="danger">{{ detailData.status }}</el-tag>
-            <el-tag v-else-if="detailData.status === '已撤回'" type="warning">{{ detailData.status }}</el-tag>
+            <el-tag v-if="detailData.status === 'approved'" type="success">已通过</el-tag>
+            <el-tag v-else-if="detailData.status === 'rejected'" type="danger">已驳回</el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="审批意见" :span="2">{{ detailData.approveRemark || '-' }}</el-descriptions-item>
         </el-descriptions>
@@ -299,7 +324,7 @@
 </template>
 
 <script>
-import { listDepositUse, getDepositUse, cancelDepositUse, paymentDepositUse } from "@/api/elder/depositUse";
+import { listDepositUse, getDepositUse, withdrawDepositUse, paymentDepositUse } from "@/api/elder/depositUse";
 
 export default {
   name: "ElderDepositList",
@@ -414,14 +439,21 @@ export default {
         this.detailOpen = true;
       });
     },
+    /** 编辑按钮操作 */
+    handleEdit(row) {
+      this.$router.push({
+        path: '/elder/depositApply',
+        query: { applyId: row.id }
+      });
+    },
     /** 撤回按钮操作 */
-    handleCancel(row) {
-      this.$confirm('是否确认撤回该申请？撤回后需要重新申请', '提示', {
+    handleWithdraw(row) {
+      this.$confirm('是否确认撤回该申请？撤回后状态将回到初始状态,可重新编辑后提交', '提示', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
       }).then(() => {
-        return cancelDepositUse(row.id);
+        return withdrawDepositUse(row.id);
       }).then(() => {
         this.getList();
         this.getStatistics();
@@ -470,13 +502,28 @@ export default {
     /** 获取状态类型 */
     getStatusType(status) {
       const typeMap = {
-        '待审批': 'warning',
-        '审批中': 'primary',
-        '已通过': 'success',
-        '已驳回': 'danger',
-        '已撤回': 'info'
+        'draft': 'info',
+        'pending_family': 'warning',
+        'family_approved': 'primary',
+        'pending_supervision': 'warning',
+        'approved': 'success',
+        'rejected': 'danger',
+        'withdrawn': 'info'
       };
       return typeMap[status] || 'info';
+    },
+    /** 获取状态标签 */
+    getStatusLabel(status) {
+      const labelMap = {
+        'draft': '草稿',
+        'pending_family': '待家属审批',
+        'family_approved': '家属已审批',
+        'pending_supervision': '待监管审批',
+        'approved': '已通过',
+        'rejected': '已驳回',
+        'withdrawn': '已撤回'
+      };
+      return labelMap[status] || status;
     },
     /** 格式化金额 */
     formatMoney(value) {

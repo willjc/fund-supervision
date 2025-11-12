@@ -14,7 +14,16 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="applyReason"   column="apply_reason"   />
         <result property="applyType"     column="apply_type"     />
         <result property="urgencyLevel"  column="urgency_level"  />
+        <result property="purpose"       column="purpose"        />
+        <result property="description"   column="description"    />
+        <result property="expectedUseDate" column="expected_use_date" />
+        <result property="attachments"   column="attachments"    />
         <result property="applyStatus"   column="apply_status"   />
+        <result property="familyConfirmName"    column="family_confirm_name"   />
+        <result property="familyRelation"       column="family_relation"       />
+        <result property="familyPhone"          column="family_phone"          />
+        <result property="familyApproveTime"    column="family_approve_time"   />
+        <result property="familyApproveOpinion" column="family_approve_opinion" />
         <result property="approver"      column="approver"       />
         <result property="approveTime"   column="approve_time"   />
         <result property="approveRemark" column="approve_remark" />
@@ -29,22 +38,37 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="elderName"        column="elder_name"        />
         <result property="institutionName"  column="institution_name"  />
         <result property="accountBalance"   column="total_balance"     />
+        <result property="bedInfo"          column="bed_info"          />
     </resultMap>
 
     <sql id="selectDepositApplyVo">
-        select apply_id, apply_no, elder_id, institution_id, account_id, apply_amount, apply_reason, apply_type, urgency_level, apply_status, approver, approve_time, approve_remark, actual_amount, use_time, create_by, create_time, update_by, update_time, remark from deposit_apply
+        select apply_id, apply_no, elder_id, institution_id, account_id, apply_amount, apply_reason, apply_type, urgency_level, purpose, description, expected_use_date, attachments, apply_status, family_confirm_name, family_relation, family_phone, family_approve_time, family_approve_opinion, approver, approve_time, approve_remark, actual_amount, use_time, create_by, create_time, update_by, update_time, remark from deposit_apply
     </sql>
 
     <sql id="selectDepositApplyWithRelations">
         select da.apply_id, da.apply_no, da.elder_id, da.institution_id, da.account_id,
-               da.apply_amount, da.apply_reason, da.apply_type, da.urgency_level, da.apply_status,
+               da.apply_amount, da.apply_reason, da.apply_type, da.urgency_level,
+               da.purpose, da.description, da.expected_use_date, da.attachments,
+               da.apply_status, da.family_confirm_name, da.family_relation, da.family_phone,
+               da.family_approve_time, da.family_approve_opinion,
                da.approver, da.approve_time, da.approve_remark, da.actual_amount, da.use_time,
                da.create_by, da.create_time, da.update_by, da.update_time, da.remark,
-               ei.elder_name, pi.institution_name, ai.total_balance
+               ei.elder_name, pi.institution_name, ai.total_balance,
+               CONCAT(bi.room_number, '-', bi.bed_number) as bed_info
         from deposit_apply da
         left join elder_info ei on da.elder_id = ei.elder_id
         left join pension_institution pi on da.institution_id = pi.institution_id
         left join account_info ai on da.account_id = ai.account_id
+        left join (
+            select elder_id, bed_id, allocation_id
+            from bed_allocation
+            where (elder_id, allocation_id) in (
+                select elder_id, max(allocation_id)
+                from bed_allocation
+                group by elder_id
+            )
+        ) ba on da.elder_id = ba.elder_id
+        left join bed_info bi on ba.bed_id = bi.bed_id
     </sql>
 
     <select id="selectDepositApplyList" parameterType="DepositApply" resultMap="DepositApplyResult">
@@ -89,7 +113,16 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="applyReason != null and applyReason != ''">apply_reason,</if>
             <if test="applyType != null">apply_type,</if>
             <if test="urgencyLevel != null">urgency_level,</if>
+            <if test="purpose != null and purpose != ''">purpose,</if>
+            <if test="description != null and description != ''">description,</if>
+            <if test="expectedUseDate != null">expected_use_date,</if>
+            <if test="attachments != null and attachments != ''">attachments,</if>
             <if test="applyStatus != null">apply_status,</if>
+            <if test="familyConfirmName != null and familyConfirmName != ''">family_confirm_name,</if>
+            <if test="familyRelation != null and familyRelation != ''">family_relation,</if>
+            <if test="familyPhone != null and familyPhone != ''">family_phone,</if>
+            <if test="familyApproveTime != null">family_approve_time,</if>
+            <if test="familyApproveOpinion != null and familyApproveOpinion != ''">family_approve_opinion,</if>
             <if test="approver != null and approver != ''">approver,</if>
             <if test="approveTime != null">approve_time,</if>
             <if test="approveRemark != null and approveRemark != ''">approve_remark,</if>
@@ -108,7 +141,16 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="applyReason != null and applyReason != ''">#{applyReason},</if>
             <if test="applyType != null">#{applyType},</if>
             <if test="urgencyLevel != null">#{urgencyLevel},</if>
+            <if test="purpose != null and purpose != ''">#{purpose},</if>
+            <if test="description != null and description != ''">#{description},</if>
+            <if test="expectedUseDate != null">#{expectedUseDate},</if>
+            <if test="attachments != null and attachments != ''">#{attachments},</if>
             <if test="applyStatus != null">#{applyStatus},</if>
+            <if test="familyConfirmName != null and familyConfirmName != ''">#{familyConfirmName},</if>
+            <if test="familyRelation != null and familyRelation != ''">#{familyRelation},</if>
+            <if test="familyPhone != null and familyPhone != ''">#{familyPhone},</if>
+            <if test="familyApproveTime != null">#{familyApproveTime},</if>
+            <if test="familyApproveOpinion != null and familyApproveOpinion != ''">#{familyApproveOpinion},</if>
             <if test="approver != null and approver != ''">#{approver},</if>
             <if test="approveTime != null">#{approveTime},</if>
             <if test="approveRemark != null and approveRemark != ''">#{approveRemark},</if>
@@ -131,7 +173,16 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="applyReason != null">apply_reason = #{applyReason},</if>
             <if test="applyType != null">apply_type = #{applyType},</if>
             <if test="urgencyLevel != null">urgency_level = #{urgencyLevel},</if>
+            <if test="purpose != null">purpose = #{purpose},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="expectedUseDate != null">expected_use_date = #{expectedUseDate},</if>
+            <if test="attachments != null">attachments = #{attachments},</if>
             <if test="applyStatus != null">apply_status = #{applyStatus},</if>
+            <if test="familyConfirmName != null">family_confirm_name = #{familyConfirmName},</if>
+            <if test="familyRelation != null">family_relation = #{familyRelation},</if>
+            <if test="familyPhone != null">family_phone = #{familyPhone},</if>
+            <if test="familyApproveTime != null">family_approve_time = #{familyApproveTime},</if>
+            <if test="familyApproveOpinion != null">family_approve_opinion = #{familyApproveOpinion},</if>
             <if test="approver != null">approver = #{approver},</if>
             <if test="approveTime != null">approve_time = #{approveTime},</if>
             <if test="approveRemark != null">approve_remark = #{approveRemark},</if>

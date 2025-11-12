@@ -120,24 +120,33 @@
     </el-row>
 
     <!-- 数据表格 -->
-    <el-table v-loading="loading" :data="depositUseList" @selection-change="handleSelectionChange">
+    <el-table
+      v-loading="loading"
+      :data="depositUseList"
+      @selection-change="handleSelectionChange"
+      height="calc(100vh - 450px)"
+      border>
       <el-table-column type="selection" width="55" align="center" />
       <el-table-column label="申请编号" align="center" prop="applyNo" width="150" />
       <el-table-column label="入住人姓名" align="center" prop="elderName" width="120" />
-      <el-table-column label="床位信息" align="center" prop="bedInfo" width="120" />
-      <el-table-column label="申请金额" align="center" prop="amount" width="120">
+      <el-table-column label="床位信息" align="center" prop="bedInfo" width="120">
         <template slot-scope="scope">
-          <span style="font-weight: bold; color: #E6A23C;">￥{{ formatMoney(scope.row.amount) }}</span>
+          <span>{{ scope.row.bedInfo || '-' }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="申请金额" align="center" prop="applyAmount" width="120">
+        <template slot-scope="scope">
+          <span style="font-weight: bold; color: #E6A23C;">￥{{ formatMoney(scope.row.applyAmount) }}</span>
         </template>
       </el-table-column>
       <el-table-column label="使用事由" align="center" prop="purpose" width="120">
         <template slot-scope="scope">
-          <dict-tag :options="purposeOptions" :value="scope.row.purpose"/>
+          <span>{{ scope.row.purpose || '-' }}</span>
         </template>
       </el-table-column>
       <el-table-column label="紧急程度" align="center" prop="urgencyLevel" width="100">
         <template slot-scope="scope">
-          <el-tag :type="getUrgencyType(scope.row.urgencyLevel)">{{ scope.row.urgencyLevel }}</el-tag>
+          <el-tag :type="getUrgencyType(scope.row.urgencyLevel)">{{ scope.row.urgencyLevel || '-' }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column label="期望使用日期" align="center" prop="expectedUseDate" width="120">
@@ -145,14 +154,16 @@
           <span>{{ parseTime(scope.row.expectedUseDate, '{y}-{m}-{d}') }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="申请状态" align="center" prop="status" width="100">
+      <el-table-column label="申请状态" align="center" prop="applyStatus" width="120">
         <template slot-scope="scope">
-          <el-tag :type="getStatusType(scope.row.status)">{{ scope.row.status }}</el-tag>
+          <el-tag :type="getStatusType(scope.row.applyStatus)">{{ getStatusText(scope.row.applyStatus) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="拨付状态" align="center" prop="paymentStatus" width="100">
+      <el-table-column label="拨付状态" align="center" prop="actualAmount" width="100">
         <template slot-scope="scope">
-          <el-tag :type="getPaymentType(scope.row.paymentStatus)">{{ scope.row.paymentStatus }}</el-tag>
+          <el-tag :type="scope.row.actualAmount ? 'success' : 'warning'">
+            {{ scope.row.actualAmount ? '已拨付' : '未拨付' }}
+          </el-tag>
         </template>
       </el-table-column>
       <el-table-column label="申请时间" align="center" prop="createTime" width="100">
@@ -160,7 +171,7 @@
           <span>{{ parseTime(scope.row.createTime, '{y}-{m}-{d}') }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="200">
+      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="240" fixed="right">
         <template slot-scope="scope">
           <el-button
             size="mini"
@@ -169,30 +180,47 @@
             @click="handleDetail(scope.row)"
             v-hasPermi="['pension:deposit:query']"
           >详情</el-button>
+
+          <!-- 草稿和已撤回状态可以编辑 -->
           <el-button
             size="mini"
             type="text"
             icon="el-icon-edit"
             @click="handleUpdate(scope.row)"
             v-hasPermi="['pension:deposit:edit']"
-            v-if="scope.row.status === '待审批' || scope.row.status === '审批中'"
+            v-if="scope.row.applyStatus === 'draft' || scope.row.applyStatus === 'withdrawn'"
           >编辑</el-button>
+
+          <!-- 待家属审批、家属已审批、待监管审批状态可以撤回 -->
           <el-button
             size="mini"
             type="text"
-            icon="el-icon-back"
+            icon="el-icon-refresh-left"
             @click="handleWithdraw(scope.row)"
             v-hasPermi="['pension:deposit:edit']"
-            v-if="scope.row.status === '待审批' || scope.row.status === '审批中'"
+            v-if="['pending_family', 'family_approved', 'pending_supervision'].includes(scope.row.applyStatus)"
           >撤回</el-button>
+
+          <!-- 已通过且未拨付可以拨付 -->
           <el-button
             size="mini"
             type="text"
             icon="el-icon-money"
             @click="handlePayment(scope.row)"
             v-hasPermi="['pension:deposit:payment']"
-            v-if="scope.row.status === '已通过' && scope.row.paymentStatus === '未拨付'"
+            v-if="scope.row.applyStatus === 'approved' && !scope.row.actualAmount"
           >拨付</el-button>
+
+          <!-- 草稿和已撤回状态可以删除 -->
+          <el-button
+            size="mini"
+            type="text"
+            icon="el-icon-delete"
+            @click="handleDelete(scope.row)"
+            v-hasPermi="['pension:deposit:delete']"
+            v-if="scope.row.applyStatus === 'draft' || scope.row.applyStatus === 'withdrawn'"
+            style="color: #F56C6C;"
+          >删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -207,61 +235,149 @@
     />
 
     <!-- 详情对话框 -->
-    <el-dialog title="押金使用申请详情" :visible.sync="openDetail" width="800px" append-to-body>
+    <el-dialog title="押金使用申请详情" :visible.sync="openDetail" width="900px" append-to-body>
       <div v-if="detailData" class="detail-content">
+        <!-- 审批流程时间线 -->
+        <div class="timeline-section" style="margin-bottom: 20px;">
+          <h3 style="margin-bottom: 15px; font-size: 16px; color: #303133;">
+            <i class="el-icon-time" style="margin-right: 5px;"></i>审批流程
+          </h3>
+          <el-timeline>
+            <!-- 1. 提交申请 (始终显示,已完成) -->
+            <el-timeline-item
+              :timestamp="parseTime(detailData.createTime, '{y}-{m}-{d} {H}:{i}:{s}')"
+              placement="top"
+              :color="getCurrentStepColor(1)"
+              :icon="getCurrentStepIcon(1)">
+              <h4 :style="getCurrentStepStyle(1)">提交申请</h4>
+              <p>申请人提交押金使用申请</p>
+              <el-tag v-if="getCurrentStep() === 1" type="warning" size="small" style="margin-top: 5px;">
+                <i class="el-icon-loading"></i> 当前步骤
+              </el-tag>
+            </el-timeline-item>
+
+            <!-- 2. 家属审批 (始终显示) -->
+            <el-timeline-item
+              :timestamp="detailData.familyApproveTime ? parseTime(detailData.familyApproveTime, '{y}-{m}-{d} {H}:{i}:{s}') : ''"
+              placement="top"
+              :color="getCurrentStepColor(2)"
+              :icon="getCurrentStepIcon(2)">
+              <h4 :style="getCurrentStepStyle(2)">家属审批</h4>
+              <template v-if="detailData.familyApproveTime">
+                <p>{{ detailData.familyConfirmName || '家属' }}已确认</p>
+                <p v-if="detailData.familyApproveOpinion" style="color: #606266; margin-top: 5px;">
+                  意见: {{ detailData.familyApproveOpinion }}
+                </p>
+              </template>
+              <template v-else>
+                <p style="color: #909399;">
+                  <template v-if="getCurrentStep() === 2">等待家属审批中...</template>
+                  <template v-else>待审批</template>
+                </p>
+              </template>
+              <el-tag v-if="getCurrentStep() === 2" type="warning" size="small" style="margin-top: 5px;">
+                <i class="el-icon-loading"></i> 当前步骤
+              </el-tag>
+            </el-timeline-item>
+
+            <!-- 3. 监管审批 (始终显示) -->
+            <el-timeline-item
+              :timestamp="detailData.approveTime ? parseTime(detailData.approveTime, '{y}-{m}-{d} {H}:{i}:{s}') : ''"
+              placement="top"
+              :color="getCurrentStepColor(3)"
+              :icon="getCurrentStepIcon(3)">
+              <h4 :style="getCurrentStepStyle(3)">监管审批</h4>
+              <template v-if="detailData.approveTime">
+                <p>审批人: {{ detailData.approver || '系统' }}</p>
+                <p>审批结果: <el-tag :type="getStatusType(detailData.applyStatus)" size="small">{{ getStatusText(detailData.applyStatus) }}</el-tag></p>
+                <p v-if="detailData.approveRemark" style="color: #606266; margin-top: 5px;">
+                  意见: {{ detailData.approveRemark }}
+                </p>
+              </template>
+              <template v-else>
+                <p style="color: #909399;">
+                  <template v-if="getCurrentStep() === 3">等待监管部门审批中...</template>
+                  <template v-else>待审批</template>
+                </p>
+              </template>
+              <el-tag v-if="getCurrentStep() === 3" type="warning" size="small" style="margin-top: 5px;">
+                <i class="el-icon-loading"></i> 当前步骤
+              </el-tag>
+            </el-timeline-item>
+
+            <!-- 4. 资金拨付 (始终显示) -->
+            <el-timeline-item
+              :timestamp="detailData.actualAmount ? parseTime(detailData.useTime, '{y}-{m}-{d} {H}:{i}:{s}') : ''"
+              placement="top"
+              :color="getCurrentStepColor(4)"
+              :icon="getCurrentStepIcon(4)">
+              <h4 :style="getCurrentStepStyle(4)">资金拨付</h4>
+              <template v-if="detailData.actualAmount">
+                <p>拨付金额: <span style="font-weight: bold; color: #67C23A;">￥{{ formatMoney(detailData.actualAmount) }}</span></p>
+              </template>
+              <template v-else>
+                <p style="color: #909399;">
+                  <template v-if="getCurrentStep() === 4">等待资金拨付中...</template>
+                  <template v-else>待拨付</template>
+                </p>
+              </template>
+              <el-tag v-if="getCurrentStep() === 4" type="warning" size="small" style="margin-top: 5px;">
+                <i class="el-icon-loading"></i> 当前步骤
+              </el-tag>
+            </el-timeline-item>
+
+            <!-- 已撤回/已驳回 特殊状态提示 -->
+            <el-timeline-item
+              v-if="detailData.applyStatus === 'withdrawn' || detailData.applyStatus === 'rejected'"
+              :timestamp="parseTime(detailData.updateTime, '{y}-{m}-{d} {H}:{i}:{s}')"
+              placement="top"
+              :color="detailData.applyStatus === 'withdrawn' ? '#909399' : '#F56C6C'"
+              icon="el-icon-close">
+              <h4>{{ detailData.applyStatus === 'withdrawn' ? '申请已撤回' : '申请已驳回' }}</h4>
+              <p>{{ detailData.applyStatus === 'withdrawn' ? '申请已被撤回，可重新编辑提交' : '审批未通过，申请已驳回' }}</p>
+            </el-timeline-item>
+          </el-timeline>
+        </div>
+
+        <el-divider></el-divider>
+
         <!-- 基本信息 -->
         <el-descriptions title="基本信息" :column="2" border>
           <el-descriptions-item label="申请编号">{{ detailData.applyNo }}</el-descriptions-item>
           <el-descriptions-item label="入住人姓名">{{ detailData.elderName }}</el-descriptions-item>
-          <el-descriptions-item label="床位信息">{{ detailData.bedInfo }}</el-descriptions-item>
+          <el-descriptions-item label="床位信息">{{ detailData.bedInfo || '-' }}</el-descriptions-item>
           <el-descriptions-item label="申请金额">
-            <span style="font-size: 18px; font-weight: bold; color: #E6A23C;">￥{{ formatMoney(detailData.amount) }}</span>
+            <span style="font-size: 18px; font-weight: bold; color: #E6A23C;">￥{{ formatMoney(detailData.applyAmount) }}</span>
           </el-descriptions-item>
-          <el-descriptions-item label="使用事由">{{ detailData.purpose }}</el-descriptions-item>
+          <el-descriptions-item label="使用事由">{{ detailData.purpose || '-' }}</el-descriptions-item>
           <el-descriptions-item label="紧急程度">
-            <el-tag :type="getUrgencyType(detailData.urgencyLevel)">{{ detailData.urgencyLevel }}</el-tag>
+            <el-tag :type="getUrgencyType(detailData.urgencyLevel)">{{ detailData.urgencyLevel || '-' }}</el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="期望使用日期">{{ detailData.expectedUseDate }}</el-descriptions-item>
-          <el-descriptions-item label="申请时间">{{ parseTime(detailData.createTime) }}</el-descriptions-item>
+          <el-descriptions-item label="期望使用日期">{{ detailData.expectedUseDate || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="当前状态">
+            <el-tag :type="getStatusType(detailData.applyStatus)">{{ getStatusText(detailData.applyStatus) }}</el-tag>
+          </el-descriptions-item>
         </el-descriptions>
 
         <!-- 申请原因 -->
         <el-descriptions title="申请原因" :column="1" border style="margin-top: 20px;">
-          <el-descriptions-item label="使用原因">{{ detailData.reason }}</el-descriptions-item>
+          <el-descriptions-item label="使用原因">{{ detailData.applyReason || '-' }}</el-descriptions-item>
           <el-descriptions-item label="详细说明">{{ detailData.description || '无' }}</el-descriptions-item>
         </el-descriptions>
 
-        <!-- 确认信息 -->
-        <el-descriptions title="确认信息" :column="2" border style="margin-top: 20px;" v-if="detailData.confirmName">
-          <el-descriptions-item label="确认人">{{ detailData.confirmName }}</el-descriptions-item>
-          <el-descriptions-item label="与老人关系">{{ detailData.confirmRelation }}</el-descriptions-item>
-          <el-descriptions-item label="联系电话">{{ detailData.confirmPhone }}</el-descriptions-item>
-          <el-descriptions-item label="确认方式">{{ detailData.confirmMethod }}</el-descriptions-item>
-          <el-descriptions-item label="确认时间" :span="2">{{ parseTime(detailData.confirmTime) }}</el-descriptions-item>
-          <el-descriptions-item label="确认意见" :span="2">{{ detailData.confirmComment || '无' }}</el-descriptions-item>
-        </el-descriptions>
+        <!-- 申请材料 -->
+        <div v-if="detailData.attachments" style="margin-top: 20px;">
+          <h3 style="margin-bottom: 10px; font-size: 14px; color: #303133;">申请材料</h3>
+          <el-tag
+            v-for="(file, index) in parseAttachments(detailData.attachments)"
+            :key="index"
+            style="margin-right: 10px; margin-bottom: 10px; cursor: pointer;"
+            @click="handleDownload(file)">
+            <i class="el-icon-document"></i> {{ file.name }}
+          </el-tag>
+          <div v-if="!parseAttachments(detailData.attachments).length" style="color: #909399;">暂无附件</div>
+        </div>
 
-        <!-- 审批���息 -->
-        <el-descriptions title="审批信息" :column="2" border style="margin-top: 20px;" v-if="detailData.approvalTime">
-          <el-descriptions-item label="审批状态">
-            <el-tag :type="getStatusType(detailData.status)">{{ detailData.status }}</el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="审批人">{{ detailData.approver || '系统' }}</el-descriptions-item>
-          <el-descriptions-item label="审批时间" :span="2">{{ parseTime(detailData.approvalTime) }}</el-descriptions-item>
-          <el-descriptions-item label="审批意见" :span="2">{{ detailData.approvalComment || '无' }}</el-descriptions-item>
-        </el-descriptions>
-
-        <!-- 拨付信息 -->
-        <el-descriptions title="拨付信息" :column="2" border style="margin-top: 20px;" v-if="detailData.paymentTime">
-          <el-descriptions-item label="拨付状态">
-            <el-tag :type="getPaymentType(detailData.paymentStatus)">{{ detailData.paymentStatus }}</el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="拨付金额">
-            <span style="font-weight: bold; color: #67C23A;">￥{{ formatMoney(detailData.paymentAmount || detailData.amount) }}</span>
-          </el-descriptions-item>
-          <el-descriptions-item label="拨付时间" :span="2">{{ parseTime(detailData.paymentTime) }}</el-descriptions-item>
-          <el-descriptions-item label="拨付备注" :span="2">{{ detailData.paymentRemark || '无' }}</el-descriptions-item>
-        </el-descriptions>
       </div>
       <div slot="footer" class="dialog-footer">
         <el-button @click="openDetail = false">关闭</el-button>
@@ -282,7 +398,7 @@
           <el-descriptions-item label="申请编号">{{ currentPaymentData.applyNo }}</el-descriptions-item>
           <el-descriptions-item label="入住人">{{ currentPaymentData.elderName }}</el-descriptions-item>
           <el-descriptions-item label="申请金额">
-            <span style="font-size: 16px; font-weight: bold; color: #E6A23C;">￥{{ formatMoney(currentPaymentData.amount) }}</span>
+            <span style="font-size: 16px; font-weight: bold; color: #E6A23C;">￥{{ formatMoney(currentPaymentData.applyAmount) }}</span>
           </el-descriptions-item>
           <el-descriptions-item label="使用事由">{{ currentPaymentData.purpose }}</el-descriptions-item>
         </el-descriptions>
@@ -291,7 +407,7 @@
           <el-input-number
             v-model="paymentForm.paymentAmount"
             :min="0"
-            :max="currentPaymentData.amount"
+            :max="currentPaymentData.applyAmount"
             :precision="2"
             style="width: 100%;" />
         </el-form-item>
@@ -322,7 +438,7 @@
 </template>
 
 <script>
-import { listDepositUse, getDepositUse, withdrawDepositUse, paymentDepositUse } from "@/api/elder/depositUse";
+import { listDepositUse, getDepositUse, withdrawDepositUse, delDepositUse, paymentDepositUse } from "@/api/elder/depositUse";
 import { exportDepositUse } from "@/api/pension/deposit";
 
 export default {
@@ -452,7 +568,7 @@ export default {
 
     /** 详情按钮操作 */
     handleDetail(row) {
-      getDepositUse(row.id).then(response => {
+      getDepositUse(row.applyId).then(response => {
         this.detailData = response.data;
         this.openDetail = true;
       });
@@ -462,17 +578,27 @@ export default {
     handleUpdate(row) {
       this.$router.push({
         path: '/pension/deposit/apply',
-        query: { id: row.id }
+        query: { applyId: row.applyId }
       });
     },
 
     /** 撤回按钮操作 */
     handleWithdraw(row) {
-      this.$modal.confirm('是否确撤回该申请？').then(() => {
-        return withdrawDepositUse(row.id);
+      this.$modal.confirm('是否确认撤回该申请？撤回后可重新编辑提交。').then(() => {
+        return withdrawDepositUse(row.applyId);
       }).then(() => {
         this.getList();
-        this.$modal.msgSuccess("撤回成功");
+        this.$modal.msgSuccess("撤回成功，您可以重新编辑该申请");
+      }).catch(() => {});
+    },
+
+    /** 删除按钮操作 */
+    handleDelete(row) {
+      this.$modal.confirm('是否确认删除该申请？删除后数据将无法恢复。').then(() => {
+        return delDepositUse(row.applyId);
+      }).then(() => {
+        this.getList();
+        this.$modal.msgSuccess("删除成功");
       }).catch(() => {});
     },
 
@@ -480,7 +606,7 @@ export default {
     handlePayment(row) {
       this.currentPaymentData = row;
       this.paymentForm = {
-        paymentAmount: row.amount,
+        paymentAmount: row.applyAmount,
         paymentMethod: '',
         paymentRemark: ''
       };
@@ -492,7 +618,7 @@ export default {
       this.$refs["paymentForm"].validate(valid => {
         if (valid) {
           const paymentData = {
-            id: this.currentPaymentData.id,
+            applyId: this.currentPaymentData.applyId,
             ...this.paymentForm
           };
           paymentDepositUse(paymentData).then(response => {
@@ -521,14 +647,30 @@ export default {
       return typeMap[urgency] || '';
     },
 
+    /** 获取状态文本 */
+    getStatusText(status) {
+      const statusMap = {
+        'draft': '草稿',
+        'pending_family': '待家属审批',
+        'family_approved': '家属已审批',
+        'pending_supervision': '待监管审批',
+        'approved': '已通过',
+        'rejected': '已驳回',
+        'withdrawn': '已撤回'
+      };
+      return statusMap[status] || status || '-';
+    },
+
     /** 获取状态标签类型 */
     getStatusType(status) {
       const typeMap = {
-        '待审批': 'warning',
-        '审批中': '',
-        '已通过': 'success',
-        '已驳回': 'danger',
-        '已撤回': 'info'
+        'draft': 'info',
+        'pending_family': 'warning',
+        'family_approved': 'primary',
+        'pending_supervision': 'warning',
+        'approved': 'success',
+        'rejected': 'danger',
+        'withdrawn': 'info'
       };
       return typeMap[status] || '';
     },
@@ -546,6 +688,26 @@ export default {
     formatMoney(amount) {
       if (!amount) return '0.00';
       return parseFloat(amount).toFixed(2);
+    },
+
+    /** 解析附件 */
+    parseAttachments(attachments) {
+      if (!attachments) return [];
+      try {
+        const parsed = JSON.parse(attachments);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        return [];
+      }
+    },
+
+    /** 下载附件 */
+    handleDownload(file) {
+      if (file.url) {
+        window.open(process.env.VUE_APP_BASE_API + file.url, '_blank');
+      } else {
+        this.$message.warning('文件地址不存在');
+      }
     },
 
     /** 格式化时间 */
@@ -571,6 +733,154 @@ export default {
       return pattern.replace(/{([ymdHis])+}/g, (result, key) => {
         return format[key] || '';
       });
+    },
+
+    /** 获取当前审批步骤 (1-4) */
+    getCurrentStep() {
+      const status = this.detailData.applyStatus;
+
+      // 已撤回或已驳回,返回0表示流程中断
+      if (status === 'withdrawn' || status === 'rejected') {
+        return 0;
+      }
+
+      // 已拨付,流程完成
+      if (this.detailData.actualAmount) {
+        return 0; // 所有步骤都已完成
+      }
+
+      // 已通过,等待拨付
+      if (status === 'approved') {
+        return 4;
+      }
+
+      // 家属已审批或待监管审批
+      if (status === 'family_approved' || status === 'pending_supervision') {
+        return 3;
+      }
+
+      // 待家属审批
+      if (status === 'pending_family') {
+        return 2;
+      }
+
+      // 草稿状态
+      if (status === 'draft') {
+        return 1;
+      }
+
+      return 1; // 默认第一步
+    },
+
+    /** 获取步骤颜色 */
+    getCurrentStepColor(step) {
+      const currentStep = this.getCurrentStep();
+      const status = this.detailData.applyStatus;
+
+      // 步骤1: 提交申请 (总是已完成)
+      if (step === 1) {
+        return '#67C23A'; // 绿色-已完成
+      }
+
+      // 步骤2: 家属审批
+      if (step === 2) {
+        if (this.detailData.familyApproveTime) {
+          return '#67C23A'; // 绿色-已完成
+        } else if (currentStep === 2) {
+          return '#E6A23C'; // 橙色-进行中
+        } else {
+          return '#C0C4CC'; // 灰色-未开始
+        }
+      }
+
+      // 步骤3: 监管审批
+      if (step === 3) {
+        if (this.detailData.approveTime) {
+          // 已审批,根据结果显示颜色
+          return status === 'approved' ? '#67C23A' : '#F56C6C'; // 绿色-通过 / 红色-驳回
+        } else if (currentStep === 3) {
+          return '#E6A23C'; // 橙色-进行中
+        } else {
+          return '#C0C4CC'; // 灰色-未开始
+        }
+      }
+
+      // 步骤4: 资金拨付
+      if (step === 4) {
+        if (this.detailData.actualAmount) {
+          return '#67C23A'; // 绿色-已完成
+        } else if (currentStep === 4) {
+          return '#E6A23C'; // 橙色-进行中
+        } else {
+          return '#C0C4CC'; // 灰色-未开始
+        }
+      }
+
+      return '#C0C4CC'; // 默认灰色
+    },
+
+    /** 获取步骤图标 */
+    getCurrentStepIcon(step) {
+      const currentStep = this.getCurrentStep();
+      const status = this.detailData.applyStatus;
+
+      // 步骤1: 总是已完成
+      if (step === 1) {
+        return 'el-icon-check';
+      }
+
+      // 步骤2: 家属审批
+      if (step === 2) {
+        if (this.detailData.familyApproveTime) {
+          return 'el-icon-check'; // 已完成
+        } else if (currentStep === 2) {
+          return 'el-icon-loading'; // 进行中
+        } else {
+          return 'el-icon-more'; // 未开始
+        }
+      }
+
+      // 步骤3: 监管审批
+      if (step === 3) {
+        if (this.detailData.approveTime) {
+          return status === 'approved' ? 'el-icon-check' : 'el-icon-close'; // 通过/驳回
+        } else if (currentStep === 3) {
+          return 'el-icon-loading'; // 进行中
+        } else {
+          return 'el-icon-more'; // 未开始
+        }
+      }
+
+      // 步骤4: 资金拨付
+      if (step === 4) {
+        if (this.detailData.actualAmount) {
+          return 'el-icon-check'; // 已完成
+        } else if (currentStep === 4) {
+          return 'el-icon-loading'; // 进行中
+        } else {
+          return 'el-icon-more'; // 未开始
+        }
+      }
+
+      return 'el-icon-more'; // 默认
+    },
+
+    /** 获取步骤标题样式 */
+    getCurrentStepStyle(step) {
+      const currentStep = this.getCurrentStep();
+
+      // 当前步骤: 加粗+橙色
+      if (step === currentStep) {
+        return 'font-weight: bold; color: #E6A23C; font-size: 16px;';
+      }
+
+      // 已完成步骤: 正常
+      if (step < currentStep || currentStep === 0) {
+        return 'font-weight: normal; color: #303133;';
+      }
+
+      // 未开始步骤: 灰色
+      return 'font-weight: normal; color: #909399;';
     },
 
     /** 下载文件 */

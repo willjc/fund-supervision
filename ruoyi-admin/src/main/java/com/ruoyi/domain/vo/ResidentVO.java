@@ -110,6 +110,9 @@ public class ResidentVO
     /** 所属机构名称 */
     private String institutionName;
 
+    /** 账户ID */
+    private Long accountId;
+
     /** 订单列表 */
     private List<OrderInfo> orders;
 
@@ -354,6 +357,14 @@ public class ResidentVO
 
     public void setInstitutionName(String institutionName) {
         this.institutionName = institutionName;
+    }
+
+    public Long getAccountId() {
+        return accountId;
+    }
+
+    public void setAccountId(Long accountId) {
+        this.accountId = accountId;
     }
 
     public List<OrderInfo> getOrders() {

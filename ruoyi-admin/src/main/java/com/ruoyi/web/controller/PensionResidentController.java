@@ -3,6 +3,7 @@ package com.ruoyi.web.controller;
 import java.util.List;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -74,5 +75,16 @@ public class PensionResidentController extends BaseController
     public AjaxResult getStatistics()
     {
         return AjaxResult.success(residentService.getResidentStatistics());
+    }
+
+    /**
+     * 删除入住人
+     */
+    @PreAuthorize("@ss.hasPermi('elder:resident:remove')")
+    @Log(title = "入住人管理", businessType = BusinessType.DELETE)
+    @DeleteMapping("/delete/{residentId}")
+    public AjaxResult delete(@PathVariable("residentId") Long residentId)
+    {
+        return toAjax(residentService.deleteResident(residentId));
     }
 }

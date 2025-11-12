@@ -3,7 +3,16 @@
     "allow": [
       "Bash(echo:*)",
       "Bash(d:newhmnewzijinxiugai.md)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(del \"D:\\newhm\\newzijin\\ruoyi-admin\\src\\main\\java\\com\\ruoyi\\web\\controller\\pension\\DepositController.java\")",
+      "Bash(mysql:*)",
+      "Bash(cat:*)",
+      "Bash(python:*)",
+      "Bash(node -e:*)",
+      "Bash(xiugai.md)",
+      "Bash(powershell -Command \"Get-Content ''d:\\newhm\\newzijin\\xiugai.md'' -Tail 50\")",
+      "Bash(\"d:\\newhm\\newzijin\\xiugai.md\")",
+      "Bash(del \"d:\\newhm\\newzijin\\temp_update.txt\")"
     ],
     "deny": [],
     "ask": []

@@ -450,28 +450,41 @@ export default {
         return;
       }
 
+      // 构造提交数据,字段名与后端实体类保持一致
       const applicationData = {
-        residentId: this.basicForm.residentId,
-        elderName: this.selectedResident.elderName,
-        amount: this.basicForm.amount,
+        // 生成申请编号
+        applyNo: 'DEP' + new Date().getTime(),
+        // 关联信息
+        elderId: this.selectedResident.elderId,
+        institutionId: this.selectedResident.institutionId,
+        accountId: this.selectedResident.accountId,
+        // 申请金额和原因
+        applyAmount: this.basicForm.amount,
+        applyReason: this.detailForm.reason,
+        // 申请类型设为押金使用
+        applyType: '押金使用',
+        // 新增字段
         urgencyLevel: this.basicForm.urgencyLevel,
         purpose: this.basicForm.purpose,
-        expectedUseDate: this.basicForm.expectedUseDate,
-        reason: this.detailForm.reason,
         description: this.detailForm.description,
-        remark: this.detailForm.remark,
-        attachments: this.fileList.map(file => file.url),
-        confirmName: this.confirmForm.confirmName,
-        confirmRelation: this.confirmForm.confirmRelation,
-        confirmPhone: this.confirmForm.confirmPhone,
-        confirmMethod: this.confirmForm.confirmMethod,
-        confirmComment: this.confirmForm.confirmComment,
-        signature: this.confirmForm.signature
+        expectedUseDate: this.basicForm.expectedUseDate,
+        attachments: JSON.stringify(this.fileList.map(file => ({ name: file.name, url: file.url }))),
+        // 申请状态默认为草稿,后端会自动设置
+        applyStatus: 'draft',
+        // 家属确认信息
+        familyConfirmName: this.confirmForm.confirmName,
+        familyRelation: this.confirmForm.confirmRelation,
+        familyPhone: this.confirmForm.confirmPhone,
+        // 备注
+        remark: this.detailForm.remark
       };
 
       addDepositUse(applicationData).then(response => {
-        this.$message.success('申请提交成功，等待监管部门审批');
-        this.$router.push('/elder/depositList');
+        this.$message.success('申请提交成功,等待家属审批');
+        this.$router.push('/pension/elder/depositList');
+      }).catch(error => {
+        console.error('提交申请失败:', error);
+        this.$message.error('申请提交失败,请检查信息后重试');
       });
     },
     /** 文件上传成功 */

@@ -117,4 +117,108 @@ public class DepositApplyServiceImpl implements IDepositApplyService
     {
         return depositApplyMapper.deleteDepositApplyByApplyId(applyId);
     }
+
+    /**
+     * 家属审批押金使用申请
+     *
+     * @param applyId 押金使用申请主键
+     * @param opinion 审批意见
+     * @param approver 审批人
+     * @return 结果
+     */
+    @Override
+    public int familyApprove(Long applyId, String opinion, String approver)
+    {
+        // 1. 查询申请信息
+        DepositApply apply = depositApplyMapper.selectDepositApplyByApplyId(applyId);
+        if (apply == null) {
+            throw new RuntimeException("押金使用申请不存在");
+        }
+
+        // 2. 验证状态(只有待家属审批状态才能审批)
+        if (!"pending_family".equals(apply.getApplyStatus())) {
+            throw new RuntimeException("当前状态不允许家属审批");
+        }
+
+        // 3. 更新审批信息
+        DepositApply updateApply = new DepositApply();
+        updateApply.setApplyId(applyId);
+        updateApply.setFamilyApproveOpinion(opinion);
+        updateApply.setFamilyApproveTime(DateUtils.getNowDate());
+        updateApply.setApplyStatus("family_approved"); // 家属已审批,等待监管部门审批
+        updateApply.setUpdateTime(DateUtils.getNowDate());
+
+        return depositApplyMapper.updateDepositApply(updateApply);
+    }
+
+    /**
+     * 监管部门审批押金使用申请
+     *
+     * @param applyId 押金使用申请主键
+     * @param approved 是否通过
+     * @param remark 审批意见
+     * @param approver 审批人
+     * @return 结果
+     */
+    @Override
+    public int supervisionApprove(Long applyId, boolean approved, String remark, String approver)
+    {
+        // 1. 查询申请信息
+        DepositApply apply = depositApplyMapper.selectDepositApplyByApplyId(applyId);
+        if (apply == null) {
+            throw new RuntimeException("押金使用申请不存在");
+        }
+
+        // 2. 验证状态(只有家属已审批或待监管审批状态才能审批)
+        if (!"family_approved".equals(apply.getApplyStatus()) &&
+            !"pending_supervision".equals(apply.getApplyStatus())) {
+            throw new RuntimeException("当前状态不允许监管部门审批");
+        }
+
+        // 3. 更新审批信息
+        DepositApply updateApply = new DepositApply();
+        updateApply.setApplyId(applyId);
+        updateApply.setApprover(approver);
+        updateApply.setApproveTime(DateUtils.getNowDate());
+        updateApply.setApproveRemark(remark);
+        updateApply.setApplyStatus(approved ? "approved" : "rejected");
+        updateApply.setUpdateTime(DateUtils.getNowDate());
+
+        return depositApplyMapper.updateDepositApply(updateApply);
+    }
+
+    /**
+     * 撤回押金使用申请
+     *
+     * @param applyId 押金使用申请主键
+     * @return 结果
+     */
+    @Override
+    public int withdrawApply(Long applyId)
+    {
+        // 1. 查询申请信息
+        DepositApply apply = depositApplyMapper.selectDepositApplyByApplyId(applyId);
+        if (apply == null) {
+            throw new RuntimeException("押金使用申请不存在");
+        }
+
+        // 2. 验证状态(已通过、已驳回、已撤回状态不能撤回)
+        String status = apply.getApplyStatus();
+        if ("approved".equals(status) || "rejected".equals(status) || "withdrawn".equals(status)) {
+            throw new RuntimeException("当前状态不允许撤回");
+        }
+
+        // 3. 更新状态为已撤回,清空审批信息
+        DepositApply updateApply = new DepositApply();
+        updateApply.setApplyId(applyId);
+        updateApply.setApplyStatus("withdrawn");
+        updateApply.setFamilyApproveTime(null);
+        updateApply.setFamilyApproveOpinion(null);
+        updateApply.setApprover(null);
+        updateApply.setApproveTime(null);
+        updateApply.setApproveRemark(null);
+        updateApply.setUpdateTime(DateUtils.getNowDate());
+
+        return depositApplyMapper.updateDepositApply(updateApply);
+    }
 }

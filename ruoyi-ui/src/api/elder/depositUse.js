@@ -1,7 +1,16 @@
 import request from '@/utils/request'
 
-// 查询入住人押金使用申请列表
+// 查询押金使用申请列表
 export function listDepositUse(query) {
+  return request({
+    url: '/pension/deposit/apply/list',
+    method: 'get',
+    params: query
+  })
+}
+
+// 查询押金使用申请列表(mock数据 - 备用)
+export function listDepositUseMock(query) {
   return new Promise((resolve) => {
     setTimeout(() => {
       const mockData = [
@@ -190,6 +199,14 @@ export function listDepositUse(query) {
 
 // 查询押金使用申请详细
 export function getDepositUse(id) {
+  return request({
+    url: '/pension/deposit/apply/' + id,
+    method: 'get'
+  })
+}
+
+// 查询押金使用申请详细(mock数据 - 备用)
+export function getDepositUseMock(id) {
   return new Promise((resolve) => {
     setTimeout(() => {
       const mockData = {
@@ -234,30 +251,62 @@ export function getDepositUse(id) {
 
 // 新增押金使用申请
 export function addDepositUse(data) {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        code: 200,
-        msg: '申请提交成功',
-        data: {
-          id: Date.now(),
-          applyNo: 'DEP' + Date.now()
-        }
-      });
-    }, 500);
-  });
+  return request({
+    url: '/pension/deposit/apply',
+    method: 'post',
+    data: data
+  })
+}
+
+// 修改押金使用申请
+export function updateDepositUse(data) {
+  return request({
+    url: '/pension/deposit/apply',
+    method: 'put',
+    data: data
+  })
+}
+
+// 提交押金使用申请(从草稿到待家属审批)
+export function submitDepositUse(applyId) {
+  return request({
+    url: '/pension/deposit/apply/submit/' + applyId,
+    method: 'put'
+  })
 }
 
 // 撤回押金使用申请
-export function cancelDepositUse(id) {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        code: 200,
-        msg: '撤回成功'
-      });
-    }, 300);
-  });
+export function withdrawDepositUse(applyId) {
+  return request({
+    url: '/pension/deposit/apply/withdraw/' + applyId,
+    method: 'put'
+  })
+}
+
+// 家属审批押金使用申请
+export function familyApproveDepositUse(applyId, data) {
+  return request({
+    url: '/pension/deposit/apply/familyApprove/' + applyId,
+    method: 'put',
+    data: data
+  })
+}
+
+// 监管部门审批押金使用申请
+export function supervisionApproveDepositUse(applyId, data) {
+  return request({
+    url: '/pension/deposit/apply/supervisionApprove/' + applyId,
+    method: 'put',
+    data: data
+  })
+}
+
+// 删除押金使用申请
+export function delDepositUse(applyId) {
+  return request({
+    url: '/pension/deposit/apply/' + applyId,
+    method: 'delete'
+  })
 }
 
 // 押金拨付

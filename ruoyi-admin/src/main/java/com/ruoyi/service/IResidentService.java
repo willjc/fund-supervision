@@ -44,4 +44,12 @@ public interface IResidentService
      * @return 统计数据
      */
     public Map<String, Object> getResidentStatistics();
+
+    /**
+     * 删除入住人
+     *
+     * @param residentId 入住人ID(老人ID)
+     * @return 结果
+     */
+    public int deleteResident(Long residentId);
 }

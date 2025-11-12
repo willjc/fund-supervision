@@ -15559,3 +15559,2396 @@ pension_institution (养老机构信息,包含 institution_name)
 2025-11-12 06:00
 
 ---
+
+## 2025-11-12 订单列表页面功能优化
+
+### 问题描述
+订单列表页面存在以下问题:
+1. 搜索栏"订单类型"筛选选项错误,显示的是订单明细的费用类型而非订单类型
+2. 按钮栏有多个不需要的按钮(修改、批量支付、批量退费、批量续费、生成订单)
+3. "新增缴费申请"按钮功能不明确,应改为"新增订单"并实现完整的续费订单创建流程
+
+### 修改内容
+
+#### 修改文件: orderInfo/index.vue
+**文件路径**: `ruoyi-ui/src/views/pension/order/orderInfo/index.vue`
+
+### 1. 修复订单类型筛选选项
+
+**修改位置**: 第17-26行
+
+**修改前**:
+```vue
+<el-form-item label="订单类型" prop="orderType">
+  <el-select v-model="queryParams.orderType" placeholder="请选择订单类型" clearable>
+    <el-option label="入住费" value="入住费"></el-option>
+    <el-option label="床位费" value="床位费"></el-option>
+    <el-option label="护理费" value="护理费"></el-option>
+    <el-option label="押金" value="押金"></el-option>
+    <el-option label="会员费" value="会员费"></el-option>
+    <el-option label="其他费用" value="其他费用"></el-option>
+  </el-select>
+</el-form-item>
+```
+
+**修改后**:
+```vue
+<el-form-item label="订单类型" prop="orderType">
+  <el-select v-model="queryParams.orderType" placeholder="请选择订单类型" clearable>
+    <el-option label="入驻" value="1"></el-option>
+    <el-option label="续费" value="2"></el-option>
+  </el-select>
+</el-form-item>
+```
+
+**修改说明**:
+- 订单类型 `order_type` 定义: `'1'`=入驻, `'2'`=续费
+- 原来的"入住费、床位费"等是 `order_item.item_type` (订单明细的费用类型),不是订单类型
+
+### 2. 精简按钮栏
+
+**修改位置**: 第70-144行
+
+**修改前**: 7个按钮(新增缴费申请、修改、批量支付、批量退费、批量续费、导出、生成订单)
+
+**修改后**: 2个按钮(新增订单、导出)
+
+**删除的按钮**:
+- 修改
+- 批量支付
+- 批量退费
+- 批量续费
+- 生成订单
+
+**保留的按钮**:
+- **新增订单** (原"新增缴费申请",已重命名)
+- **导出**
+
+### 3. 实现新增订单功能
+
+#### 3.1 新增导入
+
+**新增 API 导入**:
+```javascript
+import { listResident, getResident, renewResident } from "@/api/elder/resident";
+import { listPensionInstitution } from "@/api/pension/institution";
+```
+
+#### 3.2 新增数据结构
+
+**data() 新增字段**:
+```javascript
+// 新增订单相关数据
+selectResidentOpen: false,      // 选择入住人对话框开关
+renewOrderOpen: false,          // 续费表单对话框开关
+residentList: [],               // 入住人列表
+residentTotal: 0,               // 入住人总数
+institutionList: [],            // 养老机构列表
+residentQueryParams: {          // 入住人查询参数
+  pageNum: 1,
+  pageSize: 10,
+  elderName: null,
+  institutionId: null,
+  checkInStatus: '1'            // 只显示已入住的老人
+},
+renewOrderForm: {               // 续费表单
+  elderId: null,
+  elderName: null,
+  bedInfo: null,
+  monthlyFee: 0,
+  serviceBalance: 0,
+  depositBalance: 0,
+  memberBalance: 0,
+  checkInDate: null,
+  currentDueDate: null,
+  newDueDate: null,
+  monthCount: 0,
+  depositAmount: 0,
+  memberFee: 0,
+  finalAmount: 0,
+  paymentMethod: 'cash',
+  remark: null
+},
+renewOrderRules: {              // 续费表单校验规则
+  monthCount: [...],
+  depositAmount: [...],
+  memberFee: [...],
+  paymentMethod: [...]
+}
+```
+
+**computed 新增计算属性**:
+```javascript
+renewOrderServiceFeeTotal()     // 续费服务费小计
+renewOrderCalculatedTotal()     // 续费应收总计
+renewOrderDiscountAmount()      // 续费优惠金额
+```
+
+#### 3.3 新增对话框
+
+**第240-300行: 选择入住人对话框**
+- 搜索条件:姓名、所属机构
+- 显示列表:姓名、性别、年龄、床位、机构、服务费余额、到期日期
+- 点击"选择"按钮进入续费表单
+
+**第302-481行: 续费表单对话框**
+- **入住人信息**(只读):姓名、床位、月服务费、各项余额、入住日期、到期日期
+- **费用设置**:续费月数、补交押金、补交会员费
+- **费用汇总**:自动计算应收/实收总计、优惠金额、新到期日期
+- **支付方式**:现金/刷卡/扫码
+- **备注**:可选填写
+
+#### 3.4 新增方法
+
+**methods 新增**:
+```javascript
+handleAddOrder()              // 新增订单 - 打开选择入住人对话框
+loadResidentList()            // 加载入住人列表
+handleResidentQuery()         // 搜索入住人
+resetResidentQuery()          // 重置入住人搜索
+handleSelectResident(row)     // 选择入住人
+calculateRenewOrderTotal()    // 计算续费总额和新到期日期
+submitRenewOrder()            // 提交续费订单
+formatMoney(value)            // 格式化金额
+```
+
+#### 3.5 移除方法
+
+**methods 移除**:
+```javascript
+handleChargeApplication()     // 原新增缴费申请方法(已替换)
+```
+
+### 功能流程
+
+**新增订单完整流程**:
+
+1. **点击"新增订单"按钮**
+   - 加载养老机构列表
+   - 加载已入住老人列表
+   - 打开"选择入住人"对话框
+
+2. **选择入住人**
+   - 可按姓名、机构筛选
+   - 点击某行或"选择"按钮
+
+3. **填写续费表单**
+   - 自动带出老人信息、床位、余额等
+   - 设置续费月数、补交押金、补交会员费
+   - 系统自动计算总额
+   - 可手动调整实收金额(优惠)
+   - 选择支付方式
+
+4. **提交生成订单**
+   - 调用 `/pension/resident/renew` 接口
+   - 创建订单记录 (`order_type='2'`)
+   - 创建订单明细 (`order_item`)
+   - 更新床位到期日期
+   - 刷新订单列表
+
+### 技术实现
+
+**复用现有API**:
+- 完全复用入住人列表的续费逻辑
+- 调用 `ResidentServiceImpl.renewResident()` 方法
+- 该方法已实现完整的订单生成、明细创建、到期日期更新等逻辑
+
+**前端组件复用**:
+- 续费表单结构与 `pension/elder/list.vue` 中的续费对话框保持一致
+- 计算逻辑、校验规则完全相同
+- 确保功能一致性
+
+### 关键差异说明
+
+| 项目 | 入驻订单 (orderType='1') | 续费订单 (orderType='2') |
+|------|-------------------------|-------------------------|
+| **触发场景** | 新老人第一次入住 | 已入住老人续费/补缴 |
+| **创建位置** | 入住管理 > 新增入驻 | 订单列表 > 新增订单 |
+| **是否选床位** | ✅ 必须选择空闲床位 | ❌ 已有床位,自动带出 |
+| **老人信息** | ✅ 填写完整档案 | ❌ 从列表选择 |
+| **费用内容** | 首次缴费(必填服务费+押金+会员费) | 续费/补缴(可任意组合) |
+| **到期日期** | 从入住日期开始计算 | 在原到期日期基础上延长 |
+
+### 业务价值
+
+1. **功能统一** - 订单列表页面可以直接创建续费订单,不必跳转到入住人列表
+2. **流程清晰** - 两步式对话框(选人→填表),逻辑清晰
+3. **数据准确** - 复用成熟的续费逻辑,确保数据一致性
+4. **用户友好** - 自动带出老人信息,减少输入错误
+
+### 修改时间
+2025-11-12 07:00
+
+---
+
+## 2025-11-13 入住人删除功能实现
+
+### 问题描述
+用户在"养老机构/入住管理/入住人列表"中无法删除入住人，点击删除按钮没有反应。
+
+### 原因分析
+后端 `PensionResidentController` 控制器中**没有实现删除接口**。前端调用的是 `/pension/resident/delete/{residentId}`，但后端缺少对应的删除方法。
+
+### 解决方案
+
+#### 1. 服务接口层 (IResidentService.java)
+添加删除方法声明：
+```java
+/**
+ * 删除入住人
+ *
+ * @param residentId 入住人ID(老人ID)
+ * @return 结果
+ */
+public int deleteResident(Long residentId);
+```
+
+#### 2. 服务实现层 (ResidentServiceImpl.java)
+实现删除逻辑，包含业务校验：
+```java
+@Override
+@Transactional
+public int deleteResident(Long residentId)
+{
+    // 1. 检查是否有未支付的订单
+    OrderInfo queryOrder = new OrderInfo();
+    queryOrder.setElderId(residentId);
+    queryOrder.setOrderStatus("0"); // 未支付
+    List<OrderInfo> unpaidOrders = orderInfoMapper.selectOrderInfoList(queryOrder);
+    if (unpaidOrders != null && !unpaidOrders.isEmpty()) {
+        throw new RuntimeException("该入住人存在未支付订单，无法删除！请先处理未支付订单。");
+    }
+
+    // 2. 检查是否有余额
+    ResidentVO residentVO = residentMapper.selectResidentDetail(residentId);
+    if (residentVO != null) {
+        BigDecimal serviceBalance = residentVO.getServiceBalance() != null ? residentVO.getServiceBalance() : BigDecimal.ZERO;
+        BigDecimal depositBalance = residentVO.getDepositBalance() != null ? residentVO.getDepositBalance() : BigDecimal.ZERO;
+        BigDecimal memberBalance = residentVO.getMemberBalance() != null ? residentVO.getMemberBalance() : BigDecimal.ZERO;
+
+        if (serviceBalance.compareTo(BigDecimal.ZERO) > 0 ||
+            depositBalance.compareTo(BigDecimal.ZERO) > 0 ||
+            memberBalance.compareTo(BigDecimal.ZERO) > 0) {
+            throw new RuntimeException("该入住人存在余额，无法删除！请先办理退费。");
+        }
+    }
+
+    // 3. 释放床位（将床位分配记录设置为已结束）
+    BedAllocation allocation = bedAllocationMapper.selectBedAllocationByElderId(residentId);
+    if (allocation != null) {
+        if ("0".equals(allocation.getAllocationStatus()) || "1".equals(allocation.getAllocationStatus())) {
+            // 将待入住或已入住状态改为已结束
+            allocation.setAllocationStatus("2");
+            allocation.setCheckOutDate(new Date());
+            bedAllocationMapper.updateBedAllocation(allocation);
+        }
+    }
+
+    // 4. 删除老人信息
+    return elderInfoMapper.deleteElderInfoByElderId(residentId);
+}
+```
+
+**删除逻辑说明**：
+1. **未支付订单检查**：如果有未支付订单，禁止删除，提示用户先处理订单
+2. **余额检查**：如果有服务费、押金或会员费余额，禁止删除，提示用户先办理退费
+3. **释放床位**：将该入住人的床位分配状态改为"已结束"(状态2)，并设置退住日期
+4. **删除数据**：删除 `elder_info` 表中的老人信息记录
+
+#### 3. 控制器层 (PensionResidentController.java)
+添加删除接口：
+```java
+/**
+ * 删除入住人
+ */
+@PreAuthorize("@ss.hasPermi('elder:resident:remove')")
+@Log(title = "入住人管理", businessType = BusinessType.DELETE)
+@DeleteMapping("/delete/{residentId}")
+public AjaxResult delete(@PathVariable("residentId") Long residentId)
+{
+    return toAjax(residentService.deleteResident(residentId));
+}
+```
+
+同时添加导入语句：
+```java
+import org.springframework.web.bind.annotation.DeleteMapping;
+```
+
+### 业务规则
+删除入住人需要满足以下条件：
+1. ✅ **无未支付订单**：确保财务记录完整
+2. ✅ **无余额**：服务费、押金、会员费余额均为0
+3. ✅ **自动释放床位**：删除时自动将床位状态改为"已结束"
+
+### 影响范围
+- 后端文件：
+  - `IResidentService.java` - 添加删除方法声明
+  - `ResidentServiceImpl.java` - 实现删除逻辑（含业务校验）
+  - `PensionResidentController.java` - 添加DELETE接口
+- 前端无需修改（删除按钮和API调用已存在）
+
+### 测试建议
+1. 测试删除无余额、无订单的入住人 ✓ 应成功
+2. 测试删除有未支付订单的入住人 ✗ 应提示错误
+3. 测试删除有余额的入住人 ✗ 应提示错误
+4. 删除成功后检查床位是否自动释放
+
+### 附加说明
+- 删除操作使用事务管理(`@Transactional`)，确保数据一致性
+- 删除前进行严格的业务校验，防止数据错误
+- 删除时自动处理床位释放，无需手动操作
+
+
+## 2025-11-13 订单支付记录功能完善
+
+### 问题描述
+用户在"养老机构/订单管理/订单列表"的订单详情中查看支付记录时，发现没有数据显示。
+
+### 原因分析
+经过检查发现，无论是**入住功能**还是**续费功能**，在创建订单并设置订单状态为"已支付"时，都**没有创建对应的支付记录（payment_record）**。
+
+- 订单详情页面通过 `listPayment({ orderId: orderId })` 查询支付记录
+- 后端接口 `/payment/record/list` 根据 `orderId` 筛选支付记录
+- 但是数据库中没有对应的支付记录数据
+
+### 解决方案
+
+#### 1. 续费功能添加支付记录 (ResidentServiceImpl.java)
+
+**文件位置**: `ruoyi-admin/src/main/java/com/ruoyi/service/impl/ResidentServiceImpl.java`
+
+**修改内容**:
+1. 添加导入：
+```java
+import com.ruoyi.domain.PaymentRecord;
+import com.ruoyi.mapper.PaymentRecordMapper;
+```
+
+2. 注入Mapper：
+```java
+@Autowired
+private PaymentRecordMapper paymentRecordMapper;
+```
+
+3. 在 `renewResident()` 方法的订单明细创建后添加支付记录创建逻辑（第236-250行）：
+```java
+// 9. 创建支付记录
+PaymentRecord paymentRecord = new PaymentRecord();
+paymentRecord.setPaymentNo("PAY" + System.currentTimeMillis()); // 支付流水号
+paymentRecord.setOrderId(orderId);
+paymentRecord.setElderId(renewDTO.getElderId());
+paymentRecord.setInstitutionId(existingOrder.getInstitutionId());
+paymentRecord.setPaymentAmount(finalAmount); // 支付金额 = 实收总计
+paymentRecord.setPaymentMethod(renewDTO.getPaymentMethod()); // 支付方式
+paymentRecord.setPaymentStatus("1"); // 支付状态:1-成功
+paymentRecord.setPaymentTime(DateUtils.getNowDate()); // 支付时间
+paymentRecord.setOperator(SecurityUtils.getUsername()); // 操作人
+paymentRecord.setRemark("续费支付");
+paymentRecord.setCreateTime(DateUtils.getNowDate());
+paymentRecord.setCreateBy(SecurityUtils.getUsername());
+paymentRecordMapper.insertPaymentRecord(paymentRecord);
+```
+
+#### 2. 入住功能添加支付记录 (PensionCheckinServiceImpl.java)
+
+**文件位置**: `ruoyi-admin/src/main/java/com/ruoyi/service/impl/PensionCheckinServiceImpl.java`
+
+**修改内容**:
+1. 添加导入：
+```java
+import com.ruoyi.domain.PaymentRecord;
+import com.ruoyi.mapper.PaymentRecordMapper;
+```
+
+2. 注入Mapper：
+```java
+@Autowired
+private PaymentRecordMapper paymentRecordMapper;
+```
+
+3. 在 `createCheckin()` 方法的订单明细创建后添加支付记录创建逻辑（第261-277行）：
+```java
+// ========== 5. 创建支付记录(仅当非"稍后支付"时) ==========
+if (!"later".equals(dto.getPaymentMethod())) {
+    PaymentRecord paymentRecord = new PaymentRecord();
+    paymentRecord.setPaymentNo("PAY" + System.currentTimeMillis()); // 支付流水号
+    paymentRecord.setOrderId(orderId);
+    paymentRecord.setElderId(elderId);
+    paymentRecord.setInstitutionId(institutionId);
+    paymentRecord.setPaymentAmount(finalAmount); // 支付金额 = 实收总计
+    paymentRecord.setPaymentMethod(dto.getPaymentMethod()); // 支付方式
+    paymentRecord.setPaymentStatus("1"); // 支付状态:1-成功
+    paymentRecord.setPaymentTime(DateUtils.getNowDate()); // 支付时间
+    paymentRecord.setOperator(SecurityUtils.getUsername()); // 操作人
+    paymentRecord.setRemark("入住支付");
+    paymentRecord.setCreateTime(DateUtils.getNowDate());
+    paymentRecord.setCreateBy(SecurityUtils.getUsername());
+    paymentRecordMapper.insertPaymentRecord(paymentRecord);
+}
+```
+
+**注意**: 入住功能中只在**非"稍后支付"**时创建支付记录，因为选择"稍后支付"的订单状态为"未支付"，不应该有支付记录。
+
+### 业务逻辑说明
+
+#### 支付记录字段说明
+- **paymentNo**: 支付流水号，格式为 `PAY + 时间戳`
+- **orderId**: 关联的订单ID
+- **elderId**: 关联的老人ID
+- **institutionId**: 关联的机构ID
+- **paymentAmount**: 支付金额（等于订单的实收总计）
+- **paymentMethod**: 支付方式（cash/card/scan）
+- **paymentStatus**: 支付状态（1-成功）
+- **paymentTime**: 支付时间
+- **operator**: 操作人（当前登录用户）
+- **remark**: 备注（"入住支付"或"续费支付"）
+
+#### 两种场景的处理
+1. **续费功能**: 总是创建支付记录（续费都是当场支付）
+2. **入住功能**: 
+   - 选择"现金/刷卡/扫码"支付 → 创建支付记录
+   - 选择"稍后支付" → 不创建支付记录（订单状态为"未支付"）
+
+### 影响范围
+- 后端文件：
+  - `ResidentServiceImpl.java` - 续费功能添加支付记录创建
+  - `PensionCheckinServiceImpl.java` - 入住功能添加支付记录创建
+- 前端无需修改（支付记录查询接口已存在）
+
+### 测试建议
+1. 测试续费功能，验证订单详情中能看到支付记录 ✓
+2. 测试入住功能（现金/刷卡/扫码支付），验证订单详情中能看到支付记录 ✓
+3. 测试入住功能（稍后支付），验证订单详情中没有支付记录（正确） ✓
+4. 检查支付记录的各字段值是否正确填充 ✓
+
+### 附加说明
+- 支付记录用于财务对账和审计追溯
+- 每笔支付都生成唯一的支付流水号
+- 支付记录与订单信息保持一致，确保数据完整性
+
+
+## 2025-11-13 押金使用申请双审批流程实现
+
+### 需求背景
+完善押金使用申请功能,实现双层审批机制(家属审批 → 监管部门审批),增强资金监管和使用透明度。
+
+### 数据库修改
+
+#### 1. 实体类更新
+**文件**: `ruoyi-admin/src/main/java/com/ruoyi/domain/pension/DepositApply.java`
+
+新增字段:
+- `purpose` - 使用事由 (String)
+- `description` - 详细说明 (String)
+- `expectedUseDate` - 期望使用日期 (Date)
+- `attachments` - 申请材料附件(JSON格式) (String)
+- `familyConfirmName` - 家属确认人姓名 (String)
+- `familyRelation` - 家属与老人关系 (String)
+- `familyPhone` - 家属联系电话 (String)
+- `familyApproveTime` - 家属审批时间 (Date)
+- `familyApproveOpinion` - 家属审批意见 (String)
+
+状态字段更新:
+- `urgencyLevel` - 修改为三个等级: 一般/紧急/非常紧急
+- `applyStatus` - 修改为支持双审批流程:
+  - `draft` - 草稿
+  - `pending_family` - 待家属审批
+  - `family_approved` - 家属已审批
+  - `pending_supervision` - 待监管审批
+  - `approved` - 已通过
+  - `rejected` - 已驳回
+  - `withdrawn` - 已撤回
+
+#### 2. SQL更新脚本
+**文件**: `sql/deposit_apply_update.sql`
+
+主要操作:
+- ALTER TABLE 添加9个新字段
+- 修改 urgency_level 和 apply_status 字段类型
+- 更新数据字典(紧急程度、申请状态)
+- 更新现有测试数据
+
+#### 3. MyBatis Mapper更新
+**文件**: `ruoyi-admin/src/main/resources/mapper/pension/DepositApplyMapper.xml`
+
+更新内容:
+- resultMap 添加新字段映射
+- selectDepositApplyVo 添加新字段查询
+- selectDepositApplyWithRelations 添加新字段关联查询
+- insertDepositApply 添加新字段插入
+- updateDepositApply 添加新字段更新
+
+### 前端修改
+
+#### 1. 押金使用列表页面
+**文件**: `ruoyi-ui/src/views/pension/elder/depositList.vue`
+
+**搜索条件优化**:
+- 申请状态下拉框更新为7个状态(草稿、待家属审批、家属已审批、待监管审批、已通过、已驳回、已撤回)
+
+**表格列调整**:
+- 移除"期望使用日期"列(保留在申请表单中,不在列表显示)
+- "申请状态"列宽度调整为120px,显示中文标签
+- "操作"列宽度调整为260px,新增"编辑"按钮
+
+**操作按钮逻辑**:
+- **详情**: 所有状态都显示
+- **编辑**: 仅草稿(draft)和已撤回(withdrawn)状态显示
+- **撤回**: 除已通过(approved)、已驳回(rejected)、已撤回(withdrawn)外都显示
+- **拨付**: 已通过且未拨付状态显示
+
+**详情对话框优化**:
+- 移除"期望使用日期"显示
+- 分离显示"家属审批信息"和"监管部门审批信息"两个独立区域
+- 根据审批状态动态显示对应的审批信息
+- 紧急程度使用标签显示(一般/紧急/非常紧急)
+
+**新增方法**:
+- `handleEdit(row)` - 跳转到申请页面进行编辑
+- `handleWithdraw(row)` - 撤回申请(原handleCancel重命名)
+- `getStatusLabel(status)` - 状态码转中文标签
+
+**状态映射更新**:
+- `getStatusType()` - 更新为新的7个状态码及对应颜色
+- `getStatusLabel()` - 新增状态标签转换方法
+
+#### 2. 押金使用申请页面
+**文件**: `ruoyi-ui/src/views/pension/elder/depositApply.vue`
+
+**页面现状**:
+- 已包含材料上传功能(lines 135-146)
+- 已包含紧急程度选择(lines 73-79)
+- 已包含使用事由、期望使用日期等字段
+- 四步流程: 基本信息 → 申请详情 → 家属确认 → 提交申请
+
+**确认内容**:
+- 页面已满足需求,无需修改
+- 表单字段与数据库新增字段匹配
+- 家属确认流程完整
+
+### 审批流程说明
+
+#### 完整流程
+1. **草稿(draft)**: 机构创建申请,填写基本信息
+2. **待家属审批(pending_family)**: 提交后等待家属/老人确认
+3. **家属已审批(family_approved)**: 家属确认通过,等待监管部门审批
+4. **待监管审批(pending_supervision)**: 监管部门审批中
+5. **已通过(approved)**: 监管部门审批通过,可进行拨付
+6. **已驳回(rejected)**: 监管部门驳回申请
+7. **已撤回(withdrawn)**: 申请人撤回申请,可重新编辑
+
+#### 撤回机制
+- 在任意审批阶段(非最终状态)都可撤回
+- 撤回后状态变为 withdrawn
+- 可重新编辑后再次提交
+- 撤回后家属和监管部门审批信息清空
+
+#### 编辑权限
+- 仅草稿和已撤回状态可编辑
+- 其他状态均不可修改
+
+### 技术要点
+
+1. **数据库字段**: 新增9个字段支持双审批流程
+2. **状态机设计**: 7个状态形成完整的审批生命周期
+3. **条件渲染**: 根据审批状态动态显示审批信息
+4. **权限控制**: 编辑和撤回按钮根据状态动态显示
+5. **数据字典**: 紧急程度和申请状态使用数据字典管理
+
+### 待完成任务
+
+1. **后端控制器**: 创建 DepositApplyController
+2. **后端Service**: 实现 DepositApplyServiceImpl 审批逻辑
+3. **审批接口**:
+   - 家属审批接口
+   - 监管部门审批接口
+   - 撤回接口
+4. **前端API**: 对接真实后端接口(目前使用mock数据)
+5. **详情页面**: 创建独立的详情页面,展示完整审批时间轴
+
+### 修改时间
+2025-11-13 01:45
+
+---
+
+## 2025-11-13 押金使用申请后端接口实现
+
+### Service层实现
+
+#### 1. Service接口新增方法
+**文件**: `ruoyi-admin/src/main/java/com/ruoyi/service/pension/IDepositApplyService.java`
+
+新增方法:
+- `familyApprove(applyId, opinion, approver)` - 家属审批
+- `supervisionApprove(applyId, approved, remark, approver)` - 监管部门审批
+- `withdrawApply(applyId)` - 撤回申请
+
+#### 2. Service实现类
+**文件**: `ruoyi-admin/src/main/java/com/ruoyi/service/pension/impl/DepositApplyServiceImpl.java`
+
+**familyApprove方法**(lines 121-152):
+- 验证申请状态(只有pending_family可审批)
+- 更新家属审批信息和时间
+- 状态变更: pending_family → family_approved
+- 异常处理:不存在/状态不允许审批
+
+**supervisionApprove方法**(lines 154-188):
+- 验证申请状态(family_approved或pending_supervision可审批)
+- 更新监管部门审批信息
+- 状态变更: family_approved/pending_supervision → approved/rejected
+- 支持通过和驳回两种结果
+
+**withdrawApply方法**(lines 190-223):
+- 验证状态(approved/rejected/withdrawn不可撤回)
+- 状态变更为withdrawn
+- 清空家属审批和监管审批信息
+- 允许重新编辑
+
+### Controller层实现
+
+#### 文件结构
+**文件**: `ruoyi-admin/src/main/java/com/ruoyi/web/controller/pension/DepositApplyController.java`
+
+**控制器基本信息**:
+- 路由前缀: `/pension/deposit/apply`
+- 继承: BaseController
+- 权限前缀: `pension:deposit`
+
+#### 核心接口
+
+**1. 查询接口**:
+- `GET /list` - 分页查询列表(支持多条件筛选)
+- `GET /elder/{elderId}` - 按老人ID查询
+- `GET /institution/{institutionId}` - 按机构ID查询
+- `GET /{applyId}` - 查询详情
+
+**2. 基本CRUD**:
+- `POST /` - 新增申请
+  - 自动生成申请单号(DEP+时间戳)
+  - 默认状态为draft
+  - 记录创建人
+  
+- `PUT /` - 修改申请
+  - 仅草稿(draft)和已撤回(withdrawn)可修改
+  - 状态验证
+  
+- `DELETE /{applyIds}` - 批量删除
+
+**3. 流程控制接口**:
+- `PUT /submit/{applyId}` - 提交申请
+  - draft/withdrawn → pending_family
+  - 触发家属审批流程
+  
+- `PUT /familyApprove/{applyId}` - 家属审批
+  - pending_family → family_approved
+  - 记录审批意见和时间
+  
+- `PUT /supervisionApprove/{applyId}` - 监管审批
+  - family_approved/pending_supervision → approved/rejected
+  - 支持通过/驳回
+  
+- `PUT /withdraw/{applyId}` - 撤回申请
+  - 非最终状态 → withdrawn
+  - 清空审批信息
+
+**4. 导出接口**:
+- `POST /export` - 导出Excel
+
+#### 权限控制
+
+使用Spring Security注解:
+- `@PreAuthorize("@ss.hasPermi('pension:deposit:list')")` - 查询
+- `@PreAuthorize("@ss.hasPermi('pension:deposit:add')")` - 新增
+- `@PreAuthorize("@ss.hasPermi('pension:deposit:edit')")` - 修改
+- `@PreAuthorize("@ss.hasPermi('pension:deposit:approve')")` - 审批
+- `@PreAuthorize("@ss.hasPermi('pension:deposit:withdraw')")` - 撤回
+- `@PreAuthorize("@ss.hasPermi('pension:deposit:remove')")` - 删除
+- `@PreAuthorize("@ss.hasPermi('pension:deposit:export')")` - 导出
+
+#### 日志记录
+
+使用@Log注解记录操作:
+- title: 操作名称
+- businessType: 业务类型(INSERT/UPDATE/DELETE/EXPORT)
+
+### 前端API更新
+
+#### 文件更新
+**文件**: `ruoyi-ui/src/api/elder/depositUse.js`
+
+**接口方法**:
+```javascript
+// 基本CRUD
+listDepositUse(query)           // 查询列表
+getDepositUse(id)               // 查询详情
+addDepositUse(data)             // 新增
+updateDepositUse(data)          // 修改
+delDepositUse(applyId)          // 删除
+
+// 流程控制
+submitDepositUse(applyId)       // 提交申请
+withdrawDepositUse(applyId)     // 撤回申请
+
+// 审批接口
+familyApproveDepositUse(applyId, data)      // 家属审批
+supervisionApproveDepositUse(applyId, data)  // 监管审批
+
+// 其他
+paymentDepositUse(data)         // 押金拨付
+exportDepositUse(query)         // 导出
+```
+
+**接口变更**:
+- 将所有mock数据改为真实请求
+- 统一路由前缀: `/pension/deposit/apply`
+- 保留mock函数作为备用(添加Mock后缀)
+
+#### 页面API调用更新
+**文件**: `ruoyi-ui/src/views/pension/elder/depositList.vue`
+
+- 导入: `withdrawDepositUse` 替代 `cancelDepositUse`
+- handleWithdraw方法: 调用 `withdrawDepositUse(row.id)`
+
+### 业务流程验证
+
+#### 状态流转验证
+1. **草稿 → 待家属审批**: 需调用submit接口
+2. **待家属审批 → 家属已审批**: 家属审批通过
+3. **家属已审批 → 已通过/已驳回**: 监管部门审批
+4. **任意非最终状态 → 已撤回**: 撤回操作
+
+#### 权限验证
+- 家属审批: 仅待家属审批状态可操作
+- 监管审批: 仅家属已审批/待监管审批状态可操作
+- 撤回: 除已通过/已驳回/已撤回外可操作
+- 编辑: 仅草稿/已撤回状态可操作
+
+### 技术亮点
+
+1. **状态机模式**: 严格的状态流转验证
+2. **异常处理**: 统一使用RuntimeException处理业务异常
+3. **安全性**: 基于Spring Security的方法级权限控制
+4. **审计日志**: @Log注解记录所有关键操作
+5. **RESTful设计**: 标准的HTTP方法和路由设计
+6. **数据验证**: Service层和Controller层双重验证
+7. **事务管理**: 关键操作使用@Transactional保证数据一致性
+
+### 待完成功能
+
+1. **详情页面**: 创建独立的审批流程详情页(时间轴展示)
+2. **通知机制**: 审批后发送通知给相关人员
+3. **附件预览**: 实现申请材料的在线预览
+4. **统计分析**: 押金使用申请的统计报表
+5. **导出优化**: 按条件导出特定状态的申请
+
+### 数据库准备
+
+执行SQL脚本:
+```bash
+mysql -u root -p newzijin < sql/deposit_apply_update.sql
+```
+
+脚本内容:
+- 添加9个新字段
+- 更新urgency_level和apply_status字段类型
+- 更新数据字典(紧急程度、申请状态)
+- 更新测试数据
+
+### 修改时间
+2025-11-13 02:30
+
+---
+
+## 2025-11-13 删除旧的押金控制器(DepositController)
+
+### 问题描述
+应用启动时出现路由冲突错误:
+```
+java.lang.IllegalStateException: Ambiguous mapping. Cannot map 'depositController' method
+com.ruoyi.web.controller.pension.DepositController#applyDeposit(Map)
+to {POST [/pension/deposit/apply]}: There is already 'depositApplyController' bean method
+com.ruoyi.web.controller.pension.DepositApplyController#add(DepositApply) mapped.
+```
+
+### 原因分析
+- 旧的 `DepositController` 创建于 2025-01-03,只有mock数据,所有方法都标记了TODO
+- 新的 `DepositApplyController` 是完整实现,包含完整的业务逻辑
+- 两个控制器都有 `POST /pension/deposit/apply` 路由,导致Spring Boot无法启动
+
+### 解决方案
+删除旧的 `DepositController.java` 文件
+
+### 删除的文件
+**文件路径**: `ruoyi-admin/src/main/java/com/ruoyi/web/controller/pension/DepositController.java`
+
+**文件内容**:
+- `/pension/deposit/balance` - 获取押金余额(mock数据)
+- `/pension/deposit/list` - 查询押金申请列表(mock数据)
+- `/pension/deposit/apply` - 提交押金使用申请(冲突路由)
+- `/pension/deposit/cancel/{applyNo}` - 撤销押金申请
+- `/pension/deposit/detail/{applyNo}` - 查询申请详情
+
+**删除原因**:
+1. 所有方法都是TODO,没有真实业务逻辑
+2. 只返回硬编码的假数据
+3. 新的 `DepositApplyController` 已经完整实现所有功能
+4. 保留会导致路由冲突,应用无法启动
+
+### 验证
+- 删除后应用可以正常启动
+- 押金使用申请功能完全由新的 `DepositApplyController` 提供
+
+### 修改时间
+2025-11-13 03:15
+
+---
+
+## 2025-11-13 执行数据库更新脚本
+
+### 执行内容
+执行了 `sql/deposit_apply_update.sql` 脚本,完成以下数据库更新:
+
+**1. 添加9个新字段**:
+```sql
+ALTER TABLE `deposit_apply`
+ADD COLUMN `purpose` varchar(200) DEFAULT NULL COMMENT '使用事由',
+ADD COLUMN `description` text DEFAULT NULL COMMENT '详细说明',
+ADD COLUMN `expected_use_date` date DEFAULT NULL COMMENT '期望使用日期',
+ADD COLUMN `attachments` text DEFAULT NULL COMMENT '申请材料附件(JSON格式)',
+ADD COLUMN `family_confirm_name` varchar(50) DEFAULT NULL COMMENT '家属确认人姓名',
+ADD COLUMN `family_relation` varchar(20) DEFAULT NULL COMMENT '家属与老人关系',
+ADD COLUMN `family_phone` varchar(20) DEFAULT NULL COMMENT '家属联系电话',
+ADD COLUMN `family_approve_time` datetime DEFAULT NULL COMMENT '家属审批时间',
+ADD COLUMN `family_approve_opinion` varchar(500) DEFAULT NULL COMMENT '家属审批意见';
+```
+
+**2. 修改字段类型**:
+- `urgency_level`: 改为 varchar(20), 默认值'一般'
+- `apply_status`: 改为 varchar(30), 默认值'draft'
+
+**3. 更新数据字典**:
+- 紧急程度字典(urgency_level): 一般、紧急、非常紧急
+- 申请状态字典(deposit_apply_status): draft、pending_family、family_approved、pending_supervision、approved、rejected、withdrawn
+
+**4. 更新现有测试数据**:
+- 状态值: 0→pending_family, 1→approved, 2→rejected, 3→withdrawn
+- 紧急程度: 1→紧急, 2/3→一般
+
+### 验证结果
+```bash
+mysql> DESC deposit_apply;
+purpose              varchar(200)  YES    NULL
+description          text          YES    NULL
+expected_use_date    date          YES    NULL
+attachments          text          YES    NULL
+family_confirm_name  varchar(50)   YES    NULL
+family_relation      varchar(20)   YES    NULL
+family_phone         varchar(20)   YES    NULL
+family_approve_time  datetime      YES    NULL
+family_approve_opinion varchar(500) YES   NULL
+```
+
+### 影响范围
+- 解决了前端页面查询报错: `Unknown column 'da.purpose' in 'field list'`
+- 支持双审批流程的完整数据存储
+- 数据字典与前端页面状态显示保持一致
+
+### 修改时间
+2025-11-13 03:20
+
+---
+
+## 2025-11-13 修复押金使用申请提交错误
+
+### 问题描述
+用户在押金使用申请页面提交申请时报错:
+```
+Field 'elder_id' doesn't have a default value
+```
+
+### 原因分析
+1. 前端提交的数据字段名与后端实体类不匹配
+2. `deposit_apply` 表的 `elder_id`, `institution_id`, `account_id` 都是必填字段(NOT NULL)
+3. 前端发送的数据中缺少这些必填字段
+4. `ResidentVO` 中没有 `accountId` 字段,无法从前端获取
+
+### 解决方案
+
+**1. 修改前端提交数据结构** - [depositApply.vue](ruoyi-ui/src/views/pension/elder/depositApply.vue:447-489)
+```javascript
+// 修改前: 使用错误的字段名
+const applicationData = {
+  residentId: this.basicForm.residentId,
+  elderName: this.selectedResident.elderName,
+  amount: this.basicForm.amount,
+  ...
+};
+
+// 修改后: 使用正确的字段名,与后端实体类对应
+const applicationData = {
+  applyNo: 'DEP' + new Date().getTime(),
+  elderId: this.selectedResident.elderId,              // ✓ 必填
+  institutionId: this.selectedResident.institutionId,  // ✓ 必填
+  accountId: this.selectedResident.accountId,          // ✓ 必填
+  applyAmount: this.basicForm.amount,                  // amount → applyAmount
+  applyReason: this.detailForm.reason,                 // reason → applyReason
+  applyType: '押金使用',
+  urgencyLevel: this.basicForm.urgencyLevel,
+  purpose: this.basicForm.purpose,
+  description: this.detailForm.description,
+  expectedUseDate: this.basicForm.expectedUseDate,
+  attachments: JSON.stringify(this.fileList.map(file => ({ name: file.name, url: file.url }))),
+  applyStatus: 'draft',
+  familyConfirmName: this.confirmForm.confirmName,
+  familyRelation: this.confirmForm.confirmRelation,
+  familyPhone: this.confirmForm.confirmPhone,
+  remark: this.detailForm.remark
+};
+```
+
+**2. 添加accountId到ResidentVO** - [ResidentVO.java](ruoyi-admin/src/main/java/com/ruoyi/domain/vo/ResidentVO.java:113-114)
+```java
+/** 账户ID */
+private Long accountId;
+
+public Long getAccountId() {
+    return accountId;
+}
+
+public void setAccountId(Long accountId) {
+    this.accountId = accountId;
+}
+```
+
+**3. 修改ResidentMapper.xml查询** - [ResidentMapper.xml](ruoyi-admin/src/main/resources/mapper/ResidentMapper.xml)
+
+添加accountId映射:
+```xml
+<result property="accountId" column="account_id" />
+```
+
+在SQL查询中添加account_id字段和LEFT JOIN:
+```sql
+SELECT
+    ...
+    ai.account_id
+FROM elder_info ei
+LEFT JOIN bed_allocation ba ON ei.elder_id = ba.elder_id
+LEFT JOIN bed_info bi ON ba.bed_id = bi.bed_id
+LEFT JOIN pension_institution pi ON bi.institution_id = pi.institution_id
+LEFT JOIN account_info ai ON ei.elder_id = ai.elder_id  -- 新增
+WHERE 1=1
+```
+
+### 字段映射对照表
+
+| 前端表单字段 | 提交字段名 | 后端实体字段 | 说明 |
+|------------|-----------|------------|------|
+| residentId | elderId | elderId | 老人ID(必填) |
+| - | institutionId | institutionId | 机构ID(必填) |
+| - | accountId | accountId | 账户ID(必填) |
+| amount | applyAmount | applyAmount | 申请金额 |
+| reason | applyReason | applyReason | 申请原因 |
+| - | applyType | applyType | 申请类型 |
+| urgencyLevel | urgencyLevel | urgencyLevel | 紧急程度 |
+| purpose | purpose | purpose | 使用事由 |
+| description | description | description | 详细说明 |
+| expectedUseDate | expectedUseDate | expectedUseDate | 期望使用日期 |
+| fileList | attachments | attachments | 附件(JSON) |
+| confirmName | familyConfirmName | familyConfirmName | 家属姓名 |
+| confirmRelation | familyRelation | familyRelation | 家属关系 |
+| confirmPhone | familyPhone | familyPhone | 家属电话 |
+
+### 修改的文件
+1. `ruoyi-ui/src/views/pension/elder/depositApply.vue` - 修改提交数据结构
+2. `ruoyi-admin/src/main/java/com/ruoyi/domain/vo/ResidentVO.java` - 添加accountId属性和getter/setter
+3. `ruoyi-admin/src/main/resources/mapper/ResidentMapper.xml` - 添加account_id查询和映射
+
+### 修改时间
+2025-11-13 03:30
+
+---
+
+
+## 2025-11-13 04:00 - 修正押金使用申请页面文件路径
+
+### 问题描述
+之前修改了错误的文件路径。实际使用的页面是 deposit 文件夹下的 apply.vue，而不是 elder 文件夹下的。
+
+### 路由对应关系
+- 押金使用申请页面: /pension/deposit/apply 对应 ruoyi-ui/src/views/pension/deposit/apply.vue
+- 押金使用列表页面: /pension/deposit/list 对应 ruoyi-ui/src/views/pension/deposit/list.vue
+
+### 解决方案
+将已经修改好的 elder 文件夹下的 depositApply.vue 复制到 deposit 文件夹作为 apply.vue
+
+### 修改的文件
+1. ruoyi-ui/src/views/pension/deposit/apply.vue - 押金使用申请页面(正确的路径)
+   - 添加了步骤指示器(4个步骤: 基本信息、申请详情、家属确认、提交申请)
+   - 添加了紧急程度选择(一般/紧急/非常紧急)
+   - 添加了期望使用日期选择
+   - 添加了详细说明文本域
+   - 添加了文件上传组件
+   - 添加了家属确认信息(姓名/关系/电话)
+   - 添加了备注字段
+   - 修正了submitApplication方法的字段映射
+
+### 新增功能特点
+1. 分步骤表单: 使用el-steps组件,分4步完成申请,用户体验更好
+2. 入住人信息展示: 选择入住人后使用el-descriptions组件显示详细信息
+3. 押金余额验证: 申请金额不能超过当前押金余额
+4. 文件上传: 支持上传医疗发票、收据等相关材料
+5. 家属确认: 包含家属姓名、关系、电话验证(手机号正则验证)
+6. 表单验证: 完整的前端验证规则,所有必填字段都有验证
+
+### 字段映射关系
+前端使用分步骤表单,包含 basicForm(基本信息)、detailForm(申请详情)、confirmForm(家属确认)
+提交时映射到后端 DepositApply 实体类:
+
+- selectedResident.elderId -> elderId (老人ID,必填)
+- selectedResident.institutionId -> institutionId (机构ID,必填)
+- selectedResident.accountId -> accountId (账户ID,必填)
+- basicForm.amount -> applyAmount (申请金额)
+- detailForm.reason -> applyReason (申请原因)
+- applyType 固定为 '押金使用'
+- basicForm.urgencyLevel -> urgencyLevel (紧急程度)
+- basicForm.purpose -> purpose (使用事由)
+- detailForm.description -> description (详细说明)
+- basicForm.expectedUseDate -> expectedUseDate (期望使用日期)
+- fileList -> attachments (附件,JSON格式存储)
+- confirmForm.confirmName -> familyConfirmName (家属姓名)
+- confirmForm.confirmRelation -> familyRelation (家属关系)
+- confirmForm.confirmPhone -> familyPhone (家属电话)
+- detailForm.remark -> remark (备注)
+
+### 修改时间
+2025-11-13 04:00
+
+
+
+## 2025-11-13 04:10 - 修复押金使用申请页面无法打开的问题
+
+### 问题描述
+押金使用申请页面 (http://localhost/pension/deposit/apply) 无法打开,前端报错。
+
+### 问题原因
+在 apply.vue 的 data() 函数中,表单验证规则使用了 `validator: this.validateAmount`,但在 data() 函数中不能使用 `this` 来引用 methods 中的方法。这会导致页面加载时JavaScript执行错误。
+
+### 解决方案
+移除了 basicRules.amount 中的 validator 配置:
+```javascript
+// 修改前
+amount: [
+  { required: true, message: "请输入申请金额", trigger: "blur" },
+  { validator: this.validateAmount, trigger: "blur" }  // 错误:不能在data()中使用this
+],
+
+// 修改后
+amount: [
+  { required: true, message: "请输入申请金额", trigger: "blur" }
+],
+```
+
+由于在template中已经设置了 `:max="selectedResident ? selectedResident.depositBalance : 0"`,el-input-number组件会自动限制最大输入值,不需要额外的自定义验证器。
+
+### 修改的文件
+1. ruoyi-ui/src/views/pension/deposit/apply.vue (第336-352行)
+   - 移除了 basicRules.amount 中的 validator 配置
+
+### 修改时间
+2025-11-13 04:10
+
+
+
+## 2025-11-13 04:15 - 修复selectedResident空引用错误
+
+### 问题描述
+押金使用申请页面依旧无法打开,浏览器控制台报错:
+```
+TypeError: Cannot read properties of null (reading 'elderName')
+```
+
+### 问题原因
+在步骤2(申请详情)和步骤4(提交申请)中,直接使用了 `selectedResident.elderName` 和 `selectedResident.bedInfo`,但 `selectedResident` 的初始值是 `null`。当用户直接访问页面或刷新页面时,还未选择入住人,就会导致空引用错误。
+
+### 错误位置
+1. 步骤2 - 申请信息汇总部分(第160-170行)
+2. 步骤4 - 申请信息确认部分(第266-283行)
+
+### 解决方案
+在所有使用 `selectedResident` 的 `el-descriptions` 组件上添加 `v-if="selectedResident"` 条件判断,并在条件不满足时显示提示信息:
+
+```vue
+<!-- 步骤2 -->
+<el-descriptions v-if="selectedResident" :column="2" border>
+  <el-descriptions-item label="入住人">{{ selectedResident.elderName }}</el-descriptions-item>
+  <!-- ... 其他字段 ... -->
+</el-descriptions>
+<el-alert v-else type="warning" :closable="false">
+  请先在"基本信息"步骤中选择入住人
+</el-alert>
+
+<!-- 步骤4 -->
+<el-descriptions v-if="selectedResident" title="申请信息确认" :column="2" border>
+  <el-descriptions-item label="入住人">{{ selectedResident.elderName }}</el-descriptions-item>
+  <!-- ... 其他字段 ... -->
+</el-descriptions>
+<el-alert v-else type="warning" :closable="false">
+  请先在"基本信息"步骤中选择入住人
+</el-alert>
+```
+
+### 修改的文件
+1. ruoyi-ui/src/views/pension/deposit/apply.vue
+   - 第160行: 添加 v-if="selectedResident"
+   - 第171-173行: 添加 v-else 警告提示
+   - 第266行: 添加 v-if="selectedResident"
+   - 第284-286行: 添加 v-else 警告提示
+
+### 修改时间
+2025-11-13 04:15
+
+
+
+## 2025-11-13 04:30 - 押金使用申请页面重大简化
+### 需求变更
+用户反馈现有的4步骤申请流程过于复杂,要求简化为单页面表单。家属确认环节将在独立的客户端(小程序/App)中实现,而非在管理后台中完成。
+
+### 业务流程调整
+**新的三阶段审批流程**:
+1. **阶段1 - 工作人员提交申请**(管理后台):
+   - 工作人员填写申请信息 → 提交 → 状态设置为 pending_family(待家属审批)
+
+2. **阶段2 - 家属确认**(客户端 - 待开发):
+   - 老人/家属登录客户端 → 查看待确认申请 → 点击同意/拒绝 → 状态变更为 family_approved(家属已审批)
+   - 记录家属确认信息: family_confirm_name, family_relation, family_phone, family_approve_time, family_approve_opinion
+
+3. **阶段3 - 监管部门审批**(管理后台 - 已有功能):
+   - 监管人员审核 → 状态变更为 approved(已通过) 或 rejected(已驳回)
+
+### 主要修改
+#### 1. 移除4步骤向导界面
+**删除的代码**(共379行):
+- el-steps 组件及4个步骤定义
+- data() 中的 activeStep 属性
+- confirmForm 对象(6个家属确认字段)
+- confirmRules 验证规则(6条)
+- nextStep(), prevStep(), goToSubmit() 导航方法
+- validateAmount() 自定义验证方法
+
+#### 2. 简化为单页面表单
+**新增内容**:
+- 使用 el-page-header 组件作为页面标题和返回导航
+- 将所有申请信息字段整合到一个 el-form 中
+- 保留入住人选择和信息展示
+- 保留申请金额、紧急程度、使用事由、期望使用日期、申请原因、详细说明、材料上传、备注
+- **移除**家属确认相关的所有字段
+
+#### 3. 修复紧急联系人电话显示
+**问题**: 紧急联系人电话无法显示
+
+**解决方案**: 在 ResidentVO 中可能有多个字段名,使用逻辑或运算符提供回退选项:
+```vue
+<el-descriptions-item label="紧急联系人">
+  {{ selectedResident.emergencyName || selectedResident.emergencyContact || '-' }}
+</el-descriptions-item>
+<el-descriptions-item label="联系电话">
+  {{ selectedResident.emergencyPhone || '-' }}
+</el-descriptions-item>
+```
+
+#### 4. 调整提交逻辑
+**submitConfirmed() 方法变更**:
+
+**之前**: 状态设置为 draft(草稿),包含家属确认字段
+```javascript
+const applicationData = {
+  // ... 其他字段 ...
+  applyStatus: 'draft',
+  familyConfirmName: this.confirmForm.confirmName,
+  familyRelation: this.confirmForm.confirmRelation,
+  familyPhone: this.confirmForm.confirmPhone,
+  // ... 等家属字段
+};
+```
+
+**修改后**: 状态直接设置为 pending_family,不包含家属字段
+```javascript
+const applicationData = {
+  applyNo: 'DEP' + new Date().getTime(),
+  elderId: this.selectedResident.elderId,
+  institutionId: this.selectedResident.institutionId,
+  accountId: this.selectedResident.accountId,
+  applyAmount: this.form.amount,
+  applyReason: this.form.reason,
+  applyType: '押金使用',
+  urgencyLevel: this.form.urgencyLevel,
+  purpose: this.form.purpose,
+  description: this.form.description,
+  expectedUseDate: this.form.expectedUseDate,
+  attachments: JSON.stringify(this.fileList),
+  applyStatus: 'pending_family', // 直接设为待家属审批
+  remark: this.form.remark
+  // 不再包含家属确认字段
+};
+```
+
+**提交成功提示**: "申请提交成功,等待老人/家属确认"
+
+#### 5. 优化用户体验
+- 添加提交按钮加载状态 :loading="submitting"
+- 添加二次确认对话框,显示申请金额
+- 文件上传限制为5个文件,并添加说明
+- 申请原因至少10个字符,显示字数统计
+- 详细说明、备注字段添加字数限制和统计
+
+### 代码统计
+- **删减代码**: 597行 → 376行 (减少37%)
+- **删除方法**: 4个(nextStep, prevStep, goToSubmit, validateAmount)
+- **删除数据属性**: 3个(activeStep, confirmForm, confirmRules)
+- **简化验证**: 从分步验证改为整表单一次性验证
+
+### 修改的文件
+1. ruoyi-ui/src/views/pension/deposit/apply.vue
+   - 完全重写,从4步骤向导改为单页面表单
+   - 移除步骤导航、家属确认步骤、提交确认步骤
+   - 修改提交逻辑,状态设为 pending_family
+   - 优化紧急联系人信息显示
+   - 添加更好的用户交互体验
+
+### 后续开发计划
+1. 开发老人/家属客户端应用(小程序或App)
+2. 实现客户端登录认证功能
+3. 创建家属审批界面(简单的同意/拒绝按钮)
+4. 在管理后台实现监管部门的最终审批界面
+
+### 修改时间
+2025-11-13 04:30
+
+
+## 2025-11-13 05:00 - 押金申请页面优化和数据库修复
+### 需求调整
+1. 移除押金使用申请页面的返回按钮和取消按钮
+2. 修复提交申请时报错: Field 'account_id' doesn't have a default value
+
+### 问题分析
+#### 问题1: 返回按钮不需要
+用户反馈押金使用申请页面不需要返回按钮,只保留提交和重置按钮即可。
+
+#### 问题2: account_id 字段不能为空
+**错误信息**:
+```
+Error updating database. Cause: java.sql.SQLException: Field 'account_id' doesn't have a default value
+```
+
+**根本原因**:
+1. 数据库表 deposit_apply 中 account_id 字段定义为 NOT NULL (deposit_apply_table.sql:18)
+2. 前端查询入住人列表时,通过 LEFT JOIN account_info 获取 account_id (ResidentMapper.xml:86,92)
+3. 如果某个老人还没有创建账户记录,account_id 值为 NULL
+4. 前端提交时传递 accountId: null,导致数据库插入失败
+
+**业务场景**:
+在实际业务中,可能存在老人已入住但账户信息还未完全创建的情况,因此 account_id 应该允许为空。
+
+### 修改内容
+#### 1. 前端页面调整
+**文件**: ruoyi-ui/src/views/pension/deposit/apply.vue
+
+**移除返回按钮**:
+```vue
+<!-- 之前 -->
+<el-page-header @back="goBack" content="押金使用申请" />
+<!-- 修改后 -->
+<div class="page-title">押金使用申请</div>
+```
+
+**移除取消按钮**:
+```vue
+<!-- 之前 -->
+<el-button type="primary" @click="submitApplication">提交申请</el-button>
+<el-button @click="resetForm">重置</el-button>
+<el-button @click="goBack">取消</el-button>
+
+<!-- 修改后 -->
+<el-button type="primary" @click="submitApplication">提交申请</el-button>
+<el-button @click="resetForm">重置</el-button>
+```
+
+**删除 goBack 方法**:
+- 删除了 goBack() 方法(原第350-352行)
+
+**新增页面标题样式**:
+```css
+.page-title {
+  font-size: 20px;
+  font-weight: bold;
+  color: #303133;
+  padding-bottom: 10px;
+}
+```
+
+#### 2. 数据库表结构修复
+**文件**: sql/fix_deposit_apply_account_id.sql (新建)
+
+**执行 SQL**:
+```sql
+ALTER TABLE `deposit_apply`
+MODIFY COLUMN `account_id` bigint(20) DEFAULT NULL COMMENT '账户ID';
+```
+
+**修改前**:
+```sql
+`account_id` bigint(20) NOT NULL COMMENT '账户ID',
+```
+
+**修改后**:
+```sql
+`account_id` bigint(20) DEFAULT NULL COMMENT '账户ID',
+```
+
+**验证结果**:
+```bash
+mysql> DESC deposit_apply;
+...
+account_id  bigint(20)  YES  MUL  NULL
+...
+```
+
+### 技术说明
+#### 前端数据流转
+1. 页面加载时调用 listResident API 获取入住人列表
+2. ResidentMapper.xml 通过 LEFT JOIN account_info 获取 account_id
+3. 如果 account_info 表中没有对应记录,account_id 为 NULL
+4. 用户选择入住人后,前端通过 this.selectedResident.accountId 获取值
+5. 提交时构造 applicationData 对象,包含 accountId 字段(可能为 null)
+
+#### 后端 Mapper 配置
+DepositApplyMapper.xml 已经正确配置了 account_id 的动态插入:
+```xml
+<if test="accountId != null">account_id,</if>
+...
+<if test="accountId != null">#{accountId},</if>
+```
+
+当 accountId 为 null 时,INSERT 语句不会包含该字段,数据库使用默认值 NULL。
+
+### 修改的文件
+1. ruoyi-ui/src/views/pension/deposit/apply.vue
+   - 移除 el-page-header,改为简单的页面标题
+   - 删除取消按钮
+   - 删除 goBack() 方法
+   - 新增 .page-title 样式
+
+2. sql/fix_deposit_apply_account_id.sql (新建)
+   - 修改 account_id 字段为可空
+
+3. 数据库 deposit_apply 表
+   - account_id 字段从 NOT NULL 改为 DEFAULT NULL
+
+### 修改时间
+2025-11-13 05:00
+
+
+## 2025-11-13 05:30 - 修复押金使用列表页面显示问题
+### 问题描述
+用户反馈押金使用列表页面存在多个问题:
+1. 表格没有撑满页面
+2. 床位信息、使用事由、申请状态、拨付状态不显示
+3. 点击详情按钮报错: 请求参数类型不匹配，参数[applyId]要求类型为：'java.lang.Long'，但输入值为：'undefined'
+
+### 问题分析
+#### 问题1: 字段名不匹配
+数据库和后端实体类使用的字段名:
+- `apply_id` (主键)
+- `apply_amount` (申请金额)
+- `apply_reason` (申请原因)
+- `apply_status` (申请状态)
+
+前端页面使用的字段名:
+- `id` (错误)
+- `amount` (错误)
+- `reason` (错误)
+- `status` (错误)
+
+导致数据无法正确显示和传递。
+
+#### 问题2: 表格高度未设置
+表格组件没有设置 height 属性，导致表格无法撑满页面，不能正常滚动。
+
+#### 问题3: 状态值不匹配
+数据库使用英文状态值: `pending_family`, `family_approved`, `approved`, `rejected`, `withdrawn`
+前端显示和查询使用中文: "待审批", "已通过", "已驳回"等
+
+需要添加状态转换方法。
+
+### 修改内容
+#### 1. 修复表格字段名
+**文件**: ruoyi-ui/src/views/pension/deposit/list.vue
+
+**表格列字段修改**:
+```vue
+<!-- 之前 -->
+<el-table-column label="申请金额" prop="amount">
+  <span>￥{{ formatMoney(scope.row.amount) }}</span>
+</el-table-column>
+<el-table-column label="申请状态" prop="status">
+  <el-tag>{{ scope.row.status }}</el-tag>
+</el-table-column>
+
+<!-- 修改后 -->
+<el-table-column label="申请金额" prop="applyAmount">
+  <span>￥{{ formatMoney(scope.row.applyAmount) }}</span>
+</el-table-column>
+<el-table-column label="申请状态" prop="applyStatus">
+  <el-tag>{{ getStatusText(scope.row.applyStatus) }}</el-tag>
+</el-table-column>
+```
+
+**操作按钮字段修改**:
+```javascript
+// 之前
+handleDetail(row) {
+  getDepositUse(row.id).then(...)
+}
+handleUpdate(row) {
+  this.$router.push({ query: { id: row.id } });
+}
+handleWithdraw(row) {
+  withdrawDepositUse(row.id).then(...)
+}
+
+// 修改后
+handleDetail(row) {
+  getDepositUse(row.applyId).then(...)
+}
+handleUpdate(row) {
+  this.$router.push({ query: { applyId: row.applyId } });
+}
+handleWithdraw(row) {
+  withdrawDepositUse(row.applyId).then(...)
+}
+```
+
+#### 2. 添加表格高度和边框
+```vue
+<!-- 之前 -->
+<el-table v-loading="loading" :data="depositUseList">
+
+<!-- 修改后 -->
+<el-table
+  v-loading="loading"
+  :data="depositUseList"
+  height="calc(100vh - 450px)"
+  border>
+```
+
+**说明**:
+- `height="calc(100vh - 450px)"`: 动态计算表格高度，减去顶部搜索栏、统计卡片、按钮栏等高度
+- `border`: 添加表格边框，提升视觉效果
+- 操作列添加 `fixed="right"`: 固定操作列在右侧
+
+#### 3. 添加状态转换方法
+```javascript
+/** 获取状态文本 */
+getStatusText(status) {
+  const statusMap = {
+    'draft': '草稿',
+    'pending_family': '待家属审批',
+    'family_approved': '家属已审批',
+    'pending_supervision': '待监管审批',
+    'approved': '已通过',
+    'rejected': '已驳回',
+    'withdrawn': '已撤回'
+  };
+  return statusMap[status] || status || '-';
+},
+
+/** 获取状态标签类型 */
+getStatusType(status) {
+  const typeMap = {
+    'draft': 'info',
+    'pending_family': 'warning',
+    'family_approved': 'primary',
+    'pending_supervision': 'warning',
+    'approved': 'success',
+    'rejected': 'danger',
+    'withdrawn': 'info'
+  };
+  return typeMap[status] || '';
+}
+```
+
+#### 4. 修复详情对话框字段
+**基本信息**:
+- `amount` → `applyAmount`
+- `reason` → `applyReason`
+
+**家属确认信息**(字段名和条件判断):
+```vue
+<!-- 之前 -->
+<el-descriptions v-if="detailData.confirmName">
+  <el-descriptions-item label="确认人">{{ detailData.confirmName }}</el-descriptions-item>
+  <el-descriptions-item label="确认时间">{{ parseTime(detailData.confirmTime) }}</el-descriptions-item>
+  <el-descriptions-item label="确认意见">{{ detailData.confirmComment }}</el-descriptions-item>
+</el-descriptions>
+
+<!-- 修改后 -->
+<el-descriptions title="家属确认信息" v-if="detailData.familyConfirmName">
+  <el-descriptions-item label="确认人">{{ detailData.familyConfirmName }}</el-descriptions-item>
+  <el-descriptions-item label="与老人关系">{{ detailData.familyRelation }}</el-descriptions-item>
+  <el-descriptions-item label="联系电话">{{ detailData.familyPhone }}</el-descriptions-item>
+  <el-descriptions-item label="确认时间">{{ parseTime(detailData.familyApproveTime) }}</el-descriptions-item>
+  <el-descriptions-item label="确认意见">{{ detailData.familyApproveOpinion }}</el-descriptions-item>
+</el-descriptions>
+```
+
+**监管审批信息**:
+```vue
+<!-- 之前 -->
+<el-descriptions v-if="detailData.approvalTime">
+  <el-descriptions-item label="审批状态">{{ detailData.status }}</el-descriptions-item>
+  <el-descriptions-item label="审批时间">{{ parseTime(detailData.approvalTime) }}</el-descriptions-item>
+  <el-descriptions-item label="审批意见">{{ detailData.approvalComment }}</el-descriptions-item>
+</el-descriptions>
+
+<!-- 修改后 -->
+<el-descriptions title="监管审批信息" v-if="detailData.approveTime">
+  <el-descriptions-item label="审批状态">
+    <el-tag :type="getStatusType(detailData.applyStatus)">
+      {{ getStatusText(detailData.applyStatus) }}
+    </el-tag>
+  </el-descriptions-item>
+  <el-descriptions-item label="审批人">{{ detailData.approver }}</el-descriptions-item>
+  <el-descriptions-item label="审批时间">{{ parseTime(detailData.approveTime) }}</el-descriptions-item>
+  <el-descriptions-item label="审批意见">{{ detailData.approveRemark }}</el-descriptions-item>
+</el-descriptions>
+```
+
+**拨付信息**:
+```vue
+<!-- 之前 -->
+<el-descriptions v-if="detailData.paymentTime">
+  <el-descriptions-item label="拨付金额">{{ detailData.paymentAmount || detailData.amount }}</el-descriptions-item>
+</el-descriptions>
+
+<!-- 修改后 -->
+<el-descriptions title="拨付信息" v-if="detailData.actualAmount">
+  <el-descriptions-item label="拨付金额">{{ detailData.actualAmount }}</el-descriptions-item>
+  <el-descriptions-item label="使用时间">{{ parseTime(detailData.useTime) }}</el-descriptions-item>
+</el-descriptions>
+```
+
+#### 5. 修复拨付对话框字段
+```vue
+<!-- 之前 -->
+<el-descriptions-item label="申请金额">
+  {{ formatMoney(currentPaymentData.amount) }}
+</el-descriptions-item>
+
+<el-input-number :max="currentPaymentData.amount" />
+
+<!-- 修改后 -->
+<el-descriptions-item label="申请金额">
+  {{ formatMoney(currentPaymentData.applyAmount) }}
+</el-descriptions-item>
+
+<el-input-number :max="currentPaymentData.applyAmount" />
+```
+
+```javascript
+// 之前
+handlePayment(row) {
+  this.paymentForm = {
+    paymentAmount: row.amount,
+    ...
+  };
+}
+
+confirmPayment() {
+  const paymentData = {
+    id: this.currentPaymentData.id,
+    ...
+  };
+}
+
+// 修改后
+handlePayment(row) {
+  this.paymentForm = {
+    paymentAmount: row.applyAmount,
+    ...
+  };
+}
+
+confirmPayment() {
+  const paymentData = {
+    applyId: this.currentPaymentData.applyId,
+    ...
+  };
+}
+```
+
+#### 6. 添加空值显示处理
+为所有可能为空的字段添加默认显示:
+```vue
+<el-table-column label="床位信息">
+  <template slot-scope="scope">
+    <span>{{ scope.row.bedInfo || '-' }}</span>
+  </template>
+</el-table-column>
+
+<el-table-column label="使用事由">
+  <template slot-scope="scope">
+    <span>{{ scope.row.purpose || '-' }}</span>
+  </template>
+</el-table-column>
+```
+
+### 字段对照表
+| 页面原字段 | 数据库字段 | 说明 |
+|-----------|-----------|------|
+| id | apply_id | 申请主键 |
+| amount | apply_amount | 申请金额 |
+| reason | apply_reason | 申请原因 |
+| status | apply_status | 申请状态 |
+| confirmName | family_confirm_name | 家属确认人 |
+| confirmRelation | family_relation | 家属关系 |
+| confirmPhone | family_phone | 家属电话 |
+| confirmTime | family_approve_time | 家属确认时间 |
+| confirmComment | family_approve_opinion | 家属确认意见 |
+| approvalTime | approve_time | 审批时间 |
+| approvalComment | approve_remark | 审批意见 |
+| paymentAmount | actual_amount | 实际拨付金额 |
+| paymentTime | use_time | 使用时间 |
+
+### 修改的文件
+1. ruoyi-ui/src/views/pension/deposit/list.vue
+   - 修复表格列字段名: amount → applyAmount, status → applyStatus
+   - 添加表格高度: height="calc(100vh - 450px)"
+   - 添加表格边框和固定列
+   - 修复所有方法中使用的字段名: id → applyId
+   - 添加状态转换方法: getStatusText(), 修改 getStatusType()
+   - 修复详情对话框所有字段名
+   - 修复拨付对话框字段名
+   - 添加空值显示处理
+
+### 修改时间
+2025-11-13 05:30
+
+
+## 2025-11-13 06:00 - 重构押金使用列表页面
+### 需求变更
+用户反馈押金使用列表页面功能不完整，需要重构:
+1. 缺少撤回和编辑按钮
+2. 详情页看不到上传的附件材料
+3. 详情页看不到审批流程和具体时间
+4. 拨付状态显示为"-"，应该显示"未拨付"
+5. 需要支持撤回后重新编辑申请
+
+### 重构内容
+#### 1. 操作按钮优化 - 根据状态动态显示
+**操作列宽度调整**: 200px → 240px
+
+**按钮显示逻辑**:
+```javascript
+// 1. 详情按钮 - 所有状态都显示
+<el-button @click="handleDetail(scope.row)">详情</el-button>
+
+// 2. 编辑按钮 - 草稿和已撤回状态显示
+v-if="scope.row.applyStatus === 'draft' || scope.row.applyStatus === 'withdrawn'"
+
+// 3. 撤回按钮 - 待家属审批、家属已审批、待监管审批状态显示
+v-if="['pending_family', 'family_approved', 'pending_supervision'].includes(scope.row.applyStatus)"
+
+// 4. 拨付按钮 - 已通过且未拨付状态显示
+v-if="scope.row.applyStatus === 'approved' && !scope.row.actualAmount"
+
+// 5. 删除按钮 - 草稿和已撤回状态显示
+v-if="scope.row.applyStatus === 'draft' || scope.row.applyStatus === 'withdrawn'"
+```
+
+**按钮图标更新**:
+- 撤回按钮: `el-icon-back` → `el-icon-refresh-left`
+- 删除按钮: 添加红色样式 `style="color: #F56C6C;"`
+
+#### 2. 修复拨付状态显示逻辑
+**之前的问题**: 使用 `paymentStatus` 字段，但该字段未正确赋值，导致显示为"-"
+
+**修复方案**: 根据 `actualAmount` 字段判断
+```vue
+<!-- 之前 -->
+<el-table-column label="拨付状态" prop="paymentStatus">
+  <el-tag>{{ scope.row.paymentStatus || '-' }}</el-tag>
+</el-table-column>
+
+<!-- 修改后 -->
+<el-table-column label="拨付状态" prop="actualAmount">
+  <el-tag :type="scope.row.actualAmount ? 'success' : 'warning'">
+    {{ scope.row.actualAmount ? '已拨付' : '未拨付' }}
+  </el-tag>
+</el-table-column>
+```
+
+**逻辑说明**:
+- `actualAmount` 有值(不为null) → 显示"已拨付"（绿色）
+- `actualAmount` 为null → 显示"未拨付"（橙色）
+
+#### 3. 详情页重构 - 添加审批流程时间线
+**对话框宽度调整**: 800px → 900px
+
+**新增审批流程时间线**（使用 Element UI Timeline 组件）:
+
+```vue
+<el-timeline>
+  <!-- 1. 提交申请 - 始终显示 -->
+  <el-timeline-item :timestamp="提交时间" color="#67C23A">
+    <h4>提交申请</h4>
+    <p>申请人提交押金使用申请</p>
+  </el-timeline-item>
+
+  <!-- 2. 家属确认 - 根据状态显示 -->
+  <!-- 已确认: 显示确认时间、确认人、意见 -->
+  <el-timeline-item v-if="familyApproveTime" color="#409EFF">
+    <h4>家属确认</h4>
+    <p>确认人已确认</p>
+    <p>意见: ...</p>
+  </el-timeline-item>
+  <!-- 等待确认: 显示当前状态 -->
+  <el-timeline-item v-else-if="applyStatus === 'pending_family'" color="#E6A23C">
+    <h4>等待家属确认</h4>
+  </el-timeline-item>
+
+  <!-- 3. 监管审批 - 根据状态显示 -->
+  <!-- 已审批: 显示审批时间、审批人、结果、意见 -->
+  <el-timeline-item v-if="approveTime" :color="approved ? '#67C23A' : '#F56C6C'">
+    <h4>监管部门审批</h4>
+    <p>审批人: ...</p>
+    <p>审批结果: ...</p>
+    <p>意见: ...</p>
+  </el-timeline-item>
+  <!-- 等待审批: 显示当前状态 -->
+  <el-timeline-item v-else-if="family_approved or pending_supervision" color="#E6A23C">
+    <h4>等待监管部门审批</h4>
+  </el-timeline-item>
+
+  <!-- 4. 资金拨付 - 根据状态显示 -->
+  <!-- 已拨付: 显示拨付时间和金额 -->
+  <el-timeline-item v-if="actualAmount" color="#67C23A">
+    <h4>资金拨付</h4>
+    <p>拨付金额: ￥...</p>
+  </el-timeline-item>
+  <!-- 等待拨付: 显示当前状态 -->
+  <el-timeline-item v-else-if="approved" color="#E6A23C">
+    <h4>等待拨付</h4>
+  </el-timeline-item>
+
+  <!-- 5. 已撤回 -->
+  <el-timeline-item v-if="applyStatus === 'withdrawn'" color="#909399">
+    <h4>申请已撤回</h4>
+  </el-timeline-item>
+</el-timeline>
+```
+
+**时间线颜色含义**:
+- 绿色(#67C23A): 已完成的步骤
+- 蓝色(#409EFF): 家属确认步骤
+- 橙色(#E6A23C): 等待中的步骤
+- 红色(#F56C6C): 已驳回
+- 灰色(#909399): 已撤回
+
+#### 4. 详情页添加申请材料展示
+**新增申请材料区域**:
+```vue
+<div v-if="detailData.attachments">
+  <h3>申请材料</h3>
+  <el-tag
+    v-for="file in parseAttachments(detailData.attachments)"
+    @click="handleDownload(file)"
+    style="cursor: pointer;">
+    <i class="el-icon-document"></i> {{ file.name }}
+  </el-tag>
+  <div v-if="!parseAttachments(detailData.attachments).length">
+    暂无附件
+  </div>
+</div>
+```
+
+**新增方法**:
+```javascript
+// 解析附件JSON
+parseAttachments(attachments) {
+  if (!attachments) return [];
+  try {
+    const parsed = JSON.parse(attachments);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+// 下载附件
+handleDownload(file) {
+  if (file.url) {
+    window.open(process.env.VUE_APP_BASE_API + file.url, '_blank');
+  } else {
+    this.$message.warning('文件地址不存在');
+  }
+}
+```
+
+#### 5. 基本信息优化
+**调整字段**:
+- 删除"申请时间"（已在时间线中显示）
+- 新增"当前状态"字段，显示申请的当前状态
+
+**删除冗余信息**:
+原详情页有单独的"家属确认信息"、"监管审批信息"、"拨付信息"三个 Descriptions 组件，现在这些信息已在时间线中展示，因此删除这些重复的区域，使页面更简洁清晰。
+
+#### 6. 添加删除功能
+**新增 handleDelete 方法**:
+```javascript
+handleDelete(row) {
+  this.$modal.confirm('是否确认删除该申请？删除后数据将无法恢复。').then(() => {
+    return delDepositUse(row.applyId);
+  }).then(() => {
+    this.getList();
+    this.$modal.msgSuccess("删除成功");
+  }).catch(() => {});
+}
+```
+
+**导入删除API**:
+```javascript
+import { listDepositUse, getDepositUse, withdrawDepositUse, delDepositUse, paymentDepositUse } from "@/api/elder/depositUse";
+```
+
+#### 7. 优化撤回功能提示
+```javascript
+// 之前
+this.$modal.confirm('是否确撤回该申请？')
+this.$modal.msgSuccess("撤回成功");
+
+// 修改后
+this.$modal.confirm('是否确认撤回该申请？撤回后可重新编辑提交。')
+this.$modal.msgSuccess("撤回成功，您可以重新编辑该申请");
+```
+
+### 业务流程说明
+#### 申请状态流转
+```
+草稿(draft)
+  ↓ 提交
+待家属审批(pending_family)
+  ↓ 家属确认
+家属已审批(family_approved) / 待监管审批(pending_supervision)
+  ↓ 监管审批
+已通过(approved)
+  ↓ 资金拨付
+完成(actualAmount有值)
+```
+
+#### 操作权限
+| 状态 | 可执行操作 |
+|------|-----------|
+| 草稿(draft) | 编辑、删除 |
+| 待家属审批(pending_family) | 撤回 |
+| 家属已审批(family_approved) | 撤回 |
+| 待监管审批(pending_supervision) | 撤回 |
+| 已通过(approved) | 拨付（未拨付时） |
+| 已驳回(rejected) | 无 |
+| 已撤回(withdrawn) | 编辑、删除 |
+
+#### 撤回后编辑流程
+1. 点击"撤回"按钮 → 状态变为 `withdrawn`
+2. 状态变为已撤回后，显示"编辑"按钮
+3. 点击"编辑" → 跳转到申请页面，携带 `applyId` 参数
+4. 申请页面加载已撤回的申请数据，允许修改
+5. 重新提交后，状态变为 `pending_family`，重新进入审批流程
+
+### 技术实现
+#### 条件渲染优化
+使用数组 `includes` 方法简化多状态判断:
+```javascript
+// 之前
+v-if="status === 'pending_family' || status === 'family_approved' || status === 'pending_supervision'"
+
+// 优化后
+v-if="['pending_family', 'family_approved', 'pending_supervision'].includes(status)"
+```
+
+#### 时间格式优化
+详情时间线使用完整时间格式:
+```javascript
+parseTime(time, '{y}-{m}-{d} {H}:{i}:{s}')
+// 输出: 2025-11-13 14:30:45
+```
+
+### 修改的文件
+1. ruoyi-ui/src/views/pension/deposit/list.vue
+   - 操作列宽度: 200px → 240px
+   - 修复拨付状态显示逻辑，使用 actualAmount 判断
+   - 添加编辑按钮（草稿、已撤回状态）
+   - 添加撤回按钮（待审批相关状态）
+   - 添加删除按钮（草稿、已撤回状态）
+   - 优化撤回提示文案
+   - 详情对话框宽度: 800px → 900px
+   - 添加审批流程时间线
+   - 添加申请材料展示区域
+   - 优化基本信息显示
+   - 删除冗余的审批信息区域
+   - 新增 handleDelete() 方法
+   - 新增 parseAttachments() 方法
+   - 新增 handleDownload() 方法
+   - 导入 delDepositUse API
+
+### 修改时间
+2025-11-13 06:00
+
+---
+
+## 2025-11-13 06:30 - 优化押金使用申请审批流程展示
+
+### 问题背景
+用户反馈:
+1. 列表和详情页中缺少床位信息显示（已在后端SQL修复）
+2. 审批流程时间线只显示已完成的步骤，不够清晰
+3. 需要始终显示完整的审批流程：提交申请→家属审批→监管审批→拨付
+4. 当前进行到哪个流程就做特别展示
+
+### 解决方案
+重构详情对话框的审批流程时间线，改为始终显示完整的4步流程，并通过颜色、图标、标签等视觉元素标识当前进展。
+
+### 审批流程步骤定义
+1. **提交申请** (step=1)
+   - 总是已完成状态（绿色✓）
+   - 显示申请提交时间
+   
+2. **家属审批** (step=2)  
+   - 已完成：显示家属确认信息和时间（绿色✓）
+   - 进行中：显示"等待家属审批中..."（橙色loading）
+   - 未开始：显示"待审批"（灰色）
+   
+3. **监管审批** (step=3)
+   - 已完成：显示审批人、审批结果、审批意见（绿色✓或红色✗）
+   - 进行中：显示"等待监管部门审批中..."（橙色loading）
+   - 未开始：显示"待审批"（灰色）
+   
+4. **资金拨付** (step=4)
+   - 已完成：显示拨付金额和拨付时间（绿色✓）
+   - 进行中：显示"等待资金拨付中..."（橙色loading）
+   - 未开始：显示"待拨付"（灰色）
+
+### 当前步骤计算逻辑
+根据 `applyStatus` 和 `actualAmount` 字段判断：
+- `draft`: step=1（草稿状态）
+- `pending_family`: step=2（待家属审批）
+- `family_approved`或`pending_supervision`: step=3（待监管审批）
+- `approved`: step=4（已通过，待拨付）
+- `actualAmount`有值: step=0（所有步骤完成）
+- `withdrawn`或`rejected`: step=0（流程中断）
+
+### 视觉设计规则
+#### 颜色方案
+- **绿色(#67C23A)**: 已完成步骤
+- **橙色(#E6A23C)**: 当前进行中步骤
+- **灰色(#C0C4CC)**: 未开始步骤
+- **红色(#F56C6C)**: 已驳回
+
+#### 图标方案
+- **el-icon-check**: 已完成
+- **el-icon-loading**: 进行中（带动画）
+- **el-icon-more**: 未开始
+- **el-icon-close**: 已驳回/已撤回
+
+#### 标题样式
+- 当前步骤：加粗+橙色+16px字体
+- 已完成步骤：正常字体+默认颜色
+- 未开始步骤：正常字体+灰色
+
+#### 当前步骤标签
+进行中的步骤显示橙色标签：`<当前步骤> loading图标`
+
+### 特殊状态处理
+**已撤回或已驳回**：
+在4步流程之后额外添加一个时间线项，显示撤回/驳回信息：
+- 已撤回：灰色+关闭图标，提示"可重新编辑提交"
+- 已驳回：红色+关闭图标，提示"审批未通过"
+
+### 技术实现
+
+#### 新增Methods
+1. **getCurrentStep()**: 计算当前所在步骤(1-4)，返回0表示完成或中断
+2. **getCurrentStepColor(step)**: 根据步骤号返回对应颜色
+3. **getCurrentStepIcon(step)**: 根据步骤号返回对应图标
+4. **getCurrentStepStyle(step)**: 根据步骤号返回标题样式字符串
+
+#### Timeline结构优化
+```vue
+<el-timeline>
+  <!-- 步骤1: 提交申请 -->
+  <el-timeline-item
+    :timestamp="时间"
+    :color="getCurrentStepColor(1)"
+    :icon="getCurrentStepIcon(1)">
+    <h4 :style="getCurrentStepStyle(1)">提交申请</h4>
+    <!-- 内容 -->
+    <el-tag v-if="getCurrentStep() === 1">当前步骤</el-tag>
+  </el-timeline-item>
+  
+  <!-- 步骤2: 家属审批 -->
+  <!-- 步骤3: 监管审批 -->
+  <!-- 步骤4: 资金拨付 -->
+  
+  <!-- 特殊: 撤回/驳回 -->
+  <el-timeline-item v-if="withdrawn或rejected">
+    <!-- 提示信息 -->
+  </el-timeline-item>
+</el-timeline>
+```
+
+### 修改的文件
+**ruoyi-ui/src/views/pension/deposit/list.vue**
+- 重构审批流程Timeline部分（约100行）
+- 新增 `getCurrentStep()` 方法
+- 新增 `getCurrentStepColor(step)` 方法
+- 新增 `getCurrentStepIcon(step)` 方法  
+- 新增 `getCurrentStepStyle(step)` 方法
+- 4个步骤始终显示，不再使用v-if隐藏
+- 撤回/驳回状态单独显示在流程后面
+
+### 用户体验提升
+1. **信息完整性**：用户始终能看到完整的4步审批流程
+2. **进度清晰**：通过颜色、图标、动画明确标识当前进展
+3. **状态区分**：已完成、进行中、未开始三种状态视觉区分明显
+4. "当前步骤"标签让用户一眼看到流程进展位置
+5. 特殊状态（撤回/驳回）单独显示，不干扰正常流程展示
+
+### 修改时间
+2025-11-13 06:30
+
+---
+
+## 2025-11-13 06:45 - 修复床位信息显示问题
+
+### 问题背景
+用户反馈: 虽然修改了Mapper XML添加了床位信息查询,但列表和详情页面中仍然没有显示床位信息。
+
+### 问题根因
+**MyBatis映射缺失**: 
+- ✅ Mapper XML已添加床位信息查询(LEFT JOIN bed_allocation和bed_info表)
+- ✅ Mapper XML的resultMap已添加bedInfo字段映射
+- ❌ **DepositApply Java实体类中缺少bedInfo属性**
+
+MyBatis无法将查询到的bed_info列映射到实体对象,因为Java类中没有对应的属性接收。
+
+### 解决方案
+在DepositApply实体类中添加bedInfo字段及其访问器方法。
+
+### 修改详情
+
+**文件**: `D:\newhm\newzijin\ruoyi-admin\src\main\java\com\ruoyi\domain\pension\DepositApply.java`
+
+1. **添加字段声明**(第127-129行):
+```java
+/** 床位信息 */
+@Excel(name = "床位信息")
+private String bedInfo;
+```
+
+2. **添加Getter方法**(第316-319行):
+```java
+public String getBedInfo() {
+    return bedInfo;
+}
+```
+
+3. **添加Setter方法**(第311-314行):
+```java
+public void setBedInfo(String bedInfo) {
+    this.bedInfo = bedInfo;
+}
+```
+
+4. **添加toString输出**(第446行):
+```java
+.append("bedInfo", getBedInfo())
+```
+
+### 技术说明
+**MyBatis映射三要素**:
+1. ✅ **SQL查询**: `CONCAT(bi.room_number, '-', bi.bed_number) as bed_info`
+2. ✅ **ResultMap映射**: `<result property="bedInfo" column="bed_info" />`
+3. ✅ **Java属性**: `private String bedInfo;` + getter/setter
+
+三个要素缺一不可,之前只完成了前两步,导致查询到的数据无法映射到对象。
+
+### 预期效果
+添加bedInfo字段后:
+- 列表页"床位信息"列将正常显示,如"A101-01"、"B201-02"等
+- 详情页"基本信息"区域的"床位信息"项将显示床位号
+- 导出Excel时也会包含床位信息列
+
+### 注意事项
+**需要重启后端服务**才能生效,因为Java类的修改需要重新编译。
+
+### 修改时间
+2025-11-13 06:45
+
+---
+
+## 2025-11-13 07:00 - 修复床位信息查询条件问题
+
+### 问题背景
+添加bedInfo字段并重启后端后,床位信息仍然不显示。
+
+### 问题根因
+通过数据库查询发现:
+```sql
+SELECT * FROM bed_allocation WHERE elder_id = 11;
+-- allocation_status = 0 (实际数据)
+```
+
+**原SQL查询条件错误**:
+```sql
+left join bed_allocation ba on da.elder_id = ba.elder_id and ba.allocation_status = '1'
+```
+
+问题分析:
+1. 数据字典定义: allocation_status = '1'表示"在住", '2'表示"已退住"
+2. 但实际数据中allocation_status = '0' (可能是数据导入问题)
+3. SQL条件 `ba.allocation_status = '1'` 导致无法关联到任何床位分配记录
+4. 结果: bed_info字段为NULL
+
+### 解决方案
+修改SQL查询逻辑,不再限制allocation_status,而是**获取每个老人最新的床位分配记录**(根据allocation_id最大值)。
+
+### 修改详情
+
+**文件**: `D:\newhm\newzijin\ruoyi-admin\src\main\resources\mapper\pension\DepositApplyMapper.xml`
+
+**修改前**:
+```xml
+left join bed_allocation ba on da.elder_id = ba.elder_id and ba.allocation_status = '1'
+left join bed_info bi on ba.bed_id = bi.bed_id
+```
+
+**修改后**:
+```xml
+left join (
+    select elder_id, bed_id, allocation_id
+    from bed_allocation
+    where (elder_id, allocation_id) in (
+        select elder_id, max(allocation_id)
+        from bed_allocation
+        group by elder_id
+    )
+) ba on da.elder_id = ba.elder_id
+left join bed_info bi on ba.bed_id = bi.bed_id
+```
+
+### SQL逻辑说明
+**子查询实现**:
+1. 内层: `select elder_id, max(allocation_id) from bed_allocation group by elder_id`
+   - 获取每个老人的最大allocation_id(最新分配记录)
+2. 外层: 根据(elder_id, allocation_id)组合筛选出最新记录
+3. 结果: 每个老人只保留最新的床位分配记录
+
+**优势**:
+- 不依赖allocation_status字段
+- 自动获取最新床位信息
+- 兼容数据状态不一致的情况
+
+### 测试验证
+```sql
+-- 测试SQL (已验证)
+SELECT da.apply_id, ei.elder_name, 
+       CONCAT(bi.room_number, '-', bi.bed_number) as bed_info
+FROM deposit_apply da
+LEFT JOIN ... (完整SQL)
+ORDER BY da.apply_id DESC LIMIT 10;
+
+-- 结果:
+-- apply_id=7, elder_name=李趣, bed_info=2365-02 ✓
+-- apply_id=4, elder_name=测试老人, bed_info=105-56 ✓
+```
+
+### 预期效果
+修改后,床位信息应该正常显示:
+- 列表页"床位信息"列: "2365-02", "105-56"等
+- 详情页"基本信息"中显示完整床位号
+
+### 需要操作
+XML文件修改后**需要重启后端服务**生效(MyBatis Mapper不支持热加载)。
+
+### 修改时间
+2025-11-13 07:00
+
+---
+
+## 2025-11-13 07:15 - 修复编辑功能加载数据问题
+
+### 问题背景
+用户反馈: 撤回申请后点击"编辑"按钮,页面打开但所有内容都是空的,无法编辑。
+
+### 问题根因
+押金使用申请页面(apply.vue)缺少编辑模式的数据加载逻辑:
+- 列表页点击"编辑"按钮时,跳转URL: `/pension/deposit/apply?applyId=xxx`
+- 但apply.vue的created钩子中**只处理了residentId参数**,没有处理applyId参数
+- 导致页面无法加载已有申请的数据,表单保持空白状态
+
+### 解决方案
+在apply.vue中添加编辑模式支持:
+1. 检测URL中的applyId参数
+2. 调用API加载申请详情
+3. 填充表单数据
+4. 提交时判断是新增还是更新
+
+### 修改详情
+
+**文件**: `d:\newhm\newzijin\ruoyi-ui\src\views\pension\deposit\apply.vue`
+
+#### 1. 导入API方法
+```javascript
+// 修改前
+import { addDepositUse } from "@/api/elder/depositUse";
+
+// 修改后
+import { addDepositUse, getDepositUse, updateDepositUse } from "@/api/elder/depositUse";
+```
+
+#### 2. 添加editingApplyId字段
+```javascript
+data() {
+  return {
+    editingApplyId: null, // 编辑模式下的申请ID
+    // ... 其他字段
+  }
+}
+```
+
+#### 3. 修改created钩子
+```javascript
+created() {
+  this.loadResidentList();
+
+  // 如果是编辑模式，加载申请数据
+  const { applyId, residentId } = this.$route.query;
+  if (applyId) {
+    this.loadApplyData(applyId); // 新增：加载编辑数据
+  } else if (residentId) {
+    // 原有逻辑：从入住人列表跳转
+    this.$nextTick(() => {
+      this.form.residentId = parseInt(residentId);
+      this.handleResidentChange(parseInt(residentId));
+    });
+  }
+}
+```
+
+#### 4. 新增loadApplyData方法
+```javascript
+/** 加载申请数据(编辑模式) */
+loadApplyData(applyId) {
+  getDepositUse(applyId).then(response => {
+    const data = response.data;
+
+    // 填充表单数据
+    this.$nextTick(() => {
+      this.form = {
+        residentId: data.elderId,
+        amount: data.applyAmount,
+        urgencyLevel: data.urgencyLevel,
+        purpose: data.purpose,
+        expectedUseDate: data.expectedUseDate,
+        reason: data.applyReason,
+        description: data.description,
+        remark: data.remark || ''
+      };
+
+      // 查找并设置选中的入住人
+      this.selectedResident = this.residentList.find(item => item.elderId === data.elderId);
+
+      // 解析并设置附件列表
+      if (data.attachments) {
+        try {
+          this.fileList = JSON.parse(data.attachments);
+        } catch (e) {
+          console.error('解析附件失败:', e);
+          this.fileList = [];
+        }
+      }
+
+      // 保存applyId用于更新
+      this.editingApplyId = data.applyId;
+    });
+  }).catch(error => {
+    console.error('加载申请数据失败:', error);
+    this.$message.error('加载申请数据失败');
+    this.$router.push('/pension/deposit/list');
+  });
+}
+```
+
+#### 5. 修改submitConfirmed方法支持更新
+```javascript
+submitConfirmed() {
+  this.submitting = true;
+
+  const applicationData = {
+    elderId: this.selectedResident.elderId,
+    // ... 其他字段
+  };
+
+  // 判断是新增还是编辑
+  if (this.editingApplyId) {
+    // 编辑模式：更新已有申请
+    applicationData.applyId = this.editingApplyId;
+    updateDepositUse(applicationData).then(response => {
+      this.$message.success('申请更新成功，等待老人/家属确认');
+      this.$router.push('/pension/deposit/list');
+    });
+  } else {
+    // 新增模式：创建新申请
+    applicationData.applyNo = 'DEP' + new Date().getTime();
+    addDepositUse(applicationData).then(response => {
+      this.$message.success('申请提交成功，等待老人/家属确认');
+      this.$router.push('/pension/deposit/list');
+    });
+  }
+}
+```
+
+### 数据流转
+**编辑流程**:
+1. 列表页点击"编辑" → `handleUpdate(row)` → 跳转`/pension/deposit/apply?applyId=xxx`
+2. apply.vue的created检测到applyId → 调用`loadApplyData(applyId)`
+3. `getDepositUse(applyId)` → 从后端获取申请详情
+4. 填充form表单 + selectedResident + fileList
+5. 用户修改后点击"提交申请"
+6. `submitConfirmed()`检测到editingApplyId → 调用`updateDepositUse()`更新申请
+7. 跳转回列表页
+
+### 字段映射关系
+| 后端字段(DepositApply) | 前端字段(form) |
+|----------------------|---------------|
+| elderId              | residentId    |
+| applyAmount          | amount        |
+| applyReason          | reason        |
+| urgencyLevel         | urgencyLevel  |
+| purpose              | purpose       |
+| expectedUseDate      | expectedUseDate |
+| description          | description   |
+| remark               | remark        |
+| attachments(JSON)    | fileList      |
+
+### 预期效果
+1. 撤回申请后,点击"编辑"按钮
+2. 页面自动加载原申请的所有内容:
+   - 入住人自动选中
+   - 申请金额、事由、日期等字段自动填充
+   - 附件列表显示已上传的文件
+3. 修改后提交,调用更新接口而非新增接口
+4. 状态重新变为"待家属审批"
+
+### 修改时间
+2025-11-13 07:15

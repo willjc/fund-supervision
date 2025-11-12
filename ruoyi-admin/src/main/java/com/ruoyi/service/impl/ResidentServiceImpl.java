@@ -14,12 +14,14 @@ import com.ruoyi.domain.BedAllocation;
 import com.ruoyi.domain.ElderInfo;
 import com.ruoyi.domain.OrderInfo;
 import com.ruoyi.domain.OrderItem;
+import com.ruoyi.domain.PaymentRecord;
 import com.ruoyi.domain.RenewDTO;
 import com.ruoyi.domain.vo.ResidentVO;
 import com.ruoyi.mapper.BedAllocationMapper;
 import com.ruoyi.mapper.ElderInfoMapper;
 import com.ruoyi.mapper.OrderInfoMapper;
 import com.ruoyi.mapper.OrderItemMapper;
+import com.ruoyi.mapper.PaymentRecordMapper;
 import com.ruoyi.mapper.ResidentMapper;
 import com.ruoyi.service.IResidentService;
 
@@ -46,6 +48,9 @@ public class ResidentServiceImpl implements IResidentService
 
     @Autowired
     private BedAllocationMapper bedAllocationMapper;
+
+    @Autowired
+    private PaymentRecordMapper paymentRecordMapper;
 
     /**
      * 查询入住人列表
@@ -228,6 +233,22 @@ public class ResidentServiceImpl implements IResidentService
             orderItemMapper.insertOrderItem(memberItem);
         }
 
+        // 9. 创建支付记录
+        PaymentRecord paymentRecord = new PaymentRecord();
+        paymentRecord.setPaymentNo("PAY" + System.currentTimeMillis()); // 支付流水号
+        paymentRecord.setOrderId(orderId);
+        paymentRecord.setElderId(renewDTO.getElderId());
+        paymentRecord.setInstitutionId(existingOrder.getInstitutionId());
+        paymentRecord.setPaymentAmount(finalAmount); // 支付金额 = 实收总计
+        paymentRecord.setPaymentMethod(renewDTO.getPaymentMethod()); // 支付方式
+        paymentRecord.setPaymentStatus("1"); // 支付状态:1-成功
+        paymentRecord.setPaymentTime(DateUtils.getNowDate()); // 支付时间
+        paymentRecord.setOperator(SecurityUtils.getUsername()); // 操作人
+        paymentRecord.setRemark("续费支付");
+        paymentRecord.setCreateTime(DateUtils.getNowDate());
+        paymentRecord.setCreateBy(SecurityUtils.getUsername());
+        paymentRecordMapper.insertPaymentRecord(paymentRecord);
+
         return 1;
     }
 
@@ -240,5 +261,53 @@ public class ResidentServiceImpl implements IResidentService
     public Map<String, Object> getResidentStatistics()
     {
         return residentMapper.selectResidentStatistics();
+    }
+
+    /**
+     * 删除入住人
+     *
+     * @param residentId 入住人ID(老人ID)
+     * @return 结果
+     */
+    @Override
+    @Transactional
+    public int deleteResident(Long residentId)
+    {
+        // 1. 检查是否有未支付的订单
+        OrderInfo queryOrder = new OrderInfo();
+        queryOrder.setElderId(residentId);
+        queryOrder.setOrderStatus("0"); // 未支付
+        List<OrderInfo> unpaidOrders = orderInfoMapper.selectOrderInfoList(queryOrder);
+        if (unpaidOrders != null && !unpaidOrders.isEmpty()) {
+            throw new RuntimeException("该入住人存在未支付订单，无法删除！请先处理未支付订单。");
+        }
+
+        // 2. 检查是否有余额
+        ResidentVO residentVO = residentMapper.selectResidentDetail(residentId);
+        if (residentVO != null) {
+            BigDecimal serviceBalance = residentVO.getServiceBalance() != null ? residentVO.getServiceBalance() : BigDecimal.ZERO;
+            BigDecimal depositBalance = residentVO.getDepositBalance() != null ? residentVO.getDepositBalance() : BigDecimal.ZERO;
+            BigDecimal memberBalance = residentVO.getMemberBalance() != null ? residentVO.getMemberBalance() : BigDecimal.ZERO;
+
+            if (serviceBalance.compareTo(BigDecimal.ZERO) > 0 ||
+                depositBalance.compareTo(BigDecimal.ZERO) > 0 ||
+                memberBalance.compareTo(BigDecimal.ZERO) > 0) {
+                throw new RuntimeException("该入住人存在余额，无法删除！请先办理退费。");
+            }
+        }
+
+        // 3. 释放床位（将床位分配记录设置为已结束）
+        BedAllocation allocation = bedAllocationMapper.selectBedAllocationByElderId(residentId);
+        if (allocation != null) {
+            if ("0".equals(allocation.getAllocationStatus()) || "1".equals(allocation.getAllocationStatus())) {
+                // 将待入住或已入住状态改为已结束
+                allocation.setAllocationStatus("2");
+                allocation.setCheckOutDate(new Date());
+                bedAllocationMapper.updateBedAllocation(allocation);
+            }
+        }
+
+        // 4. 删除老人信息
+        return elderInfoMapper.deleteElderInfoByElderId(residentId);
     }
 }

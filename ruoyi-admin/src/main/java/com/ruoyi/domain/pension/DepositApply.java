@@ -49,13 +49,45 @@ public class DepositApply extends BaseEntity
     @Excel(name = "申请类型", dictType = "deposit_apply_type")
     private String applyType;
 
-    /** 紧急程度(1-紧急 2-普通 3-一般) */
-    @Excel(name = "紧急程度", dictType = "urgency_level")
+    /** 紧急程度(一般/紧急/非常紧急) */
+    @Excel(name = "紧急程度")
     private String urgencyLevel;
 
-    /** 申请状态(0-待审批 1-已批准 2-已拒绝 3-已撤销) */
-    @Excel(name = "申请状态", dictType = "deposit_apply_status")
+    /** 使用事由 */
+    @Excel(name = "使用事由")
+    private String purpose;
+
+    /** 详细说明 */
+    private String description;
+
+    /** 期望使用日期 */
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    @Excel(name = "期望使用日期", width = 30, dateFormat = "yyyy-MM-dd")
+    private Date expectedUseDate;
+
+    /** 申请材料附件(JSON格式存储文件路径) */
+    private String attachments;
+
+    /** 申请状态(draft-草稿, pending_family-待家属审批, family_approved-家属已审批,
+     *  pending_supervision-待监管审批, approved-已通过, rejected-已驳回, withdrawn-已撤回) */
+    @Excel(name = "申请状态")
     private String applyStatus;
+
+    /** 家属确认人姓名 */
+    private String familyConfirmName;
+
+    /** 家属与老人关系 */
+    private String familyRelation;
+
+    /** 家属联系电话 */
+    private String familyPhone;
+
+    /** 家属审批时间 */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private Date familyApproveTime;
+
+    /** 家属审批意见 */
+    private String familyApproveOpinion;
 
     /** 审批人 */
     @Excel(name = "审批人")
@@ -91,6 +123,10 @@ public class DepositApply extends BaseEntity
     /** 账户余额 */
     @Excel(name = "账户余额")
     private BigDecimal accountBalance;
+
+    /** 床位信息 */
+    @Excel(name = "床位信息")
+    private String bedInfo;
 
     public void setApplyId(Long applyId)
     {
@@ -272,6 +308,106 @@ public class DepositApply extends BaseEntity
         return accountBalance;
     }
 
+    public void setBedInfo(String bedInfo)
+    {
+        this.bedInfo = bedInfo;
+    }
+
+    public String getBedInfo()
+    {
+        return bedInfo;
+    }
+
+    public void setPurpose(String purpose)
+    {
+        this.purpose = purpose;
+    }
+
+    public String getPurpose()
+    {
+        return purpose;
+    }
+
+    public void setDescription(String description)
+    {
+        this.description = description;
+    }
+
+    public String getDescription()
+    {
+        return description;
+    }
+
+    public void setExpectedUseDate(Date expectedUseDate)
+    {
+        this.expectedUseDate = expectedUseDate;
+    }
+
+    public Date getExpectedUseDate()
+    {
+        return expectedUseDate;
+    }
+
+    public void setAttachments(String attachments)
+    {
+        this.attachments = attachments;
+    }
+
+    public String getAttachments()
+    {
+        return attachments;
+    }
+
+    public void setFamilyConfirmName(String familyConfirmName)
+    {
+        this.familyConfirmName = familyConfirmName;
+    }
+
+    public String getFamilyConfirmName()
+    {
+        return familyConfirmName;
+    }
+
+    public void setFamilyRelation(String familyRelation)
+    {
+        this.familyRelation = familyRelation;
+    }
+
+    public String getFamilyRelation()
+    {
+        return familyRelation;
+    }
+
+    public void setFamilyPhone(String familyPhone)
+    {
+        this.familyPhone = familyPhone;
+    }
+
+    public String getFamilyPhone()
+    {
+        return familyPhone;
+    }
+
+    public void setFamilyApproveTime(Date familyApproveTime)
+    {
+        this.familyApproveTime = familyApproveTime;
+    }
+
+    public Date getFamilyApproveTime()
+    {
+        return familyApproveTime;
+    }
+
+    public void setFamilyApproveOpinion(String familyApproveOpinion)
+    {
+        this.familyApproveOpinion = familyApproveOpinion;
+    }
+
+    public String getFamilyApproveOpinion()
+    {
+        return familyApproveOpinion;
+    }
+
     @Override
     public String toString() {
         return new ToStringBuilder(this, ToStringStyle.MULTI_LINE_STYLE)
@@ -284,7 +420,16 @@ public class DepositApply extends BaseEntity
             .append("applyReason", getApplyReason())
             .append("applyType", getApplyType())
             .append("urgencyLevel", getUrgencyLevel())
+            .append("purpose", getPurpose())
+            .append("description", getDescription())
+            .append("expectedUseDate", getExpectedUseDate())
+            .append("attachments", getAttachments())
             .append("applyStatus", getApplyStatus())
+            .append("familyConfirmName", getFamilyConfirmName())
+            .append("familyRelation", getFamilyRelation())
+            .append("familyPhone", getFamilyPhone())
+            .append("familyApproveTime", getFamilyApproveTime())
+            .append("familyApproveOpinion", getFamilyApproveOpinion())
             .append("approver", getApprover())
             .append("approveTime", getApproveTime())
             .append("approveRemark", getApproveRemark())
@@ -298,6 +443,7 @@ public class DepositApply extends BaseEntity
             .append("elderName", getElderName())
             .append("institutionName", getInstitutionName())
             .append("accountBalance", getAccountBalance())
+            .append("bedInfo", getBedInfo())
             .toString();
     }
 }

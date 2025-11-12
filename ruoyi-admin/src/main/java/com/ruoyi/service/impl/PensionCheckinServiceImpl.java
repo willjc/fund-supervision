@@ -15,11 +15,13 @@ import com.ruoyi.domain.ElderInfo;
 import com.ruoyi.domain.BedAllocation;
 import com.ruoyi.domain.OrderInfo;
 import com.ruoyi.domain.OrderItem;
+import com.ruoyi.domain.PaymentRecord;
 import com.ruoyi.mapper.ElderInfoMapper;
 import com.ruoyi.mapper.BedAllocationMapper;
 import com.ruoyi.mapper.BedInfoMapper;
 import com.ruoyi.mapper.OrderInfoMapper;
 import com.ruoyi.mapper.OrderItemMapper;
+import com.ruoyi.mapper.PaymentRecordMapper;
 
 /**
  * 养老机构入驻Service业务层处理
@@ -44,6 +46,9 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
 
     @Autowired
     private OrderItemMapper orderItemMapper;
+
+    @Autowired
+    private PaymentRecordMapper paymentRecordMapper;
 
     /**
      * 创建入驻申请
@@ -253,7 +258,25 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
             orderItemMapper.insertOrderItem(memberItem);
         }
 
-        // ========== 5. 更新床位状态为占用 ==========
+        // ========== 5. 创建支付记录(仅当非"稍后支付"时) ==========
+        if (!"later".equals(dto.getPaymentMethod())) {
+            PaymentRecord paymentRecord = new PaymentRecord();
+            paymentRecord.setPaymentNo("PAY" + System.currentTimeMillis()); // 支付流水号
+            paymentRecord.setOrderId(orderId);
+            paymentRecord.setElderId(elderId);
+            paymentRecord.setInstitutionId(institutionId);
+            paymentRecord.setPaymentAmount(finalAmount); // 支付金额 = 实收总计
+            paymentRecord.setPaymentMethod(dto.getPaymentMethod()); // 支付方式
+            paymentRecord.setPaymentStatus("1"); // 支付状态:1-成功
+            paymentRecord.setPaymentTime(DateUtils.getNowDate()); // 支付时间
+            paymentRecord.setOperator(SecurityUtils.getUsername()); // 操作人
+            paymentRecord.setRemark("入住支付");
+            paymentRecord.setCreateTime(DateUtils.getNowDate());
+            paymentRecord.setCreateBy(SecurityUtils.getUsername());
+            paymentRecordMapper.insertPaymentRecord(paymentRecord);
+        }
+
+        // ========== 6. 更新床位状态为占用 ==========
         bedInfoMapper.updateBedStatus(bedId, "1"); // 1-占用
 
         return 1;
