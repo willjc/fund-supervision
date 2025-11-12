@@ -30,6 +30,7 @@
       </el-form-item>
       <el-form-item label="入住状态" prop="checkInStatus">
         <el-select v-model="queryParams.checkInStatus" placeholder="请选择入住状态" clearable>
+          <el-option label="待入住" value="0" />
           <el-option label="已入住" value="1" />
           <el-option label="已退住" value="2" />
           <el-option label="请假中" value="3" />
@@ -139,9 +140,10 @@
       <el-table-column label="房间号-床位号" align="center" prop="bedInfo" width="120" />
       <el-table-column label="入住状态" align="center" prop="checkInStatus" width="80">
         <template slot-scope="scope">
-          <el-tag v-if="scope.row.checkInStatus === '1'" type="success">已入住</el-tag>
+          <el-tag v-if="scope.row.checkInStatus === '0'" type="warning">待入住</el-tag>
+          <el-tag v-else-if="scope.row.checkInStatus === '1'" type="success">已入住</el-tag>
           <el-tag v-else-if="scope.row.checkInStatus === '2'" type="info">已退住</el-tag>
-          <el-tag v-else-if="scope.row.checkInStatus === '3'" type="warning">请假中</el-tag>
+          <el-tag v-else-if="scope.row.checkInStatus === '3'" type="">请假中</el-tag>
         </template>
       </el-table-column>
       <el-table-column label="护理等级" align="center" prop="careLevel" width="80">
@@ -175,9 +177,25 @@
           <span>{{ parseTime(scope.row.checkInDate, '{y}-{m}-{d}') }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="紧急联系人" align="center" prop="emergencyContact" width="100" show-overflow-tooltip />
-      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="280">
+      <el-table-column label="到期日期" align="center" prop="dueDate" width="100">
         <template slot-scope="scope">
+          <span>{{ parseTime(scope.row.dueDate, '{y}-{m}-{d}') }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="紧急联系人" align="center" prop="emergencyContact" width="100" show-overflow-tooltip />
+      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="300">
+        <template slot-scope="scope">
+          <!-- 去支付:有未支付订单时显示 -->
+          <el-button
+            v-if="scope.row.hasUnpaidOrder"
+            size="mini"
+            type="text"
+            icon="el-icon-wallet"
+            style="color: #E6A23C; font-weight: bold;"
+            @click="handlePayment(scope.row)"
+            v-hasPermi="['elder:resident:payment']"
+          >去支付</el-button>
+          <!-- 详情:所有人都能查看 -->
           <el-button
             size="mini"
             type="text"
@@ -185,6 +203,7 @@
             @click="handleDetail(scope.row)"
             v-hasPermi="['elder:resident:query']"
           >详情</el-button>
+          <!-- 维护:所有人都能维护信息 -->
           <el-button
             size="mini"
             type="text"
@@ -192,27 +211,34 @@
             @click="handleUpdate(scope.row)"
             v-hasPermi="['elder:resident:edit']"
           >维护</el-button>
+          <!-- 续费:没有未支付订单才显示(即至少支付过一次) -->
           <el-button
+            v-if="!scope.row.hasUnpaidOrder"
             size="mini"
             type="text"
             icon="el-icon-plus"
             @click="handleRenew(scope.row)"
             v-hasPermi="['elder:resident:renew']"
           >续费</el-button>
+          <!-- 退费:有任意余额才显示 -->
           <el-button
+            v-if="scope.row.serviceBalance > 0 || scope.row.depositBalance > 0 || scope.row.memberBalance > 0"
             size="mini"
             type="text"
             icon="el-icon-minus"
             @click="handleRefund(scope.row)"
             v-hasPermi="['elder:resident:refund']"
           >退费</el-button>
+          <!-- 押金使用:有押金余额才显示 -->
           <el-button
+            v-if="scope.row.depositBalance > 0"
             size="mini"
             type="text"
             icon="el-icon-coin"
             @click="handleDepositUse(scope.row)"
             v-hasPermi="['elder:resident:deposit']"
           >押金使用</el-button>
+          <!-- 删除:所有人都能删除 -->
           <el-button
             size="mini"
             type="text"
@@ -234,26 +260,44 @@
     />
 
     <!-- 入住人详情对话框 -->
-    <el-dialog title="入住人详情" :visible.sync="detailOpen" width="900px" append-to-body>
+    <el-dialog title="入住人详情" :visible.sync="detailOpen" width="1200px" append-to-body>
       <div class="resident-detail">
-        <el-descriptions title="基本信息" :column="2" border>
+        <!-- 基本信息 -->
+        <el-descriptions title="基本信息" :column="3" border>
           <el-descriptions-item label="姓名">{{ residentDetail.elderName }}</el-descriptions-item>
           <el-descriptions-item label="性别">
             <dict-tag :options="dict.type.elder_gender" :value="residentDetail.gender"/>
           </el-descriptions-item>
-          <el-descriptions-item label="年龄">{{ residentDetail.age }}</el-descriptions-item>
-          <el-descriptions-item label="身份证号">{{ residentDetail.idCard }}</el-descriptions-item>
+          <el-descriptions-item label="年龄">{{ residentDetail.age }}岁</el-descriptions-item>
+          <el-descriptions-item label="身份证号" :span="2">{{ residentDetail.idCard }}</el-descriptions-item>
+          <el-descriptions-item label="出生日期">{{ residentDetail.birthDate || '-' }}</el-descriptions-item>
           <el-descriptions-item label="联系电话">{{ residentDetail.phone }}</el-descriptions-item>
-          <el-descriptions-item label="房间床位">{{ residentDetail.bedInfo }}</el-descriptions-item>
-          <el-descriptions-item label="入住日期">{{ parseTime(residentDetail.checkInDate, '{y}-{m}-{d}') }}</el-descriptions-item>
           <el-descriptions-item label="护理等级">
             <dict-tag :options="dict.type.elder_care_level" :value="residentDetail.careLevel"/>
           </el-descriptions-item>
-          <el-descriptions-item label="紧急联系人" :span="2">{{ residentDetail.emergencyContact }}</el-descriptions-item>
-          <el-descriptions-item label="家庭住址" :span="2">{{ residentDetail.address }}</el-descriptions-item>
+          <el-descriptions-item label="健康状况">{{ residentDetail.healthStatus || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="家庭住址" :span="3">{{ residentDetail.address || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="特殊需求" :span="3">{{ residentDetail.specialNeeds || '-' }}</el-descriptions-item>
         </el-descriptions>
 
-        <el-descriptions title="费用信息" :column="3" border style="margin-top: 20px;">
+        <!-- 床位信息 -->
+        <el-descriptions title="床位信息" :column="3" border style="margin-top: 20px;">
+          <el-descriptions-item label="房间床位">{{ residentDetail.bedInfo }}</el-descriptions-item>
+          <el-descriptions-item label="入住日期">{{ parseTime(residentDetail.checkInDate, '{y}-{m}-{d}') }}</el-descriptions-item>
+          <el-descriptions-item label="到期日期">{{ parseTime(residentDetail.dueDate, '{y}-{m}-{d}') }}</el-descriptions-item>
+          <el-descriptions-item label="月服务费">
+            <span style="color: #409EFF; font-weight: bold;">￥{{ formatMoney(residentDetail.monthlyFee) }}</span>
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <!-- 紧急联系人 -->
+        <el-descriptions title="紧急联系人" :column="2" border style="margin-top: 20px;">
+          <el-descriptions-item label="联系人姓名">{{ residentDetail.emergencyContact || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="联系电话">{{ residentDetail.emergencyPhone || '-' }}</el-descriptions-item>
+        </el-descriptions>
+
+        <!-- 账户余额 -->
+        <el-descriptions title="账户余额" :column="3" border style="margin-top: 20px;">
           <el-descriptions-item label="服务费余额">
             <span class="balance-text" :class="getBalanceClass(residentDetail.serviceBalance)">
               ￥{{ formatMoney(residentDetail.serviceBalance) }}
@@ -269,39 +313,250 @@
               ￥{{ formatMoney(residentDetail.memberBalance) }}
             </span>
           </el-descriptions-item>
-          <el-descriptions-item label="月服务费" :span="3">￥{{ formatMoney(residentDetail.monthlyFee) }}</el-descriptions-item>
+        </el-descriptions>
+
+        <!-- 备注信息 -->
+        <el-descriptions v-if="residentDetail.remark" title="备注信息" :column="1" border style="margin-top: 20px;">
+          <el-descriptions-item label="备注">{{ residentDetail.remark }}</el-descriptions-item>
+        </el-descriptions>
+
+        <!-- 订单记录 -->
+        <div style="margin-top: 20px;">
+          <h4 style="margin-bottom: 10px; color: #303133;">
+            <i class="el-icon-document"></i> 订单记录
+            <span style="font-size: 12px; color: #909399; font-weight: normal;">(共{{ (residentDetail.orders || []).length }}条)</span>
+          </h4>
+          <el-table :data="residentDetail.orders || []" border style="width: 100%" max-height="300">
+            <el-table-column prop="orderNo" label="订单号" width="180"></el-table-column>
+            <el-table-column label="订单类型" width="100">
+              <template slot-scope="scope">
+                <el-tag v-if="scope.row && scope.row.orderType === '1'" type="success">入驻</el-tag>
+                <el-tag v-else-if="scope.row && scope.row.orderType === '2'" type="primary">续费</el-tag>
+                <el-tag v-else>其他</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="orderAmount" label="订单金额" width="120">
+              <template slot-scope="scope">
+                <span style="color: #E6A23C; font-weight: bold;">￥{{ formatMoney(scope.row.orderAmount) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="paidAmount" label="已付金额" width="120">
+              <template slot-scope="scope">
+                <span style="color: #67C23A; font-weight: bold;">￥{{ formatMoney(scope.row.paidAmount) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="订单状态" width="100">
+              <template slot-scope="scope">
+                <el-tag v-if="scope.row && scope.row.orderStatus === '0'" type="warning">未支付</el-tag>
+                <el-tag v-else-if="scope.row && scope.row.orderStatus === '1'" type="success">已支付</el-tag>
+                <el-tag v-else-if="scope.row && scope.row.orderStatus === '2'" type="info">已取消</el-tag>
+                <el-tag v-else-if="scope.row && scope.row.orderStatus === '3'" type="danger">已退款</el-tag>
+                <el-tag v-else type="info">-</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="paymentMethod" label="支付方式" width="100">
+              <template slot-scope="scope">
+                <span v-if="scope.row && scope.row.paymentMethod === 'cash'">现金</span>
+                <span v-else-if="scope.row && scope.row.paymentMethod === 'card'">刷卡</span>
+                <span v-else-if="scope.row && scope.row.paymentMethod === 'scan'">扫码</span>
+                <span v-else-if="scope.row && scope.row.paymentMethod === 'later'">稍后支付</span>
+                <span v-else>{{ (scope.row && scope.row.paymentMethod) || '-' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="orderDate" label="订单日期" width="110">
+              <template slot-scope="scope">
+                {{ parseTime(scope.row.orderDate, '{y}-{m}-{d}') }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="remark" label="备注" min-width="150" show-overflow-tooltip></el-table-column>
+          </el-table>
+        </div>
+
+        <!-- 系统信息 -->
+        <el-descriptions title="系统信息" :column="2" border style="margin-top: 20px;">
+          <el-descriptions-item label="创建时间">{{ parseTime(residentDetail.createTime, '{y}-{m}-{d} {h}:{i}:{s}') }}</el-descriptions-item>
+          <el-descriptions-item label="更新时间">{{ parseTime(residentDetail.updateTime, '{y}-{m}-{d} {h}:{i}:{s}') }}</el-descriptions-item>
         </el-descriptions>
       </div>
       <div slot="footer" class="dialog-footer">
-        <el-button @click="detailOpen = false">关闭</el-button>
+        <el-button type="primary" @click="detailOpen = false">关 闭</el-button>
       </div>
     </el-dialog>
 
     <!-- 续费对话框 -->
-    <el-dialog title="入住人续费" :visible.sync="renewOpen" width="600px" append-to-body>
-      <el-form ref="renewForm" :model="renewForm" :rules="renewRules" label-width="100px">
-        <el-form-item label="入住人">
-          <el-input v-model="renewForm.elderName" disabled />
-        </el-form-item>
-        <el-form-item label="续费类型" prop="renewType">
-          <el-select v-model="renewForm.renewType" placeholder="请选择续费类型" style="width: 100%">
-            <el-option label="服务费" value="service"></el-option>
-            <el-option label="会员卡" value="member"></el-option>
-            <el-option label="押金补缴" value="deposit"></el-option>
-          </el-select>
-        </el-form-item>
-        <el-form-item label="续费金额" prop="amount">
-          <el-input-number v-model="renewForm.amount" :min="0" :precision="2" style="width: 100%" />
-        </el-form-item>
+    <el-dialog title="入住人续费" :visible.sync="renewOpen" width="800px" append-to-body>
+      <el-form ref="renewForm" :model="renewForm" :rules="renewRules" label-width="120px">
+        <!-- 基本信息展示 -->
+        <el-divider content-position="left">
+          <i class="el-icon-user"></i> 入住人信息
+        </el-divider>
+        <el-row :gutter="20">
+          <el-col :span="8">
+            <el-form-item label="入住人">
+              <el-input v-model="renewForm.elderName" disabled />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="当前床位">
+              <el-input v-model="renewForm.bedInfo" disabled />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="当前月服务费">
+              <el-input :value="'¥' + formatMoney(renewForm.monthlyFee)" disabled />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="8">
+            <el-form-item label="服务费余额">
+              <el-input :value="'¥' + formatMoney(renewForm.serviceBalance)" disabled />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="押金余额">
+              <el-input :value="'¥' + formatMoney(renewForm.depositBalance)" disabled />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="会员余额">
+              <el-input :value="'¥' + formatMoney(renewForm.memberBalance)" disabled />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="入住日期">
+              <el-input :value="parseTime(renewForm.checkInDate, '{y}-{m}-{d}')" disabled />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="当前到期日期">
+              <el-input :value="parseTime(renewForm.currentDueDate, '{y}-{m}-{d}')" disabled />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <!-- 费用设置 -->
+        <el-divider content-position="left">
+          <i class="el-icon-wallet"></i> 费用设置
+        </el-divider>
+        <el-row :gutter="20">
+          <el-col :span="8">
+            <el-form-item label="月服务费">
+              <el-input-number
+                v-model="renewForm.monthlyFee"
+                :min="0"
+                :precision="2"
+                style="width: 100%;"
+                @change="calculateRenewTotal"
+                disabled />
+              <span style="margin-left: 10px; color: #909399;">元/月</span>
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="续费月数" prop="monthCount">
+              <el-input-number
+                v-model="renewForm.monthCount"
+                :min="0"
+                :max="120"
+                :precision="0"
+                style="width: 100%;"
+                @change="calculateRenewTotal" />
+              <span style="margin-left: 10px; color: #909399;">个月</span>
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="服务费小计">
+              <el-input
+                :value="formatMoney(renewServiceFeeTotal)"
+                disabled
+                style="width: 100%;" />
+              <span style="margin-left: 10px; color: #909399;">元</span>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="补交押金金额" prop="depositAmount">
+              <el-input-number
+                v-model="renewForm.depositAmount"
+                :min="0"
+                :precision="2"
+                style="width: 100%;"
+                @change="calculateRenewTotal" />
+              <span style="margin-left: 10px; color: #909399;">元</span>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="补交会员费" prop="memberFee">
+              <el-input-number
+                v-model="renewForm.memberFee"
+                :min="0"
+                :precision="2"
+                style="width: 100%;"
+                @change="calculateRenewTotal" />
+              <span style="margin-left: 10px; color: #909399;">元</span>
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <!-- 费用汇总 -->
+        <el-card shadow="never" class="fee-summary" style="margin-bottom: 20px;">
+          <div slot="header">
+            <i class="el-icon-s-finance"></i> 费用汇总
+          </div>
+          <el-descriptions :column="2" border>
+            <el-descriptions-item label="月服务费">¥{{ formatMoney(renewForm.monthlyFee) }} × {{ renewForm.monthCount }}个月</el-descriptions-item>
+            <el-descriptions-item label="服务费小计">¥{{ formatMoney(renewServiceFeeTotal) }}</el-descriptions-item>
+            <el-descriptions-item label="补交押金">¥{{ formatMoney(renewForm.depositAmount) }}</el-descriptions-item>
+            <el-descriptions-item label="补交会员费">¥{{ formatMoney(renewForm.memberFee) }}</el-descriptions-item>
+            <el-descriptions-item label="应收总计" :span="2">
+              <span style="font-size: 18px; font-weight: bold; color: #409EFF;">¥{{ formatMoney(renewCalculatedTotal) }}</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="实收总计" :span="2">
+              <el-input-number
+                v-model="renewForm.finalAmount"
+                :min="0"
+                :precision="2"
+                controls-position="right"
+                style="width: 200px;" />
+              <span style="margin-left: 10px; color: #909399;">元（可手动调整优惠）</span>
+              <span v-if="renewDiscountAmount > 0" style="margin-left: 10px; color: #67C23A;">
+                已优惠: ¥{{ formatMoney(renewDiscountAmount) }}
+              </span>
+            </el-descriptions-item>
+            <el-descriptions-item label="新到期日期" :span="2" v-if="renewForm.monthCount > 0">
+              <span style="font-size: 16px; font-weight: bold; color: #67C23A;">
+                {{ parseTime(renewForm.newDueDate, '{y}-{m}-{d}') }}
+              </span>
+              <span style="margin-left: 10px; color: #909399;">
+                (延长{{ renewForm.monthCount }}个月)
+              </span>
+            </el-descriptions-item>
+          </el-descriptions>
+        </el-card>
+
+        <!-- 支付方式 -->
+        <el-divider content-position="left">
+          <i class="el-icon-bank-card"></i> 支付方式
+        </el-divider>
         <el-form-item label="支付方式" prop="paymentMethod">
           <el-radio-group v-model="renewForm.paymentMethod">
-            <el-radio label="cash">现金</el-radio>
-            <el-radio label="card">刷卡</el-radio>
-            <el-radio label="scan">扫码</el-radio>
+            <el-radio label="cash">
+              <i class="el-icon-money"></i> 现金支付
+            </el-radio>
+            <el-radio label="card">
+              <i class="el-icon-bank-card"></i> 刷卡支付
+            </el-radio>
+            <el-radio label="scan">
+              <i class="el-icon-mobile-phone"></i> 扫码支付
+            </el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item label="备注" prop="remark">
-          <el-input v-model="renewForm.remark" type="textarea" placeholder="请输入备注信息" />
+
+        <el-form-item label="备注">
+          <el-input v-model="renewForm.remark" type="textarea" placeholder="请输入备注信息（可选）" />
         </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
@@ -368,6 +623,106 @@
       </div>
     </el-dialog>
 
+    <!-- 维护入住人信息对话框 -->
+    <el-dialog title="维护入住人信息" :visible.sync="updateOpen" width="800px" append-to-body>
+      <el-form ref="updateForm" :model="updateForm" :rules="updateRules" label-width="120px">
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="入住人姓名" prop="elderName">
+              <el-input v-model="updateForm.elderName" placeholder="请输入入住人姓名" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="性别" prop="gender">
+              <el-select v-model="updateForm.gender" placeholder="请选择性别" style="width: 100%">
+                <el-option
+                  v-for="dict in dict.type.elder_gender"
+                  :key="dict.value"
+                  :label="dict.label"
+                  :value="dict.value"
+                ></el-option>
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="身份证号" prop="idCard">
+              <el-input v-model="updateForm.idCard" placeholder="请输入身份证号" disabled />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="出生日期" prop="birthDate">
+              <el-date-picker
+                v-model="updateForm.birthDate"
+                type="date"
+                placeholder="请选择出生日期"
+                value-format="yyyy-MM-dd"
+                style="width: 100%;"
+                @change="calculateAgeFromBirthDate">
+              </el-date-picker>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="年龄" prop="age">
+              <el-input-number v-model="updateForm.age" :min="1" :max="120" style="width: 100%;" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="联系电话" prop="phone">
+              <el-input v-model="updateForm.phone" placeholder="请输入联系电话" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="护理等级" prop="careLevel">
+              <el-select v-model="updateForm.careLevel" placeholder="请选择护理等级" style="width: 100%">
+                <el-option
+                  v-for="dict in dict.type.elder_care_level"
+                  :key="dict.value"
+                  :label="dict.label"
+                  :value="dict.value"
+                ></el-option>
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="健康状况" prop="healthStatus">
+              <el-input v-model="updateForm.healthStatus" placeholder="请输入健康状况" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="家庭住址" prop="address">
+          <el-input v-model="updateForm.address" type="textarea" placeholder="请输入家庭住址" />
+        </el-form-item>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="紧急联系人" prop="emergencyContact">
+              <el-input v-model="updateForm.emergencyContact" placeholder="请输入紧急联系人姓名" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="紧急联系电话" prop="emergencyPhone">
+              <el-input v-model="updateForm.emergencyPhone" placeholder="请输入紧急联系电话" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="特殊需求" prop="specialNeeds">
+          <el-input v-model="updateForm.specialNeeds" type="textarea" placeholder="请输入特殊需求" />
+        </el-form-item>
+        <el-form-item label="备注" prop="remark">
+          <el-input v-model="updateForm.remark" type="textarea" placeholder="请输入备注信息" />
+        </el-form-item>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button type="primary" @click="submitUpdate">确 定</el-button>
+        <el-button @click="updateOpen = false">取 消</el-button>
+      </div>
+    </el-dialog>
+
     <!-- 批量导入对话框 -->
     <el-dialog title="批量导入入住人" :visible.sync="importOpen" width="500px" append-to-body>
       <el-upload
@@ -394,6 +749,7 @@
 
 <script>
 import { listResident, getResident, delResident, renewResident, refundResident, applyDepositUse } from "@/api/elder/resident";
+import { updateElderInfo } from "@/api/elder/elderInfo";
 
 export default {
   name: "ElderResident",
@@ -428,8 +784,13 @@ export default {
       depositUseOpen: false,
       // 是否显示导入弹出层
       importOpen: false,
+      // 是否显示维护弹出层
+      updateOpen: false,
       // 入住人详情
-      residentDetail: {},
+      residentDetail: {
+        orders: [],
+        payments: []
+      },
       // 查询参数
       queryParams: {
         pageNum: 1,
@@ -441,10 +802,20 @@ export default {
       },
       // 续费表单参数
       renewForm: {
-        residentId: null,
+        elderId: null,
         elderName: null,
-        renewType: 'service',
-        amount: null,
+        bedInfo: null,
+        monthlyFee: 0,
+        serviceBalance: 0,
+        depositBalance: 0,
+        memberBalance: 0,
+        checkInDate: null,
+        currentDueDate: null,
+        newDueDate: null,
+        monthCount: 0,
+        depositAmount: 0,
+        memberFee: 0,
+        finalAmount: 0,
         paymentMethod: 'cash',
         remark: null
       },
@@ -468,11 +839,15 @@ export default {
       },
       // 表单校验
       renewRules: {
-        renewType: [
-          { required: true, message: "续费类型不能为空", trigger: "change" }
+        monthCount: [
+          { required: true, message: "续费月数不能为空", trigger: "blur" },
+          { type: 'number', min: 0, max: 120, message: "续费月数必须在0-120之间", trigger: "blur" }
         ],
-        amount: [
-          { required: true, message: "续费金额不能为空", trigger: "blur" }
+        depositAmount: [
+          { required: true, message: "补交押金金额不能为空", trigger: "blur" }
+        ],
+        memberFee: [
+          { required: true, message: "补交会员费不能为空", trigger: "blur" }
         ],
         paymentMethod: [
           { required: true, message: "支付方式不能为空", trigger: "change" }
@@ -499,8 +874,59 @@ export default {
         description: [
           { required: true, message: "详细说明不能为空", trigger: "blur" }
         ]
+      },
+      // 维护表单参数
+      updateForm: {
+        elderId: null,
+        elderName: null,
+        gender: null,
+        idCard: null,
+        birthDate: null,
+        age: null,
+        phone: null,
+        careLevel: null,
+        healthStatus: null,
+        address: null,
+        emergencyContact: null,
+        emergencyPhone: null,
+        specialNeeds: null,
+        remark: null
+      },
+      // 维护表单校验
+      updateRules: {
+        elderName: [
+          { required: true, message: "请输入入住人姓名", trigger: "blur" }
+        ],
+        gender: [
+          { required: true, message: "请选择性别", trigger: "change" }
+        ],
+        idCard: [
+          { required: true, message: "请输入身份证号", trigger: "blur" },
+          { pattern: /(^\d{15}$)|(^\d{18}$)|(^\d{17}(\d|X|x)$)/, message: "身份证号格式不正确", trigger: "blur" }
+        ],
+        phone: [
+          { pattern: /^1[3-9]\d{9}$/, message: "手机号格式不正确", trigger: "blur" }
+        ],
+        emergencyPhone: [
+          { required: true, message: "请输入紧急联系电话", trigger: "blur" },
+          { pattern: /^1[3-9]\d{9}$/, message: "手机号格式不正确", trigger: "blur" }
+        ]
       }
     };
+  },
+  computed: {
+    // 续费服务费小计 = 月服务费 × 续费月数
+    renewServiceFeeTotal() {
+      return (this.renewForm.monthlyFee || 0) * (this.renewForm.monthCount || 0);
+    },
+    // 续费应收总计 = 服务费小计 + 补交押金 + 补交会员费
+    renewCalculatedTotal() {
+      return this.renewServiceFeeTotal + (this.renewForm.depositAmount || 0) + (this.renewForm.memberFee || 0);
+    },
+    // 续费优惠金额 = 应收总计 - 实收总计
+    renewDiscountAmount() {
+      return Math.max(0, this.renewCalculatedTotal - (this.renewForm.finalAmount || 0));
+    }
   },
   created() {
     this.getList();
@@ -544,7 +970,7 @@ export default {
     },
     /** 新增入驻按钮操作 */
     handleAdd() {
-      this.$router.push('/elder/checkin');
+      this.$router.push('/pension/elder/checkin');
     },
     /** 批量导入按钮操作 */
     handleImport() {
@@ -552,31 +978,62 @@ export default {
     },
     /** 详情按钮操作 */
     handleDetail(row) {
-      const residentId = row.residentId;
-      getResident(residentId).then(response => {
+      const elderId = row.elderId;
+      getResident(elderId).then(response => {
         this.residentDetail = response.data;
+        console.log('入住人详情数据:', response.data);
+        console.log('订单列表:', response.data.orders);
+        console.log('支付记录:', response.data.payments);
         this.detailOpen = true;
       });
     },
     /** 维护按钮操作 */
     handleUpdate(row) {
-      const residentId = row.residentId;
-      this.$router.push({
-        path: '/elder/resident/edit',
-        query: { residentId: residentId }
+      const elderId = row.elderId;
+      getResident(elderId).then(response => {
+        this.updateForm = {
+          elderId: response.data.elderId,
+          elderName: response.data.elderName,
+          gender: response.data.gender,
+          idCard: response.data.idCard,
+          birthDate: response.data.birthDate,
+          age: response.data.age,
+          phone: response.data.phone,
+          careLevel: response.data.careLevel,
+          healthStatus: response.data.healthStatus,
+          address: response.data.address,
+          emergencyContact: response.data.emergencyContact,
+          emergencyPhone: response.data.emergencyPhone,
+          specialNeeds: response.data.specialNeeds,
+          remark: response.data.remark
+        };
+        this.updateOpen = true;
       });
     },
     /** 续费按钮操作 */
     handleRenew(row) {
-      this.renewForm = {
-        residentId: row.residentId,
-        elderName: row.elderName,
-        renewType: 'service',
-        amount: null,
-        paymentMethod: 'cash',
-        remark: null
-      };
-      this.renewOpen = true;
+      const elderId = row.elderId;
+      getResident(elderId).then(response => {
+        const data = response.data;
+        this.renewForm = {
+          elderId: data.elderId,
+          elderName: data.elderName,
+          bedInfo: data.bedInfo || '-',
+          monthlyFee: data.monthlyFee || 0,
+          serviceBalance: data.serviceBalance || 0,
+          depositBalance: data.depositBalance || 0,
+          memberBalance: data.memberBalance || 0,
+          checkInDate: data.checkInDate,
+          currentDueDate: data.dueDate,
+          newDueDate: data.dueDate,
+          monthCount: 0,
+          depositAmount: 0,
+          memberFee: 0,
+          paymentMethod: 'cash',
+          remark: null
+        };
+        this.renewOpen = true;
+      });
     },
     /** 退费按钮操作 */
     handleRefund(row) {
@@ -589,6 +1046,17 @@ export default {
         reason: null
       };
       this.refundOpen = true;
+    },
+    /** 去支付按钮操作 */
+    handlePayment(row) {
+      // 跳转到订单列表,并筛选该老人的待支付订单
+      this.$router.push({
+        path: '/pension/order/list',
+        query: {
+          elderName: row.elderName,
+          orderStatus: '0'  // 0=待支付
+        }
+      });
     },
     /** 押金使用申请按钮操作 */
     handleDepositUse(row) {
@@ -618,7 +1086,24 @@ export default {
     submitRenew() {
       this.$refs["renewForm"].validate(valid => {
         if (valid) {
-          renewResident(this.renewForm).then(response => {
+          // 验证至少有一项续费内容
+          if (this.renewForm.monthCount === 0 && this.renewForm.depositAmount === 0 && this.renewForm.memberFee === 0) {
+            this.$modal.msgWarning("请至少填写一项续费内容(续费月数、补交押金或补交会员费)");
+            return;
+          }
+
+          // 构建续费数据
+          const renewData = {
+            elderId: this.renewForm.elderId,
+            monthCount: this.renewForm.monthCount,
+            depositAmount: this.renewForm.depositAmount,
+            memberFee: this.renewForm.memberFee,
+            finalAmount: this.renewForm.finalAmount,
+            paymentMethod: this.renewForm.paymentMethod,
+            remark: this.renewForm.remark
+          };
+
+          renewResident(renewData).then(response => {
             this.$modal.msgSuccess("续费成功");
             this.renewOpen = false;
             this.getList();
@@ -696,6 +1181,46 @@ export default {
       if (balance < 1000) return 'balance-warning'
       if (balance < 100) return 'balance-danger'
       return 'balance-normal'
+    },
+    /** 提交维护表单 */
+    submitUpdate() {
+      this.$refs["updateForm"].validate(valid => {
+        if (valid) {
+          updateElderInfo(this.updateForm).then(response => {
+            this.$modal.msgSuccess("修改成功");
+            this.updateOpen = false;
+            this.getList();
+          });
+        }
+      });
+    },
+    /** 出生日期变化时自动计算年龄 */
+    calculateAgeFromBirthDate() {
+      if (this.updateForm.birthDate) {
+        const birthDate = new Date(this.updateForm.birthDate);
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+        this.updateForm.age = age;
+      }
+    },
+    /** 计算续费总额和新到期日期 */
+    calculateRenewTotal() {
+      // 计算新到期日期:在当前到期日期基础上增加续费月数
+      if (this.renewForm.currentDueDate && this.renewForm.monthCount > 0) {
+        const currentDue = new Date(this.renewForm.currentDueDate);
+        const newDue = new Date(currentDue);
+        newDue.setMonth(newDue.getMonth() + parseInt(this.renewForm.monthCount));
+        this.renewForm.newDueDate = this.parseTime(newDue, '{y}-{m}-{d}');
+      } else {
+        // 如果月数为0,到期日期不变
+        this.renewForm.newDueDate = this.renewForm.currentDueDate;
+      }
+      // 自动更新实收总计为应收总计(用户可手动调整)
+      this.renewForm.finalAmount = this.renewCalculatedTotal;
     }
   }
 };

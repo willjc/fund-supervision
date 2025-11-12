@@ -79,8 +79,9 @@ public interface IBedInfoService
      * 批量导入床位信息
      *
      * @param bedList 床位信息列表
+     * @param institutionId 机构ID
      * @param updateSupport 是否更新已存在的床位
      * @return 导入结果消息
      */
-    public String importBedInfo(List<BedInfo> bedList, boolean updateSupport);
+    public String importBedInfo(List<BedInfo> bedList, Long institutionId, boolean updateSupport);
 }

@@ -11215,3 +11215,3435 @@ DELETE FROM sys_menu WHERE menu_id = 2102;
 
 ---
 
+
+
+## 2025-11-11 优化床位批量导入功能
+
+### 优化需求
+批量导入床位时存在以下问题:
+1. 模板中包含"机构ID"字段,用户不知道该填什么
+2. 床位类型、床位状态、独立卫浴、阳台需要填数字代码(1/2/3、0/1/2等),用户体验差
+3. 机构ID和机构名称字段混淆,不知道该填哪个
+
+### 优化方案(方案一)
+采用用户友好的中文导入方案:
+1. 导入时先在界面选择机构,不需要在Excel中填机构ID
+2. Excel模板支持中文填写,后端自动转换为数字代码
+3. 优化字段名称,更加直观
+
+### 修改文件
+
+#### 1. BedInfo.java (实体类)
+**文件路径**: `ruoyi-admin/src/main/java/com/ruoyi/domain/BedInfo.java`
+
+**修改内容**:
+- 移除"机构ID"的@Excel注解(不再需要在Excel中填写)
+- 优化Excel字段名称和转换规则:
+  ```java
+  @Excel(name = "床位类型", readConverterExp = "1=普通床位,2=豪华床位,3=医疗床位")
+  private String bedType;
+  
+  @Excel(name = "床位状态", readConverterExp = "0=空置,1=占用,2=维修")
+  private String bedStatus;
+  
+  @Excel(name = "价格(元/月)")
+  private BigDecimal price;
+  
+  @Excel(name = "房间面积(㎡)")
+  private BigDecimal roomArea;
+  
+  @Excel(name = "独立卫浴", readConverterExp = "0=否,1=是")
+  private String hasBathroom;
+  
+  @Excel(name = "阳台", readConverterExp = "0=否,1=是")
+  private String hasBalcony;
+  ```
+
+#### 2. BedInfoController.java (控制器)
+**文件路径**: `ruoyi-admin/src/main/java/com/ruoyi/web/controller/BedInfoController.java`
+
+**修改内容**:
+- 导入接口增加`institutionId`参数:
+  ```java
+  @PostMapping("/importData")
+  public AjaxResult importData(MultipartFile file, Long institutionId, boolean updateSupport) throws Exception
+  {
+      ExcelUtil<BedInfo> util = new ExcelUtil<BedInfo>(BedInfo.class);
+      List<BedInfo> bedList = util.importExcel(file.getInputStream());
+      String message = bedInfoService.importBedInfo(bedList, institutionId, updateSupport);
+      return AjaxResult.success(message);
+  }
+  ```
+
+#### 3. IBedInfoService.java (服务接口)
+**文件路径**: `ruoyi-admin/src/main/java/com/ruoyi/service/IBedInfoService.java`
+
+**修改内容**:
+- 更新接口签名,增加`institutionId`参数:
+  ```java
+  public String importBedInfo(List<BedInfo> bedList, Long institutionId, boolean updateSupport);
+  ```
+
+#### 4. BedInfoServiceImpl.java (服务实现)
+**文件路径**: `ruoyi-admin/src/main/java/com/ruoyi/service/impl/BedInfoServiceImpl.java`
+
+**修改内容**:
+1. 更新导入方法签名,接收机构ID参数
+2. 为每条床位记录统一设置机构ID
+3. 新增`convertChineseToCode()`方法,实现中文到数字代码的转换:
+
+```java
+private void convertChineseToCode(BedInfo bedInfo)
+{
+    // 转换床位类型: 普通床位->1, 豪华床位->2, 医疗床位->3
+    if (StringUtils.isNotEmpty(bedInfo.getBedType()))
+    {
+        switch (bedInfo.getBedType().trim())
+        {
+            case "普通床位": bedInfo.setBedType("1"); break;
+            case "豪华床位": bedInfo.setBedType("2"); break;
+            case "医疗床位": bedInfo.setBedType("3"); break;
+            case "1": case "2": case "3": break;
+            default: throw new ServiceException("床位类型格式错误,请填写: 普通床位/豪华床位/医疗床位");
+        }
+    }
+    
+    // 转换床位状态: 空置->0, 占用->1, 维修->2
+    // 转换独立卫浴: 是->1, 否->0
+    // 转换阳台: 是->1, 否->0
+}
+```
+
+#### 5. list.vue (前端页面)
+**文件路径**: `ruoyi-ui/src/views/pension/bed/list.vue`
+
+**修改内容**:
+1. 导入对话框增加机构选择下拉框:
+   ```html
+   <el-form :model="upload" label-width="100px">
+     <el-form-item label="选择机构" prop="institutionId">
+       <el-select v-model="upload.institutionId" placeholder="请选择要导入床位的机构" filterable clearable>
+         <el-option
+           v-for="institution in institutionList"
+           :key="institution.institutionId"
+           :label="institution.institutionName"
+           :value="institution.institutionId">
+         </el-option>
+       </el-select>
+     </el-form-item>
+   </el-form>
+   ```
+
+2. 上传URL中增加机构ID参数:
+   ```javascript
+   :action="upload.url + '?institutionId=' + upload.institutionId + '&updateSupport=' + upload.updateSupport"
+   ```
+
+3. 在upload对象中增加institutionId字段:
+   ```javascript
+   upload: {
+     open: false,
+     title: "",
+     isUploading: false,
+     updateSupport: 0,
+     institutionId: null,  // 新增
+     headers: { Authorization: "Bearer " + getToken() },
+     url: process.env.VUE_APP_BASE_API + "/elder/bed/importData"
+   }
+   ```
+
+4. 提交前验证是否选择了机构:
+   ```javascript
+   submitFileForm() {
+     if (!this.upload.institutionId) {
+       this.$modal.msgError("请先选择要导入床位的机构");
+       return;
+     }
+     this.$refs.upload.submit();
+   }
+   ```
+
+### 优化后的Excel模板字段
+
+| 字段名称 | 是否必填 | 填写示例 | 说明 |
+|---------|---------|---------|------|
+| 机构名称 | 否 | 幸福养老院 | 仅用于核对,可不填 |
+| 房间号 | 是 | 101 | |
+| 床位号 | 是 | 01 | |
+| 床位类型 | 是 | 普通床位 | 填写: 普通床位/豪华床位/医疗床位 |
+| 床位状态 | 是 | 空置 | 填写: 空置/占用/维修 |
+| 价格(元/月) | 是 | 2000 | |
+| 楼层 | 否 | 1 | |
+| 房间面积(㎡) | 否 | 25.5 | |
+| 独立卫浴 | 否 | 是 | 填写: 是/否 |
+| 阳台 | 否 | 否 | 填写: 是/否 |
+| 设施配置 | 否 | 电视、空调、衣柜 | |
+
+### 优化效果
+
+**导入流程**:
+1. 用户点击"导入"按钮
+2. 在弹出的对话框中先选择机构(下拉框)
+3. 上传Excel文件,使用中文填写床位信息
+4. 系统自动将中文转换为数字代码并保存
+
+**用户体验提升**:
+- ✅ 不需要记忆数字代码,直接填中文即可
+- ✅ 不需要查询机构ID,在界面选择即可
+- ✅ 字段名称更直观(如"价格(元/月)"、"房间面积(㎡)")
+- ✅ 与新增表单体验一致,降低学习成本
+
+**数据转换规则**:
+- 床位类型: 普通床位→1, 豪华床位→2, 医疗床位→3
+- 床位状态: 空置→0, 占用→1, 维修→2
+- 独立卫浴: 是→1, 否→0
+- 阳台: 是→1, 否→0
+
+### 修改时间
+2025-11-11 16:00
+
+---
+
+
+
+## 2025-11-11 为Excel导入模板添加列说明
+
+### 优化内容
+在Excel模板的每列添加prompt提示说明,让用户更清楚如何填写。
+
+### 修改文件
+**BedInfo.java** - 为每个@Excel注解添加prompt属性
+
+### 添加的说明
+- **房间号**: "必填,如:101、201"
+- **床位号**: "必填,如:01、02"
+- **床位类型**: "必填,填写:普通床位、豪华床位、医疗床位"
+- **床位状态**: "必填,填写:空置、占用、维修"
+- **价格(元/月)**: "必填,单位:元,如:2000"
+- **楼层**: "选填,如:1、2、3"
+- **房间面积(㎡)**: "选填,如:25、30.5"
+- **独立卫浴**: "选填,填写:是、否"
+- **阳台**: "选填,填写:是、否"
+- **设施配置**: "选填,如:电视、空调、衣柜"
+- **机构名称**: "选填,仅用于核对"
+
+### 效果
+用户下载Excel模板时,每列都会有批注说明,鼠标悬停即可看到填写要求和示例。
+
+### 修改时间
+2025-11-11 16:15
+
+---
+
+
+
+## 2025-11-11 Excel模板添加示例数据行
+
+### 优化内容
+在Excel导入模板的第一行添加示例数据,让用户可以直接看到填写示例,而不只是批注提示。
+
+### 修改文件
+**BedInfoController.java** - 修改importTemplate方法
+
+### 修改内容
+
+**原方法**:
+```java
+@PostMapping("/importTemplate")
+public void importTemplate(HttpServletResponse response)
+{
+    ExcelUtil<BedInfo> util = new ExcelUtil<BedInfo>(BedInfo.class);
+    util.importTemplateExcel(response, "床位信息");
+}
+```
+
+**修改后**:
+```java
+@PostMapping("/importTemplate")
+public void importTemplate(HttpServletResponse response)
+{
+    // 创建示例数据
+    List<BedInfo> list = new ArrayList<>();
+    BedInfo example = new BedInfo();
+    example.setInstitutionName("幸福养老院");
+    example.setRoomNumber("101");
+    example.setBedNumber("01");
+    example.setBedType("普通床位");
+    example.setBedStatus("空置");
+    example.setPrice(new BigDecimal("2000"));
+    example.setFloorNumber(1L);
+    example.setRoomArea(new BigDecimal("25"));
+    example.setHasBathroom("是");
+    example.setHasBalcony("否");
+    example.setFacilities("电视、空调、衣柜");
+    list.add(example);
+
+    // 导出模板(包含示例数据)
+    ExcelUtil<BedInfo> util = new ExcelUtil<BedInfo>(BedInfo.class);
+    util.exportExcel(response, list, "床位信息");
+}
+```
+
+### 示例数据内容
+第一行将包含以下示例数据:
+
+| 机构名称 | 房间号 | 床位号 | 床位类型 | 床位状态 | 价格(元/月) | 楼层 | 房间面积(㎡) | 独立卫浴 | 阳台 | 设施配置 |
+|---------|-------|-------|---------|---------|-----------|-----|------------|---------|-----|---------|
+| 幸福养老院 | 101 | 01 | 普通床位 | 空置 | 2000 | 1 | 25 | 是 | 否 | 电视、空调、衣柜 |
+
+### 优化效果
+- ✅ 用户下载模板后,第一行就能看到标准的填写示例
+- ✅ 用户可以直接复制第一行数据,修改后批量粘贴
+- ✅ 结合列批注提示,双重指导用户如何填写
+- ✅ 降低用户理解成本,提高导入成功率
+
+### 使用说明
+用户下载模板后:
+1. 第一行是示例数据,可以参考格式
+2. 可以保留第一行作为参考,从第二行开始填写真实数据
+3. 也可以删除第一行,直接填写真实数据
+4. 每列标题都有批注说明(鼠标悬停查看)
+
+### 修改时间
+2025-11-11 16:30
+
+---
+
+
+
+## 2025-11-11 修复Excel模板示例数据显示问题
+
+### 问题描述
+下载的Excel模板中,床位类型、床位状态、独立卫浴、阳台这四列没有显示内容(显示为空)。
+
+### 问题原因
+若依框架的Excel导出功能会根据`readConverterExp`属性进行值转换:
+- 导出时: 数字代码 → 中文显示
+- 导入时: 中文 → 数字代码
+
+示例数据中直接使用中文值(如"普通床位"、"空置"、"是"),导出时框架尝试将这些值通过`readConverterExp`反向查找对应的数字代码,因为找不到匹配项,所以显示为空。
+
+### 解决方案
+在示例数据中使用数字代码,让若依框架在导出时自动转换为中文显示。
+
+### 修改内容
+
+**BedInfoController.java** - importTemplate方法
+
+**修改前**:
+```java
+example.setBedType("普通床位");
+example.setBedStatus("空置");
+example.setHasBathroom("是");
+example.setHasBalcony("否");
+```
+
+**修改后**:
+```java
+example.setBedType("1");  // 1=普通床位,导出时会自动转换为"普通床位"
+example.setBedStatus("0");  // 0=空置,导出时会自动转换为"空置"
+example.setHasBathroom("1");  // 1=是,导出时会自动转换为"是"
+example.setHasBalcony("0");  // 0=否,导出时会自动转换为"否"
+```
+
+### 转换规则
+根据BedInfo.java中的`readConverterExp`属性:
+- **床位类型**: 1=普通床位, 2=豪华床位, 3=医疗床位
+- **床位状态**: 0=空置, 1=占用, 2=维修
+- **独立卫浴**: 0=否, 1=是
+- **阳台**: 0=否, 1=是
+
+### 最终效果
+用户下载Excel模板后,第一行示例数据将正确显示为:
+
+| 机构名称 | 房间号 | 床位号 | 床位类型 | 床位状态 | 价格(元/月) | 楼层 | 房间面积(㎡) | 独立卫浴 | 阳台 | 设施配置 |
+|---------|-------|-------|---------|---------|-----------|-----|------------|---------|-----|---------|
+| 幸福养老院 | 101 | 01 | **普通床位** | **空置** | 2000 | 1 | 25 | **是** | **否** | 电视、空调、衣柜 |
+
+用户可以直接参考这行数据的中文格式进行填写。
+
+### 修改时间
+2025-11-11 16:45
+
+---
+
+
+
+## 2025-11-11 修复独立卫浴和阳台显示问题
+
+### 问题描述
+导入床位数据后,独立卫浴和阳台字段在列表中不显示内容(显示为空)。
+
+### 问题原因
+数据库中独立卫浴和阳台字段存在两种数据格式:
+- 旧格式: 'Y' / 'N' (是/否)
+- 新格式: '1' / '0' (是/否)
+
+BedInfo.java中配置的`readConverterExp`是 `"0=否,1=是"`,若依框架在显示数据时:
+- 值为 '0' → 显示 "否" ✅
+- 值为 '1' → 显示 "是" ✅
+- 值为 'Y' 或 'N' → 找不到匹配规则 → 显示为空 ❌
+
+### 解决方案
+统一数据库中的数据格式,将所有 'Y'/'N' 转换为 '1'/'0'。
+
+### 执行的SQL
+```sql
+-- 将 Y/N 转换为 1/0
+UPDATE bed_info SET has_bathroom = '1' WHERE has_bathroom = 'Y';
+UPDATE bed_info SET has_bathroom = '0' WHERE has_bathroom = 'N';
+UPDATE bed_info SET has_balcony = '1' WHERE has_balcony = 'Y';
+UPDATE bed_info SET has_balcony = '0' WHERE has_balcony = 'N';
+```
+
+### 转换规则
+- **独立卫浴**: Y → 1 (是), N → 0 (否)
+- **阳台**: Y → 1 (是), N → 0 (否)
+
+### 验证结果
+转换后所有床位数据的独立卫浴和阳台字段都使用统一的 '0'/'1' 格式,在列表页面可以正常显示为"是"或"否"。
+
+### 注意事项
+今后新增或导入床位数据时:
+- 用户填写: "是" 或 "否"
+- 系统自动转换为: '1' 或 '0'
+- 数据库存储: '1' 或 '0'
+- 页面显示: "是" 或 "否"
+
+全程使用 '0'/'1' 格式,保持数据一致性。
+
+### 修改时间
+2025-11-11 17:00
+
+---
+
+
+## 2025-11-11 入驻管理新增入驻月数和实收总计字段
+
+### 需求背景
+用户反馈入驻页面缺少关键字段:
+1. **入驻月数** - 需要知道用户要入住几个月
+2. **实收总计** - 需要支持手动调整优惠后的最终金额
+
+### 费用计算逻辑
+- **服务费小计** = 月服务费 × 入驻月数
+- **应收总计** = 服务费小计 + 押金 + 会员费
+- **实收总计** = 应收总计(可手动调整优惠)
+- **优惠金额** = 应收总计 - 实收总计
+
+### 修改的文件
+
+#### 前端文件
+
+**1. checkin.vue** (已在上次修改)
+- 路径: `ruoyi-ui/src/views/pension/elder/checkin.vue`
+- 新增字段:
+  - `monthCount` - 入驻月数(默认1个月)
+  - `finalAmount` - 实收总计(可编辑)
+- 新增计算属性:
+  - `serviceFeeTotal` - 服务费小计 = 月服务费 × 月数
+  - `calculatedTotal` - 应收总计 = 服务费小计 + 押金 + 会员费
+  - `discountAmount` - 优惠金额 = 应收总计 - 实收总计
+- 表单验证:
+  - 入驻月数必填,范围1-120个月
+  - 实收总计必填,最小值0
+
+#### 后端文件
+
+**2. PensionCheckinDTO.java** (新增字段)
+- 路径: `ruoyi-admin/src/main/java/com/ruoyi/domain/PensionCheckinDTO.java`
+- 新增字段:
+  ```java
+  /** 入驻月数 */
+  private Integer monthCount;
+
+  /** 实收总计(可优惠后的最终金额) */
+  private BigDecimal finalAmount;
+  ```
+- 新增getter/setter方法
+
+**3. PensionCheckinServiceImpl.java** (更新业务逻辑)
+- 路径: `ruoyi-admin/src/main/java/com/ruoyi/service/impl/PensionCheckinServiceImpl.java`
+
+修改内容:
+
+**订单金额计算**:
+```java
+// 计算服务费小计 = 月服务费 × 入驻月数
+Integer monthCount = dto.getMonthCount() != null ? dto.getMonthCount() : 1;
+BigDecimal serviceFeeTotal = dto.getMonthlyFee().multiply(new BigDecimal(monthCount));
+
+// 使用前端传来的实收总计(已包含优惠调整)
+BigDecimal finalAmount = dto.getFinalAmount();
+if (finalAmount == null) {
+    // 如果没有传实收总计,则按原逻辑计算
+    finalAmount = serviceFeeTotal
+            .add(dto.getDepositAmount() != null ? dto.getDepositAmount() : BigDecimal.ZERO)
+            .add(dto.getMemberFee() != null ? dto.getMemberFee() : BigDecimal.ZERO);
+}
+
+orderInfo.setOrderAmount(finalAmount);  // 使用实收总计
+orderInfo.setPaidAmount(finalAmount);   // 已支付金额也使用实收总计
+```
+
+**订单明细-服务费项**:
+```java
+serviceItem.setItemDescription(monthCount + "个月服务费");
+serviceItem.setUnitPrice(dto.getMonthlyFee());
+serviceItem.setQuantity(monthCount.longValue());  // 数量=入驻月数
+serviceItem.setTotalAmount(serviceFeeTotal);      // 小计=月服务费×月数
+```
+
+### 数据流转
+
+**前端 → 后端**:
+```json
+{
+  "monthlyFee": 2000,      // 月服务费
+  "monthCount": 3,         // 入驻3个月
+  "depositAmount": 1000,   // 押金
+  "memberFee": 500,        // 会员费
+  "finalAmount": 7300      // 实收总计(原价7500,优惠200)
+}
+```
+
+**后端计算**:
+- 服务费小计 = 2000 × 3 = 6000元
+- 应收总计 = 6000 + 1000 + 500 = 7500元
+- 实收总计 = 7300元(前端传来,已优惠200元)
+
+**数据库记录**:
+- `order_info.order_amount` = 7300元
+- `order_item` 三条记录:
+  1. 月服务费: 单价2000 × 数量3 = 小计6000
+  2. 押金: 单价1000 × 数量1 = 小计1000
+  3. 会员费: 单价500 × 数量1 = 小计500
+
+### UI展示效果
+
+**费用设置区域**:
+```
+月服务费: [2000] 元/月   入驻月数: [3] 个月   服务费小计: [6000] 元
+押金: [1000] 元
+会员费: [500] 元
+```
+
+**费用汇总**:
+```
+┌─────────────────────────────────┐
+│ 月服务费: ¥2,000 × 3个月         │
+│ 服务费小计: ¥6,000              │
+│ 押金: ¥1,000                    │
+│ 会员费: ¥500                     │
+│ 应收总计: ¥7,500                │
+│ ─────────────────────────────   │
+│ 实收总计: [7300] 元 (可手动调整) │
+│ 已优惠: ¥200                     │
+└─────────────────────────────────┘
+```
+
+### 特性说明
+
+1. **自动计算**: 修改月服务费或入驻月数时,自动重新计算所有金额
+2. **手动调整**: 实收总计可手动输入,支持优惠场景
+3. **优惠提示**: 当实收 < 应收时,显示绿色优惠金额
+4. **数据完整**: 订单明细准确记录月数和单价,便于后续对账
+
+### 修改时间
+2025-11-11 19:30
+
+---
+
+## 2025-11-11 修复入驻管理功能问题
+
+### 问题1: 选择出生日期后不能自动计算年龄
+
+**问题描述**: 用户选择出生日期后,需要手动填写年龄
+
+**解决方案**: 给出生日期选择器添加@change事件,自动计算年龄
+
+**修改文件**: `ruoyi-ui/src/views/pension/elder/checkin.vue`
+
+**修改内容**:
+1. 给el-date-picker添加@change事件:
+```vue
+<el-date-picker
+  v-model="form.birthDate"
+  type="date"
+  placeholder="请选择出生日期"
+  value-format="yyyy-MM-dd"
+  style="width: 100%;"
+  @change="calculateAgeFromBirthDate">
+</el-date-picker>
+```
+
+2. 新增calculateAgeFromBirthDate方法:
+```javascript
+/** 根据出生日期计算年龄 */
+calculateAgeFromBirthDate() {
+  if (this.form.birthDate) {
+    const birthDate = new Date(this.form.birthDate);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    // 如果当前月份小于出生月份,或者当前月份等于出生月份但当前日期小于出生日期,则年龄减1
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    this.form.age = age;
+  }
+}
+```
+
+3. 更新parseIdCard方法,调用统一的年龄计算方法
+
+**效果**: 
+- 手动选择出生日期时,自动计算精确年龄(考虑月份和日期)
+- 输入身份证号时,自动解析出生日期并计算年龄
+
+---
+
+### 问题2: 提交成功后在入住人列表看不到数据
+
+**问题描述**: 
+- 新增入驻提交成功,提示"入驻办理成功,订单已生成"
+- 但在入住人列表页面看不到新增的记录
+
+**根本原因**: 
+- 前端调用的是mock数据,不是真实后端API
+- 后端缺少入住人列表查询接口
+
+**解决方案**: 创建完整的入住人列表查询功能
+
+#### 前端修改
+
+**文件**: `ruoyi-ui/src/api/elder/resident.js`
+
+**修改前**(使用mock数据):
+```javascript
+export function listResident(query) {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const mockData = [...]; // 写死的假数据
+      resolve({ rows: mockData, total: mockData.length });
+    }, 300);
+  });
+}
+```
+
+**修改后**(调用真实API):
+```javascript
+export function listResident(query) {
+  return request({
+    url: '/pension/resident/list',
+    method: 'get',
+    params: query
+  })
+}
+```
+
+#### 后端新增文件
+
+**1. ResidentVO.java** (视图对象)
+- 路径: `ruoyi-admin/src/main/java/com/ruoyi/domain/vo/ResidentVO.java`
+- 作用: 封装入住人列表需要展示的字段
+- 包含字段:
+  - 基本信息: elderName, gender, age, idCard, phone
+  - 床位信息: bedInfo(房间号-床位号)
+  - 状态信息: checkInStatus, careLevel
+  - 费用信息: serviceBalance, depositBalance, memberBalance, monthlyFee
+  - 其他信息: checkInDate, emergencyContact, address
+
+**2. PensionResidentController.java** (控制器)
+- 路径: `ruoyi-admin/src/main/java/com/ruoyi/web/controller/PensionResidentController.java`
+- 接口: GET /pension/resident/list
+- 权限: @PreAuthorize("@ss.hasPermi('elder:resident:list')")
+- 返回: TableDataInfo (包含rows和total)
+
+**3. IResidentService.java** (服务接口)
+- 路径: `ruoyi-admin/src/main/java/com/ruoyi/service/IResidentService.java`
+- 方法: selectResidentList(ResidentVO queryVO)
+
+**4. ResidentServiceImpl.java** (服务实现)
+- 路径: `ruoyi-admin/src/main/java/com/ruoyi/service/impl/ResidentServiceImpl.java`
+- 实现: 调用Mapper层查询数据
+
+**5. ResidentMapper.java** (Mapper接口)
+- 路径: `ruoyi-admin/src/main/java/com/ruoyi/mapper/ResidentMapper.java`
+- 方法: selectResidentList(ResidentVO queryVO)
+
+**6. ResidentMapper.xml** (MyBatis映射)
+- 路径: `ruoyi-admin/src/main/resources/mapper/ResidentMapper.xml`
+- SQL逻辑: 关联查询3张表
+
+**关键SQL**:
+```sql
+SELECT
+    ei.elder_id,
+    ei.elder_name,
+    ei.gender,
+    ei.age,
+    ei.id_card,
+    ei.phone,
+    CONCAT(bi.room_number, '-', bi.bed_number) as bed_info,  -- 拼接床位信息
+    ei.status as check_in_status,
+    ei.care_level,
+    COALESCE(ba.deposit_amount, 0) as deposit_balance,
+    ba.check_in_date,
+    ei.emergency_contact,
+    ei.address,
+    ba.monthly_fee
+FROM elder_info ei
+LEFT JOIN bed_allocation ba ON ei.elder_id = ba.elder_id AND ba.allocation_status = '1'
+LEFT JOIN bed_info bi ON ba.bed_id = bi.bed_id
+WHERE 1=1
+-- 支持动态查询条件: 姓名、性别、房间号、入住状态
+ORDER BY ei.create_time DESC
+```
+
+#### 数据关联关系
+
+```
+elder_info (老人信息)
+    ↓ elder_id
+bed_allocation (床位分配) - allocation_status='1'(在住)
+    ↓ bed_id
+bed_info (床位信息)
+    → 拼接: room_number + '-' + bed_number
+```
+
+**查询逻辑**:
+1. 主表: elder_info (老人基本信息)
+2. 左连接: bed_allocation (获取床位分配和费用信息,只查在住状态)
+3. 左连接: bed_info (获取房间号和床位号)
+4. 支持筛选: 姓名、性别、房间号、入住状态
+5. 排序: 按创建时间倒序
+
+#### 其他修改
+
+**文件**: `ruoyi-ui/src/views/pension/elder/list.vue:547`
+- 修复"新增入驻"按钮跳转路径错误
+- 修改前: `/elder/checkin`
+- 修改后: `/pension/elder/checkin`
+
+### 修改时间
+2025-11-11 20:00
+
+---
+
+## 2025-11-11 修复身份证号重复导致入驻失败问题
+
+### 问题描述
+新增入驻时提示错误:
+```
+Duplicate entry '412829198908160073' for key 'uk_id_card'
+```
+
+### 错误原因
+- 数据库 `elder_info` 表的 `id_card` 字段有唯一索引约束 `uk_id_card`
+- 如果身份证号已存在,直接插入会违反唯一约束导致失败
+- 之前的代码没有在插入前检查身份证号是否重复
+
+### 解决方案
+在创建老人信息之前,先检查身份证号是否已存在:
+1. **如果身份证号不存在** → 创建新的老人记录
+2. **如果身份证号已存在且状态为"已入住"** → 抛出异常,提示该老人已在住
+3. **如果身份证号已存在且状态为"已退住"** → 复用老人ID,更新状态为"已入住"
+
+### 修改文件
+**PensionCheckinServiceImpl.java** (createCheckin方法)
+- 路径: `ruoyi-admin/src/main/java/com/ruoyi/service/impl/PensionCheckinServiceImpl.java`
+
+### 修改内容
+
+**修改前**:
+```java
+// 直接创建老人信息记录,没有检查重复
+ElderInfo elderInfo = new ElderInfo();
+elderInfo.setIdCard(dto.getIdCard());
+// ... 设置其他字段
+elderInfoMapper.insertElderInfo(elderInfo);
+Long elderId = elderInfo.getElderId();
+```
+
+**修改后**:
+```java
+// ========== 1. 检查并创建/复用老人信息记录 ==========
+Long elderId;
+
+// 先检查身份证号是否已存在
+ElderInfo existingElder = elderInfoMapper.selectElderInfoByIdCard(dto.getIdCard());
+
+if (existingElder != null) {
+    // 身份证号已存在,检查是否已经在住
+    if ("1".equals(existingElder.getStatus())) {
+        throw new ServiceException("该老人已在住,身份证号: " + dto.getIdCard());
+    }
+    // 如果是已退住状态,可以重新入住,复用老人ID并更新状态
+    elderId = existingElder.getElderId();
+    existingElder.setStatus("1"); // 更新为已入住
+    existingElder.setUpdateTime(DateUtils.getNowDate());
+    existingElder.setUpdateBy(SecurityUtils.getUsername());
+    elderInfoMapper.updateElderInfo(existingElder);
+} else {
+    // 身份证号不存在,创建新老人记录
+    ElderInfo elderInfo = new ElderInfo();
+    elderInfo.setIdCard(dto.getIdCard());
+    // ... 设置其他字段
+    elderInfoMapper.insertElderInfo(elderInfo);
+    elderId = elderInfo.getElderId();
+}
+```
+
+### 业务逻辑
+
+**场景1: 新老人入住** (身份证号首次出现)
+```
+输入身份证号: 412829198908160073
+    ↓
+查询 elder_info 表 → 不存在
+    ↓
+创建新的 elder_info 记录
+    ↓
+继续创建 bed_allocation、order_info 等记录
+```
+
+**场景2: 重复入驻** (同一老人已在住)
+```
+输入身份证号: 412829198908160073
+    ↓
+查询 elder_info 表 → 已存在,status='1'(已入住)
+    ↓
+抛出异常: "该老人已在住,身份证号: 412829198908160073"
+    ↓
+终止入驻流程
+```
+
+**场景3: 老人重新入住** (同一老人之前退住过)
+```
+输入身份证号: 412829198908160073
+    ↓
+查询 elder_info 表 → 已存在,status='2'(已退住)
+    ↓
+复用现有 elder_id,更新 status='1'
+    ↓
+继续创建 bed_allocation、order_info 等记录
+```
+
+### 优点
+1. **避免重复数据**: 防止同一老人创建多条记录
+2. **数据一致性**: 保证身份证号的唯一性约束
+3. **支持重入住**: 退住老人可以再次入住,保留历史信息
+4. **友好提示**: 重复入驻时给出明确的错误提示
+
+### 修改时间
+2025-11-11 20:15
+
+---
+
+## 2025-11-11 修复入住状态和余额计算逻辑
+
+### 问题描述
+
+用户反馈三个问题:
+1. **入住状态问题**: 用户还没支付就显示"已入住",应该等支付完成后才显示已入住
+2. **余额计算问题**: 服务费余额、押金余额、会员余额都不正确
+3. **详情缺少费用信息**: 详情页看不到服务费、押金、会员费等费用信息
+
+### 解决方案
+
+#### 1. 修改入住状态逻辑
+
+**问题**: 创建入驻申请时,不管是否支付都直接设置status='1'(已入住)
+
+**解决**: 根据支付方式设置状态
+- 如果选择"稍后支付" → status='0'(待入住), allocation_status='0'(待入住)
+- 如果选择其他支付方式 → status='1'(已入住), allocation_status='1'(在住)
+
+**修改文件**: `PensionCheckinServiceImpl.java`
+
+```java
+// 根据支付方式设置状态: 已支付->已入住, 未支付->待入住
+elderInfo.setStatus("later".equals(dto.getPaymentMethod()) ? "0" : "1");
+
+// 床位分配状态也同样处理
+allocation.setAllocationStatus("later".equals(dto.getPaymentMethod()) ? "0" : "1");
+```
+
+#### 2. 修复余额计算逻辑
+
+**问题**: 之前的SQL直接使用固定值或bed_allocation表的字段,不准确
+
+**解决**: 根据order_info和order_item表实时计算已支付订单的费用总额
+
+**修改文件**: `ResidentMapper.xml`
+
+**修改前**:
+```sql
+COALESCE(0, 0) as service_balance,
+COALESCE(ba.deposit_amount, 0) as deposit_balance,
+COALESCE(0, 0) as member_balance
+```
+
+**修改后**:
+```sql
+-- 服务费余额 = 所有已支付订单中服务费类型的金额总和
+COALESCE(
+    (SELECT SUM(oi.total_amount)
+     FROM order_item oi
+     INNER JOIN order_info o ON oi.order_id = o.order_id
+     WHERE o.elder_id = ei.elder_id
+       AND oi.item_type = 'service_fee'
+       AND o.order_status = '1'), 0
+) as service_balance,
+
+-- 押金余额 = 所有已支付订单中押金类型的金额总和
+COALESCE(
+    (SELECT SUM(oi.total_amount)
+     FROM order_item oi
+     INNER JOIN order_info o ON oi.order_id = o.order_id
+     WHERE o.elder_id = ei.elder_id
+       AND oi.item_type = 'deposit'
+       AND o.order_status = '1'), 0
+) as deposit_balance,
+
+-- 会员余额 = 所有已支付订单中会员费类型的金额总和
+COALESCE(
+    (SELECT SUM(oi.total_amount)
+     FROM order_item oi
+     INNER JOIN order_info o ON oi.order_id = o.order_id
+     WHERE o.elder_id = ei.elder_id
+       AND oi.item_type = 'member_fee'
+       AND o.order_status = '1'), 0
+) as member_balance
+```
+
+**关键点**:
+- 只统计 `order_status = '1'` (已支付)的订单
+- 根据 `item_type` 区分不同类型的费用
+- 使用子查询聚合每个老人的费用总额
+
+**床位分配查询修改**:
+```sql
+-- 修改前: 只查询在住状态
+LEFT JOIN bed_allocation ba ON ei.elder_id = ba.elder_id AND ba.allocation_status = '1'
+
+-- 修改后: 查询在住或待入住状态
+LEFT JOIN bed_allocation ba ON ei.elder_id = ba.elder_id
+    AND (ba.allocation_status = '1' OR ba.allocation_status = '0')
+```
+
+#### 3. 前端UI优化
+
+**list.vue 修改**:
+
+**3.1 新增"待入住"状态**
+
+搜索条件和表格显示都增加"待入住"状态:
+```vue
+<el-option label="待入住" value="0" />
+<el-option label="已入住" value="1" />
+<el-option label="已退住" value="2" />
+<el-option label="请假中" value="3" />
+```
+
+表格标签显示:
+```vue
+<el-tag v-if="scope.row.checkInStatus === '0'" type="warning">待入住</el-tag>
+<el-tag v-else-if="scope.row.checkInStatus === '1'" type="success">已入住</el-tag>
+<el-tag v-else-if="scope.row.checkInStatus === '2'" type="info">已退住</el-tag>
+<el-tag v-else-if="scope.row.checkInStatus === '3'" type="">请假中</el-tag>
+```
+
+**3.2 操作按钮优化**
+
+根据入住状态显示不同操作按钮:
+
+| 状态 | 显示的操作按钮 |
+|------|--------------|
+| 待入住(0) | **去支付**(醒目黄色) + 详情 + 删除 |
+| 已入住(1) | 详情 + 维护 + 续费 + 退费 + 押金使用 + 删除 |
+| 其他状态 | 详情 + 删除 |
+
+**"去支付"按钮**:
+```vue
+<el-button
+  v-if="scope.row.checkInStatus === '0'"
+  size="mini"
+  type="text"
+  icon="el-icon-wallet"
+  style="color: #E6A23C; font-weight: bold;"
+  @click="handlePayment(scope.row)"
+>去支付</el-button>
+```
+
+**handlePayment方法**:
+```javascript
+handlePayment(row) {
+  this.$router.push({
+    path: '/pension/payment',
+    query: { elderId: row.elderId, elderName: row.elderName }
+  });
+}
+```
+
+### 业务流程
+
+#### 场景1: 选择立即支付
+
+```
+用户填写入驻信息
+    ↓
+选择支付方式: 现金/刷卡/扫码
+    ↓
+提交表单
+    ↓
+后端创建记录:
+  - elder_info.status = '1' (已入住)
+  - bed_allocation.allocation_status = '1' (在住)
+  - order_info.order_status = '1' (已支付)
+    ↓
+列表显示: 状态=已入住, 余额已计入
+    ↓
+可进行: 维护、续费、退费等操作
+```
+
+#### 场景2: 选择稍后支付
+
+```
+用户填写入驻信息
+    ↓
+选择支付方式: 稍后支付
+    ↓
+提交表单
+    ↓
+后端创建记录:
+  - elder_info.status = '0' (待入住)
+  - bed_allocation.allocation_status = '0' (待入住)
+  - order_info.order_status = '0' (未支付)
+    ↓
+列表显示: 状态=待入住(黄色), 余额=0
+    ↓
+显示"去支付"按钮(醒目黄色)
+    ↓
+点击"去支付" → 跳转支付页面
+    ↓
+完成支付后更新状态为"已入住"
+```
+
+### 数据一致性保证
+
+**状态映射**:
+```
+elder_info.status          bed_allocation.allocation_status    order_info.order_status
+     0 (待入住)      ←→             0 (待入住)           ←→        0 (未支付)
+     1 (已入住)      ←→             1 (在住)             ←→        1 (已支付)
+```
+
+**余额计算公式**:
+```
+服务费余额 = SUM(已支付订单中 item_type='service_fee' 的金额)
+押金余额   = SUM(已支付订单中 item_type='deposit' 的金额)
+会员余额   = SUM(已支付订单中 item_type='member_fee' 的金额)
+```
+
+### 待实现功能
+
+- [ ] 支付页面开发 (`/pension/payment`)
+- [ ] 支付成功后更新状态的接口
+- [ ] 详情页显示费用信息
+
+### 修改时间
+2025-11-11 21:00
+
+---
+
+## 2025-11-11 完善订单信息记录
+
+### 问题描述
+
+用户反馈订单详情问题:
+1. 订单明细中没有优惠信息
+2. 没有完整的入驻明细(入驻月数、服务费、押金、会员费等)
+3. 订单中应该包含: 入驻月数、应收总计、实收总计、优惠金额、费用说明等关键信息
+
+### 解决方案
+
+#### 1. 数据库层-增加字段
+
+**ALTER TABLE**:
+```sql
+ALTER TABLE order_info 
+ADD COLUMN month_count INT COMMENT '入驻月数' AFTER billing_cycle,
+ADD COLUMN original_amount DECIMAL(10,2) COMMENT '应收总计(优惠前)' AFTER order_amount,
+ADD COLUMN discount_amount DECIMAL(10,2) DEFAULT 0.00 COMMENT '优惠金额' AFTER original_amount;
+```
+
+**新增字段说明**:
+- `month_count`: 入驻月数(来自前端表单)
+- `original_amount`: 应收总计 = 服务费小计 + 押金 + 会员费
+- `discount_amount`: 优惠金额 = 应收总计 - 实收总计
+- `order_amount`: 实收总计(已存在,来自前端finalAmount)
+
+#### 2. 实体类-OrderInfo.java
+
+**修改文件**: `ruoyi-admin/src/main/java/com/ruoyi/domain/OrderInfo.java`
+
+**新增属性**:
+```java
+/** 入驻月数 */
+@Excel(name = "入驻月数")
+private Integer monthCount;
+
+/** 应收总计(元) - 优惠前金额 */
+@Excel(name = "应收总计")
+private BigDecimal originalAmount;
+
+/** 优惠金额(元) */
+@Excel(name = "优惠金额")
+private BigDecimal discountAmount;
+
+// 对应的getter/setter方法
+```
+
+#### 3. Mapper XML-OrderInfoMapper.xml
+
+**修改文件**: `ruoyi-admin/src/main/resources/mapper/OrderInfoMapper.xml`
+
+**insertOrderInfo增加字段**:
+```xml
+<if test="monthCount != null">month_count,</if>
+<if test="originalAmount != null">original_amount,</if>
+<if test="discountAmount != null">discount_amount,</if>
+
+<!-- values部分 -->
+<if test="monthCount != null">#{monthCount},</if>
+<if test="originalAmount != null">#{originalAmount},</if>
+<if test="discountAmount != null">#{discountAmount},</if>
+```
+
+#### 4. Service层-PensionCheckinServiceImpl.java
+
+**修改文件**: `ruoyi-admin/src/main/java/com/ruoyi/service/impl/PensionCheckinServiceImpl.java`
+
+**关键业务逻辑**:
+```java
+// 计算服务费小计 = 月服务费 × 入驻月数
+Integer monthCount = dto.getMonthCount() != null ? dto.getMonthCount() : 1;
+BigDecimal serviceFeeTotal = dto.getMonthlyFee().multiply(new BigDecimal(monthCount));
+
+// 计算应收总计(优惠前)
+BigDecimal originalAmount = serviceFeeTotal
+        .add(dto.getDepositAmount() != null ? dto.getDepositAmount() : BigDecimal.ZERO)
+        .add(dto.getMemberFee() != null ? dto.getMemberFee() : BigDecimal.ZERO);
+
+// 使用前端传来的实收总计(已包含优惠调整)
+BigDecimal finalAmount = dto.getFinalAmount();
+if (finalAmount == null) {
+    finalAmount = originalAmount;
+}
+
+// 计算优惠金额 = 应收总计 - 实收总计
+BigDecimal discountAmount = originalAmount.subtract(finalAmount);
+
+// 保存到订单
+orderInfo.setMonthCount(monthCount);           // 入驻月数
+orderInfo.setOriginalAmount(originalAmount);   // 应收总计
+orderInfo.setOrderAmount(finalAmount);         // 实收总计
+orderInfo.setDiscountAmount(discountAmount);   // 优惠金额
+orderInfo.setRemark(dto.getFeeDescription());  // 费用说明
+```
+
+### 订单数据结构
+
+**order_info表完整字段**:
+```
+订单基本信息:
+- order_id          订单ID
+- order_no          订单编号
+- order_type        订单类型(1=床位费)
+- elder_id          老人ID
+- institution_id    机构ID
+- bed_id            床位ID
+
+费用信息(核心):
+- month_count       入驻月数          ← 新增
+- original_amount   应收总计          ← 新增
+- order_amount      实收总计(原字段)
+- discount_amount   优惠金额          ← 新增
+- paid_amount       已付金额
+
+状态和支付:
+- order_status      订单状态(0=待支付, 1=已支付)
+- payment_method    支付方式
+- payment_time      支付时间
+- order_date        订单日期
+
+其他信息:
+- remark            费用说明(来自表单)
+- create_by/create_time
+- update_by/update_time
+```
+
+**order_item表结构**(订单明细):
+```
+- item_id           明细ID
+- order_id          订单ID
+- order_no          订单编号
+- item_name         项目名称(月服务费/押金/会员费)
+- item_type         项目类型(service_fee/deposit/member_fee)
+- item_description  项目描述(X个月服务费/入住押金/会员卡充值)
+- unit_price        单价
+- quantity          数量(服务费的数量=入驻月数)
+- total_amount      小计金额
+- service_period    服务周期
+- create_by/create_time
+```
+
+### 订单详情应展示内容
+
+**基本信息**:
+- 订单编号: ORD1762847483441
+- 订单日期: 2025-11-11
+- 订单状态: 待支付/已支付
+
+**老人信息**:
+- 老人姓名: XXX
+- 身份证号: XXXXXXXXXXXXXXXXXX
+- 联系电话: 13800138000
+
+**床位信息**:
+- 房间号-床位号: 101-01
+- 入住日期: 2025-11-15
+
+**费用明细**(从order_item查询):
+| 项目 | 单价 | 数量 | 小计 |
+|------|------|------|------|
+| 月服务费 | ¥2,000/月 | 3个月 | ¥6,000 |
+| 押金 | ¥5,000 | 1 | ¥5,000 |
+| 会员费 | ¥2,000 | 1 | ¥2,000 |
+
+**费用汇总**(从order_info查询):
+```
+应收总计: ¥13,000
+优惠金额: -¥1,000
+─────────────────
+实收总计: ¥12,000
+已付金额: ¥12,000 (或 ¥0 如果未支付)
+```
+
+**费用说明**:
+[remark字段内容]
+
+### 数据流转示例
+
+**前端提交**:
+```json
+{
+  "elderName": "张三",
+  "bedId": 123,
+  "monthlyFee": 2000,
+  "monthCount": 3,
+  "depositAmount": 5000,
+  "memberFee": 2000,
+  "finalAmount": 12000,  // 用户手动调整优惠后
+  "feeDescription": "首月优惠1000元",
+  "paymentMethod": "later"
+}
+```
+
+**后端计算**:
+```
+服务费小计 = 2000 × 3 = 6000
+应收总计   = 6000 + 5000 + 2000 = 13000
+实收总计   = 12000 (前端传来)
+优惠金额   = 13000 - 12000 = 1000
+```
+
+**保存到数据库**:
+```sql
+-- order_info表
+INSERT INTO order_info (
+  order_no, order_type, elder_id, bed_id,
+  month_count, original_amount, order_amount, discount_amount,
+  order_status, payment_method, remark
+) VALUES (
+  'ORD1762847483441', '1', 1, 123,
+  3, 13000.00, 12000.00, 1000.00,
+  '0', 'later', '首月优惠1000元'
+);
+
+-- order_item表(3条记录)
+INSERT INTO order_item (order_id, item_name, item_type, unit_price, quantity, total_amount)
+VALUES 
+(1, '月服务费', 'service_fee', 2000.00, 3, 6000.00),
+(1, '押金', 'deposit', 5000.00, 1, 5000.00),
+(1, '会员费', 'member_fee', 2000.00, 1, 2000.00);
+```
+
+### 修改时间
+2025-11-11 22:00
+
+---
+
+
+## 2025-11-11 修复订单详情页面显示问题
+
+### 问题描述
+用户反馈订单列表中点击详情时:
+1. 看不到入驻月数、应收总计、优惠金额等新添加的订单信息
+2. 订单明细中出现老的测试数据半护理服务费用
+
+### 问题原因
+
+**后端问题**:
+`OrderInfoMapper.xml` 文件中的 `resultMap` 和 `selectOrderInfoVo` SQL片段没有包含新添加的字段:
+- `month_count` (入驻月数)
+- `original_amount` (应收总计)
+- `discount_amount` (优惠金额)
+
+导致后端查询订单详情时,这些字段的值都是null。
+
+**前端问题**:
+`OrderDetail.vue` 组件中没有显示完整的入驻信息,只显示了基本的订单信息。
+
+**数据问题**:
+数据库中存在旧的测试数据(订单ID 1和2),这些订单是在添加新字段之前创建的,包含老的测试明细如半护理服务费用。
+
+### 解决方案
+
+#### 1. 修复后端数据映射
+
+**文件**: `OrderInfoMapper.xml`
+
+**修改1**: 在 `resultMap` 中添加新字段映射(第24-26行):
+```xml
+<result property="monthCount"    column="month_count"    />
+<result property="originalAmount"    column="original_amount"    />
+<result property="discountAmount"    column="discount_amount"    />
+```
+
+**修改2**: 在 `selectOrderInfoVo` SQL片段中添加字段查询(第43行):
+```xml
+o.billing_cycle, o.month_count, o.original_amount, o.discount_amount,
+```
+
+#### 2. 优化前端订单详情显示
+
+**文件**: `ruoyi-ui/src/views/pension/order/orderInfo/components/OrderDetail.vue`
+
+**修改内容**: 重新设计订单详情显示,添加以下信息:
+- 床位信息: 房间号-床位号
+- 入驻月数: X个月
+- 服务起始日期和结束日期
+- 应收总计(优惠前金额) - 灰色显示
+- 优惠金额 - 红色显示,带负号
+- 实收金额(优惠后) - 橙色加粗
+- 费用说明(remark字段)
+
+#### 3. 清理测试数据
+
+执行SQL清理旧的测试订单:
+```sql
+DELETE FROM order_item WHERE order_id IN (1, 2);
+DELETE FROM order_info WHERE order_id IN (1, 2);
+```
+
+### 最终效果
+
+订单详情页面现在完整显示:
+- **基本信息**: 订单号、订单类型、老人姓名、机构名称
+- **床位信息**: 房间号-床位号
+- **入驻信息**: 入驻月数、服务起止日期
+- **费用明细**: 应收总计、优惠金额、实收金额、已付金额
+- **状态信息**: 订单状态、支付方式、创建时间、创建人
+- **费用说明**: 备注信息
+- **订单明细表**: 显示服务费、押金、会员费等所有项目
+- **支付记录表**: 显示所有支付流水
+
+### 数据流程验证
+
+1. 用户提交新增入驻表单
+2. 后端计算: 应收总计 = 服务费 + 押金 + 会员费
+3. 后端计算: 优惠金额 = 应收总计 - 实收金额
+4. 保存到 `order_info` 表的 `month_count`, `original_amount`, `discount_amount` 字段
+5. 前端查询订单详情时,后端正确返回所有字段
+6. 前端OrderDetail组件完整显示所有信息
+
+### 修改时间
+2025-11-11 18:45
+
+---
+
+
+
+## 2025-11-11 完善订单详情 - 添加服务日期和优化明细显示
+
+### 问题描述
+1. 订单详情中服务起始日期和服务结束日期没有值
+2. 订单明细项目名称需要更加清晰(月服务费、押金、会员费)
+
+### 问题原因
+1. **服务日期缺失**: 创建订单时没有设置`serviceStartDate`和`serviceEndDate`字段
+2. **旧测试数据**: 数据库中还有一些老的测试数据(如"月度餐饮服务费")
+
+### 解决方案
+
+#### 1. 后端自动计算服务日期
+
+**文件**: `PensionCheckinServiceImpl.java`
+
+**新增逻辑**(第157-167行):
+```java
+// 计算服务起始日期和结束日期
+Date checkInDate = dto.getCheckInDate();
+if (checkInDate == null) {
+    checkInDate = new Date();
+}
+
+// 计算服务结束日期 = 入驻日期 + 入驻月数
+Calendar calendar = Calendar.getInstance();
+calendar.setTime(checkInDate);
+calendar.add(Calendar.MONTH, monthCount);
+Date serviceEndDate = calendar.getTime();
+```
+
+**保存到订单**(第180-182行):
+```java
+orderInfo.setServiceStartDate(checkInDate);  // 服务起始日期
+orderInfo.setServiceEndDate(serviceEndDate);  // 服务结束日期
+orderInfo.setBillingCycle("月度");  // 计费周期
+```
+
+**添加import**(第4行):
+```java
+import java.util.Calendar;
+```
+
+#### 2. 清理旧测试数据
+
+执行SQL删除老的餐饮费测试数据:
+```sql
+DELETE FROM order_item WHERE item_id = 3;
+```
+
+### 订单明细项目说明
+
+根据代码,订单明细包含三个主要项目:
+
+1. **月服务费** (item_type: service_fee)
+   - 项目名称: "月服务费"
+   - 单价: 月服务费金额
+   - 数量: 入驻月数
+   - 小计: 月服务费 × 入驻月数
+   - 描述: "X个月服务费"
+
+2. **押金** (item_type: deposit)
+   - 项目名称: "押金"
+   - 单价: 押金金额
+   - 数量: 1
+   - 小计: 押金金额
+   - 描述: "入住押金"
+
+3. **会员费** (item_type: member_fee)
+   - 项目名称: "会员费"
+   - 单价: 会员费金额
+   - 数量: 1
+   - 小计: 会员费金额
+   - 描述: "会员卡充值"
+
+### 订单详情完整信息展示
+
+订单详情页面现在完整显示:
+
+**基本信息**:
+- 订单号、订单类型
+- 老人姓名、机构名称
+- 床位信息(房间号-床位号)
+
+**入驻周期**:
+- 入驻月数: X个月
+- 服务起始日期: 2025-11-11
+- 服务结束日期: 2026-10-11 (自动计算)
+
+**费用明细**:
+- 应收总计: ¥XX (优惠前,灰色)
+- 优惠金额: -¥XX (红色)
+- 实收金额: ¥XX (橙色加粗)
+- 已付金额: ¥XX (绿色加粗)
+
+**订单明细表**:
+| 项目名称 | 项目类型 | 单价 | 数量 | 小计 | 服务周期 | 描述 |
+|---------|---------|------|------|------|---------|------|
+| 月服务费 | 服务费 | ¥2000 | 11 | ¥22000 | 月度 | 11个月服务费 |
+| 押金 | 押金 | ¥50000 | 1 | ¥50000 | - | 入住押金 |
+| 会员费 | 会员费 | ¥5000 | 1 | ¥5000 | - | 会员卡充值 |
+
+**支付记录表**:
+显示所有支付流水记录
+
+### 计算逻辑
+
+1. **服务结束日期**: 入驻日期 + 入驻月数(使用Calendar.add)
+2. **应收总计**: 服务费小计 + 押金 + 会员费
+3. **优惠金额**: 应收总计 - 实收金额
+4. **服务费小计**: 月服务费 × 入驻月数
+
+### 修改时间
+2025-11-11 19:00
+
+---
+
+
+
+## 2025-11-11 修复支付状态数据不一致问题
+
+### 问题描述
+1. 已支付的订单,`paid_amount`字段显示为0
+2. 入住人列表中,已支付的入住人还显示"去支付"按钮
+
+### 问题原因
+数据库中存在历史数据不一致:
+- 订单表`order_info`: order_status='1'(已支付), 但paid_amount=0
+- 老人表`elder_info`: status='0'(待入住), 但对应订单已支付
+- 床位分配表`bed_allocation`: allocation_status='0'(待入住), 但对应订单已支付
+
+这些数据是在修复支付逻辑代码之前创建的测试数据。
+
+### 解决方案
+
+#### 1. 数据修复SQL
+
+**修复已支付订单的已付金额**:
+```sql
+UPDATE order_info 
+SET paid_amount = order_amount 
+WHERE order_status = '1' AND paid_amount = 0;
+```
+
+**同步老人状态**:
+```sql
+UPDATE elder_info ei 
+INNER JOIN order_info oi ON ei.elder_id = oi.elder_id 
+SET ei.status = '1' 
+WHERE oi.order_status = '1' AND ei.status = '0';
+```
+
+**同步床位分配状态**:
+```sql
+UPDATE bed_allocation ba 
+INNER JOIN order_info oi ON ba.elder_id = oi.elder_id 
+SET ba.allocation_status = '1' 
+WHERE oi.order_status = '1' AND ba.allocation_status = '0';
+```
+
+#### 2. 状态同步逻辑验证
+
+验证了`PensionCheckinServiceImpl.java`中的逻辑,确认三个状态是同步更新的:
+
+**elder_info.status**(第105行):
+```java
+elderInfo.setStatus("later".equals(dto.getPaymentMethod()) ? "0" : "1");
+```
+
+**bed_allocation.allocation_status**(第120行):
+```java
+allocation.setAllocationStatus("later".equals(dto.getPaymentMethod()) ? "0" : "1");
+```
+
+**order_info.order_status + paid_amount**(第186-192行):
+```java
+if ("later".equals(dto.getPaymentMethod())) {
+    orderInfo.setOrderStatus("0"); // 0-未支付
+} else {
+    orderInfo.setOrderStatus("1"); // 1-已支付
+    orderInfo.setPaidAmount(finalAmount);
+    orderInfo.setPaymentTime(DateUtils.getNowDate());
+}
+```
+
+### 状态对应关系
+
+| 支付方式 | elder_info.status | bed_allocation.allocation_status | order_info.order_status | order_info.paid_amount |
+|---------|------------------|--------------------------------|------------------------|----------------------|
+| 稍后支付(later) | 0(待入住) | 0(待入住) | 0(未支付) | 0.00 |
+| 现金/刷卡/扫码 | 1(已入住) | 1(在住) | 1(已支付) | 订单金额 |
+
+### 验证结果
+
+修复后的数据:
+- 订单3: order_amount=70000, paid_amount=70000, order_status='1', 老人状态='1'(已入住)
+- 订单4: order_amount=128000, paid_amount=0, order_status='0', 老人状态='0'(待入住)
+
+### 前端显示逻辑
+
+**入住人列表**(list.vue第185行):
+```vue
+<el-button
+  v-if="scope.row.checkInStatus === '0'"
+  @click="handlePayment(scope.row)"
+>去支付</el-button>
+```
+
+只有`checkInStatus='0'`(待入住)时才显示"去支付"按钮。
+
+### 修改时间
+2025-11-11 19:15
+
+---
+
+
+
+## 2025-11-11 修复"去支付"跳转逻辑
+
+### 问题描述
+在入住人列表中点击"去支付"按钮,跳转路径不正确,应该跳转到订单列表并筛选该老人的待支付订单。
+
+### 问题原因
+原来的跳转路径是`/pension/payment`,而正确的应该是`/pension/order/list`。
+
+### 解决方案
+
+#### 1. 修改跳转逻辑
+
+**文件**: `ruoyi-ui/src/views/pension/elder/list.vue`
+
+**修改内容**(第610-619行):
+```javascript
+/** 去支付按钮操作 */
+handlePayment(row) {
+  // 跳转到订单列表,并筛选该老人的待支付订单
+  this.$router.push({
+    path: '/pension/order/list',
+    query: {
+      elderName: row.elderName,
+      orderStatus: '0'  // 0=待支付
+    }
+  });
+},
+```
+
+#### 2. 订单状态筛选使用数据字典
+
+**文件**: `ruoyi-ui/src/views/pension/order/orderInfo/index.vue`
+
+**修改1**: 订单状态下拉框改用数据字典(第28-37行):
+```vue
+<el-form-item label="订单状态" prop="orderStatus">
+  <el-select v-model="queryParams.orderStatus" placeholder="请选择订单状态" clearable>
+    <el-option
+      v-for="dict in dict.type.order_status"
+      :key="dict.value"
+      :label="dict.label"
+      :value="dict.value"
+    ></el-option>
+  </el-select>
+</el-form-item>
+```
+
+**原来的写法**:
+```vue
+<el-option label="待支付" value="待支付"></el-option>
+<el-option label="已支付" value="已支付"></el-option>
+```
+这种硬编码的方式与数据库中的值('0', '1')不匹配。
+
+#### 3. 支持URL参数筛选
+
+**文件**: `ruoyi-ui/src/views/pension/order/orderInfo/index.vue`
+
+**修改2**: 在created钩子中读取URL参数(第377-386行):
+```javascript
+created() {
+  // 从URL参数中获取筛选条件
+  if (this.$route.query.elderName) {
+    this.queryParams.elderName = this.$route.query.elderName;
+  }
+  if (this.$route.query.orderStatus) {
+    this.queryParams.orderStatus = this.$route.query.orderStatus;
+  }
+  this.getList();
+},
+```
+
+### 数据字典配置
+
+| 字典标签 | 字典值 | 说明 |
+|---------|-------|------|
+| 待支付 | 0 | order_status |
+| 已支付 | 1 | order_status |
+| 已取消 | 2 | order_status |
+| 已退款 | 3 | order_status |
+
+### 跳转流程
+
+1. 用户在入住人列表点击"去支付"按钮
+2. 获取老人姓名和订单状态('0'=待支付)
+3. 跳转到订单列表页面: `/pension/order/list?elderName=张三&orderStatus=0`
+4. 订单列表页面在created钩子中读取URL参数
+5. 自动填充搜索表单并执行查询
+6. 显示该老人的待支付订单列表
+
+### 测试建议
+
+1. 在入住人列表中找一个"待入住"状态的入住人
+2. 点击"去支付"按钮
+3. 验证跳转到订单列表页面
+4. 验证搜索表单自动填充了老人姓名和订单状态
+5. 验证订单列表只显示该老人的待支付订单
+
+### 修改时间
+2025-11-11 19:30
+
+---
+
+
+
+## 2025-11-11 添加入住人维护和续费功能
+
+### 问题描述
+1. 入住人列表中点击"维护"按钮跳转到404页面
+2. 点击"续费"需要能选择续费类型(服务费、押��、会员费)并生成订单
+
+### 解决方案
+
+#### 1. 修复维护按钮跳转
+
+**文件**: `ruoyi-ui/src/views/pension/elder/list.vue`
+
+**修改**: handleUpdate方法(第577-584行)
+```javascript
+handleUpdate(row) {
+  const elderId = row.elderId;
+  this.$router.push({
+    path: '/pension/elder/update',
+    query: { elderId: elderId }
+  });
+}
+```
+
+从`/elder/resident/edit`改为`/pension/elder/update`,并使用elderId而不是residentId。
+
+#### 2. 优化续费类型选项
+
+**文件**: `ruoyi-ui/src/views/pension/elder/list.vue`
+
+**修改1**: 续费类型下拉框(第302-308行)
+```vue
+<el-select v-model="renewForm.renewType" placeholder="请选择续费类型">
+  <el-option label="服务费" value="service_fee"></el-option>
+  <el-option label="押金" value="deposit"></el-option>
+  <el-option label="会员费" value="member_fee"></el-option>
+</el-select>
+```
+
+将续费类型改为与order_item表的item_type字段对应的值。
+
+**修改2**: handleRenew方法(第585-596行)
+```javascript
+handleRenew(row) {
+  this.renewForm = {
+    elderId: row.elderId,
+    elderName: row.elderName,
+    renewType: 'service_fee',
+    amount: null,
+    paymentMethod: 'cash',
+    remark: null
+  };
+  this.renewOpen = true;
+}
+```
+
+使用elderId替代residentId,默认续费类型为service_fee。
+
+#### 3. 创建续费DTO
+
+**新建文件**: `ruoyi-admin/src/main/java/com/ruoyi/domain/RenewDTO.java`
+
+包含字段:
+- `elderId`: 老人ID
+- `elderName`: 老人姓名
+- `renewType`: 续费类型(service_fee/deposit/member_fee)
+- `amount`: 续费金额
+- `paymentMethod`: 支付方式(cash/card/scan)
+- `remark`: 备注
+
+#### 4. 添加续费后端接口
+
+**文件**: `PensionResidentController.java`
+
+**新增接口**(第46-56行):
+```java
+@PreAuthorize("@ss.hasPermi('elder:resident:renew')")
+@Log(title = "入住人续费", businessType = BusinessType.INSERT)
+@PostMapping("/renew")
+public AjaxResult renew(@RequestBody RenewDTO renewDTO)
+{
+    Long userId = SecurityUtils.getUserId();
+    return toAjax(residentService.renewResident(renewDTO, userId));
+}
+```
+
+**文件**: `IResidentService.java`
+
+**新增方法**:
+```java
+public int renewResident(RenewDTO renewDTO, Long userId);
+```
+
+**文件**: `ResidentServiceImpl.java`
+
+**实现续费逻辑**(第62-135行):
+1. 查询老人信息
+2. 从已有订单中获取机构ID
+3. 生成订单编号
+4. 创建订单(订单类型='2'-续费,状态='1'-已支付)
+5. 创建订单明细,根据续费类型设置项目名称:
+   - service_fee → "服务费续费"
+   - deposit → "押金补缴"
+   - member_fee → "会员费续费"
+
+#### 5. 添加前端API接口
+
+**文件**: `ruoyi-ui/src/api/elder/resident.js`
+
+**新增接口**(第12-19行):
+```javascript
+export function renewResident(data) {
+  return request({
+    url: '/pension/resident/renew',
+    method: 'post',
+    data: data
+  })
+}
+```
+
+### 续费流程
+
+1. 用户在入住人列表点击"续费"按钮
+2. 弹出续费对话框
+3. 选择续费类型(服务费/押金/会员费)
+4. 输入续费金额
+5. 选择支付方式(现金/刷卡/扫码)
+6. 提交后生成一条新订单:
+   - 订单类型: 2(续费)
+   - 订单状态: 1(已支付)
+   - 订单金额: 续费金额
+   - 已付金额: 续费金额
+7. 生成一条订单明细:
+   - 项目类型: service_fee/deposit/member_fee
+   - 项目名称: 服务费续费/押金补缴/会员费续费
+   - 金额: 续费金额
+8. 续费成功后刷新入住人列表
+
+### 待完成
+- [ ] 创建维护页面(`/pension/elder/update`)
+- [ ] 维护页面需要能编辑老人的基本信息
+
+### 修改时间
+2025-11-11 19:45
+
+---
+
+
+
+## 2025-11-11 修复resident.js重复定义错误
+
+### 问题描述
+前端编译失败,提示\函数重复定义。
+
+### 问题原因
+\文件中\函数被定义了两次:
+- 第13-19行: 真实的API调用
+- 第73-89行: 模拟数据的Promise
+
+### 解决方案
+
+**文件**: 
+**修改内容**: 删除模拟数据版本,将所有mock函数改为真实API调用
+
+**删除的mock函数**:
+- \ (第73-89行的模拟版本)
+- \ (模拟版本)
+- \ (模拟版本)
+
+**改为真实API调用**:
+\
+### API接口路径
+
+| 功能 | 方法 | 路径 |
+|-----|------|-----|
+| 查询列表 | GET | /pension/resident/list |
+| 入住人续费 | POST | /pension/resident/renew |
+| 入住人退费 | POST | /pension/resident/refund |
+| 押金使用申请 | POST | /pension/resident/depositUse |
+| 删除入住人 | DELETE | /pension/resident/delete/{id} |
+
+### 修改时间
+2025-11-11 20:00
+
+---
+
+
+## 2025-11-11 修复resident.js重复定义错误
+
+### 问题描述
+前端编译失败,提示renewResident函数重复定义。
+
+### 问题原因
+resident.js文件中renewResident函数被定义了两次:
+- 第13-19行: 真实的API调用
+- 第73-89行: 模拟数据的Promise
+
+### 解决方案
+
+删除模拟数据版本,将所有mock函数改为真实API调用。
+
+### API接口路径
+
+| 功能 | 方法 | 路径 |
+|-----|------|-----|
+| 查询列表 | GET | /pension/resident/list |
+| 入住人续费 | POST | /pension/resident/renew |
+| 入住人退费 | POST | /pension/resident/refund |
+| 押金使用申请 | POST | /pension/resident/depositUse |
+| 删除入住人 | DELETE | /pension/resident/delete/{id} |
+
+### 修改时间
+2025-11-11 20:00
+
+---
+
+
+## 2025-11-11 修复订单记录显示不正确的问题
+
+### 问题描述
+用户反馈:在"养老机构/入住管理/入住人列表"详情页面中,张三01的订单记录显示内容不正确。虽然记录数量统计正确(2条),但订单类型等信息显示错误。
+
+### 问题原因
+**后端配置错误**: `OrderInfo.java` 中的订单类型映射配置与实际业务不符:
+
+**错误配置**:
+```java
+@Excel(name = "订单类型", readConverterExp = "1=床位费,2=护理费,3=餐饮费,4=医疗费,5=其他费用")
+```
+
+**实际业务**: 数据库中order_type字段的值为:
+- '1' = 入驻订单
+- '2' = 续费订单
+
+导致前端接收到的订单类型数据转换错误,显示为"床位费""护理费"而非"入驻""续费"。
+
+### 数据库实际数据
+查询张三01(elder_id=7)的订单记录:
+```
+order_id=5: 续费订单(order_type=2), 金额¥1,000
+order_id=3: 入驻订单(order_type=1), 金额¥70,000
+```
+
+### 解决方案
+修正 `OrderInfo.java` 第28-30行的订单类型配置,使其与实际业务匹配。
+
+**修改文件**: `ruoyi-admin/src/main/java/com/ruoyi/domain/OrderInfo.java`
+
+**修改前**:
+```java
+/** 订单类型(1床位费 2护理费 3餐饮费 4医疗费 5其他费用) */
+@Excel(name = "订单类型", readConverterExp = "1=床位费,2=护理费,3=餐饮费,4=医疗费,5=其他费用")
+private String orderType;
+```
+
+**修改后**:
+```java
+/** 订单类型(1入驻 2续费) */
+@Excel(name = "订单类型", readConverterExp = "1=入驻,2=续费")
+private String orderType;
+```
+
+### 影响范围
+此修改影响所有使用OrderInfo实体类的地方:
+- 入住人详情页的订单记录显示
+- 订单管理模块的订单列表
+- Excel导出订单数据时的类型转换
+
+### 验证方法
+1. 重启后端服务
+2. 打开"养老机构/入住管理/入住人列表"
+3. 点击张三01的详情按钮
+4. 查看订单记录表格,订单类型应正确显示为"入驻"和"续费"
+
+### 附加说明
+- **支付记录为空**: 张三01的支付记录表为空(payment_count=0),这是正常的,因为数据库中确实没有payment_record记录
+- **订单状态**: 两条订单状态都是'1'(已支付),支付方式都是'cash'(现金)
+
+### 修改时间
+2025-11-11 19:15
+
+---
+
+
+
+## 2025-11-11 修复入住人详情页订单和支付记录显示为空的问题
+
+### 问题描述
+用户反馈:在"养老机构/入住管理/入住人列表"中,点击详情按钮后,订单记录和支付记录表格显示"暂无数据",但数据库中确实有订单数据。
+
+### 问题原因
+**前端参数错误**: `list.vue` 中的 `handleDetail` 方法使用了错误的参数名。
+
+**错误代码**(第828行):
+```javascript
+handleDetail(row) {
+  const residentId = row.residentId;  // ❌ 错误:使用了residentId
+  getResident(residentId).then(response => {
+    this.residentDetail = response.data;
+    this.detailOpen = true;
+  });
+}
+```
+
+**问题分析**:
+- 后端API接口: `GET /pension/resident/detail/{elderId}` 需要的参数是 `elderId`
+- 列表数据中的字段: `row.elderId` 存在,`row.residentId` 也存在(但两者都映射到同一个数据库字段 `elder_id`)
+- 由于参数名不一致,可能导致API调用失败或返回错误数据
+
+### 解决方案
+修正 `handleDetail` 方法,使用 `row.elderId` 作为参数,与后端API接口保持一致。
+
+**修改文件**: `ruoyi-ui/src/views/pension/elder/list.vue`
+
+**修改位置**: 第827-836行
+
+**修改后**:
+```javascript
+handleDetail(row) {
+  const elderId = row.elderId;  // ✅ 正确:使用elderId
+  getResident(elderId).then(response => {
+    this.residentDetail = response.data;
+    console.log('入住人详情数据:', response.data);
+    console.log('订单列表:', response.data.orders);
+    console.log('支付记录:', response.data.payments);
+    this.detailOpen = true;
+  });
+}
+```
+
+### 调试信息
+添加了三行console.log用于调试:
+1. 打印完整的详情数据
+2. 打印订单列表
+3. 打印支付记录列表
+
+方便在浏览器控制台中查看API返回的数据结构。
+
+### 验证方法
+1. 刷新前端页面
+2. 打开"养老机构/入住管理/入住人列表"
+3. 点击张三01的详情按钮
+4. 打开浏览器开发者工具的Console标签
+5. 查看打印的数据,确认orders数组包含2条订单记录
+6. 订单记录表格应正确显示2条数据
+
+### 相关修改
+此问题与之前修改的 [OrderInfo.java 订单类型映射](#2025-11-11-修复订单记录显示不正确的问题) 一起解决,现在订单记录应该能够:
+1. **正确加载** - 参数正确传递给后端API
+2. **正确显示** - 订单类型正确显示为"入驻"和"续费"
+
+### 修改时间
+2025-11-11 19:30
+
+---
+
+
+
+## 2025-11-11 修复详情页面渲染错误"Cannot read properties of null"
+
+### 问题描述
+用户刷新页面后点击详情按钮,浏览器控制台出现错误:
+```
+[Vue warn]: Error in render: "TypeError: Cannot read properties of null (reading 'orderType')"
+```
+
+### 问题原因
+1. **初始化问题**: `residentDetail` 初始化为空对象 `{}`,当API还未返回数据时,`residentDetail.orders` 和 `residentDetail.payments` 为 `undefined`
+2. **模板安全性**: el-table绑定数据源时,如果数据源是undefined,渲染时访问`scope.row.orderType`会报错
+3. **缺少null检查**: 模板中直接访问`scope.row.orderType`等属性,没有做null或undefined检查
+
+### 解决方案
+
+#### 1. 修复residentDetail初始化
+**文件**: `ruoyi-ui/src/views/pension/elder/list.vue` 第668-671行
+
+**修改前**:
+```javascript
+residentDetail: {},
+```
+
+**修改后**:
+```javascript
+residentDetail: {
+  orders: [],
+  payments: []
+},
+```
+
+#### 2. 增强el-table数据绑定安全性
+**订单记录表格**(第318行):
+```vue
+<!-- 修改前 -->
+<el-table :data="residentDetail.orders">
+
+<!-- 修改后 -->
+<el-table :data="residentDetail.orders || []">
+```
+
+**支付记录表格**(第370行):
+```vue
+<!-- 修改前 -->
+<el-table :data="residentDetail.payments">
+
+<!-- 修改后 -->
+<el-table :data="residentDetail.payments || []">
+```
+
+#### 3. 添加scope.row的null检查
+在所有template中访问`scope.row`属性时添加null检查:
+
+**订单类型**(第322-324行):
+```vue
+<!-- 修改前 -->
+<el-tag v-if="scope.row.orderType === '1'" type="success">入驻</el-tag>
+
+<!-- 修改后 -->
+<el-tag v-if="scope.row && scope.row.orderType === '1'" type="success">入驻</el-tag>
+```
+
+**订单状态**(第339-343行):
+```vue
+<!-- 修改前 -->
+<el-tag v-if="scope.row.orderStatus === '0'" type="warning">未支付</el-tag>
+<el-tag v-else type="danger">已退款</el-tag>
+
+<!-- 修改后 -->
+<el-tag v-if="scope.row && scope.row.orderStatus === '0'" type="warning">未支付</el-tag>
+<el-tag v-else-if="scope.row && scope.row.orderStatus === '3'" type="danger">已退款</el-tag>
+<el-tag v-else type="info">-</el-tag>
+```
+
+**支付方式**(第348-352行和第379-382行):
+```vue
+<!-- 修改前 -->
+<span v-if="scope.row.paymentMethod === 'cash'">现金</span>
+<span v-else>{{ scope.row.paymentMethod || '-' }}</span>
+
+<!-- 修改后 -->
+<span v-if="scope.row && scope.row.paymentMethod === 'cash'">现金</span>
+<span v-else>{{ (scope.row && scope.row.paymentMethod) || '-' }}</span>
+```
+
+**支付状态**(第387-391行):
+```vue
+<!-- 修改前 -->
+<el-tag v-if="scope.row.paymentStatus === '0'" type="warning">待支付</el-tag>
+
+<!-- 修改后 -->
+<el-tag v-if="scope.row && scope.row.paymentStatus === '0'" type="warning">待支付</el-tag>
+<el-tag v-else type="info">-</el-tag>
+```
+
+### 修改的位置
+`ruoyi-ui/src/views/pension/elder/list.vue`:
+- 第668-671行: residentDetail初始化
+- 第318行: 订单表格数据绑定
+- 第322-324行: 订单类型判断
+- 第339-343行: 订单状态判断
+- 第348-352行: 订单支付方式判断
+- 第370行: 支付记录表格数据绑定
+- 第379-382行: 支付方式判断
+- 第387-391行: 支付状态判断
+
+### 验证方法
+1. 刷新浏览器页面(Ctrl+F5)
+2. 打开"养老机构/入住管理/入住人列表"
+3. 点击张三01的详情按钮
+4. 控制台不应出现任何错误
+5. 订单记录和支付记录应正确显示
+
+### 预期结果
+- ✅ 页面不再报错
+- ✅ 订单记录正确显示2条数据(入驻订单¥70,000 + 续费订单¥1,000)
+- ✅ 订单类型正确显示为"入驻"和"续费"
+- ✅ 支付记录显示0条("暂无数据")
+
+### 修改时间
+2025-11-11 19:45
+
+---
+
+
+
+## 2025-11-11 修复订单和支付记录字段映射错误
+
+### 问题描述
+用户反馈:点击详情后订单记录显示完全错乱:
+- 订单号不显示
+- 订单类型显示"其他"(应该显示"入驻"或"续费")
+- 订单金额显示0(实际有¥70,000和¥1,000)
+- 已付金额显示0
+
+### 问题原因
+**MyBatis字段映射失败**: [ResidentMapper.xml:147-172](ResidentMapper.xml#L147-L172) 中,SQL查询使用数据库下划线命名(如`order_id`, `order_no`),但`resultType`直接指定为`com.ruoyi.domain.OrderInfo`。
+
+MyBatis默认不会自动转换下划线命名到Java驼峰命名,导致:
+```
+数据库字段: order_id, order_no, order_type, order_amount, paid_amount
+Java字段:    orderId,  orderNo,  orderType,  orderAmount,  paidAmount
+结果:        无法映射,所有字段为null或默认值
+```
+
+### 解决方案
+在SQL查询中为每个字段添加AS别名,将下划线命名转换为驼峰命名。
+
+#### 1. 修复订单查询SQL
+**文件**: `ruoyi-admin/src/main/resources/mapper/ResidentMapper.xml` 第146-172行
+
+**修改前**(只展示部分):
+```sql
+SELECT
+    order_id, order_no, order_type, elder_id, institution_id,
+    order_amount, original_amount, discount_amount, paid_amount,
+    order_status, payment_method, payment_time, order_date,
+    ...
+FROM order_info
+WHERE elder_id = #{elderId}
+```
+
+**修改后**:
+```sql
+SELECT
+    order_id as orderId,
+    order_no as orderNo,
+    order_type as orderType,
+    elder_id as elderId,
+    institution_id as institutionId,
+    order_amount as orderAmount,
+    original_amount as originalAmount,
+    discount_amount as discountAmount,
+    paid_amount as paidAmount,
+    order_status as orderStatus,
+    payment_method as paymentMethod,
+    payment_time as paymentTime,
+    order_date as orderDate,
+    service_start_date as serviceStartDate,
+    service_end_date as serviceEndDate,
+    billing_cycle as billingCycle,
+    month_count as monthCount,
+    remark,
+    create_time as createTime,
+    create_by as createBy
+FROM order_info
+WHERE elder_id = #{elderId}
+ORDER BY create_time DESC
+```
+
+#### 2. 修复支付记录查询SQL
+**文件**: `ruoyi-admin/src/main/resources/mapper/ResidentMapper.xml` 第174-194行
+
+**修改前**:
+```sql
+SELECT
+    payment_id, payment_no, order_id, elder_id, institution_id,
+    payment_amount, payment_method, payment_status, payment_time,
+    transaction_id, operator, remark, create_time, create_by
+FROM payment_record
+WHERE elder_id = #{elderId}
+```
+
+**修改后**:
+```sql
+SELECT
+    payment_id as paymentId,
+    payment_no as paymentNo,
+    order_id as orderId,
+    elder_id as elderId,
+    institution_id as institutionId,
+    payment_amount as paymentAmount,
+    payment_method as paymentMethod,
+    payment_status as paymentStatus,
+    payment_time as paymentTime,
+    transaction_id as transactionId,
+    operator,
+    remark,
+    create_time as createTime,
+    create_by as createBy
+FROM payment_record
+WHERE elder_id = #{elderId}
+ORDER BY payment_time DESC
+```
+
+### 字段映射对照表
+
+| 数据库字段 | Java字段 | 说明 |
+|-----------|---------|------|
+| order_id | orderId | 订单ID |
+| order_no | orderNo | 订单号 |
+| order_type | orderType | 订单类型(1=入驻,2=续费) |
+| order_amount | orderAmount | 订单金额(实收) |
+| original_amount | originalAmount | 应收总计(优惠前) |
+| discount_amount | discountAmount | 优惠金额 |
+| paid_amount | paidAmount | 已付金额 |
+| order_status | orderStatus | 订单状态(0=未支付,1=已支付) |
+| payment_method | paymentMethod | 支付方式(cash/card/scan) |
+| payment_time | paymentTime | 支付时间 |
+| order_date | orderDate | 订单日期 |
+| create_time | createTime | 创建时间 |
+| create_by | createBy | 创建人 |
+
+### 验证方法
+1. **重启后端服务**(非常重要!)
+2. 刷新前端页面(Ctrl+F5)
+3. 打开"养老机构/入住管理/入住人列表"
+4. 点击张三01的详情按钮
+5. 查看订单记录表格
+
+### 预期结果
+**订单记录应正确显示**:
+| 订单号 | 订单类型 | 订单金额 | 已付金额 | 订单状态 | 支付方式 | 订单日期 |
+|--------|---------|---------|---------|---------|---------|---------|
+| ORD1762858220247 | 续费 | ¥1,000.00 | ¥1,000.00 | 已支付 | 现金 | 2025-11-11 |
+| ORD1762849987063 | 入驻 | ¥70,000.00 | ¥70,000.00 | 已支付 | 现金 | 2025-11-11 |
+
+**支付记录**: 显示"暂无数据"(数据库中确实没有支付记录)
+
+### 技术说明
+**为什么会出现这个问题?**
+
+MyBatis有两种字段映射方式:
+1. **自动映射**(resultType): 要求Java字段名和SQL列名完全匹配
+2. **手动映射**(resultMap): 显式定义每个字段的映射关系
+
+我们使用的是`resultType`,但SQL返回的是下划线命名,Java使用驼峰命名,导致无法匹配。
+
+**解决方案对比**:
+- ✅ 方案1(已采用): SQL中使用AS别名转换
+  - 优点: 简单直接,不需要额外配置
+  - 缺点: SQL语句稍长
+- ❌ 方案2: 配置MyBatis的mapUnderscoreToCamelCase=true
+  - 优点: 全局生效,所有查询自动转换
+  - 缺点: 可能影响其他已有功能
+- ❌ 方案3: 定义resultMap
+  - 优点: 最灵活
+  - 缺点: 需要为每个实体定义resultMap,维护成本高
+
+### 修改时间
+2025-11-11 20:00
+
+---
+
+
+
+## 2025-11-11 移除入住人详情中的支付记录显示区域
+
+### 需求背景
+用户发现支付记录功能暂时不需要展示,因为:
+1. 数据库中payment_record表数据较少(只有1条测试数据)
+2. 大部分入住人没有支付记录数据
+3. 支付记录显示区域一直显示"暂无数据",影响用户体验
+
+### 修改内容
+
+#### 1. 移除前端支付记录显示区域
+**文件**: `ruoyi-ui/src/views/pension/elder/list.vue` 第364-402行
+
+**移除内容**:
+```vue
+<!-- 支付记录 -->
+<div style="margin-top: 20px;">
+  <h4 style="margin-bottom: 10px; color: #303133;">
+    <i class="el-icon-s-finance"></i> 支付记录
+    <span style="font-size: 12px; color: #909399; font-weight: normal;">(共{{ (residentDetail.payments || []).length }}条)</span>
+  </h4>
+  <el-table :data="residentDetail.payments || []" border style="width: 100%" max-height="300">
+    <!-- 支付记录表格列定义 -->
+  </el-table>
+</div>
+```
+
+#### 2. 优化后端查询逻辑
+**文件**: `ruoyi-admin/src/main/java/com/ruoyi/service/impl/ResidentServiceImpl.java` 第61-70行
+
+**修改前**:
+```java
+@Override
+public ResidentVO selectResidentDetail(Long elderId)
+{
+    ResidentVO residentVO = residentMapper.selectResidentDetail(elderId);
+    if (residentVO != null) {
+        // 查询订单列表
+        residentVO.setOrders(residentMapper.selectOrdersByElderId(elderId));
+        // 查询支付记录列表
+        residentVO.setPayments(residentMapper.selectPaymentsByElderId(elderId));
+    }
+    return residentVO;
+}
+```
+
+**修改后**:
+```java
+@Override
+public ResidentVO selectResidentDetail(Long elderId)
+{
+    ResidentVO residentVO = residentMapper.selectResidentDetail(elderId);
+    if (residentVO != null) {
+        // 查询订单列表
+        residentVO.setOrders(residentMapper.selectOrdersByElderId(elderId));
+        // 注释: 移除支付记录查询,前端不再显示
+    }
+    return residentVO;
+}
+```
+
+### 优化效果
+
+1. **前端界面更简洁**: 移除了一直显示"暂无数据"的支付记录区域
+2. **后端性能优化**: 减少一次数据库查询(`selectPaymentsByElderId`)
+3. **保留扩展性**: 
+   - ResidentVO中的`payments`字段保留,方便后续恢复功能
+   - ResidentMapper中的`selectPaymentsByElderId`方法保留
+   - ResidentMapper.xml中的SQL查询保留
+
+### 详情页面现在包含的内容
+
+**入住人详情对话框**包含以下信息:
+1. **基本信息**: 姓名、性别、年龄、身份证号、出生日期、电话、护理等级、健康状况、家庭住址、特殊需求
+2. **床位信息**: 床位号、入住日期、月服务费
+3. **紧急联系人**: 联系人姓名、联系电话
+4. **账户余额**: 服务费余额、押金余额、会员费余额(带颜色预警)
+5. **备注信息**: 如果有备注则显示
+6. **订单记录**: 完整的订单历史表格(订单号、类型、金额、状态、支付方式、日期、备注)
+7. **系统信息**: 创建时间、更新时间
+
+### 后续扩展
+如果将来需要恢复支付记录显示,只需:
+1. 在`ResidentServiceImpl.java`第67行后添加: `residentVO.setPayments(residentMapper.selectPaymentsByElderId(elderId));`
+2. 在`list.vue`的订单记录区域后添加支付记录的el-table代码
+
+### 修改时间
+2025-11-11 20:15
+
+---
+
+
+
+## 2025-11-11 修复订单和入住人管理的多个问题
+
+### 问题1: 订单列表支付按钮显示逻辑错误
+
+**问题**: 已支付的订单显示"支付"按钮,未支付的订单反而没有按钮
+
+**原因**: `index.vue` 第210行和218行的判断条件错误:
+```javascript
+v-if="scope.row.orderStatus === '1'"  // 错误:1表示已支付
+```
+
+**修复**: 改为判断未支付状态
+```javascript
+v-if="scope.row.orderStatus === '0'"  // 正确:0表示未支付
+```
+
+**文件**: `ruoyi-ui/src/views/pension/order/orderInfo/index.vue` 第210行和218行
+
+---
+
+### 问题2: 订单支付时间
+
+**现状**: 代码中已经实现支付时间记录
+- `PensionCheckinServiceImpl.java` 第191行: `orderInfo.setPaymentTime(DateUtils.getNowDate());`
+- 新创建的订单有支付时间
+- 旧订单(创建代码前)没有支付时间
+
+**修复**: 更新旧订单的支付时间
+```sql
+UPDATE order_info 
+SET payment_time = create_time 
+WHERE order_status = '1' AND payment_time IS NULL;
+```
+
+---
+
+### 问题3: 添加到期日期字段和功能
+
+**数据库修改**:
+```sql
+-- 添加到期日期字段
+ALTER TABLE bed_allocation 
+ADD COLUMN due_date DATE NULL COMMENT '到期日期' 
+AFTER check_in_date;
+
+-- 更新现有数据的到期日期(取最新订单的服务结束日期)
+UPDATE bed_allocation ba 
+SET ba.due_date = (
+  SELECT MAX(o.service_end_date) 
+  FROM order_info o 
+  WHERE o.elder_id = ba.elder_id 
+  AND o.order_status = '1'
+) 
+WHERE ba.allocation_status IN ('0', '1');
+```
+
+**后续待完成**:
+1. 更新ResidentVO添加dueDate字段
+2. 更新ResidentMapper.xml添加due_date查询
+3. 更新前端list.vue显示到期日期列
+4. 更新详情对话框显示到期日期
+5. 实现续费时自动更新到期日期
+
+---
+
+### 修改时间
+2025-11-11 20:30
+
+---
+
+
+## 2025-11-11 完善到期日期功能和续费逻辑
+
+### 问题描述
+用户反馈三个问题:
+1. 订单列表中已支付的订单显示支付按钮,未支付的订单反而没有支付按钮
+2. 订单只有创建时间,没有支付时间  
+3. 入住人列表和详情中缺少到期日期显示,续费时需要自动更新到期日期
+
+### 修改文件
+
+#### 后端文件
+1. BedAllocation.java - 添加dueDate字段和getter/setter
+2. RenewDTO.java - 添加monthCount字段和getter/setter
+3. BedAllocationMapper.java - 添加selectBedAllocationByElderId和updateBedAllocation方法
+4. BedAllocationMapper.xml - 实现SQL(resultMap添加due_date,新增查询和更新语句)
+5. ResidentMapper.xml - selectResidentList和selectResidentDetail添加ba.due_date
+6. ResidentServiceImpl.java - renewResident方法添加到期日期计算和更新逻辑
+
+#### 前端文件
+1. ruoyi-ui/src/views/pension/order/orderInfo/index.vue - 修复支付按钮显示条件(改为orderStatus==='0')
+2. ruoyi-ui/src/views/pension/elder/list.vue - 添加到期日期列、详情显示、续费月数字段
+
+#### 数据库
+1. ALTER TABLE bed_allocation ADD COLUMN due_date DATE NULL
+2. UPDATE order_info SET payment_time = create_time WHERE order_status = '1' AND payment_time IS NULL
+3. UPDATE bed_allocation 根据order_info的service_end_date初始化due_date
+
+### 核心逻辑
+
+**续费时自动更新到期日期** (ResidentServiceImpl.java):
+- 查询当前床位分配记录
+- 服务起始日期 = 当前到期日期(如无则为今天)
+- 服务结束日期 = 服务起始日期 + 续费月数
+- 更新bed_allocation.due_date = 服务结束日期
+- 订单记录service_start_date、service_end_date、month_count
+
+**订单明细优化**:
+- 服务费续费: 单价=总金额/月数, 数量=月数, 项目名="月服务费", 描述="X个月服务费"
+- 押金/会员费: 单价=总金额, 数量=1
+
+### 修改时间
+2025-11-11 20:00
+
+---
+
+## 2025-11-11 修复入住人列表"去支付"按钮显示逻辑
+
+### 问题描述
+用户反馈:在订单列表中订单已经支付了,但是在入住人列表中还是显示"去支付"按钮。
+
+### 问题原因
+"去支付"按钮的显示逻辑是根据入住状态(`checkInStatus === '0'`)判断的,而不是根据是否有未支付订单判断。这导致即使订单已支付,只要入住状态是"待入住",就会一直显示"去支付"按钮。
+
+### 解决方案
+修改"去支付"按钮的显示逻辑,根据该入住人是否有未支付订单来判断是否显示按钮。
+
+### 修改文件
+
+#### 后端文件
+
+**ResidentVO.java** - 添加hasUnpaidOrder字段
+```java
+/** 是否有未支付订单 */
+private Boolean hasUnpaidOrder;
+
+public Boolean getHasUnpaidOrder() {
+    return hasUnpaidOrder;
+}
+
+public void setHasUnpaidOrder(Boolean hasUnpaidOrder) {
+    this.hasUnpaidOrder = hasUnpaidOrder;
+}
+```
+
+**ResidentMapper.xml** - 添加hasUnpaidOrder查询
+
+在resultMap中添加映射(第33行):
+```xml
+<result property="hasUnpaidOrder"   column="has_unpaid_order"   />
+```
+
+在selectResidentList的SELECT语句中添加字段(第76-80行):
+```xml
+CASE WHEN EXISTS (
+    SELECT 1 FROM order_info o
+    WHERE o.elder_id = ei.elder_id
+    AND o.order_status = '0'
+) THEN 1 ELSE 0 END as has_unpaid_order
+```
+
+#### 前端文件
+
+**list.vue** - 修改"去支付"按钮显示条件(第190行)
+
+**修改前**:
+```vue
+v-if="scope.row.checkInStatus === '0'"
+```
+
+**修改后**:
+```vue
+v-if="scope.row.hasUnpaidOrder"
+```
+
+### 逻辑说明
+
+**hasUnpaidOrder查询逻辑**:
+- 使用 `EXISTS` 子查询检查该入住人是否有未支付订单
+- `order_status = '0'` 表示未支付
+- 如果存在未支付订单,返回 1(true),否则返回 0(false)
+
+**前端按钮显示**:
+- `hasUnpaidOrder = true`: 显示"去支付"按钮
+- `hasUnpaidOrder = false`: 不显示"去支付"按钮
+
+### 效果
+- 订单支付后,入住人列表中的"去支付"按钮自动消失
+- 只有真正有未支付订单的入住人才显示"去支付"按钮
+- 修复了订单已支付但按钮仍显示的问题
+
+### 修改时间
+2025-11-11 20:30
+
+---
+
+## 2025-11-11 修复到期日期显示为空的问题
+
+### 问题描述
+用户反馈:入住人列表和详情中到期日期显示为空。
+
+### 问题分析
+
+经过排查发现两个问题:
+
+1. **历史数据缺失**: 之前创建的入住订单没有设置 `service_end_date`,导致无法计算到期日期
+2. **bed_allocation表的due_date未初始化**: 即使订单有service_end_date,bed_allocation表中的due_date也是NULL
+
+### 问题原因
+
+- 早期创建入住订单时,PensionCheckinServiceImpl没有设置service_start_date和service_end_date
+- bed_allocation表的due_date字段是后来添加的,历史数据没有初始化
+
+### 解决方案
+
+#### 1. 批量初始化历史数据的到期日期
+
+执行SQL更新所有有已支付订单的入住人的到期日期:
+
+```sql
+-- 根据订单的service_end_date批量更新到期日期
+UPDATE bed_allocation ba 
+SET ba.due_date = (
+  SELECT MAX(o.service_end_date) 
+  FROM order_info o 
+  WHERE o.elder_id = ba.elder_id 
+  AND o.order_status = '1'
+  AND o.service_end_date IS NOT NULL
+) 
+WHERE EXISTS (
+  SELECT 1 FROM order_info o 
+  WHERE o.elder_id = ba.elder_id 
+  AND o.order_status = '1'
+  AND o.service_end_date IS NOT NULL
+);
+```
+
+#### 2. 更新结果
+
+执行后成功更新了3条记录:
+- elder_id=7 (张三01): due_date = 2026-11-11
+- elder_id=8: due_date = 2026-08-04
+- elder_id=9: due_date = 2026-09-11
+
+#### 3. 重启后端服务
+
+由于修改了MyBatis的映射配置文件,需要重启Spring Boot应用才能生效:
+
+**方法1 - 使用Maven**:
+```bash
+# 停止当前应用
+# Ctrl+C 或 kill进程
+
+# 清理并重新编译
+cd D:\newhm\newzijin
+mvn clean compile
+
+# 重新启动
+mvn spring-boot:run -pl ruoyi-admin
+```
+
+**方法2 - 使用IDE**:
+1. 停止运行的应用
+2. Clean Project (清理项目)
+3. Build Project (构建项目)  
+4. 重新启动 RuoYiApplication
+
+### 验证
+
+重启后端服务后,访问"养老机构/入住管理/入住人列表",应该可以看到:
+- 列表中显示到期日期列
+- 点击详情后,床位信息中显示到期日期
+
+### 注意事项
+
+1. **新增入住时自动设置**: PensionCheckinServiceImpl已经实现了自动计算和设置到期日期(第157-167行)
+2. **续费时自动更新**: ResidentServiceImpl的renewResident方法会自动更新到期日期(第120-148行)
+3. **历史数据**: 如果还有其他历史数据没有到期日期,可以重新执行上面的SQL更新
+
+### 修改时间
+2025-11-11 20:45
+
+---
+
+
+## 2025-11-11 修复新增入住后到期日期为空的问题
+
+### 问题描述
+用户在"养老机构/入住管理/新增入住"创建新入住并支付后,"养老机构/入住管理/入住人列表"中到期日期仍然显示为空。
+
+### 问题原因
+
+**代码层面**:
+`PensionCheckinServiceImpl.java` 中创建入驻申请时:
+1. ✅ **已经正确计算**了服务结束日期(第158-168行):
+   - 服务起始日期 = 入驻日期
+   - 服务结束日期 = 入驻日期 + 入驻月数
+2. ✅ **已经正确保存**到 `order_info.service_end_date` 字段(第181-182行)
+3. ❌ **但是没有设置** `bed_allocation.due_date` 字段!
+
+**数据库层面**:
+- `order_info.service_end_date` 有正确的值
+- `bed_allocation.due_date` 为 NULL(因为代码没有设置)
+
+**前端查询逻辑**:
+- 入住人列表的到期日期来自 `ResidentMapper.xml` 查询的 `ba.due_date` 字段
+- 由于 `bed_allocation.due_date` 为空,所以前端显示为空
+
+### 解决方案
+
+#### 1. 修复代码逻辑
+
+**文件**: `PensionCheckinServiceImpl.java`
+
+**调整顺序**: 将服务日期计算提前到创建床位分配之前(第113-127行)
+
+**修改前** (第113-135行):
+```java
+// ========== 2. 创建床位分配记录 ==========
+BedAllocation allocation = new BedAllocation();
+allocation.setElderId(elderId);
+allocation.setBedId(bedId);
+allocation.setInstitutionId(institutionId);
+allocation.setCheckInDate(dto.getCheckInDate());
+// ❌ 缺少设置 due_date
+allocation.setAllocationStatus(...);
+// ... 其他字段 ...
+
+bedAllocationMapper.insertBedAllocation(allocation);
+
+// ========== 3. 生成订单编号并创建订单记录 ==========
+// ... 后面才计算服务结束日期 ...
+```
+
+**修改后** (第113-152行):
+```java
+// ========== 2. 计算服务日期(需要在创建床位分配前计算) ==========
+// 计算服务费小计 = 月服务费 × 入驻月数
+Integer monthCount = dto.getMonthCount() != null ? dto.getMonthCount() : 1;
+
+// 计算服务起始日期和结束日期
+Date checkInDate = dto.getCheckInDate();
+if (checkInDate == null) {
+    checkInDate = new Date();
+}
+
+// 计算服务结束日期(到期日期) = 入驻日期 + 入驻月数
+Calendar calendar = Calendar.getInstance();
+calendar.setTime(checkInDate);
+calendar.add(Calendar.MONTH, monthCount);
+Date serviceEndDate = calendar.getTime();
+
+// ========== 3. 创建床位分配记录 ==========
+BedAllocation allocation = new BedAllocation();
+allocation.setElderId(elderId);
+allocation.setBedId(bedId);
+allocation.setInstitutionId(institutionId);
+allocation.setCheckInDate(checkInDate);
+allocation.setDueDate(serviceEndDate);  // ✅ 设置到期日期
+allocation.setAllocationStatus(...);
+// ... 其他字段 ...
+
+bedAllocationMapper.insertBedAllocation(allocation);
+```
+
+**关键改动**:
+- 将服务日期计算逻辑从第158行提前到第113行
+- 在创建床位分配记录时,直接设置 `allocation.setDueDate(serviceEndDate);` (第135行)
+
+#### 2. 修复历史数据
+
+**执行SQL**:
+```sql
+-- 将 order_info 表中的 service_end_date 同步到 bed_allocation 表的 due_date
+UPDATE bed_allocation 
+SET due_date = (
+    SELECT service_end_date 
+    FROM order_info 
+    WHERE elder_id = 10 
+    LIMIT 1
+) 
+WHERE elder_id = 10;
+```
+
+### 验证结果
+
+执行后查询所有入住人:
+```
+elder_id | elder_name | check_in_date | due_date
+---------|------------|---------------|------------
+7        | 老人01     | 2025-11-11    | 2026-11-11  ✅
+8        | 李老太     | 2025-11-04    | 2026-08-04  ✅
+9        | 王奶奶     | 2025-11-11    | 2026-09-11  ✅
+10       | 测试老人    | 2025-11-11    | 2026-09-11  ✅
+```
+
+所有入住人的到期日期都已正确填充!
+
+### 完整数据流程
+
+**新增入驻流程**:
+```
+用户填写入驻表单 → 提交
+    ↓
+后端计算服务日期:
+  - 服务起始日期 = 入驻日期
+  - 服务结束日期 = 入驻日期 + 入驻月数
+    ↓
+创建 elder_info 老人信息
+    ↓
+创建 bed_allocation 床位分配记录
+  - check_in_date = 入驻日期
+  - due_date = 服务结束日期  ✅ 新增
+    ↓
+创建 order_info 订单记录
+  - service_start_date = 服务起始日期
+  - service_end_date = 服务结束日期
+    ↓
+创建 order_item 订单明细
+    ↓
+更新 bed_info 床位状态
+    ↓
+前端查询入住人列表 → 显示到期日期  ✅
+```
+
+### 关键要点
+
+1. **数据一致性**: `bed_allocation.due_date` 和 `order_info.service_end_date` 保持一致
+2. **计算时机**: 服务日期必须在创建床位分配**之前**计算
+3. **前端依赖**: 入住人列表的到期日期依赖 `bed_allocation.due_date` 字段
+4. **续费逻辑**: `ResidentServiceImpl.renewResident()` 已经正确更新续费后的到期日期
+
+### 涉及的表字段
+
+- `bed_allocation.due_date` - 到期日期(DATE类型,新增字段)
+- `order_info.service_start_date` - 服务起始日期
+- `order_info.service_end_date` - 服务结束日期
+
+### 修改时间
+2025-11-11 20:30
+
+---
+
+
+
+## 2025-11-12 修复 BedAllocationMapper.xml 缺少 due_date 字段的问题
+
+### 问题根源
+
+经过仔细排查,发现虽然:
+1. ✅ Java 代码已经设置了 `allocation.setDueDate(serviceEndDate);` (PensionCheckinServiceImpl.java:135)
+2. ✅ 后端服务已经重启
+3. ✅ BedAllocation 实体类已经有 `dueDate` 字段
+
+但是数据库中 `bed_allocation.due_date` 依然是 NULL!
+
+**根本原因**: `BedAllocationMapper.xml` 的 `insertBedAllocation` SQL 语句**缺少 `due_date` 字段的插入逻辑**!
+
+### 问题分析
+
+#### 对比 MyBatis XML 配置
+
+**insertBedAllocation** (第26-62行):
+```xml
+<insert id="insertBedAllocation" parameterType="BedAllocation">
+    insert into bed_allocation
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+        <if test="elderId != null">elder_id,</if>
+        <if test="bedId != null">bed_id,</if>
+        <if test="institutionId != null">institution_id,</if>
+        <if test="checkInDate != null">check_in_date,</if>
+        <!-- ❌ 缺少 due_date! -->
+        <if test="checkOutDate != null">check_out_date,</if>
+        ...
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides=",">
+        <if test="elderId != null">\#{elderId},</if>
+        <if test="bedId != null">\#{bedId},</if>
+        <if test="institutionId != null">\#{institutionId},</if>
+        <if test="checkInDate != null">\#{checkInDate},</if>
+        <!-- ❌ 缺少 \#{dueDate}! -->
+        <if test="checkOutDate != null">\#{checkOutDate},</if>
+        ...
+    </trim>
+</insert>
+```
+
+**updateBedAllocation** (第86-102行) - 正确:
+```xml
+<update id="updateBedAllocation" parameterType="BedAllocation">
+    update bed_allocation
+    <trim prefix="SET" suffixOverrides=",">
+        <if test="bedId != null">bed_id = \#{bedId},</if>
+        <if test="checkInDate != null">check_in_date = \#{checkInDate},</if>
+        <if test="dueDate != null">due_date = \#{dueDate},</if>  <!-- ✅ 有! -->
+        ...
+    </trim>
+    where allocation_id = \#{allocationId}
+</update>
+```
+
+**selectBedAllocationByElderId** (第75-84行) - 正确:
+```xml
+<select id="selectBedAllocationByElderId" resultMap="BedAllocationResult">
+    select allocation_id, elder_id, bed_id, institution_id, 
+           check_in_date, due_date, check_out_date,  <!-- ✅ 查询了 due_date -->
+           ...
+    from bed_allocation
+    where elder_id = \#{elderId}
+    ...
+</select>
+```
+
+### 解决方案
+
+#### 修改 BedAllocationMapper.xml
+
+**文件**: `D:\newhm\newzijin\ruoyi-admin\src\main\resources\mapper\BedAllocationMapper.xml`
+
+在 `insertBedAllocation` 的两个 `<trim>` 块中添加 `due_date` 字段:
+
+**第33行** (字段名列表):
+```xml
+<if test="checkInDate != null">check_in_date,</if>
+<if test="dueDate != null">due_date,</if>  <!-- ✅ 新增 -->
+<if test="checkOutDate != null">check_out_date,</if>
+```
+
+**第50行** (值列表):
+```xml
+<if test="checkInDate != null">\#{checkInDate},</if>
+<if test="dueDate != null">\#{dueDate},</if>  <!-- ✅ 新增 -->
+<if test="checkOutDate != null">\#{checkOutDate},</if>
+```
+
+### 数据流程验证
+
+修复后的完整流程:
+
+```
+用户提交新增入驻表单
+    ↓
+后端 PensionCheckinServiceImpl.createCheckin()
+    ↓
+1. 计算服务日期 (第113-127行)
+   - serviceEndDate = checkInDate + monthCount
+    ↓
+2. 创建 BedAllocation 对象 (第130-135行)
+   - allocation.setDueDate(serviceEndDate);  ✅
+    ↓
+3. 调用 MyBatis 插入 (第135行)
+   - bedAllocationMapper.insertBedAllocation(allocation);
+    ↓
+4. MyBatis 执行 INSERT SQL (BedAllocationMapper.xml:26-62)
+   - 现在包含: check_in_date, due_date  ✅
+   - VALUES 包含: \#{checkInDate}, \#{dueDate}  ✅
+    ↓
+5. 数据库 bed_allocation 表
+   - due_date 字段被正确写入  ✅
+    ↓
+6. 前端查询入住人列表
+   - ResidentMapper.xml 查询 ba.due_date
+   - 返回 ResidentVO 包含 dueDate
+   - 前端显示到期日期  ✅
+```
+
+### 修复历史数据
+
+批量更新所有已有订单的到期日期:
+```sql
+-- 更新 elder_id 12, 13, 14 的到期日期
+UPDATE bed_allocation SET due_date = '2026-09-11' WHERE elder_id = 12;
+UPDATE bed_allocation SET due_date = '2027-02-15' WHERE elder_id = 13;
+UPDATE bed_allocation SET due_date = '2026-09-12' WHERE elder_id = 14;
+```
+
+### 验证结果
+
+所有入住人(elder_id >= 7)的到期日期:
+```
+elder_id | elder_name | check_in_date | due_date
+---------|-----------|---------------|------------
+7        | 老人01     | 2025-11-11    | 2026-11-11  ✅
+8        | 李老太     | 2025-11-04    | 2026-08-04  ✅
+9        | 王奶奶     | 2025-11-11    | 2026-09-11  ✅
+10       | 测试老人   | 2025-11-11    | 2026-09-11  ✅
+11       | 李有趣     | 2025-11-03    | 2026-11-03  ✅
+12       | 前台       | 2025-11-11    | 2026-09-11  ✅
+13       | 测试先生   | 2025-11-15    | 2027-02-15  ✅
+14       | 匹萨       | 2025-11-12    | 2026-09-12  ✅
+```
+
+### 关键教训
+
+**MyBatis 动态 SQL 的陷阱**:
+- 即使 Java 实体类有字段
+- 即使代码中设置了值
+- 即使 resultMap 包含了映射
+- **如果 INSERT 或 UPDATE 语句的 XML 中没有对应的字段,数据就不会被写入数据库!**
+
+**排查步骤**:
+1. ✅ 检查 Java 代码 - allocation.setDueDate() 存在
+2. ✅ 检查实体类 - BedAllocation 有 dueDate 字段
+3. ✅ 检查 Mapper 接口 - insertBedAllocation() 方法存在
+4. ✅ 检查编译后的 class 文件时间 - 确认服务已重启
+5. ❌ **最终在 MyBatis XML 的 INSERT 语句中发现缺失!**
+
+### 下一步测试
+
+请**重启后端服务**,然后:
+1. 新增一条入住记录
+2. 查看入住人列表,验证到期日期是否正常显示
+3. 进行续费操作,验证到期日期是否正确更新
+
+### 修改时间
+2025-11-12 00:10
+
+---
+
+
+## 2025-11-12 续费功能重构
+
+### 需求背景
+原续费功能只能单一选择续费类型(服务费/押金/会员费),无法应对复杂的续费场景。例如:
+- 用户可能需要同时续费服务费和补交押金
+- 用户可能只需要补交押金或会员费,而不续费服务
+- 常规续费时需要延长到期时间,但补交费用时不应延长到期时间
+
+### 新的续费逻辑
+参考"新增入住"页面的费用设置模式,重构为更灵活的组合续费方式:
+
+**用户可编辑的部分**:
+1. **续费月数** - 续费服务费月份(可设为0,仅补缴其他费用)
+2. **补交押金金额** - 补交押金金额(如押金不足)
+3. **补交会员费** - 补交会员费(如会员费不足)
+4. **费用汇总** - 自动计算应付总额
+5. **支付方式** - 现金/刷卡/扫码
+
+**保留的信息**(不可编辑,仅展示):
+- 入住人基本信息
+- 当前床位信息
+- 当前余额信息(服务费余额、押金余额、会员余额)
+- 入住日期、当前到期日期
+
+### 业务场景支持
+
+| 场景 | 续费月数 | 补交押金 | 补交会员费 | 说明 |
+|------|---------|---------|----------|------|
+| **常规续费** | 3个月 | 0 | 0 | 续3个月服务费,到期时间+3个月 |
+| **补缴押金** | 0 | 1000元 | 0 | 仅补缴押金,到期时间不变 |
+| **补缴会员费** | 0 | 0 | 500元 | 仅补缴会员费,到期时间不变 |
+| **组合续费** | 2个月 | 500元 | 200元 | 同时续费+补缴,到期时间+2个月 |
+
+### 前端修改
+
+**文件**: `ruoyi-ui/src/views/pension/elder/list.vue`
+
+#### 1. 续费对话框UI重构 (lines 386-554)
+
+**修改前**:
+- 简单的表单,只有续费类型、续费月数(服务费时显示)、续费金额、支付方式
+- 对话框宽度: 600px
+
+**修改后**:
+- 分为三个部分:
+  1. **入住人信息展示区** - 显示当前状态(床位、余额、到期日期等)
+  2. **费用设置区** - 编辑续费月数、补交押金、补交会员费
+  3. **费用汇总区** - 显示计算结果和新到期日期
+  4. **支付方式选择区**
+- 对话框宽度: 800px
+- 新增"新到期日期"显示,当续费月数>0时自动计算并高亮显示
+
+#### 2. 表单数据结构调整 (lines 791-808)
+
+**修改前**:
+```javascript
+renewForm: {
+  elderId: null,
+  elderName: null,
+  renewType: 'service_fee',
+  monthCount: null,
+  amount: null,
+  paymentMethod: 'cash',
+  remark: null
+}
+```
+
+**修改后**:
+```javascript
+renewForm: {
+  elderId: null,
+  elderName: null,
+  bedInfo: null,
+  monthlyFee: 0,
+  serviceBalance: 0,
+  depositBalance: 0,
+  memberBalance: 0,
+  checkInDate: null,
+  currentDueDate: null,
+  newDueDate: null,
+  monthCount: 0,
+  depositAmount: 0,
+  memberFee: 0,
+  paymentMethod: 'cash',
+  remark: null
+}
+```
+
+#### 3. 表单验证规则调整 (lines 828-842)
+
+**修改前**:
+- renewType: 必填
+- monthCount: 必填,1-120之间
+- amount: 必填
+
+**修改后**:
+- monthCount: 必填,**0-120之间**(允许为0,仅补缴费用)
+- depositAmount: 必填
+- memberFee: 必填
+
+#### 4. 新增计算属性 (lines 904-913)
+
+```javascript
+computed: {
+  // 续费服务费小计 = 月服务费 × 续费月数
+  renewServiceFeeTotal() {
+    return (this.renewForm.monthlyFee || 0) * (this.renewForm.monthCount || 0);
+  },
+  // 续费应收总计 = 服务费小计 + 补交押金 + 补交会员费
+  renewCalculatedTotal() {
+    return this.renewServiceFeeTotal + (this.renewForm.depositAmount || 0) + (this.renewForm.memberFee || 0);
+  }
+}
+```
+
+#### 5. handleRenew方法重构 (lines 996-1020)
+
+**修改前**:
+- 直接赋值基本字段
+
+**修改后**:
+- 调用API获取完整的入住人信息
+- 加载当前余额、床位、到期日期等信息
+- 初始化续费月数为0,押金和会员费也为0
+
+#### 6. 新增calculateRenewTotal方法 (lines 1176-1188)
+
+```javascript
+calculateRenewTotal() {
+  // 计算新到期日期:在当前到期日期基础上增加续费月数
+  if (this.renewForm.currentDueDate && this.renewForm.monthCount > 0) {
+    const currentDue = new Date(this.renewForm.currentDueDate);
+    const newDue = new Date(currentDue);
+    newDue.setMonth(newDue.getMonth() + parseInt(this.renewForm.monthCount));
+    this.renewForm.newDueDate = this.parseTime(newDue, '{y}-{m}-{d}');
+  } else {
+    // 如果月数为0,到期日期不变
+    this.renewForm.newDueDate = this.renewForm.currentDueDate;
+  }
+}
+```
+
+#### 7. submitRenew方法增强 (lines 1068-1096)
+
+**修改前**:
+- 直接提交整个renewForm对象
+
+**修改后**:
+- 添加业务验证:至少填写一项续费内容(续费月数、补交押金或补交会员费)
+- 构建精简的renewData对象,只包含必要字段
+- 提交到后端
+
+```javascript
+// 验证至少有一项续费内容
+if (this.renewForm.monthCount === 0 && this.renewForm.depositAmount === 0 && this.renewForm.memberFee === 0) {
+  this.$modal.msgWarning("请至少填写一项续费内容(续费月数、补交押金或补交会员费)");
+  return;
+}
+
+// 构建续费数据
+const renewData = {
+  elderId: this.renewForm.elderId,
+  monthCount: this.renewForm.monthCount,
+  depositAmount: this.renewForm.depositAmount,
+  memberFee: this.renewForm.memberFee,
+  paymentMethod: this.renewForm.paymentMethod,
+  remark: this.renewForm.remark
+};
+```
+
+### 核心优势
+
+✅ **灵活性**: 可以应对任意组合的续费需求  
+✅ **一致性**: 与新增入住页面的费用设置逻辑一致,用户体验好  
+✅ **准确性**: 月数设为0时只补缴费用不延期,月数>0时自动更新到期时间  
+✅ **简单性**: 一个对话框完成所有续费场景,无需多个不同的续费类型选择  
+✅ **透明性**: 用户可以清楚看到当前状态和续费后的结果(新到期日期)
+
+### 后续需要的后端适配
+
+**注意**: 此次修改只完成了前端部分,后端API需要相应调整:
+
+1. **API接口**: `/elder/resident/renew` (renewResident方法)
+2. **接收参数**: RenewDTO 或直接使用以下字段
+   ```java
+   Long elderId;          // 入住人ID
+   Integer monthCount;    // 续费月数(可为0)
+   BigDecimal depositAmount;  // 补交押金金额
+   BigDecimal memberFee;      // 补交会员费
+   String paymentMethod;  // 支付方式
+   String remark;         // 备注
+   ```
+3. **业务逻辑**:
+   - 如果 monthCount > 0: 更新 bed_allocation.due_date(在原到期日期基础上加N个月)
+   - 如果 depositAmount > 0: 增加押金余额
+   - 如果 memberFee > 0: 增加会员费余额
+   - 创建续费订单,订单金额 = monthCount * monthlyFee + depositAmount + memberFee
+   - 根据paymentMethod更新订单支付状态
+
+### 修改时间
+2025-11-12 01:15
+
+---
+
+## 2025-11-12 续费功能添加实收总计字段
+
+### 问题背景
+1. 续费对话框缺少"实收总计"字段,无法像新增入住页面那样手动调整优惠
+2. 后端续费时order_amount字段缺失,导致数据库报错: `Field 'order_amount' doesn't have a default value`
+
+### 前端修改
+
+**文件**: `ruoyi-ui/src/views/pension/elder/list.vue`
+
+#### 1. 费用汇总增加实收总计 (lines 517-528)
+
+```vue
+<el-descriptions-item label="实收总计" :span="2">
+  <el-input-number
+    v-model="renewForm.finalAmount"
+    :min="0"
+    :precision="2"
+    controls-position="right"
+    style="width: 200px;" />
+  <span style="margin-left: 10px; color: #909399;">元（可手动调整优惠）</span>
+  <span v-if="renewDiscountAmount > 0" style="margin-left: 10px; color: #67C23A;">
+    已优惠: ¥{{ formatMoney(renewDiscountAmount) }}
+  </span>
+</el-descriptions-item>
+```
+
+#### 2. 表单数据结构增加finalAmount (line 818)
+
+```javascript
+renewForm: {
+  // ...其他字段
+  finalAmount: 0,  // 新增
+  paymentMethod: 'cash',
+  remark: null
+}
+```
+
+#### 3. 新增优惠金额计算属性 (lines 926-929)
+
+```javascript
+computed: {
+  // ...其他计算属性
+  // 续费优惠金额 = 应收总计 - 实收总计
+  renewDiscountAmount() {
+    return Math.max(0, this.renewCalculatedTotal - (this.renewForm.finalAmount || 0));
+  }
+}
+```
+
+#### 4. calculateRenewTotal方法增加实收计算 (line 1222)
+
+```javascript
+calculateRenewTotal() {
+  // ...计算到期日期
+  // 自动更新实收总计为应收总计(用户可手动调整)
+  this.renewForm.finalAmount = this.renewCalculatedTotal;
+}
+```
+
+#### 5. submitRenew方法传递finalAmount (line 1101)
+
+```javascript
+const renewData = {
+  elderId: this.renewForm.elderId,
+  monthCount: this.renewForm.monthCount,
+  depositAmount: this.renewForm.depositAmount,
+  memberFee: this.renewForm.memberFee,
+  finalAmount: this.renewForm.finalAmount,  // 新增
+  paymentMethod: this.renewForm.paymentMethod,
+  remark: this.renewForm.remark
+};
+```
+
+### 后端修改
+
+#### 1. RenewDTO添加新字段
+
+**文件**: `ruoyi-admin/src/main/java/com/ruoyi/domain/RenewDTO.java`
+
+**修改前**:
+```java
+private String renewType;  // 续费类型
+private BigDecimal amount;  // 续费金额
+private Integer monthCount;  // 续费月数
+```
+
+**修改后**:
+```java
+private Integer monthCount;       // 续费月数(可为0)
+private BigDecimal depositAmount; // 补交押金金额
+private BigDecimal memberFee;     // 补交会员费
+private BigDecimal finalAmount;   // 实收总计
+```
+
+#### 2. ResidentServiceImpl完整重构续费逻辑
+
+**文件**: `ruoyi-admin/src/main/java/com/ruoyi/service/impl/ResidentServiceImpl.java` (lines 86-231)
+
+**核心改进**:
+
+1. **查询床位分配信息,获取月服务费** (lines 104-108)
+```java
+BedAllocation bedAllocation = bedAllocationMapper.selectBedAllocationByElderId(renewDTO.getElderId());
+if (bedAllocation == null) {
+    throw new RuntimeException("未找到床位分配信息");
+}
+```
+
+2. **计算订单金额** (lines 110-128)
+```java
+// 应收总计 = 月服务费 × 续费月数 + 补交押金 + 补交会员费
+BigDecimal serviceFeeTotal = BigDecimal.ZERO;
+if (renewDTO.getMonthCount() != null && renewDTO.getMonthCount() > 0) {
+    serviceFeeTotal = bedAllocation.getMonthlyFee().multiply(new BigDecimal(renewDTO.getMonthCount()));
+}
+
+BigDecimal depositAmount = renewDTO.getDepositAmount() != null ? renewDTO.getDepositAmount() : BigDecimal.ZERO;
+BigDecimal memberFee = renewDTO.getMemberFee() != null ? renewDTO.getMemberFee() : BigDecimal.ZERO;
+BigDecimal calculatedTotal = serviceFeeTotal.add(depositAmount).add(memberFee);
+
+// 实收总计(用户可手动调整)
+BigDecimal finalAmount = renewDTO.getFinalAmount() != null ? renewDTO.getFinalAmount() : calculatedTotal;
+
+// 优惠金额 = 应收总计 - 实收总计
+BigDecimal discountAmount = calculatedTotal.subtract(finalAmount);
+if (discountAmount.compareTo(BigDecimal.ZERO) < 0) {
+    discountAmount = BigDecimal.ZERO;
+}
+```
+
+3. **创建订单,正确设置order_amount** (lines 133-150)
+```java
+OrderInfo orderInfo = new OrderInfo();
+// ...
+orderInfo.setOrderAmount(finalAmount);        // 订单金额 = 实收总计 ✅ 解决了order_amount缺失问题
+orderInfo.setPaidAmount(finalAmount);         // 续费直接支付
+orderInfo.setOriginalAmount(calculatedTotal); // 原始金额 = 应收总计
+orderInfo.setDiscountAmount(discountAmount);  // 优惠金额
+orderInfo.setOrderStatus("1");                // 1-已支付
+```
+
+4. **支持组合续费的订单明细** (lines 181-228)
+```java
+// 8.1 如果有服务费续费
+if (renewDTO.getMonthCount() != null && renewDTO.getMonthCount() > 0 && serviceFeeTotal.compareTo(BigDecimal.ZERO) > 0) {
+    OrderItem serviceItem = new OrderItem();
+    serviceItem.setItemType("service_fee");
+    serviceItem.setItemName("月服务费");
+    serviceItem.setItemDescription(renewDTO.getMonthCount() + "个月服务费");
+    serviceItem.setUnitPrice(bedAllocation.getMonthlyFee());
+    serviceItem.setQuantity(renewDTO.getMonthCount().longValue());
+    serviceItem.setTotalAmount(serviceFeeTotal);
+    orderItemMapper.insertOrderItem(serviceItem);
+}
+
+// 8.2 如果有押金补缴
+if (depositAmount.compareTo(BigDecimal.ZERO) > 0) {
+    OrderItem depositItem = new OrderItem();
+    depositItem.setItemType("deposit");
+    depositItem.setItemName("押金");
+    depositItem.setItemDescription("押金补缴");
+    // ...
+    orderItemMapper.insertOrderItem(depositItem);
+}
+
+// 8.3 如果有会员费补缴
+if (memberFee.compareTo(BigDecimal.ZERO) > 0) {
+    OrderItem memberItem = new OrderItem();
+    memberItem.setItemType("member_fee");
+    memberItem.setItemName("会员费");
+    depositItem.setItemDescription("会员卡充值");
+    // ...
+    orderItemMapper.insertOrderItem(memberItem);
+}
+```
+
+### 问题解决
+
+✅ **order_amount缺失问题**: 通过计算实收总计(finalAmount)并正确设置到orderInfo.setOrderAmount()解决  
+✅ **实收总计字段**: 前端添加了可手动调整的实收总计输入框  
+✅ **优惠金额显示**: 当实收<应收时,自动显示优惠金额  
+✅ **组合续费支持**: 一个订单可以包含多个明细(服务费+押金+会员费)  
+
+### 修改时间
+2025-11-12 02:30
+
+---

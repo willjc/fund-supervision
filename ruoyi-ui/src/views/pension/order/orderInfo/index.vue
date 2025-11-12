@@ -27,11 +27,12 @@
       </el-form-item>
       <el-form-item label="订单状态" prop="orderStatus">
         <el-select v-model="queryParams.orderStatus" placeholder="请选择订单状态" clearable>
-          <el-option label="待支付" value="待支付"></el-option>
-          <el-option label="部分支付" value="部分支付"></el-option>
-          <el-option label="已支付" value="已支付"></el-option>
-          <el-option label="已取消" value="已取消"></el-option>
-          <el-option label="已退费" value="已退费"></el-option>
+          <el-option
+            v-for="dict in dict.type.order_status"
+            :key="dict.value"
+            :label="dict.label"
+            :value="dict.value"
+          ></el-option>
         </el-select>
       </el-form-item>
       <el-form-item label="老人姓名" prop="elderName">
@@ -206,7 +207,7 @@
             type="text"
             icon="el-icon-money"
             @click="handlePay(scope.row)"
-            v-if="scope.row.orderStatus === '1'"
+            v-if="scope.row.orderStatus === '0'"
             v-hasPermi="['order:info:pay']"
           >支付</el-button>
           <el-button
@@ -214,7 +215,7 @@
             type="text"
             icon="el-icon-close"
             @click="handleCancel(scope.row)"
-            v-if="scope.row.orderStatus === '1'"
+            v-if="scope.row.orderStatus === '0'"
             v-hasPermi="['order:info:cancel']"
           >取消</el-button>
           <el-button
@@ -374,6 +375,13 @@ export default {
     };
   },
   created() {
+    // 从URL参数中获取筛选条件
+    if (this.$route.query.elderName) {
+      this.queryParams.elderName = this.$route.query.elderName;
+    }
+    if (this.$route.query.orderStatus) {
+      this.queryParams.orderStatus = this.$route.query.orderStatus;
+    }
     this.getList();
   },
   methods: {

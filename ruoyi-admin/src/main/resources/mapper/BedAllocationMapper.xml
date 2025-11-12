@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.mapper.BedAllocationMapper">
+
+    <resultMap type="BedAllocation" id="BedAllocationResult">
+        <result property="allocationId"    column="allocation_id"    />
+        <result property="elderId"    column="elder_id"    />
+        <result property="bedId"    column="bed_id"    />
+        <result property="institutionId"    column="institution_id"    />
+        <result property="checkInDate"    column="check_in_date"    />
+        <result property="dueDate"    column="due_date"    />
+        <result property="checkOutDate"    column="check_out_date"    />
+        <result property="allocationStatus"    column="allocation_status"    />
+        <result property="monthlyFee"    column="monthly_fee"    />
+        <result property="depositStatus"    column="deposit_status"    />
+        <result property="depositAmount"    column="deposit_amount"    />
+        <result property="createBy"    column="create_by"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"    column="update_by"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="remark"    column="remark"    />
+    </resultMap>
+
+    <insert id="insertBedAllocation" parameterType="BedAllocation" useGeneratedKeys="true" keyProperty="allocationId">
+        insert into bed_allocation
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="elderId != null">elder_id,</if>
+            <if test="bedId != null">bed_id,</if>
+            <if test="institutionId != null">institution_id,</if>
+            <if test="checkInDate != null">check_in_date,</if>
+            <if test="dueDate != null">due_date,</if>
+            <if test="checkOutDate != null">check_out_date,</if>
+            <if test="allocationStatus != null">allocation_status,</if>
+            <if test="monthlyFee != null">monthly_fee,</if>
+            <if test="depositStatus != null">deposit_status,</if>
+            <if test="depositAmount != null">deposit_amount,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="elderId != null">#{elderId},</if>
+            <if test="bedId != null">#{bedId},</if>
+            <if test="institutionId != null">#{institutionId},</if>
+            <if test="checkInDate != null">#{checkInDate},</if>
+            <if test="dueDate != null">#{dueDate},</if>
+            <if test="checkOutDate != null">#{checkOutDate},</if>
+            <if test="allocationStatus != null">#{allocationStatus},</if>
+            <if test="monthlyFee != null">#{monthlyFee},</if>
+            <if test="depositStatus != null">#{depositStatus},</if>
+            <if test="depositAmount != null">#{depositAmount},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+        </trim>
+    </insert>
+
+    <select id="selectBedAllocationById" parameterType="Long" resultMap="BedAllocationResult">
+        select allocation_id, elder_id, bed_id, institution_id, check_in_date, check_out_date,
+               allocation_status, monthly_fee, deposit_status, deposit_amount,
+               create_by, create_time, update_by, update_time, remark
+        from bed_allocation
+        where allocation_id = #{allocationId}
+    </select>
+
+    <update id="updateAllocationStatus">
+        update bed_allocation set allocation_status = #{status}
+        where allocation_id = #{allocationId}
+    </update>
+
+    <select id="selectBedAllocationByElderId" parameterType="Long" resultMap="BedAllocationResult">
+        select allocation_id, elder_id, bed_id, institution_id, check_in_date, due_date, check_out_date,
+               allocation_status, monthly_fee, deposit_status, deposit_amount,
+               create_by, create_time, update_by, update_time, remark
+        from bed_allocation
+        where elder_id = #{elderId}
+          and (allocation_status = '1' or allocation_status = '0')
+        order by create_time desc
+        limit 1
+    </select>
+
+    <update id="updateBedAllocation" parameterType="BedAllocation">
+        update bed_allocation
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="bedId != null">bed_id = #{bedId},</if>
+            <if test="checkInDate != null">check_in_date = #{checkInDate},</if>
+            <if test="dueDate != null">due_date = #{dueDate},</if>
+            <if test="checkOutDate != null">check_out_date = #{checkOutDate},</if>
+            <if test="allocationStatus != null">allocation_status = #{allocationStatus},</if>
+            <if test="monthlyFee != null">monthly_fee = #{monthlyFee},</if>
+            <if test="depositStatus != null">deposit_status = #{depositStatus},</if>
+            <if test="depositAmount != null">deposit_amount = #{depositAmount},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where allocation_id = #{allocationId}
+    </update>
+
+</mapper>

@@ -8,14 +8,21 @@
         </el-descriptions-item>
         <el-descriptions-item label="老人姓名">{{ orderInfo.elderName }}</el-descriptions-item>
         <el-descriptions-item label="机构名称">{{ orderInfo.institutionName }}</el-descriptions-item>
-        <el-descriptions-item label="订单金额">
+        <el-descriptions-item label="床位信息">{{ orderInfo.roomNumber }}-{{ orderInfo.bedNumber }}</el-descriptions-item>
+        <el-descriptions-item label="入驻月数">{{ orderInfo.monthCount || '-' }}个月</el-descriptions-item>
+        <el-descriptions-item label="服务起始日期">{{ parseTime(orderInfo.serviceStartDate, '{y}-{m}-{d}') }}</el-descriptions-item>
+        <el-descriptions-item label="服务结束日期">{{ parseTime(orderInfo.serviceEndDate, '{y}-{m}-{d}') }}</el-descriptions-item>
+        <el-descriptions-item label="应收总计">
+          <span style="color: #909399">¥{{ orderInfo.originalAmount || '0.00' }}</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="优惠金额">
+          <span style="color: #F56C6C">-¥{{ orderInfo.discountAmount || '0.00' }}</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="实收金额">
           <span style="color: #E6A23C; font-weight: bold">¥{{ orderInfo.orderAmount }}</span>
         </el-descriptions-item>
         <el-descriptions-item label="已付金额">
           <span style="color: #67C23A; font-weight: bold">¥{{ orderInfo.paidAmount }}</span>
-        </el-descriptions-item>
-        <el-descriptions-item label="未付金额">
-          <span style="color: #F56C6C; font-weight: bold">¥{{ orderInfo.unpaidAmount }}</span>
         </el-descriptions-item>
         <el-descriptions-item label="订单状态">
           <dict-tag :options="dict.type.order_status" :value="orderInfo.orderStatus"/>
@@ -24,10 +31,8 @@
           <dict-tag :options="dict.type.payment_method" :value="orderInfo.paymentMethod"/>
         </el-descriptions-item>
         <el-descriptions-item label="创建时间">{{ parseTime(orderInfo.createTime) }}</el-descriptions-item>
-        <el-descriptions-item label="更新时间">{{ parseTime(orderInfo.updateTime) }}</el-descriptions-item>
         <el-descriptions-item label="创建人">{{ orderInfo.createBy }}</el-descriptions-item>
-        <el-descriptions-item label="更新人">{{ orderInfo.updateBy }}</el-descriptions-item>
-        <el-descriptions-item label="备注" :span="2">{{ orderInfo.remark || '无' }}</el-descriptions-item>
+        <el-descriptions-item label="费用说明" :span="2">{{ orderInfo.remark || '无' }}</el-descriptions-item>
       </el-descriptions>
 
       <el-divider content-position="left">订单明细</el-divider>

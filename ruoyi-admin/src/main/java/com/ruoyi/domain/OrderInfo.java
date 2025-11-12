@@ -25,8 +25,8 @@ public class OrderInfo extends BaseEntity
     @Excel(name = "订单编号")
     private String orderNo;
 
-    /** 订单类型(1床位费 2护理费 3餐饮费 4医疗费 5其他费用) */
-    @Excel(name = "订单类型", readConverterExp = "1=床位费,2=护理费,3=餐饮费,4=医疗费,5=其他费用")
+    /** 订单类型(1入驻 2续费) */
+    @Excel(name = "订单类型", readConverterExp = "1=入驻,2=续费")
     private String orderType;
 
     /** 老人ID */
@@ -84,6 +84,21 @@ public class OrderInfo extends BaseEntity
     /** 计费周期 */
     @Excel(name = "计费周期")
     private String billingCycle;
+
+    /** 入驻月数 */
+    @Excel(name = "入驻月数")
+    private Integer monthCount;
+
+    /** 订单总金额(元) - 实收总计 */
+    // orderAmount已存在,这里的是实收金额
+
+    /** 应收总计(元) - 优惠前金额 */
+    @Excel(name = "应收总计")
+    private BigDecimal originalAmount;
+
+    /** 优惠金额(元) */
+    @Excel(name = "优惠金额")
+    private BigDecimal discountAmount;
 
     /** 到期日期 */
     @JsonFormat(pattern = "yyyy-MM-dd")
@@ -254,6 +269,36 @@ public class OrderInfo extends BaseEntity
     {
         return billingCycle;
     }
+    public void setMonthCount(Integer monthCount)
+    {
+        this.monthCount = monthCount;
+    }
+
+    public Integer getMonthCount()
+    {
+        return monthCount;
+    }
+
+    public void setOriginalAmount(BigDecimal originalAmount)
+    {
+        this.originalAmount = originalAmount;
+    }
+
+    public BigDecimal getOriginalAmount()
+    {
+        return originalAmount;
+    }
+
+    public void setDiscountAmount(BigDecimal discountAmount)
+    {
+        this.discountAmount = discountAmount;
+    }
+
+    public BigDecimal getDiscountAmount()
+    {
+        return discountAmount;
+    }
+
     public void setDueDate(Date dueDate)
     {
         this.dueDate = dueDate;

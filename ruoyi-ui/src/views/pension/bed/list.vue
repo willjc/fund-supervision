@@ -284,13 +284,25 @@
     </el-dialog>
 
     <!-- 床位导入对话框 -->
-    <el-dialog :title="upload.title" :visible.sync="upload.open" width="400px" append-to-body>
+    <el-dialog :title="upload.title" :visible.sync="upload.open" width="450px" append-to-body>
+      <el-form :model="upload" label-width="100px">
+        <el-form-item label="选择机构" prop="institutionId">
+          <el-select v-model="upload.institutionId" placeholder="请选择要导入床位的机构" filterable clearable style="width: 100%">
+            <el-option
+              v-for="institution in institutionList"
+              :key="institution.institutionId"
+              :label="institution.institutionName"
+              :value="institution.institutionId"
+            ></el-option>
+          </el-select>
+        </el-form-item>
+      </el-form>
       <el-upload
         ref="upload"
         :limit="1"
         accept=".xlsx, .xls"
         :headers="upload.headers"
-        :action="upload.url + '?updateSupport=' + upload.updateSupport"
+        :action="upload.url + '?institutionId=' + upload.institutionId + '&updateSupport=' + upload.updateSupport"
         :disabled="upload.isUploading"
         :on-progress="handleFileUploadProgress"
         :on-success="handleFileSuccess"
@@ -355,6 +367,8 @@ export default {
         isUploading: false,
         // 是否更新已存在的床位数据
         updateSupport: 0,
+        // 选择的机构ID
+        institutionId: null,
         // 设置上传的请求头部
         headers: { Authorization: "Bearer " + getToken() },
         // 上传的地址
@@ -521,6 +535,8 @@ export default {
     /** 导入按钮操作 */
     handleImport() {
       this.upload.title = "床位信息导入";
+      this.upload.institutionId = null;
+      this.upload.updateSupport = 0;
       this.upload.open = true;
     },
     /** 下载模板操作 */
@@ -542,6 +558,10 @@ export default {
     },
     /** 提交上传文件 */
     submitFileForm() {
+      if (!this.upload.institutionId) {
+        this.$modal.msgError("请先选择要导入床位的机构");
+        return;
+      }
       this.$refs.upload.submit();
     }
   }

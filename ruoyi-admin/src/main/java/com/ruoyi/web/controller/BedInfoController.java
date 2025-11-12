@@ -1,5 +1,7 @@
 package com.ruoyi.web.controller;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import javax.servlet.http.HttpServletResponse;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -122,8 +124,25 @@ public class BedInfoController extends BaseController
     @PostMapping("/importTemplate")
     public void importTemplate(HttpServletResponse response)
     {
+        // 创建示例数据
+        List<BedInfo> list = new ArrayList<>();
+        BedInfo example = new BedInfo();
+        example.setInstitutionName("幸福养老院");
+        example.setRoomNumber("101");
+        example.setBedNumber("01");
+        example.setBedType("1");  // 1=普通床位,导出时会自动转换为"普通床位"
+        example.setBedStatus("0");  // 0=空置,导出时会自动转换为"空置"
+        example.setPrice(new BigDecimal("2000"));
+        example.setFloorNumber(1L);
+        example.setRoomArea(new BigDecimal("25"));
+        example.setHasBathroom("1");  // 1=是,导出时会自动转换为"是"
+        example.setHasBalcony("0");  // 0=否,导出时会自动转换为"否"
+        example.setFacilities("电视、空调、衣柜");
+        list.add(example);
+
+        // 导出模板(包含示例数据)
         ExcelUtil<BedInfo> util = new ExcelUtil<BedInfo>(BedInfo.class);
-        util.importTemplateExcel(response, "床位信息");
+        util.exportExcel(response, list, "床位信息");
     }
 
     /**
@@ -132,11 +151,11 @@ public class BedInfoController extends BaseController
     @PreAuthorize("@ss.hasPermi('elder:bed:import')")
     @Log(title = "床位信息", businessType = BusinessType.IMPORT)
     @PostMapping("/importData")
-    public AjaxResult importData(MultipartFile file, boolean updateSupport) throws Exception
+    public AjaxResult importData(MultipartFile file, Long institutionId, boolean updateSupport) throws Exception
     {
         ExcelUtil<BedInfo> util = new ExcelUtil<BedInfo>(BedInfo.class);
         List<BedInfo> bedList = util.importExcel(file.getInputStream());
-        String message = bedInfoService.importBedInfo(bedList, updateSupport);
+        String message = bedInfoService.importBedInfo(bedList, institutionId, updateSupport);
         return AjaxResult.success(message);
     }
 }

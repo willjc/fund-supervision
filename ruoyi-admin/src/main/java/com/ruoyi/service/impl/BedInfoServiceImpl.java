@@ -125,16 +125,22 @@ public class BedInfoServiceImpl implements IBedInfoService
      * 批量导入床位信息
      *
      * @param bedList 床位信息列表
+     * @param institutionId 机构ID
      * @param updateSupport 是否更新已存在的床位
      * @return 导入结果消息
      */
     @Override
-    public String importBedInfo(List<BedInfo> bedList, boolean updateSupport)
+    public String importBedInfo(List<BedInfo> bedList, Long institutionId, boolean updateSupport)
     {
         if (StringUtils.isNull(bedList) || bedList.size() == 0)
         {
             throw new ServiceException("导入床位数据不能为空!");
         }
+        if (institutionId == null)
+        {
+            throw new ServiceException("请选择要导入床位的机构!");
+        }
+
         int successNum = 0;
         int failureNum = 0;
         StringBuilder successMsg = new StringBuilder();
@@ -144,6 +150,9 @@ public class BedInfoServiceImpl implements IBedInfoService
         {
             try
             {
+                // 设置机构ID
+                bedInfo.setInstitutionId(institutionId);
+
                 // 验证必填字段
                 if (StringUtils.isEmpty(bedInfo.getRoomNumber()))
                 {
@@ -157,12 +166,9 @@ public class BedInfoServiceImpl implements IBedInfoService
                     failureMsg.append("<br/>").append(failureNum).append("、床位号不能为空");
                     continue;
                 }
-                if (bedInfo.getInstitutionId() == null)
-                {
-                    failureNum++;
-                    failureMsg.append("<br/>").append(failureNum).append("、机构ID不能为空 (房间号: ").append(bedInfo.getRoomNumber()).append(", 床位号: ").append(bedInfo.getBedNumber()).append(")");
-                    continue;
-                }
+
+                // 转换中文值为数字代码
+                convertChineseToCode(bedInfo);
 
                 // 查询是否存在相同的床位(同一机构下,房间号和床位号相同)
                 BedInfo existBed = bedInfoMapper.selectBedByRoomAndBedNumber(
@@ -216,5 +222,101 @@ public class BedInfoServiceImpl implements IBedInfoService
             successMsg.insert(0, "恭喜您,数据已全部导入成功!共 " + successNum + " 条,数据如下:");
         }
         return successMsg.toString();
+    }
+
+    /**
+     * 转换中文值为数字代码
+     *
+     * @param bedInfo 床位信息
+     */
+    private void convertChineseToCode(BedInfo bedInfo)
+    {
+        // 转换床位类型
+        if (StringUtils.isNotEmpty(bedInfo.getBedType()))
+        {
+            switch (bedInfo.getBedType().trim())
+            {
+                case "普通床位":
+                    bedInfo.setBedType("1");
+                    break;
+                case "豪华床位":
+                    bedInfo.setBedType("2");
+                    break;
+                case "医疗床位":
+                    bedInfo.setBedType("3");
+                    break;
+                // 如果已经是数字,保持不变
+                case "1":
+                case "2":
+                case "3":
+                    break;
+                default:
+                    throw new ServiceException("床位类型格式错误,请填写: 普通床位/豪华床位/医疗床位");
+            }
+        }
+
+        // 转换床位状态
+        if (StringUtils.isNotEmpty(bedInfo.getBedStatus()))
+        {
+            switch (bedInfo.getBedStatus().trim())
+            {
+                case "空置":
+                    bedInfo.setBedStatus("0");
+                    break;
+                case "占用":
+                    bedInfo.setBedStatus("1");
+                    break;
+                case "维修":
+                    bedInfo.setBedStatus("2");
+                    break;
+                // 如果已经是数字,保持不变
+                case "0":
+                case "1":
+                case "2":
+                    break;
+                default:
+                    throw new ServiceException("床位状态格式错误,请填写: 空置/占用/维修");
+            }
+        }
+
+        // 转换独立卫浴
+        if (StringUtils.isNotEmpty(bedInfo.getHasBathroom()))
+        {
+            switch (bedInfo.getHasBathroom().trim())
+            {
+                case "是":
+                    bedInfo.setHasBathroom("1");
+                    break;
+                case "否":
+                    bedInfo.setHasBathroom("0");
+                    break;
+                // 如果已经是数字,保持不变
+                case "0":
+                case "1":
+                    break;
+                default:
+                    throw new ServiceException("独立卫浴格式错误,请填写: 是/否");
+            }
+        }
+
+        // 转换阳台
+        if (StringUtils.isNotEmpty(bedInfo.getHasBalcony()))
+        {
+            switch (bedInfo.getHasBalcony().trim())
+            {
+                case "是":
+                    bedInfo.setHasBalcony("1");
+                    break;
+                case "否":
+                    bedInfo.setHasBalcony("0");
+                    break;
+                // 如果已经是数字,保持不变
+                case "0":
+                case "1":
+                    break;
+                default:
+                    throw new ServiceException("阳台格式错误,请填写: 是/否");
+            }
+        }
     }
 }

@@ -22,51 +22,50 @@ public class BedInfo extends BaseEntity
     private Long bedId;
 
     /** 机构ID */
-    @Excel(name = "机构ID")
     private Long institutionId;
 
     /** 房间号 */
-    @Excel(name = "房间号")
+    @Excel(name = "房间号", prompt = "必填,如:101、201")
     private String roomNumber;
 
     /** 床位号 */
-    @Excel(name = "床位号")
+    @Excel(name = "床位号", prompt = "必填,如:01、02")
     private String bedNumber;
 
     /** 床位类型(1普通 2豪华 3医疗) */
-    @Excel(name = "床位类型", readConverterExp = "1=普通,2=豪华,3=医疗")
+    @Excel(name = "床位类型", readConverterExp = "1=普通床位,2=豪华床位,3=医疗床位", prompt = "必填,填写:普通床位、豪华床位、医疗床位")
     private String bedType;
 
     /** 床位状态(0空置 1占用 2维修) */
-    @Excel(name = "床位状态", readConverterExp = "0=空置,1=占用,2=维修")
+    @Excel(name = "床位状态", readConverterExp = "0=空置,1=占用,2=维修", prompt = "必填,填写:空置、占用、维修")
     private String bedStatus;
 
     /** 床位价格(元/月) */
-    @Excel(name = "床位价格")
+    @Excel(name = "价格(元/月)", prompt = "必填,单位:元,如:2000")
     private BigDecimal price;
 
     /** 楼层 */
-    @Excel(name = "楼层")
+    @Excel(name = "楼层", prompt = "选填,如:1、2、3")
     private Long floorNumber;
 
     /** 房间面积(平方米) */
-    @Excel(name = "房间面积")
+    @Excel(name = "房间面积(㎡)", prompt = "选填,如:25、30.5")
     private BigDecimal roomArea;
 
     /** 是否有独立卫生间(0否 1是) */
-    @Excel(name = "独立卫生间", readConverterExp = "0=否,1=是")
+    @Excel(name = "独立卫浴", readConverterExp = "0=否,1=是", prompt = "选填,填写:是、否")
     private String hasBathroom;
 
     /** 是否有阳台(0否 1是) */
-    @Excel(name = "阳台", readConverterExp = "0=否,1=是")
+    @Excel(name = "阳台", readConverterExp = "0=否,1=是", prompt = "选填,填写:是、否")
     private String hasBalcony;
 
     /** 设施配置 */
-    @Excel(name = "设施配置")
+    @Excel(name = "设施配置", prompt = "选填,如:电视、空调、衣柜")
     private String facilities;
 
     /** 机构名称 */
-    @Excel(name = "机构名称")
+    @Excel(name = "机构名称", prompt = "选填,仅用于核对")
     private String institutionName;
 
     /** 当前用户ID(用于数据权限过滤,不映射到数据库) */

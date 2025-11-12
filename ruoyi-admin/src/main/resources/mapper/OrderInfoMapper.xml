@@ -21,6 +21,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="serviceStartDate"    column="service_start_date"    />
         <result property="serviceEndDate"    column="service_end_date"    />
         <result property="billingCycle"    column="billing_cycle"    />
+        <result property="monthCount"    column="month_count"    />
+        <result property="originalAmount"    column="original_amount"    />
+        <result property="discountAmount"    column="discount_amount"    />
         <result property="dueDate"     column="due_date"     />
         <result property="createBy"   column="create_by"   />
         <result property="createTime" column="create_time" />
@@ -37,7 +40,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         select o.order_id, o.order_no, o.order_type, o.elder_id, o.institution_id, o.check_in_id,
                o.bed_id, o.order_amount, o.paid_amount, o.order_status, o.payment_method,
                o.payment_time, o.order_date, o.service_start_date, o.service_end_date,
-               o.billing_cycle, o.due_date, o.create_by, o.create_time, o.update_by, o.update_time, o.remark,
+               o.billing_cycle, o.month_count, o.original_amount, o.discount_amount,
+               o.due_date, o.create_by, o.create_time, o.update_by, o.update_time, o.remark,
                e.elder_name, i.institution_name, b.room_number, b.bed_number
         from order_info o
         left join elder_info e on o.elder_id = e.elder_id
@@ -106,6 +110,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="serviceStartDate != null">service_start_date,</if>
             <if test="serviceEndDate != null">service_end_date,</if>
             <if test="billingCycle != null and billingCycle != ''">billing_cycle,</if>
+            <if test="monthCount != null">month_count,</if>
+            <if test="originalAmount != null">original_amount,</if>
+            <if test="discountAmount != null">discount_amount,</if>
             <if test="dueDate != null">due_date,</if>
             <if test="createBy != null and createBy != ''">create_by,</if>
             <if test="createTime != null">create_time,</if>
@@ -129,6 +136,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="serviceStartDate != null">#{serviceStartDate},</if>
             <if test="serviceEndDate != null">#{serviceEndDate},</if>
             <if test="billingCycle != null and billingCycle != ''">#{billingCycle},</if>
+            <if test="monthCount != null">#{monthCount},</if>
+            <if test="originalAmount != null">#{originalAmount},</if>
+            <if test="discountAmount != null">#{discountAmount},</if>
             <if test="dueDate != null">#{dueDate},</if>
             <if test="createBy != null and createBy != ''">#{createBy},</if>
             <if test="createTime != null">#{createTime},</if>
