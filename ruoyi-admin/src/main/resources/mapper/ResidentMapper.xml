@@ -31,6 +31,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="createTime"       column="create_time"        />
         <result property="updateTime"       column="update_time"        />
         <result property="hasUnpaidOrder"   column="has_unpaid_order"   />
+        <result property="institutionId"    column="institution_id"     />
+        <result property="institutionName"  column="institution_name"   />
     </resultMap>
 
     <select id="selectResidentList" parameterType="com.ruoyi.domain.vo.ResidentVO" resultMap="ResidentVOResult">
@@ -77,11 +79,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                 SELECT 1 FROM order_info o
                 WHERE o.elder_id = ei.elder_id
                 AND o.order_status = '0'
-            ) THEN 1 ELSE 0 END as has_unpaid_order
+            ) THEN 1 ELSE 0 END as has_unpaid_order,
+            bi.institution_id,
+            pi.institution_name
         FROM elder_info ei
         LEFT JOIN bed_allocation ba ON ei.elder_id = ba.elder_id
             AND (ba.allocation_status = '1' OR ba.allocation_status = '0')
         LEFT JOIN bed_info bi ON ba.bed_id = bi.bed_id
+        LEFT JOIN pension_institution pi ON bi.institution_id = pi.institution_id
         WHERE 1=1
         <if test="elderName != null and elderName != ''">
             AND ei.elder_name LIKE CONCAT('%', #{elderName}, '%')
@@ -94,6 +99,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         </if>
         <if test="checkInStatus != null and checkInStatus != ''">
             AND ei.status = #{checkInStatus}
+        </if>
+        <if test="institutionId != null">
+            AND bi.institution_id = #{institutionId}
         </if>
         ORDER BY ei.create_time DESC
     </select>
@@ -144,11 +152,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             ei.special_needs,
             ei.remark,
             ei.create_time,
-            ei.update_time
+            ei.update_time,
+            bi.institution_id,
+            pi.institution_name
         FROM elder_info ei
         LEFT JOIN bed_allocation ba ON ei.elder_id = ba.elder_id
             AND (ba.allocation_status = '1' OR ba.allocation_status = '0')
         LEFT JOIN bed_info bi ON ba.bed_id = bi.bed_id
+        LEFT JOIN pension_institution pi ON bi.institution_id = pi.institution_id
         WHERE ei.elder_id = #{elderId}
     </select>
 

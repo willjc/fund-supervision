@@ -104,6 +104,12 @@ public class ResidentVO
     /** 是否有未支付订单 */
     private Boolean hasUnpaidOrder;
 
+    /** 所属机构ID */
+    private Long institutionId;
+
+    /** 所属机构名称 */
+    private String institutionName;
+
     /** 订单列表 */
     private List<OrderInfo> orders;
 
@@ -332,6 +338,22 @@ public class ResidentVO
 
     public void setHasUnpaidOrder(Boolean hasUnpaidOrder) {
         this.hasUnpaidOrder = hasUnpaidOrder;
+    }
+
+    public Long getInstitutionId() {
+        return institutionId;
+    }
+
+    public void setInstitutionId(Long institutionId) {
+        this.institutionId = institutionId;
+    }
+
+    public String getInstitutionName() {
+        return institutionName;
+    }
+
+    public void setInstitutionName(String institutionName) {
+        this.institutionName = institutionName;
     }
 
     public List<OrderInfo> getOrders() {

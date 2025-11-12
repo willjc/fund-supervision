@@ -14647,3 +14647,854 @@ if (memberFee.compareTo(BigDecimal.ZERO) > 0) {
 2025-11-12 02:30
 
 ---
+
+## 2025-11-12 订单记录表格优化 - 应收/实收/优惠金额
+
+### 问题背景
+
+在"入住人列表"的详情对话框中,订单记录表格的列名不够清晰:
+- "订单金额" → 实际是实收金额,但容易误解
+- "已付金额" → 与订单金额重复,容易混淆
+- 缺少应收金额和优惠金额的显示
+
+### 数据库字段含义澄清
+
+根据 OrderInfo.java 的定义:
+
+| 数据库字段 | 注释 | 实际含义 | 应该显示为 |
+|-----------|------|---------|-----------|
+| `orderAmount` | 订单总金额 | **实收总计**(用户实际支付的金额) | 实收金额 ✅ |
+| `originalAmount` | 应收总计 | **应收总计**(优惠前的原始金额) | 应收金额 ✅ |
+| `discountAmount` | 优惠金额 | **优惠金额**(应收-实收的差值) | 优惠金额 ✅ |
+| `paidAmount` | 已付金额 | **已支付金额**(部分支付场景) | 不显示 |
+
+### 前端修改
+
+**文件**: `ruoyi-ui/src/views/pension/elder/list.vue` (lines 329-380)
+
+#### 修改前的订单记录表格:
+
+```vue
+<el-table-column prop="orderAmount" label="订单金额" width="120">
+  <template slot-scope="scope">
+    <span style="color: #E6A23C; font-weight: bold;">￥{{ formatMoney(scope.row.orderAmount) }}</span>
+  </template>
+</el-table-column>
+<el-table-column prop="paidAmount" label="已付金额" width="120">
+  <template slot-scope="scope">
+    <span style="color: #67C23A; font-weight: bold;">￥{{ formatMoney(scope.row.paidAmount) }}</span>
+  </template>
+</el-table-column>
+```
+
+**问题**:
+- ❌ orderAmount 显示为"订单金额" - 不准确
+- ❌ paidAmount 显示为"已付金额" - 与orderAmount重复
+- ❌ 缺少应收金额(originalAmount)
+- ❌ 缺少优惠金额(discountAmount)
+
+#### 修改后的订单记录表格:
+
+```vue
+<!-- 应收金额 -->
+<el-table-column prop="originalAmount" label="应收金额" width="120">
+  <template slot-scope="scope">
+    <span style="color: #E6A23C; font-weight: bold;">￥{{ formatMoney(scope.row.originalAmount) }}</span>
+  </template>
+</el-table-column>
+
+<!-- 实收金额 -->
+<el-table-column prop="orderAmount" label="实收金额" width="120">
+  <template slot-scope="scope">
+    <span style="color: #67C23A; font-weight: bold;">￥{{ formatMoney(scope.row.orderAmount) }}</span>
+  </template>
+</el-table-column>
+
+<!-- 优惠金额 -->
+<el-table-column prop="discountAmount" label="优惠金额" width="110">
+  <template slot-scope="scope">
+    <span v-if="scope.row.discountAmount && scope.row.discountAmount > 0" style="color: #F56C6C; font-weight: bold;">
+      -￥{{ formatMoney(scope.row.discountAmount) }}
+    </span>
+    <span v-else style="color: #909399;">-</span>
+  </template>
+</el-table-column>
+```
+
+### 修改内容总结
+
+#### 1. 列名调整
+
+| 修改前 | 修改后 | 字段 |
+|-------|-------|------|
+| 订单金额 | **应收金额** | `originalAmount` |
+| 已付金额 | **实收金额** | `orderAmount` |
+| ❌ 无 | **优惠金额** | `discountAmount` |
+
+#### 2. 颜色方案
+
+- **应收金额**: 橙色 `#E6A23C` - 表示优惠前的金额
+- **实收金额**: 绿色 `#67C23A` - 表示实际收到的金额
+- **优惠金额**: 红色 `#F56C6C` - 表示减免的金额,显示为 `-¥xxx`
+
+#### 3. 显示逻辑
+
+- **应收金额**: 始终显示
+- **实收金额**: 始终显示
+- **优惠金额**: 
+  - 当 `discountAmount > 0` 时,显示 `-¥xxx` (红色粗体)
+  - 当 `discountAmount = 0` 时,显示 `-` (灰色)
+
+### 业务场景示例
+
+#### 场景1: 无优惠的订单
+- 应收金额: ¥3,000 (橙色)
+- 实收金额: ¥3,000 (绿色)
+- 优惠金额: - (灰色)
+
+#### 场景2: 有优惠的订单
+- 应收金额: ¥3,000 (橙色)
+- 实收金额: ¥2,800 (绿色)
+- 优惠金额: -¥200 (红色) ← 清晰显示优惠了200元
+
+### 与续费逻辑的一致性
+
+这次修改与之前的续费功能重构保持一致:
+
+**续费对话框**:
+- 应收总计 = 月服务费×月数 + 补交押金 + 补交会员费
+- 实收总计 = 用户手动调整后的金额
+- 优惠金额 = 应收总计 - 实收总计
+
+**订单记录**:
+- 应收金额 = originalAmount (保存的应收总计)
+- 实收金额 = orderAmount (保存的实收总计)
+- 优惠金额 = discountAmount (保存的优惠金额)
+
+✅ **完全一致**,用户可以在续费时设置优惠,在订单记录中清晰看到优惠明细。
+
+### 修改时间
+2025-11-12 02:45
+
+---
+
+## 2025-11-12 订单记录添加到期日期列
+
+### 背景
+用户反馈在"养老机构/入住管理/入住人列表"的详情页面中,虽然订单记录展示了费用明细,但缺少一个重要信息:**每笔订单处理后的到期日期**。现有的到期日期只在列表中能看到最新值,无法看到完整的历史变更记录。
+
+### 需求
+在订单记录表格中添加"到期日期"列,显示每笔订单(特别是续费订单)处理后的服务到期日期,帮助用户追溯到期日期的变化历史。
+
+### 修改内容
+
+#### 1. 添加"到期日期"列
+
+**文件**: `ruoyi-ui/src/views/pension/elder/list.vue` (第356-368行)
+
+```vue
+<el-table-column label="到期日期" width="150">
+  <template slot-scope="scope">
+    <div v-if="scope.row.serviceEndDate">
+      <!-- 主要日期显示 -->
+      <div style="color: #409EFF; font-weight: bold;">
+        {{ parseTime(scope.row.serviceEndDate, '{y}-{m}-{d}') }}
+      </div>
+      <!-- 续费订单的延长提示 -->
+      <div v-if="scope.row.orderType === '2' && scope.row.monthCount && scope.row.monthCount > 0"
+           style="font-size: 12px; color: #67C23A;">
+        <i class="el-icon-top"></i> 延长{{ scope.row.monthCount }}个月
+      </div>
+    </div>
+    <span v-else style="color: #909399;">-</span>
+  </template>
+</el-table-column>
+```
+
+#### 2. 调整表格列宽
+
+为了容纳新增的"到期日期"列(150px),对其他列宽进行了微调:
+
+| 列名 | 原宽度 | 新宽度 | 说明 |
+|------|--------|--------|------|
+| 订单号 | 180px | 170px | 减少10px |
+| 订单类型 | 100px | 90px | 减少10px |
+| 应收金额 | 120px | 110px | 减少10px |
+| 实收金额 | 120px | 110px | 减少10px |
+| 优惠金额 | 110px | 100px | 减少10px |
+| **到期日期** | ❌ 无 | **150px** | 新增 |
+| 订单状态 | 100px | 90px | 减少10px |
+| 支付方式 | 100px | 90px | 减少10px |
+| 订单日期 | 110px | 105px | 减少5px |
+| 备注 | min-width: 150px | min-width: 120px | 减少30px |
+
+**总共节省**: 105px
+**新增列**: 150px
+**净增加**: 45px (由备注列的min-width弹性吸收)
+
+#### 3. 样式设计
+
+**日期显示**:
+- 颜色: 蓝色 `#409EFF` - 突出重要时间信息
+- 字体: 粗体 - 强调关键数据
+- 格式: `YYYY-MM-DD`
+
+**延长提示** (仅续费订单且monthCount > 0时显示):
+- 图标: `el-icon-top` (向上箭头) - 表示时间延长
+- 颜色: 绿色 `#67C23A` - 与"实收金额"颜色一致,表示正面操作
+- 字体大小: 12px - 作为辅助信息,比主日期小
+- 内容: "延长X个月"
+
+### 业务场景示例
+
+#### 场景1: 入驻订单
+```
+订单类型: [入驻]
+到期日期: 2025-05-12 (蓝色粗体)
+```
+
+#### 场景2: 续费订单(延长服务期)
+```
+订单类型: [续费]
+到期日期: 2025-08-12 (蓝色粗体)
+           ↑ 延长3个月 (绿色小字)
+```
+
+#### 场景3: 续费订单(仅补缴费用,不延长)
+```
+订单类型: [续费]
+到期日期: 2025-05-12 (蓝色粗体)
+           (无延长提示,因为monthCount = 0)
+```
+
+### 数据来源
+
+- **serviceEndDate**: 订单表中的服务结束日期字段,记录了该订单处理后的到期日期
+- **orderType**: `'1'`=入驻, `'2'`=续费
+- **monthCount**: 续费订单中的续费月数,仅续费时有值
+
+### 用户价值
+
+1. **历史追溯**: 用户可以看到每次续费如何影响到期日期
+2. **清晰展示**: 一目了然地看到每笔订单延长了多少个月
+3. **完整记录**: 订单记录不仅有费用信息,还有时间信息,形成完整的业务流水
+4. **便于核对**: 当老人对到期日期有疑问时,可以逐笔订单核对变更历史
+
+### 与现有功能的一致性
+
+这次修改补充了订单记录的时间维度,与之前的功能保持一致:
+
+**续费功能** (已实现):
+- 续费时显示"当前到期日期"和"新到期日期"
+- 当 monthCount > 0 时,显示"延长X个月"
+
+**订单记录** (本次新增):
+- 显示每笔订单处理后的到期日期(serviceEndDate)
+- 续费订单且 monthCount > 0 时,显示"延长X个月"
+
+✅ **完全对应**,用户在续费时看到的延长效果,可以在订单记录中得到印证。
+
+### 修改时间
+2025-11-12 03:00
+
+---
+
+## 2025-11-12 新增入驻页面添加养老机构选择功能
+
+### 背景
+在"养老机构/入住管理/新增入驻"页面中,床位选择器直接显示了账号归属下所有养老机构的床位,导致:
+1. **床位列表混乱** - 多个机构的床位混在一起显示
+2. **操作不便** - 用户需要从大量床位中找到目标床位
+3. **逻辑不清晰** - 缺少"先选机构,再选床位"的层级关系
+
+### 需求
+实现**两步选择流程**:
+1. **第一步**: 选择养老机构 - 下拉选择当前账号归属的养老机构
+2. **第二步**: 选择床位 - 根据所选机构过滤显示该机构下的可用床位
+
+### 修改内容
+
+#### 1. 前端页面修改
+
+**文件**: `ruoyi-ui/src/views/pension/elder/checkin.vue`
+
+##### 1.1 导入养老机构API
+```javascript
+import { listPensionInstitution } from "@/api/pension/institution";
+```
+
+##### 1.2 添加数据字段 (第321行)
+```javascript
+data() {
+  return {
+    institutionList: [],  // 新增:养老机构列表
+    form: {
+      institutionId: null,  // 新增:所选养老机构ID
+      bedId: null,
+      // ... 其他字段
+    }
+  }
+}
+```
+
+##### 1.3 添加表单验证规则 (第384-386行)
+```javascript
+rules: {
+  institutionId: [
+    { required: true, message: "请选择养老机构", trigger: "change" }
+  ],
+  // ... 其他规则
+}
+```
+
+##### 1.4 UI布局调整 (第112-164行)
+
+**养老机构选择(第一行)**:
+```vue
+<el-row :gutter="20">
+  <el-col :span="12">
+    <el-form-item label="选择养老机构" prop="institutionId">
+      <el-select
+        v-model="form.institutionId"
+        placeholder="请先选择养老机构"
+        filterable
+        style="width: 100%"
+        @change="handleInstitutionChange">
+        <el-option
+          v-for="inst in institutionList"
+          :key="inst.institutionId"
+          :label="inst.institutionName"
+          :value="inst.institutionId">
+        </el-option>
+      </el-select>
+    </el-form-item>
+  </el-col>
+  <el-col :span="12">
+    <el-form-item label="选择床位" prop="bedId">
+      <el-select
+        v-model="form.bedId"
+        placeholder="请先选择养老机构"
+        filterable
+        :disabled="!form.institutionId"
+        @change="handleBedChange">
+        <!-- 床位选项 -->
+      </el-select>
+    </el-form-item>
+  </el-col>
+</el-row>
+```
+
+**入住日期(第二行)**:
+```vue
+<el-row :gutter="20">
+  <el-col :span="12">
+    <el-form-item label="入住日期" prop="checkInDate">
+      <el-date-picker ... />
+    </el-form-item>
+  </el-col>
+</el-row>
+```
+
+##### 1.5 逻辑方法修改
+
+**加载养老机构列表** (第434-439行):
+```javascript
+/** 加载养老机构列表 */
+loadInstitutions() {
+  listPensionInstitution().then(response => {
+    this.institutionList = response.rows || [];
+  });
+}
+```
+
+**养老机构改变事件** (第440-451行):
+```javascript
+/** 养老机构改变 */
+handleInstitutionChange(institutionId) {
+  // 清空床位选择
+  this.form.bedId = null;
+  this.form.monthlyFee = 0;
+  this.availableBeds = [];
+
+  // 根据所选机构加载床位
+  if (institutionId) {
+    this.loadAvailableBeds(institutionId);
+  }
+}
+```
+
+**修改床位加载方法** (第452-460行):
+```javascript
+/** 加载可用床位(根据机构ID过滤) */
+loadAvailableBeds(institutionId) {
+  listBedInfo({
+    bedStatus: '0',           // 只查询空置床位
+    institutionId: institutionId  // ✅ 新增:按机构过滤
+  }).then(response => {
+    this.availableBeds = response.rows || [];
+  });
+}
+```
+
+**修改created钩子** (第428-432行):
+```javascript
+created() {
+  this.loadInstitutions();  // ✅ 改为加载养老机构,而不是直接加载床位
+  this.form.checkInDate = this.parseTime(new Date(), '{y}-{m}-{d}');
+}
+```
+
+### 操作流程
+
+#### 修改前
+```
+1. 打开新增入驻页面
+2. 床位下拉框显示所有机构的所有空置床位(混乱)
+3. 用户需要辨别哪个床位属于哪个机构
+```
+
+#### 修改后
+```
+1. 打开新增入驻页面
+2. 先选择养老机构(下拉框显示当前账号下的机构列表)
+   └─ 床位下拉框禁用,提示"请先选择养老机构"
+3. 选择机构后,床位下拉框启用
+   └─ 自动加载该机构下的空置床位
+   └─ 只显示所选机构的床位(清晰)
+4. 选择床位,继续后续操作
+```
+
+### 技术要点
+
+1. **联动效果**:
+   - 养老机构未选择时,床位选择器禁用(`:disabled="!form.institutionId"`)
+   - 切换养老机构时,自动清空床位选择和床位列表
+
+2. **数据过滤**:
+   - 床位查询API添加`institutionId`参数
+   - 后端根据`institutionId`过滤床位数据
+
+3. **用户体验**:
+   - 提示语:"请先选择养老机构"
+   - 支持模糊搜索(filterable)
+   - 布局合理:第一行选机构和床位,第二行选日期
+
+### 业务价值
+
+1. **数据隔离清晰** - 不同机构的床位不会混在一起
+2. **操作流程规范** - 强制用户先选机构再选床位
+3. **提升效率** - 床位列表更短,查找更快
+4. **减少错误** - 避免用户选错机构的床位
+5. **扩展性好** - 支持一个账号管理多个养老机构的场景
+
+### 后端支持
+
+**前提条件**:
+- 床位表(bed_info)已有`institution_id`字段
+- 床位查询接口(/elder/bed/list)支持按`institutionId`参数过滤
+
+**API调用示例**:
+```javascript
+// 查询某机构下的空置床位
+listBedInfo({
+  bedStatus: '0',
+  institutionId: 123
+})
+```
+
+### 修改时间
+2025-11-12 03:30
+
+---
+
+## 2025-11-12 入住人列表添加养老机构信息展示和筛选
+
+### 背景
+在"养老机构/入住管理/入住人列表"页面中,缺少养老机构信息的展示和筛选功能,导致:
+1. **列表中看不到机构** - 无法直接看到每个入住人属于哪个养老机构
+2. **详情中没有机构** - 查看入住人详情时,看不到所属机构
+3. **无法按机构筛选** - 搜索时不能按养老机构过滤入住人
+4. **统计数据不明确** - 页面顶部的统计卡片没有说明统计范围
+
+### 需求
+1. 列表表格中显示每个入住人所属的养老机构
+2. 详情对话框中显示养老机构信息
+3. 搜索区域添加养老机构下拉筛选器
+4. 统计卡片显示是"全部机构"还是"当前机构"的数据
+
+### 修改内容
+
+#### 1. 前端修改
+
+**文件**: `ruoyi-ui/src/views/pension/elder/list.vue`
+
+##### 1.1 导入养老机构API (第794行)
+```javascript
+import { listPensionInstitution } from "@/api/pension/institution";
+```
+
+##### 1.2 添加数据字段 (第815-816行)
+```javascript
+data() {
+  return {
+    institutionList: [],  // 养老机构列表
+    queryParams: {
+      institutionId: null,  // 所选机构ID筛选
+      // ... 其他参数
+    }
+  }
+}
+```
+
+##### 1.3 列表表格添加"所属机构"列 (第141行)
+```vue
+<el-table-column label="所属机构" align="center" prop="institutionName" width="150" show-overflow-tooltip />
+```
+- 位置: 在"房间号-床位号"列之后
+- 显示: institutionName字段
+- 宽度: 150px
+- 支持文本溢出省略
+
+##### 1.4 搜索区域添加机构筛选 (第31-41行)
+```vue
+<el-form-item label="所属机构" prop="institutionId">
+  <el-select v-model="queryParams.institutionId" placeholder="请选择养老机构" clearable @change="handleQuery">
+    <el-option label="全部机构" :value="null" />
+    <el-option
+      v-for="inst in institutionList"
+      :key="inst.institutionId"
+      :label="inst.institutionName"
+      :value="inst.institutionId"
+    />
+  </el-select>
+</el-form-item>
+```
+- 位置: 在"房间号"和"入住状态"之间
+- 功能: 选择机构后自动触发查询(@change="handleQuery")
+- 支持清空,恢复显示全部机构
+
+##### 1.5 统计卡片添加说明文字 (第62-66行)
+```vue
+<div class="stat-label">
+  入住总人数
+  <span style="font-size: 12px; color: #909399; margin-left: 5px;">
+    {{ queryParams.institutionId ? '(当前机构)' : '(全部机构)' }}
+  </span>
+</div>
+```
+- 动态显示: 未选机构时显示"(全部机构)",选择机构后显示"(当前机构)"
+- 应用于所有4个统计卡片: 入住总人数、服务费总余额、押金总余额、会员卡总余额
+
+##### 1.6 详情对话框显示机构信息 (第289-291行)
+```vue
+<el-descriptions-item label="所属机构" :span="2">
+  <el-tag type="success">{{ residentDetail.institutionName || '-' }}</el-tag>
+</el-descriptions-item>
+```
+- 位置: 在"年龄"和"身份证号"之间
+- 样式: 绿色标签(el-tag type="success")
+- 跨度: 占用2列
+
+##### 1.7 加载机构列表方法 (第982-987行)
+```javascript
+/** 加载养老机构列表 */
+loadInstitutions() {
+  listPensionInstitution().then(response => {
+    this.institutionList = response.rows || [];
+  });
+}
+```
+
+##### 1.8 在created钩子中调用 (第976-980行)
+```javascript
+created() {
+  this.loadInstitutions();  // ✅ 新增:加载机构列表
+  this.getList();
+  this.getStatistics();
+}
+```
+
+### 操作流程
+
+#### 默认状态(未选机构)
+```
+1. 页面加载
+   ├─ 加载所有机构列表(下拉框数据源)
+   ├─ 显示所有机构的入住人列表
+   └─ 统计卡片显示"(全部机构)"
+
+2. 列表显示
+   └─ 每行显示入住人姓名、所属机构等信息
+
+3. 详情查看
+   └─ 点击详情,显示所属机构绿色标签
+```
+
+#### 筛选状态(选择某机构)
+```
+1. 用户选择机构
+   ├─ 下拉框选择"XX养老院"
+   └─ 自动触发查询
+
+2. 列表更新
+   └─ 只显示该机构的入住人
+
+3. 统计卡片更新
+   ├─ 数字更新为该机构的统计
+   └─ 说明文字变为"(当前机构)"
+
+4. 恢复全部
+   └─ 点击清空按钮,恢复显示所有机构
+```
+
+### 数据流
+
+#### 前端请求
+```javascript
+// 查询入住人列表
+listResident({
+  pageNum: 1,
+  pageSize: 10,
+  elderName: null,
+  institutionId: 123,  // ✅ 新增:机构ID筛选参数
+  checkInStatus: null
+})
+```
+
+#### 后端支持(需要确认)
+- 入住人查询接口支持`institutionId`参数过滤
+- 查询结果包含`institutionName`字段
+- 统计接口根据`institutionId`参数返回对应数据
+
+### 技术要点
+
+1. **数据关联**:
+   - 入住人数据通过`institutionId`关联养老机构
+   - 查询结果需包含`institutionName`(可能需要关联查询)
+
+2. **动态筛选**:
+   - 选择机构时,`queryParams.institutionId`传递到后端
+   - 后端根据此参数过滤数据
+   - 统计数据也相应变化
+
+3. **清空功能**:
+   - 下拉框设置`clearable`属性
+   - 清空时`institutionId`设为null
+   - 自动显示全部机构数据
+
+4. **用户体验**:
+   - 选择机构后自动查询(`@change="handleQuery"`)
+   - 统计说明动态变化(全部机构/当前机构)
+   - 详情中用绿色标签突出显示所属机构
+
+### 业务价值
+
+1. **信息完整** - 列表和详情中都能看到所属机构,信息一目了然
+2. **快速筛选** - 管理多个机构时,可以快速切换查看某个机构的数据
+3. **统计清晰** - 统计数据明确说明是全部机构还是当前机构
+4. **操作便捷** - 选择机构后自动查询,支持一键清空恢复全部
+5. **扩展性好** - 完美支持一个账号管理多个养老机构的场景
+
+### 后端支持要求
+
+**数据层面**:
+- 入住人表有`institution_id`字段
+- 查询时需要关联查询`institution_name`
+
+**接口层面**:
+- `/elder/resident/list`接口支持`institutionId`参数
+- 返回数据包含`institutionName`字段
+- 统计接口支持按`institutionId`筛选
+
+### 修改时间
+2025-11-12 04:00
+
+---
+
+## 2025-11-12 修复入住人列表所属机构显示问题(后端)
+
+### 问题描述
+前端在入住人列表中已添加"所属机构"列和机构筛选功能,但页面显示为空白,无法正常筛选。原因是后端查询未返回 `institutionName` 和 `institutionId` 字段。
+
+### 修改文件
+
+#### 1. ResidentVO.java
+**文件路径**: `ruoyi-admin/src/main/java/com/ruoyi/domain/vo/ResidentVO.java`
+
+**修改内容**:
+```java
+/** 所属机构ID */
+private Long institutionId;
+
+/** 所属机构名称 */
+private String institutionName;
+
+// Getter and Setter methods
+public Long getInstitutionId() {
+    return institutionId;
+}
+
+public void setInstitutionId(Long institutionId) {
+    this.institutionId = institutionId;
+}
+
+public String getInstitutionName() {
+    return institutionName;
+}
+
+public void setInstitutionName(String institutionName) {
+    this.institutionName = institutionName;
+}
+```
+
+**位置**: 在 `hasUnpaidOrder` 字段之后添加
+
+#### 2. ResidentMapper.xml
+**文件路径**: `ruoyi-admin/src/main/resources/mapper/ResidentMapper.xml`
+
+**修改内容**:
+
+1. **resultMap 添加字段映射**:
+```xml
+<result property="institutionId"    column="institution_id"     />
+<result property="institutionName"  column="institution_name"   />
+```
+
+2. **selectResidentList 查询优化**:
+- 添加字段查询:
+```sql
+bi.institution_id,
+pi.institution_name
+```
+
+- 添加 LEFT JOIN:
+```sql
+LEFT JOIN pension_institution pi ON bi.institution_id = pi.institution_id
+```
+
+- 添加过滤条件:
+```xml
+<if test="institutionId != null">
+    AND bi.institution_id = #{institutionId}
+</if>
+```
+
+3. **selectResidentDetail 查询优化**:
+- 同样添加机构字段和 JOIN 语句
+- 确保详情页面也能显示机构信息
+
+### 完整 SQL 查询结构
+
+#### selectResidentList
+```sql
+SELECT
+    ei.elder_id,
+    ei.elder_name,
+    -- ... 其他字段 ...
+    bi.institution_id,           -- 新增
+    pi.institution_name          -- 新增
+FROM elder_info ei
+LEFT JOIN bed_allocation ba ON ei.elder_id = ba.elder_id
+    AND (ba.allocation_status = '1' OR ba.allocation_status = '0')
+LEFT JOIN bed_info bi ON ba.bed_id = bi.bed_id
+LEFT JOIN pension_institution pi ON bi.institution_id = pi.institution_id  -- 新增
+WHERE 1=1
+    -- ... 其他筛选条件 ...
+    <if test="institutionId != null">
+        AND bi.institution_id = #{institutionId}    -- 新增
+    </if>
+ORDER BY ei.create_time DESC
+```
+
+#### selectResidentDetail
+```sql
+SELECT
+    ei.elder_id,
+    -- ... 详情字段 ...
+    bi.institution_id,           -- 新增
+    pi.institution_name          -- 新增
+FROM elder_info ei
+LEFT JOIN bed_allocation ba ON ei.elder_id = ba.elder_id
+    AND (ba.allocation_status = '1' OR ba.allocation_status = '0')
+LEFT JOIN bed_info bi ON ba.bed_id = bi.bed_id
+LEFT JOIN pension_institution pi ON bi.institution_id = pi.institution_id  -- 新增
+WHERE ei.elder_id = #{elderId}
+```
+
+### 数据关联逻辑
+
+```
+elder_info (老人信息)
+    ↓ (通过 elder_id)
+bed_allocation (床位分配记录)
+    ↓ (通过 bed_id)
+bed_info (床位信息,包含 institution_id)
+    ↓ (通过 institution_id)
+pension_institution (养老机构信息,包含 institution_name)
+```
+
+### 功能实现
+
+1. **列表显示机构名称**:
+   - 前端表格列 `institutionName` 现在能正确显示机构名称
+
+2. **机构筛选功能**:
+   - 前端下拉框选择机构后,`institutionId` 传递到后端
+   - MyBatis 动态 SQL 根据 `institutionId` 过滤数据
+   - 支持清空筛选查看全部机构
+
+3. **详情显示机构**:
+   - 详情对话框中 `institutionName` 正确显示
+   - 以绿色标签形式突出显示
+
+4. **统计数据过滤**:
+   - 选择机构后,统计数据只统计该机构的数据
+   - 统计标签显示"(当前机构)"或"(全部机构)"
+
+### 技术要点
+
+1. **LEFT JOIN 使用**:
+   - 使用 LEFT JOIN 而非 INNER JOIN
+   - 防止未分配床位的老人记录被过滤掉
+
+2. **字段映射**:
+   - resultMap 必须包含所有需要返回的字段
+   - column 名称与 SQL 查询的别名或字段名一致
+
+3. **动态条件**:
+   - 使用 `<if test="institutionId != null">` 实现可选筛选
+   - null 时不添加条件,查询全部数据
+
+4. **VO 设计**:
+   - ResidentVO 包含展示层需要的所有字段
+   - 不直接暴露数据库表结构
+
+### 测试验证
+
+后端修改完成后需要验证:
+
+1. **列表功能**:
+   - [ ] 入住人列表"所属机构"列显示正确的机构名称
+   - [ ] 顶部机构筛选下拉框能正确筛选数据
+   - [ ] 清空筛选能显示全部机构的入住人
+   - [ ] 统计数据随筛选条件正确变化
+
+2. **详情功能**:
+   - [ ] 详情对话框显示正确的机构名称
+   - [ ] 未分配床位的老人不会导致查询失败
+
+3. **性能验证**:
+   - [ ] JOIN 查询不影响列表加载速度
+   - [ ] 大数据量下分页查询正常
+
+### 业务价值
+
+1. **完整数据展示** - 用户可以清楚看到每个入住人所属的养老机构
+2. **快速筛选定位** - 管理多个机构时,可快速切换查看特定机构数据
+3. **准确统计分析** - 统计数据能按机构维度准确统计
+4. **数据完整性** - LEFT JOIN 确保所有入住人数据都能显示
+
+### 修改时间
+2025-11-12 05:30
+
+---

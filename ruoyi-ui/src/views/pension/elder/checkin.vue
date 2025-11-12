@@ -110,11 +110,29 @@
         </el-divider>
         <el-row :gutter="20">
           <el-col :span="12">
+            <el-form-item label="选择养老机构" prop="institutionId">
+              <el-select
+                v-model="form.institutionId"
+                placeholder="请先选择养老机构"
+                filterable
+                style="width: 100%"
+                @change="handleInstitutionChange">
+                <el-option
+                  v-for="inst in institutionList"
+                  :key="inst.institutionId"
+                  :label="inst.institutionName"
+                  :value="inst.institutionId">
+                </el-option>
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
             <el-form-item label="选择床位" prop="bedId">
               <el-select
                 v-model="form.bedId"
-                placeholder="请选择床位"
+                placeholder="请先选择养老机构"
                 filterable
+                :disabled="!form.institutionId"
                 style="width: 100%"
                 @change="handleBedChange">
                 <el-option
@@ -130,6 +148,8 @@
               </el-select>
             </el-form-item>
           </el-col>
+        </el-row>
+        <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="入住日期" prop="checkInDate">
               <el-date-picker
@@ -298,6 +318,7 @@ export default {
     return {
       submitLoading: false,
       availableBeds: [],
+      institutionList: [],
       // 表单数据
       form: {
         // 老人信息
@@ -314,6 +335,7 @@ export default {
         emergencyPhone: '',
         specialNeeds: '',
         // 床位信息
+        institutionId: null,
         bedId: null,
         checkInDate: '',
         // 费用信息
@@ -359,6 +381,9 @@ export default {
           { required: true, message: "紧急联系电话不能为空", trigger: "blur" },
           { pattern: /^1[3-9]\d{9}$/, message: "请输入正确的手机号码", trigger: "blur" }
         ],
+        institutionId: [
+          { required: true, message: "请选择养老机构", trigger: "change" }
+        ],
         bedId: [
           { required: true, message: "请选择床位", trigger: "change" }
         ],
@@ -401,14 +426,35 @@ export default {
     }
   },
   created() {
-    this.loadAvailableBeds();
+    this.loadInstitutions();
     // 默认入住日期为今天
     this.form.checkInDate = this.parseTime(new Date(), '{y}-{m}-{d}');
   },
   methods: {
-    /** 加载可用床位 */
-    loadAvailableBeds() {
-      listBedInfo({ bedStatus: '0' }).then(response => {
+    /** 加载养老机构列表 */
+    loadInstitutions() {
+      listPensionInstitution().then(response => {
+        this.institutionList = response.rows || [];
+      });
+    },
+    /** 养老机构改变 */
+    handleInstitutionChange(institutionId) {
+      // 清空床位选择
+      this.form.bedId = null;
+      this.form.monthlyFee = 0;
+      this.availableBeds = [];
+
+      // 根据所选机构加载床位
+      if (institutionId) {
+        this.loadAvailableBeds(institutionId);
+      }
+    },
+    /** 加载可用床位(根据机构ID过滤) */
+    loadAvailableBeds(institutionId) {
+      listBedInfo({
+        bedStatus: '0',
+        institutionId: institutionId
+      }).then(response => {
         this.availableBeds = response.rows || [];
       });
     },

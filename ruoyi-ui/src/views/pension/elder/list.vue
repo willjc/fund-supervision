@@ -28,6 +28,17 @@
           @keyup.enter.native="handleQuery"
         />
       </el-form-item>
+      <el-form-item label="所属机构" prop="institutionId">
+        <el-select v-model="queryParams.institutionId" placeholder="请选择养老机构" clearable @change="handleQuery">
+          <el-option label="全部机构" :value="null" />
+          <el-option
+            v-for="inst in institutionList"
+            :key="inst.institutionId"
+            :label="inst.institutionName"
+            :value="inst.institutionId"
+          />
+        </el-select>
+      </el-form-item>
       <el-form-item label="入住状态" prop="checkInStatus">
         <el-select v-model="queryParams.checkInStatus" placeholder="请选择入住状态" clearable>
           <el-option label="待入住" value="0" />
@@ -48,7 +59,12 @@
         <el-card shadow="hover" class="stat-card">
           <div class="stat-content">
             <div class="stat-number">{{ statistics.totalResidents || 0 }}</div>
-            <div class="stat-label">入住总人数</div>
+            <div class="stat-label">
+              入住总人数
+              <span style="font-size: 12px; color: #909399; margin-left: 5px;">
+                {{ queryParams.institutionId ? '(当前机构)' : '(全部机构)' }}
+              </span>
+            </div>
             <div class="stat-icon total">
               <i class="el-icon-user"></i>
             </div>
@@ -138,6 +154,7 @@
       <el-table-column label="身份证号" align="center" prop="idCard" width="150" />
       <el-table-column label="联系电话" align="center" prop="phone" width="120" />
       <el-table-column label="房间号-床位号" align="center" prop="bedInfo" width="120" />
+      <el-table-column label="所属机构" align="center" prop="institutionName" width="150" show-overflow-tooltip />
       <el-table-column label="入住状态" align="center" prop="checkInStatus" width="80">
         <template slot-scope="scope">
           <el-tag v-if="scope.row.checkInStatus === '0'" type="warning">待入住</el-tag>
@@ -269,7 +286,10 @@
             <dict-tag :options="dict.type.elder_gender" :value="residentDetail.gender"/>
           </el-descriptions-item>
           <el-descriptions-item label="年龄">{{ residentDetail.age }}岁</el-descriptions-item>
-          <el-descriptions-item label="身份证号" :span="2">{{ residentDetail.idCard }}</el-descriptions-item>
+          <el-descriptions-item label="所属机构" :span="2">
+            <el-tag type="success">{{ residentDetail.institutionName || '-' }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="身份证号">{{ residentDetail.idCard }}</el-descriptions-item>
           <el-descriptions-item label="出生日期">{{ residentDetail.birthDate || '-' }}</el-descriptions-item>
           <el-descriptions-item label="联系电话">{{ residentDetail.phone }}</el-descriptions-item>
           <el-descriptions-item label="护理等级">
@@ -327,25 +347,46 @@
             <span style="font-size: 12px; color: #909399; font-weight: normal;">(共{{ (residentDetail.orders || []).length }}条)</span>
           </h4>
           <el-table :data="residentDetail.orders || []" border style="width: 100%" max-height="300">
-            <el-table-column prop="orderNo" label="订单号" width="180"></el-table-column>
-            <el-table-column label="订单类型" width="100">
+            <el-table-column prop="orderNo" label="订单号" width="170"></el-table-column>
+            <el-table-column label="订单类型" width="90">
               <template slot-scope="scope">
                 <el-tag v-if="scope.row && scope.row.orderType === '1'" type="success">入驻</el-tag>
                 <el-tag v-else-if="scope.row && scope.row.orderType === '2'" type="primary">续费</el-tag>
                 <el-tag v-else>其他</el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="orderAmount" label="订单金额" width="120">
+            <el-table-column prop="originalAmount" label="应收金额" width="110">
               <template slot-scope="scope">
-                <span style="color: #E6A23C; font-weight: bold;">￥{{ formatMoney(scope.row.orderAmount) }}</span>
+                <span style="color: #E6A23C; font-weight: bold;">￥{{ formatMoney(scope.row.originalAmount) }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="paidAmount" label="已付金额" width="120">
+            <el-table-column prop="orderAmount" label="实收金额" width="110">
               <template slot-scope="scope">
-                <span style="color: #67C23A; font-weight: bold;">￥{{ formatMoney(scope.row.paidAmount) }}</span>
+                <span style="color: #67C23A; font-weight: bold;">￥{{ formatMoney(scope.row.orderAmount) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="订单状态" width="100">
+            <el-table-column prop="discountAmount" label="优惠金额" width="100">
+              <template slot-scope="scope">
+                <span v-if="scope.row.discountAmount && scope.row.discountAmount > 0" style="color: #F56C6C; font-weight: bold;">
+                  -￥{{ formatMoney(scope.row.discountAmount) }}
+                </span>
+                <span v-else style="color: #909399;">-</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="到期日期" width="150">
+              <template slot-scope="scope">
+                <div v-if="scope.row.serviceEndDate">
+                  <div style="color: #409EFF; font-weight: bold;">
+                    {{ parseTime(scope.row.serviceEndDate, '{y}-{m}-{d}') }}
+                  </div>
+                  <div v-if="scope.row.orderType === '2' && scope.row.monthCount && scope.row.monthCount > 0" style="font-size: 12px; color: #67C23A;">
+                    <i class="el-icon-top"></i> 延长{{ scope.row.monthCount }}个月
+                  </div>
+                </div>
+                <span v-else style="color: #909399;">-</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="订单状态" width="90">
               <template slot-scope="scope">
                 <el-tag v-if="scope.row && scope.row.orderStatus === '0'" type="warning">未支付</el-tag>
                 <el-tag v-else-if="scope.row && scope.row.orderStatus === '1'" type="success">已支付</el-tag>
@@ -354,7 +395,7 @@
                 <el-tag v-else type="info">-</el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="paymentMethod" label="支付方式" width="100">
+            <el-table-column prop="paymentMethod" label="支付方式" width="90">
               <template slot-scope="scope">
                 <span v-if="scope.row && scope.row.paymentMethod === 'cash'">现金</span>
                 <span v-else-if="scope.row && scope.row.paymentMethod === 'card'">刷卡</span>
@@ -363,12 +404,12 @@
                 <span v-else>{{ (scope.row && scope.row.paymentMethod) || '-' }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="orderDate" label="订单日期" width="110">
+            <el-table-column prop="orderDate" label="订单日期" width="105">
               <template slot-scope="scope">
                 {{ parseTime(scope.row.orderDate, '{y}-{m}-{d}') }}
               </template>
             </el-table-column>
-            <el-table-column prop="remark" label="备注" min-width="150" show-overflow-tooltip></el-table-column>
+            <el-table-column prop="remark" label="备注" min-width="120" show-overflow-tooltip></el-table-column>
           </el-table>
         </div>
 
@@ -750,6 +791,7 @@
 <script>
 import { listResident, getResident, delResident, renewResident, refundResident, applyDepositUse } from "@/api/elder/resident";
 import { updateElderInfo } from "@/api/elder/elderInfo";
+import { listPensionInstitution } from "@/api/pension/institution";
 
 export default {
   name: "ElderResident",
@@ -770,6 +812,8 @@ export default {
       total: 0,
       // 入住人列表数据
       residentList: [],
+      // 养老机构列表
+      institutionList: [],
       // 统计数据
       statistics: {},
       // 弹出层标题
@@ -798,6 +842,7 @@ export default {
         elderName: null,
         gender: null,
         roomNumber: null,
+        institutionId: null,
         checkInStatus: null,
       },
       // 续费表单参数
@@ -929,10 +974,17 @@ export default {
     }
   },
   created() {
+    this.loadInstitutions();
     this.getList();
     this.getStatistics();
   },
   methods: {
+    /** 加载养老机构列表 */
+    loadInstitutions() {
+      listPensionInstitution().then(response => {
+        this.institutionList = response.rows || [];
+      });
+    },
     /** 查询入住人列表 */
     getList() {
       this.loading = true;
