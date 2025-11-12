@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -228,5 +229,16 @@ public class ResidentServiceImpl implements IResidentService
         }
 
         return 1;
+    }
+
+    /**
+     * 查询入住人统计数据
+     *
+     * @return 统计数据
+     */
+    @Override
+    public Map<String, Object> getResidentStatistics()
+    {
+        return residentMapper.selectResidentStatistics();
     }
 }

@@ -1,6 +1,7 @@
 package com.ruoyi.service;
 
 import java.util.List;
+import java.util.Map;
 import com.ruoyi.domain.RenewDTO;
 import com.ruoyi.domain.vo.ResidentVO;
 
@@ -36,4 +37,11 @@ public interface IResidentService
      * @return 结果
      */
     public int renewResident(RenewDTO renewDTO, Long userId);
+
+    /**
+     * 查询入住人统计数据
+     *
+     * @return 统计数据
+     */
+    public Map<String, Object> getResidentStatistics();
 }

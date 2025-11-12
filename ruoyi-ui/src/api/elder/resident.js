@@ -77,3 +77,11 @@ export function importResident(data) {
     data: data
   })
 }
+
+// 查询入住人统计数据
+export function getResidentStatistics() {
+  return request({
+    url: '/pension/resident/statistics',
+    method: 'get'
+  })
+}

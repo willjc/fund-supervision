@@ -1,6 +1,7 @@
 package com.ruoyi.mapper;
 
 import java.util.List;
+import java.util.Map;
 import com.ruoyi.domain.OrderInfo;
 import com.ruoyi.domain.PaymentRecord;
 import com.ruoyi.domain.vo.ResidentVO;
@@ -44,4 +45,11 @@ public interface ResidentMapper
      * @return 支付记录列表
      */
     public List<PaymentRecord> selectPaymentsByElderId(Long elderId);
+
+    /**
+     * 查询入住人统计数据
+     *
+     * @return 统计数据(totalResidents, totalServiceBalance, totalDepositBalance, totalMemberBalance)
+     */
+    public Map<String, Object> selectResidentStatistics();
 }

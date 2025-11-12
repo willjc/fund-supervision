@@ -65,4 +65,14 @@ public class PensionResidentController extends BaseController
         Long userId = SecurityUtils.getUserId();
         return toAjax(residentService.renewResident(renewDTO, userId));
     }
+
+    /**
+     * 查询入住人统计数据
+     */
+    @PreAuthorize("@ss.hasPermi('elder:resident:list')")
+    @GetMapping("/statistics")
+    public AjaxResult getStatistics()
+    {
+        return AjaxResult.success(residentService.getResidentStatistics());
+    }
 }

@@ -59,12 +59,7 @@
         <el-card shadow="hover" class="stat-card">
           <div class="stat-content">
             <div class="stat-number">{{ statistics.totalResidents || 0 }}</div>
-            <div class="stat-label">
-              入住总人数
-              <span style="font-size: 12px; color: #909399; margin-left: 5px;">
-                {{ queryParams.institutionId ? '(当前机构)' : '(全部机构)' }}
-              </span>
-            </div>
+            <div class="stat-label">入住总人数</div>
             <div class="stat-icon total">
               <i class="el-icon-user"></i>
             </div>
@@ -789,7 +784,7 @@
 </template>
 
 <script>
-import { listResident, getResident, delResident, renewResident, refundResident, applyDepositUse } from "@/api/elder/resident";
+import { listResident, getResident, delResident, renewResident, refundResident, applyDepositUse, getResidentStatistics } from "@/api/elder/resident";
 import { updateElderInfo } from "@/api/elder/elderInfo";
 import { listPensionInstitution } from "@/api/pension/institution";
 
@@ -996,13 +991,9 @@ export default {
     },
     /** 查询统计数据 */
     getStatistics() {
-      // TODO: 调用统计API
-      this.statistics = {
-        totalResidents: 156,
-        totalServiceBalance: 456789.50,
-        totalDepositBalance: 234567.00,
-        totalMemberBalance: 123456.78
-      };
+      getResidentStatistics().then(response => {
+        this.statistics = response.data;
+      });
     },
     /** 搜索按钮操作 */
     handleQuery() {
