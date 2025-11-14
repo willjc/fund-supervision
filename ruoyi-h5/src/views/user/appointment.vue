@@ -1,0 +1,349 @@
+<template>
+  <div class="user-appointment-page">
+    <van-nav-bar title="我的预约" left-arrow @click-left="$router.back()" fixed placeholder />
+
+    <div class="appointment-content">
+      <!-- 筛选栏 -->
+      <van-tabs v-model:active="activeTab" sticky offset-top="46" @change="onTabChange">
+        <van-tab title="全部" name="all" />
+        <van-tab title="待参观" name="pending" />
+        <van-tab title="已参观" name="visited" />
+        <van-tab title="已取消" name="cancelled" />
+      </van-tabs>
+
+      <!-- 预约列表 -->
+      <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
+        <van-list
+          v-model:loading="loading"
+          :finished="finished"
+          finished-text="没有更多了"
+          @load="onLoad"
+        >
+          <div v-for="appointment in appointmentList" :key="appointment.appointmentId" class="appointment-item">
+            <div class="appointment-header">
+              <div class="header-left">
+                <van-image
+                  width="60"
+                  height="60"
+                  :src="appointment.institutionCover"
+                  fit="cover"
+                  round
+                />
+                <div class="institution-info">
+                  <div class="institution-name">{{ appointment.institutionName }}</div>
+                  <div class="appointment-no">预约编号: {{ appointment.appointmentNo }}</div>
+                </div>
+              </div>
+              <van-tag :type="getStatusType(appointment.status)">
+                {{ getStatusText(appointment.status) }}
+              </van-tag>
+            </div>
+
+            <div class="appointment-detail">
+              <div class="detail-row">
+                <van-icon name="clock-o" size="16" />
+                <span>参观时间: {{ appointment.visitDate }} {{ appointment.visitTime }}</span>
+              </div>
+              <div class="detail-row">
+                <van-icon name="user-o" size="16" />
+                <span>参观人: {{ appointment.visitorName }} ({{ appointment.visitorCount }}人)</span>
+              </div>
+              <div class="detail-row">
+                <van-icon name="phone-o" size="16" />
+                <span>联系电话: {{ appointment.visitorPhone }}</span>
+              </div>
+            </div>
+
+            <div class="appointment-footer">
+              <van-button size="small" @click="viewDetail(appointment)">
+                查看详情
+              </van-button>
+              <van-button
+                v-if="appointment.status === '0'"
+                size="small"
+                type="primary"
+                @click="handleCall(appointment)"
+              >
+                联系机构
+              </van-button>
+              <van-button
+                v-if="appointment.status === '0'"
+                size="small"
+                type="danger"
+                plain
+                @click="cancelAppointment(appointment)"
+              >
+                取消预约
+              </van-button>
+            </div>
+          </div>
+        </van-list>
+      </van-pull-refresh>
+
+      <van-empty v-if="!loading && appointmentList.length === 0" description="暂无预约记录" />
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { showToast, showConfirmDialog } from 'vant'
+
+const router = useRouter()
+
+const activeTab = ref('all')
+const appointmentList = ref([])
+const loading = ref(false)
+const finished = ref(false)
+const refreshing = ref(false)
+const pageNum = ref(1)
+const pageSize = ref(10)
+
+// 模拟预约数据
+const mockAppointments = [
+  {
+    appointmentId: 1,
+    appointmentNo: 'AP1736825400000',
+    institutionName: '郑州市金水区花园口社区养老服务中心',
+    institutionCover: 'https://via.placeholder.com/60x60',
+    institutionPhone: '0371-12345678',
+    status: '0', // 0-待参观 1-已参观 2-已取消
+    visitDate: '2025-01-20',
+    visitTime: '10:00',
+    visitorName: '张三',
+    visitorPhone: '13800138000',
+    visitorCount: 2,
+    createTime: '2025-01-14'
+  },
+  {
+    appointmentId: 2,
+    appointmentNo: 'AP1736739200000',
+    institutionName: '郑州颐养家园养老院',
+    institutionCover: 'https://via.placeholder.com/60x60',
+    institutionPhone: '0371-23456789',
+    status: '1',
+    visitDate: '2025-01-12',
+    visitTime: '14:00',
+    visitorName: '李四',
+    visitorPhone: '13900139000',
+    visitorCount: 1,
+    createTime: '2025-01-10'
+  },
+  {
+    appointmentId: 3,
+    appointmentNo: 'AP1736652800000',
+    institutionName: '河南省老干部康养中心',
+    institutionCover: 'https://via.placeholder.com/60x60',
+    institutionPhone: '0371-34567890',
+    status: '2',
+    visitDate: '2025-01-08',
+    visitTime: '09:00',
+    visitorName: '王五',
+    visitorPhone: '13700137000',
+    visitorCount: 3,
+    createTime: '2025-01-05'
+  }
+]
+
+// Tab切换
+const onTabChange = () => {
+  pageNum.value = 1
+  finished.value = false
+  appointmentList.value = []
+  onLoad()
+}
+
+// 下拉刷新
+const onRefresh = () => {
+  pageNum.value = 1
+  finished.value = false
+  appointmentList.value = []
+  onLoad()
+  refreshing.value = false
+}
+
+// 加载列表
+const onLoad = async () => {
+  try {
+    loading.value = true
+
+    // 模拟网络延迟
+    await new Promise(resolve => setTimeout(resolve, 500))
+
+    // 筛选数据
+    let filteredList = [...mockAppointments]
+
+    if (activeTab.value === 'pending') {
+      filteredList = filteredList.filter(item => item.status === '0')
+    } else if (activeTab.value === 'visited') {
+      filteredList = filteredList.filter(item => item.status === '1')
+    } else if (activeTab.value === 'cancelled') {
+      filteredList = filteredList.filter(item => item.status === '2')
+    }
+
+    // 分页处理
+    const startIndex = (pageNum.value - 1) * pageSize.value
+    const endIndex = startIndex + pageSize.value
+    const list = filteredList.slice(startIndex, endIndex)
+
+    if (list.length === 0) {
+      finished.value = true
+    } else {
+      appointmentList.value = [...appointmentList.value, ...list]
+      pageNum.value++
+
+      if (endIndex >= filteredList.length) {
+        finished.value = true
+      }
+    }
+  } catch (error) {
+    showToast('加载失败')
+    finished.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
+// 查看详情
+const viewDetail = (appointment) => {
+  router.push({
+    name: 'AppointmentDetail',
+    params: { id: appointment.appointmentId }
+  })
+}
+
+// 联系机构
+const handleCall = (appointment) => {
+  if (appointment.institutionPhone) {
+    window.location.href = `tel:${appointment.institutionPhone}`
+  }
+}
+
+// 取消预约
+const cancelAppointment = async (appointment) => {
+  try {
+    await showConfirmDialog({
+      title: '提示',
+      message: '确定要取消预约吗?'
+    })
+
+    // 模拟取消
+    await new Promise(resolve => setTimeout(resolve, 500))
+
+    showToast('已取消预约')
+
+    // 更新状态
+    const item = appointmentList.value.find(i => i.appointmentId === appointment.appointmentId)
+    if (item) {
+      item.status = '2'
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      showToast('取消失败')
+    }
+  }
+}
+
+// 获取状态文本
+const getStatusText = (status) => {
+  const statusMap = {
+    '0': '待参观',
+    '1': '已参观',
+    '2': '已取消'
+  }
+  return statusMap[status] || '未知'
+}
+
+// 获取状态类型
+const getStatusType = (status) => {
+  const typeMap = {
+    '0': 'warning',
+    '1': 'success',
+    '2': 'default'
+  }
+  return typeMap[status] || 'default'
+}
+
+onMounted(() => {
+  // 初始加载
+})
+</script>
+
+<style scoped>
+.user-appointment-page {
+  min-height: 100vh;
+  background-color: #f5f5f5;
+}
+
+.appointment-content {
+  padding-bottom: 20px;
+}
+
+.appointment-item {
+  background: #fff;
+  margin: 12px;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.appointment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.header-left {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+}
+
+.institution-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
+}
+
+.institution-name {
+  font-size: 15px;
+  font-weight: 500;
+  color: #333;
+}
+
+.appointment-no {
+  font-size: 12px;
+  color: #999;
+}
+
+.appointment-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0;
+}
+
+.detail-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #666;
+}
+
+.detail-row .van-icon {
+  color: #999;
+}
+
+.appointment-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #f5f5f5;
+}
+</style>

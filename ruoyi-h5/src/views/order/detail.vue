@@ -15,16 +15,46 @@
       <div class="status-section">
         <van-icon :name="getStatusIcon(order.orderStatus)" size="48" :color="getStatusColor(order.orderStatus)" />
         <div class="status-text">{{ getStatusText(order.orderStatus) }}</div>
-        <div v-if="order.orderStatus === '0'" class="status-tip">
+
+        <!-- 倒计时 -->
+        <div v-if="order.orderStatus === '0' && countdown > 0" class="countdown-bar">
+          <van-count-down :time="countdown" format="mm分ss秒" @finish="onCountdownFinish">
+            <template #default="timeData">
+              <span class="countdown-text">剩余支付时间: </span>
+              <span class="countdown-time">{{ timeData.minutes }}:{{ timeData.seconds }}</span>
+            </template>
+          </van-count-down>
+        </div>
+        <div v-else-if="order.orderStatus === '0'" class="status-tip">
           请尽快完成支付,超时订单将自动取消
+        </div>
+      </div>
+
+      <!-- 机构信息卡片 -->
+      <div class="institution-card">
+        <van-image
+          width="80"
+          height="80"
+          :src="order.institutionCover || 'https://via.placeholder.com/80x80'"
+          fit="cover"
+          round
+        />
+        <div class="institution-info">
+          <div class="institution-name">{{ order.institutionName || '郑州XXXXX养老院' }}</div>
+          <div class="institution-address">
+            <van-icon name="location-o" size="12" />
+            {{ order.institutionAddress || '郑州市金水区花园口镇花园路123号' }}
+          </div>
+          <div class="institution-phone">
+            <van-icon name="phone-o" size="12" />
+            {{ order.institutionPhone || '0371-12345678' }}
+          </div>
         </div>
       </div>
 
       <!-- 订单信息 -->
       <van-cell-group title="订单信息" inset>
         <van-cell title="订单编号" :value="order.orderNo" />
-        <van-cell title="订单类型" :value="getOrderTypeText(order.orderType)" />
-        <van-cell title="养老机构" :value="order.institutionName || '郑州XXXXX养老院'" />
         <van-cell title="老人姓名" :value="order.elderName || '-'" />
         <van-cell title="下单时间" :value="formatDate(order.createTime)" />
         <van-cell v-if="order.paymentTime" title="支付时间" :value="formatDate(order.paymentTime)" />
@@ -32,9 +62,24 @@
 
       <!-- 费用明细 -->
       <van-cell-group title="费用明细" inset>
-        <van-cell title="订单金额" :value="`¥ ${formatAmount(order.orderAmount)}`" />
-        <van-cell v-if="order.discountAmount && order.discountAmount > 0" title="优惠金额" :value="`-¥ ${formatAmount(order.discountAmount)}`" value-class="discount" />
-        <van-cell title="实付金额" :value="`¥ ${formatAmount(order.paidAmount || order.orderAmount)}`" value-class="price" />
+        <div class="fee-table">
+          <div class="fee-row" v-for="(item, index) in order.feeItems || []" :key="index">
+            <span class="fee-name">{{ item.name }}</span>
+            <span class="fee-value">¥{{ formatAmount(item.amount) }}</span>
+          </div>
+          <div class="fee-row total">
+            <span class="fee-name">订单总额</span>
+            <span class="fee-value">¥{{ formatAmount(order.orderAmount) }}</span>
+          </div>
+          <div v-if="order.discountAmount && order.discountAmount > 0" class="fee-row discount">
+            <span class="fee-name">优惠金额</span>
+            <span class="fee-value">-¥{{ formatAmount(order.discountAmount) }}</span>
+          </div>
+          <div class="fee-row final">
+            <span class="fee-name">实付金额</span>
+            <span class="fee-value highlight">¥{{ formatAmount(order.paidAmount || order.orderAmount) }}</span>
+          </div>
+        </div>
       </van-cell-group>
 
       <!-- 服务周期 -->
@@ -70,7 +115,6 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { showToast, showConfirmDialog } from 'vant'
-import { getOrderDetail, cancelOrder } from '@/api/order'
 import dayjs from 'dayjs'
 
 const router = useRouter()
@@ -78,6 +122,33 @@ const route = useRoute()
 
 const loading = ref(true)
 const order = ref(null)
+const countdown = ref(0) // 倒计时毫秒数
+
+// 模拟订单数据
+const mockOrderDetail = {
+  orderId: 1,
+  orderNo: 'ORD202501140001',
+  orderStatus: '0', // 0-待支付 1-已支付 2-已取消 3-退款中
+  orderType: '1',
+  institutionName: '郑州市金水区花园口社区养老服务中���',
+  institutionAddress: '郑州市金水区花园口镇花园路123号',
+  institutionPhone: '0371-12345678',
+  institutionCover: 'https://via.placeholder.com/80x80',
+  elderName: '张老先生',
+  createTime: '2025-01-14 10:30:00',
+  paymentTime: null,
+  feeItems: [
+    { name: '护理费', amount: 1500 },
+    { name: '伙食费', amount: 800 },
+    { name: '床位费', amount: 500 }
+  ],
+  orderAmount: 2800,
+  discountAmount: 300,
+  paidAmount: 2500,
+  serviceStartDate: '2025-02-01',
+  serviceEndDate: '2025-03-01',
+  remark: '老人有轻度高血压,需要特别关注'
+}
 
 // 获取订单详情
 const loadOrderDetail = async () => {
@@ -91,16 +162,22 @@ const loadOrderDetail = async () => {
       return
     }
 
-    const res = await getOrderDetail(orderId)
+    // 模拟网络延迟
+    await new Promise(resolve => setTimeout(resolve, 500))
 
-    if (res.code === 200) {
-      order.value = res.data
-    } else {
-      showToast(res.msg || '获取订单详情失败')
-      // 延迟返回,让用户看到提示
-      setTimeout(() => {
-        router.back()
-      }, 1500)
+    // 使用模拟数据
+    order.value = mockOrderDetail
+
+    // 如果是待支付状态,计算倒计时(15分钟)
+    if (order.value.orderStatus === '0') {
+      const createTime = dayjs(order.value.createTime)
+      const expireTime = createTime.add(15, 'minute')
+      const now = dayjs()
+      const diff = expireTime.diff(now)
+
+      if (diff > 0) {
+        countdown.value = diff
+      }
     }
   } catch (error) {
     console.error('获取订单详情失败:', error)
@@ -113,6 +190,12 @@ const loadOrderDetail = async () => {
   }
 }
 
+// 倒计时结束
+const onCountdownFinish = () => {
+  showToast('订单已超时')
+  order.value.orderStatus = '2'
+}
+
 // 取消订单
 const handleCancel = async () => {
   try {
@@ -121,15 +204,11 @@ const handleCancel = async () => {
       message: '确定要取消该订单吗?'
     })
 
-    const res = await cancelOrder(order.value.orderId)
+    // 模拟取消
+    await new Promise(resolve => setTimeout(resolve, 500))
 
-    if (res.code === 200) {
-      showToast('取消成功')
-      // 刷新订单详情
-      loadOrderDetail()
-    } else {
-      showToast(res.msg || '取消失败')
-    }
+    showToast('取消成功')
+    order.value.orderStatus = '2'
   } catch (error) {
     // 用户取消了对话框
     if (error !== 'cancel') {
@@ -245,14 +324,112 @@ onMounted(() => {
   color: #323233;
 }
 
+.countdown-bar {
+  margin-top: 16px;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);
+  border-radius: 20px;
+  display: inline-block;
+}
+
+.countdown-text {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.countdown-time {
+  font-size: 18px;
+  font-weight: bold;
+  color: #fff;
+  margin-left: 4px;
+}
+
 .status-tip {
   font-size: 13px;
   color: #969799;
   margin-top: 8px;
 }
 
+.institution-card {
+  background: #fff;
+  padding: 16px;
+  margin-bottom: 12px;
+  display: flex;
+  gap: 12px;
+}
+
+.institution-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.institution-name {
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+}
+
+.institution-address,
+.institution-phone {
+  font-size: 13px;
+  color: #666;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .van-cell-group {
   margin-bottom: 12px;
+}
+
+.fee-table {
+  padding: 16px;
+}
+
+.fee-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.fee-row:last-child {
+  border-bottom: none;
+}
+
+.fee-row.total {
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+  font-weight: 500;
+}
+
+.fee-row.discount .fee-value {
+  color: #07c160;
+}
+
+.fee-row.final {
+  padding-top: 12px;
+  border-top: 2px solid #eee;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.fee-name {
+  font-size: 14px;
+  color: #666;
+}
+
+.fee-value {
+  font-size: 14px;
+  color: #333;
+}
+
+.fee-value.highlight {
+  font-size: 18px;
+  color: #ee0a24;
+  font-weight: bold;
 }
 
 :deep(.discount) {

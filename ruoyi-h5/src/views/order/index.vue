@@ -1,6 +1,6 @@
 <template>
   <div class="order-page">
-    <van-nav-bar title="我的订单" fixed placeholder />
+    <van-nav-bar title="我的订单" left-arrow @click-left="handleBack" fixed placeholder />
 
     <!-- 搜索栏 -->
     <div class="search-bar">
@@ -384,6 +384,11 @@ const formatDate = (date) => {
 const formatAmount = (amount) => {
   if (!amount) return '0.00'
   return parseFloat(amount).toFixed(2)
+}
+
+// 返回上一页
+const handleBack = () => {
+  router.back()
 }
 
 // 页面加载时获取订单列表

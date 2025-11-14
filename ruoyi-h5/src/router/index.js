@@ -67,6 +67,24 @@ const routes = [
     meta: { title: '订单详情', requireAuth: false }
   },
   {
+    path: '/order/confirm/:institutionId',
+    name: 'OrderConfirm',
+    component: () => import('@/views/order/confirm.vue'),
+    meta: { title: '确认订单', requireAuth: false }
+  },
+  {
+    path: '/payment/cashier/:orderId',
+    name: 'PaymentCashier',
+    component: () => import('@/views/payment/cashier.vue'),
+    meta: { title: '支付收银台', requireAuth: false }
+  },
+  {
+    path: '/payment/success',
+    name: 'PaymentSuccess',
+    component: () => import('@/views/payment/success.vue'),
+    meta: { title: '支付成功', requireAuth: false }
+  },
+  {
     path: '/notice/list',
     name: 'NoticeList',
     component: () => import('@/views/notice/list.vue'),
@@ -91,10 +109,152 @@ const routes = [
     meta: { title: '费用查询', requireAuth: false }
   },
   {
+    path: '/appointment/booking/:institutionId',
+    name: 'AppointmentBooking',
+    component: () => import('@/views/appointment/booking.vue'),
+    meta: { title: '预约参观', requireAuth: false }
+  },
+  {
+    path: '/appointment/success',
+    name: 'AppointmentSuccess',
+    component: () => import('@/views/appointment/success.vue'),
+    meta: { title: '预约成功', requireAuth: false }
+  },
+  {
+    path: '/appointment/detail/:id',
+    name: 'AppointmentDetail',
+    component: () => import('@/views/appointment/detail.vue'),
+    meta: { title: '预约详情', requireAuth: false }
+  },
+  {
     path: '/user',
     name: 'User',
     component: () => import('@/views/user/index.vue'),
     meta: { title: '我的', requireAuth: false }
+  },
+  // 老人信息
+  {
+    path: '/user/elder',
+    name: 'UserElder',
+    component: () => import('@/views/user/elder/index.vue'),
+    meta: { title: '老人信息', requireAuth: false }
+  },
+  {
+    path: '/user/elder/form',
+    name: 'UserElderForm',
+    component: () => import('@/views/user/elder/form.vue'),
+    meta: { title: '新增老人信息', requireAuth: false }
+  },
+  // 我的费用
+  {
+    path: '/user/expense',
+    name: 'UserExpense',
+    component: () => import('@/views/user/expense/index.vue'),
+    meta: { title: '我的费用', requireAuth: false }
+  },
+  // 退款管理
+  {
+    path: '/user/expense/refund/apply',
+    name: 'RefundApply',
+    component: () => import('@/views/user/expense/refund/apply.vue'),
+    meta: { title: '申请退款', requireAuth: false }
+  },
+  {
+    path: '/user/expense/refund/review/:id',
+    name: 'RefundReview',
+    component: () => import('@/views/user/expense/refund/review.vue'),
+    meta: { title: '退款审核', requireAuth: false }
+  },
+  {
+    path: '/user/expense/refund/list',
+    name: 'RefundList',
+    component: () => import('@/views/user/expense/refund/list.vue'),
+    meta: { title: '退款记录', requireAuth: false }
+  },
+  // 待办事项
+  {
+    path: '/user/todo',
+    name: 'UserTodo',
+    component: () => import('@/views/user/todo/index.vue'),
+    meta: { title: '待办事项', requireAuth: false }
+  },
+  // 我的评价
+  {
+    path: '/user/evaluation',
+    name: 'UserEvaluation',
+    component: () => import('@/views/user/evaluation/index.vue'),
+    meta: { title: '我的评价', requireAuth: false }
+  },
+  {
+    path: '/user/evaluation/form',
+    name: 'UserEvaluationForm',
+    component: () => import('@/views/user/evaluation/form.vue'),
+    meta: { title: '写评价', requireAuth: false }
+  },
+  // 我的收藏
+  {
+    path: '/user/collection',
+    name: 'UserCollection',
+    component: () => import('@/views/user/collection/index.vue'),
+    meta: { title: '我的收藏', requireAuth: false }
+  },
+  // 我要投诉
+  {
+    path: '/user/complaint',
+    name: 'UserComplaint',
+    component: () => import('@/views/user/complaint/index.vue'),
+    meta: { title: '我要投诉', requireAuth: false }
+  },
+  {
+    path: '/user/complaint/form',
+    name: 'UserComplaintForm',
+    component: () => import('@/views/user/complaint/form.vue'),
+    meta: { title: '新增投诉', requireAuth: false }
+  },
+  // 我的订单 (保留与原路由兼容)
+  {
+    path: '/user/order',
+    name: 'UserOrder',
+    component: () => import('@/views/order/index.vue'),
+    meta: { title: '我的订单', requireAuth: false }
+  },
+  // 我的预约
+  {
+    path: '/user/appointment',
+    name: 'UserAppointment',
+    component: () => import('@/views/user/appointment.vue'),
+    meta: { title: '我的预约', requireAuth: false }
+  },
+  // 以下是旧路由,保留兼容性
+  {
+    path: '/user/fee',
+    name: 'UserFee',
+    component: () => import('@/views/user/fee.vue'),
+    meta: { title: '我的费用', requireAuth: false }
+  },
+  {
+    path: '/user/review',
+    name: 'UserReview',
+    component: () => import('@/views/user/review.vue'),
+    meta: { title: '我的评价', requireAuth: false }
+  },
+  {
+    path: '/user/favorite',
+    name: 'UserFavorite',
+    component: () => import('@/views/user/favorite.vue'),
+    meta: { title: '我的收藏', requireAuth: false }
+  },
+  {
+    path: '/freetrial/apply/:institutionId',
+    name: 'FreeTrialApply',
+    component: () => import('@/views/freetrial/apply.vue'),
+    meta: { title: '免费入住', requireAuth: false }
+  },
+  {
+    path: '/freetrial/success',
+    name: 'FreeTrialSuccess',
+    component: () => import('@/views/freetrial/success.vue'),
+    meta: { title: '预约入住', requireAuth: false }
   },
   {
     path: '/login',

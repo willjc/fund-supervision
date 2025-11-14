@@ -107,55 +107,136 @@ const onFilterChange = () => {
   loadInstitutions()
 }
 
+// 模拟机构数据(包含价格区间)
+const mockInstitutions = [
+  {
+    institutionId: 1,
+    institutionName: '郑州市金水区花园口社区养老服务中心',
+    address: '郑州市金水区花园口镇花园路123号',
+    contactPhone: '0371-12345678',
+    coverImage: 'https://via.placeholder.com/300x200',
+    priceRanges: {
+      nursing: { min: 1500, max: 3000 },
+      meal: { min: 800, max: 1200 },
+      bed: { min: 500, max: 1000 },
+      diet: { min: 600, max: 900 }
+    }
+  },
+  {
+    institutionId: 2,
+    institutionName: '郑州市二七区康乐养老院',
+    address: '郑州市二七区建设路456号',
+    contactPhone: '0371-23456789',
+    coverImage: 'https://via.placeholder.com/300x200',
+    priceRanges: {
+      nursing: { min: 2000, max: 4000 },
+      meal: { min: 900, max: 1500 },
+      bed: { min: 600, max: 1200 },
+      diet: { min: 700, max: 1000 }
+    }
+  },
+  {
+    institutionId: 3,
+    institutionName: '郑州市中原区福星养老中心',
+    address: '郑州市中原区中原路789号',
+    contactPhone: '0371-34567890',
+    coverImage: 'https://via.placeholder.com/300x200',
+    priceRanges: {
+      nursing: { min: 1800, max: 3500 },
+      meal: { min: 850, max: 1300 },
+      bed: { min: 550, max: 1100 },
+      diet: { min: 650, max: 950 }
+    }
+  },
+  {
+    institutionId: 4,
+    institutionName: '郑州市管城区温馨养老服务中心',
+    address: '郑州市管城区紫荆山路321号',
+    contactPhone: '0371-45678901',
+    coverImage: 'https://via.placeholder.com/300x200',
+    priceRanges: {
+      nursing: { min: 1600, max: 3200 },
+      meal: { min: 800, max: 1200 },
+      bed: { min: 500, max: 1000 },
+      diet: { min: 600, max: 900 }
+    }
+  },
+  {
+    institutionId: 5,
+    institutionName: '郑州市惠济区夕阳红养老院',
+    address: '郑州市惠济区江山路654号',
+    contactPhone: '0371-56789012',
+    coverImage: 'https://via.placeholder.com/300x200',
+    priceRanges: {
+      nursing: { min: 2200, max: 4200 },
+      meal: { min: 950, max: 1600 },
+      bed: { min: 650, max: 1300 },
+      diet: { min: 750, max: 1100 }
+    }
+  },
+  {
+    institutionId: 6,
+    institutionName: '郑州市高新区颐和养老中心',
+    address: '郑州市高新区科学大道987号',
+    contactPhone: '0371-67890123',
+    coverImage: 'https://via.placeholder.com/300x200',
+    priceRanges: {
+      nursing: { min: 2500, max: 5000 },
+      meal: { min: 1000, max: 1800 },
+      bed: { min: 700, max: 1500 },
+      diet: { min: 800, max: 1200 }
+    }
+  }
+]
+
 // 加载机构列表
 const loadInstitutions = async () => {
   try {
     loading.value = true
 
-    const params = {
-      pageNum: pageNum.value,
-      pageSize: pageSize.value,
-      status: 'operating'
-    }
+    // 模拟网络延迟
+    await new Promise(resolve => setTimeout(resolve, 500))
 
-    // 添加搜索关键词
+    // 过滤数据
+    let filteredList = [...mockInstitutions]
+
+    // 搜索关键词过滤
     if (searchValue.value) {
-      params.name = searchValue.value
+      filteredList = filteredList.filter(item =>
+        item.institutionName.toLowerCase().includes(searchValue.value.toLowerCase()) ||
+        item.address.toLowerCase().includes(searchValue.value.toLowerCase())
+      )
     }
 
-    // 添加筛选条件
-    if (filterType.value !== 0) {
-      params.institutionType = filterType.value
+    // 类型筛选(这里简化处理,实际应该根据机构类型字段过滤)
+    // if (filterType.value !== 0) {
+    //   filteredList = filteredList.filter(item => item.institutionType === filterType.value)
+    // }
+
+    // 排序
+    if (filterSort.value === 'price_asc') {
+      filteredList.sort((a, b) => a.priceRanges.nursing.min - b.priceRanges.nursing.min)
+    } else if (filterSort.value === 'price_desc') {
+      filteredList.sort((a, b) => b.priceRanges.nursing.min - a.priceRanges.nursing.min)
     }
 
-    if (filterArea.value !== 0) {
-      params.area = filterArea.value
+    // 分页处理
+    const startIndex = (pageNum.value - 1) * pageSize.value
+    const endIndex = startIndex + pageSize.value
+    const newList = filteredList.slice(startIndex, endIndex)
+
+    if (refreshing.value) {
+      institutionList.value = newList
+      refreshing.value = false
+    } else {
+      institutionList.value.push(...newList)
     }
 
-    // 添加排序条件
-    if (filterSort.value !== 'default') {
-      params.orderByColumn = 'price'
-      params.isAsc = filterSort.value === 'price_asc' ? 'asc' : 'desc'
-    }
-
-    const res = await getInstitutionList(params)
-
-    if (res.code === 200) {
-      const newList = res.rows || []
-
-      if (refreshing.value) {
-        institutionList.value = newList
-        refreshing.value = false
-      } else {
-        institutionList.value.push(...newList)
-      }
-
-      // 判断是否还有更多数据
-      if (newList.length < pageSize.value) {
-        finished.value = true
-      } else {
-        pageNum.value++
-      }
+    // 判断是否还有更多数据
+    if (endIndex >= filteredList.length) {
+      finished.value = true
+    } else {
+      pageNum.value++
     }
   } catch (error) {
     showToast('加载失败')

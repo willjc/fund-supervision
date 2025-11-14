@@ -34,7 +34,8 @@
       "Bash(2)",
       "Bash(taskkill:*)",
       "Bash(mvn spring-boot:run:*)",
-      "Bash(mvn clean install:*)"
+      "Bash(mvn clean install:*)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []
