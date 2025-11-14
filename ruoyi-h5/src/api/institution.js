@@ -58,3 +58,25 @@ export function applyEnter(data) {
     data
   })
 }
+
+/**
+ * 收藏机构
+ * @param {Number} institutionId 机构ID
+ */
+export function favoriteInstitution(institutionId) {
+  return request({
+    url: `/h5/institution/${institutionId}/favorite`,
+    method: 'post'
+  })
+}
+
+/**
+ * 取消收藏机构
+ * @param {Number} institutionId 机构ID
+ */
+export function unfavoriteInstitution(institutionId) {
+  return request({
+    url: `/h5/institution/${institutionId}/unfavorite`,
+    method: 'post'
+  })
+}

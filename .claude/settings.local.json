@@ -35,7 +35,9 @@
       "Bash(taskkill:*)",
       "Bash(mvn spring-boot:run:*)",
       "Bash(mvn clean install:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(detail.certificationTags.length)",
+      "Bash(0\"\n\n''@\")"
     ],
     "deny": [],
     "ask": []
