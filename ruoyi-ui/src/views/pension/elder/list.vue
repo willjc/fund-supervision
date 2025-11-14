@@ -250,6 +250,14 @@
             @click="handleDepositUse(scope.row)"
             v-hasPermi="['elder:resident:deposit']"
           >押金使用</el-button>
+          <!-- 家属管理:新增功能 -->
+          <el-button
+            size="mini"
+            type="text"
+            icon="el-icon-user"
+            @click="handleFamilyManage(scope.row)"
+            v-hasPermi="['elder:resident:query']"
+          >家属管理</el-button>
           <!-- 删除:所有人都能删除 -->
           <el-button
             size="mini"
@@ -780,6 +788,86 @@
         <el-button @click="importOpen = false">关 闭</el-button>
       </div>
     </el-dialog>
+
+    <!-- 家属管理对话框 -->
+    <el-dialog :title="'家属管理 - ' + (currentElderForFamily ? currentElderForFamily.elderName : '')" :visible.sync="familyManageOpen" width="800px" append-to-body>
+      <el-button type="primary" size="small" icon="el-icon-plus" @click="handleAddFamily" style="margin-bottom: 15px;">添加家属</el-button>
+
+      <el-table v-loading="familyLoading" :data="familyList" border>
+        <el-table-column label="家属姓名" prop="nickName" align="center" />
+        <el-table-column label="手机号" prop="phonenumber" align="center" />
+        <el-table-column label="关系类型" align="center">
+          <template slot-scope="scope">
+            <dict-tag :options="dict.type.elder_relation_type" :value="scope.row.relationType"/>
+          </template>
+        </el-table-column>
+        <el-table-column label="关系描述" prop="relationName" align="center" />
+        <el-table-column label="默认老人" align="center">
+          <template slot-scope="scope">
+            <el-tag v-if="scope.row.isDefault === '1'" type="success">是</el-tag>
+            <el-tag v-else type="info">否</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="主要联系人" align="center">
+          <template slot-scope="scope">
+            <el-tag v-if="scope.row.isMainContact === '1'" type="warning">是</el-tag>
+            <el-tag v-else type="info">否</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" align="center" width="150">
+          <template slot-scope="scope">
+            <el-button size="mini" type="text" icon="el-icon-edit" @click="handleEditFamily(scope.row)">编辑</el-button>
+            <el-button size="mini" type="text" icon="el-icon-delete" @click="handleDeleteFamily(scope.row)" style="color: #F56C6C;">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="familyManageOpen = false">关 闭</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 添加/编辑家属对话框 -->
+    <el-dialog :title="familyFormTitle" :visible.sync="familyFormOpen" width="500px" append-to-body>
+      <el-form ref="familyForm" :model="familyForm" :rules="familyRules" label-width="100px">
+        <el-form-item label="家属手机号" prop="phonenumber">
+          <el-input v-model="familyForm.phonenumber" placeholder="请输入家属手机号" :disabled="familyFormMode === 'edit'" />
+          <div style="color: #909399; font-size: 12px; margin-top: 5px;">输入手机号后系统会自动查找对应用户</div>
+        </el-form-item>
+        <el-form-item label="关系类型" prop="relationType">
+          <el-select v-model="familyForm.relationType" placeholder="请选择关系类型" style="width: 100%;">
+            <el-option label="子女" value="1" />
+            <el-option label="配偶" value="2" />
+            <el-option label="兄弟姐妹" value="3" />
+            <el-option label="其他亲属" value="4" />
+            <el-option label="朋友" value="5" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="关系描述" prop="relationName">
+          <el-input v-model="familyForm.relationName" placeholder="如:儿子、女儿、配偶等" />
+        </el-form-item>
+        <el-form-item label="默认老人" prop="isDefault">
+          <el-radio-group v-model="familyForm.isDefault">
+            <el-radio label="1">是</el-radio>
+            <el-radio label="0">否</el-radio>
+          </el-radio-group>
+          <div style="color: #909399; font-size: 12px; margin-top: 5px;">家属登录后默认展示的老人</div>
+        </el-form-item>
+        <el-form-item label="主要联系人" prop="isMainContact">
+          <el-radio-group v-model="familyForm.isMainContact">
+            <el-radio label="1">是</el-radio>
+            <el-radio label="0">否</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="备注" prop="remark">
+          <el-input v-model="familyForm.remark" type="textarea" placeholder="请输入备注" />
+        </el-form-item>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button type="primary" @click="submitFamilyForm">确 定</el-button>
+        <el-button @click="familyFormOpen = false">取 消</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -787,10 +875,11 @@
 import { listResident, getResident, delResident, renewResident, refundResident, applyDepositUse, getResidentStatistics } from "@/api/elder/resident";
 import { updateElderInfo } from "@/api/elder/elderInfo";
 import { listPensionInstitution } from "@/api/pension/institution";
+import { listFamily, addFamily, updateFamily, delFamily } from "@/api/elder/family";
 
 export default {
   name: "ElderResident",
-  dicts: ['elder_gender', 'elder_care_level'],
+  dicts: ['elder_gender', 'elder_care_level', 'elder_relation_type'],
   data() {
     return {
       // 遮罩层
@@ -950,6 +1039,36 @@ export default {
         emergencyPhone: [
           { required: true, message: "请输入紧急联系电话", trigger: "blur" },
           { pattern: /^1[3-9]\d{9}$/, message: "手机号格式不正确", trigger: "blur" }
+        ]
+      },
+      // 家属管理相关
+      familyManageOpen: false,
+      currentElderForFamily: null,
+      familyLoading: false,
+      familyList: [],
+      familyFormOpen: false,
+      familyFormMode: 'add', // add 或 edit
+      familyFormTitle: '添加家属',
+      familyForm: {
+        familyId: null,
+        elderId: null,
+        phonenumber: null,
+        relationType: '1',
+        relationName: null,
+        isDefault: '0',
+        isMainContact: '0',
+        remark: null
+      },
+      familyRules: {
+        phonenumber: [
+          { required: true, message: "请输入家属手机号", trigger: "blur" },
+          { pattern: /^1[3-9]\d{9}$/, message: "手机号格式不正确", trigger: "blur" }
+        ],
+        relationType: [
+          { required: true, message: "请选择关系类型", trigger: "change" }
+        ],
+        relationName: [
+          { required: true, message: "请输入关系描述", trigger: "blur" }
         ]
       }
     };
@@ -1264,6 +1383,103 @@ export default {
       }
       // 自动更新实收总计为应收总计(用户可手动调整)
       this.renewForm.finalAmount = this.renewCalculatedTotal;
+    },
+    /** 家属管理 */
+    handleFamilyManage(row) {
+      this.currentElderForFamily = row;
+      this.familyManageOpen = true;
+      this.getFamilyList(row.elderId);
+    },
+    /** 获取家属列表 */
+    getFamilyList(elderId) {
+      this.familyLoading = true;
+      listFamily(elderId).then(response => {
+        this.familyList = response.rows || [];
+        this.familyLoading = false;
+      }).catch(() => {
+        this.familyLoading = false;
+        this.$message.error('获取家属列表失败');
+      });
+    },
+    /** 添加家属 */
+    handleAddFamily() {
+      this.resetFamilyForm();
+      this.familyFormMode = 'add';
+      this.familyFormTitle = '添加家属';
+      this.familyForm.elderId = this.currentElderForFamily.elderId;
+      this.familyFormOpen = true;
+    },
+    /** 编辑家属 */
+    handleEditFamily(row) {
+      this.resetFamilyForm();
+      this.familyFormMode = 'edit';
+      this.familyFormTitle = '编辑家属';
+      this.familyForm = {
+        familyId: row.familyId,
+        elderId: row.elderId,
+        phonenumber: row.phonenumber,
+        relationType: row.relationType,
+        relationName: row.relationName,
+        isDefault: row.isDefault,
+        isMainContact: row.isMainContact,
+        remark: row.remark
+      };
+      this.familyFormOpen = true;
+    },
+    /** 删除家属 */
+    handleDeleteFamily(row) {
+      this.$confirm('确定要删除该家属关联吗?', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(() => {
+        delFamily(row.familyId).then(response => {
+          this.$message.success('删除成功');
+          this.getFamilyList(this.currentElderForFamily.elderId);
+        }).catch(() => {
+          this.$message.error('删除失败');
+        });
+      }).catch(() => {});
+    },
+    /** 提交家属表单 */
+    submitFamilyForm() {
+      this.$refs.familyForm.validate(valid => {
+        if (valid) {
+          if (this.familyFormMode === 'add') {
+            addFamily(this.familyForm).then(response => {
+              this.$message.success('添加成功');
+              this.familyFormOpen = false;
+              this.getFamilyList(this.currentElderForFamily.elderId);
+            }).catch(() => {
+              this.$message.error('添加失败');
+            });
+          } else {
+            updateFamily(this.familyForm).then(response => {
+              this.$message.success('修改成功');
+              this.familyFormOpen = false;
+              this.getFamilyList(this.currentElderForFamily.elderId);
+            }).catch(() => {
+              this.$message.error('修改失败');
+            });
+          }
+        }
+      });
+    },
+    /** 重置家属表单 */
+    resetFamilyForm() {
+      this.familyForm = {
+        familyId: null,
+        elderId: null,
+        phonenumber: null,
+        relationType: '1',
+        relationName: null,
+        isDefault: '0',
+        isMainContact: '0',
+        remark: null
+      };
+      if (this.$refs.familyForm) {
+        this.$refs.familyForm.resetFields();
+      }
     }
   }
 };

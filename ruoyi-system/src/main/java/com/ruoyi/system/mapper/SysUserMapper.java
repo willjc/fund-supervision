@@ -144,4 +144,12 @@ public interface SysUserMapper
      * @return 结果
      */
     public SysUser checkEmailUnique(String email);
+
+    /**
+     * 通过手机号查询用户(用于H5登录)
+     *
+     * @param phonenumber 手机号码
+     * @return 用户对象信息
+     */
+    public SysUser selectUserByPhonenumber(String phonenumber);
 }
