@@ -42,6 +42,8 @@ public class OrderInfoController extends BaseController
     public TableDataInfo list(OrderInfo orderInfo)
     {
         startPage();
+        // 数据权限过滤: 只查询当前用户关联的机构的订单
+        orderInfo.setCurrentUserId(getUserId());
         List<OrderInfo> list = orderInfoService.selectOrderInfoList(orderInfo);
         return getDataTable(list);
     }

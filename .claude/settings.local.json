@@ -37,7 +37,9 @@
       "Bash(mvn clean install:*)",
       "Bash(tree:*)",
       "Bash(detail.certificationTags.length)",
-      "Bash(0\"\n\n''@\")"
+      "Bash(0\"\n\n''@\")",
+      "Bash(findstr:*)",
+      "Bash(del \"D:\\newhm\\newzijin\\temp_update.txt\")"
     ],
     "deny": [],
     "ask": []

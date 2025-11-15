@@ -128,6 +128,9 @@ public class DepositApply extends BaseEntity
     @Excel(name = "床位信息")
     private String bedInfo;
 
+    /** 当前用户ID(用于数据权限过滤) */
+    private Long currentUserId;
+
     public void setApplyId(Long applyId)
     {
         this.applyId = applyId;
@@ -316,6 +319,16 @@ public class DepositApply extends BaseEntity
     public String getBedInfo()
     {
         return bedInfo;
+    }
+
+    public Long getCurrentUserId()
+    {
+        return currentUserId;
+    }
+
+    public void setCurrentUserId(Long currentUserId)
+    {
+        this.currentUserId = currentUserId;
     }
 
     public void setPurpose(String purpose)

@@ -41,6 +41,8 @@ public class PensionResidentController extends BaseController
     public TableDataInfo list(ResidentVO queryVO)
     {
         startPage();
+        // 数据权限过滤: 只查询当前用户关联的机构的入住人
+        queryVO.setCurrentUserId(getUserId());
         List<ResidentVO> list = residentService.selectResidentList(queryVO);
         return getDataTable(list);
     }

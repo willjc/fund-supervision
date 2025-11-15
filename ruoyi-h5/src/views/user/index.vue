@@ -100,28 +100,44 @@
         </div>
       </div>
     </div>
+
+    <!-- 退出登录 -->
+    <div class="logout-section">
+      <van-button
+        block
+        round
+        type="danger"
+        plain
+        @click="handleLogout"
+        icon="sign-out"
+      >
+        退出登录
+      </van-button>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { showToast } from 'vant'
+import { showToast, showConfirmDialog } from 'vant'
+import { useUserStore } from '@/store/modules/user'
 
 const router = useRouter()
+const userStore = useUserStore()
 
-// 模拟用户数据
-const userInfo = ref({
-  name: '张丽丽',
-  phone: '15612345678',
+// 从 store 获取用户信息
+const userInfo = computed(() => ({
+  name: userStore.nickName || userStore.userName || '用户',
+  phone: userStore.phonenumber || '',
   avatar: 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
-})
+}))
 
 const userAvatar = ref('https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg')
 
 // 统计数据
 const todoCount = ref(3)
-const elderCount = ref(0)
+const elderCount = computed(() => userStore.elders?.length || 0)
 
 // 跳转待办事项
 const goToTodo = () => {
@@ -165,6 +181,33 @@ const goToEvaluation = () => {
 // 跳转我要投诉
 const goToComplaint = () => {
   router.push('/user/complaint')
+}
+
+// 退出登录
+const handleLogout = async () => {
+  try {
+    await showConfirmDialog({
+      title: '确认退出',
+      message: '您确定要退出登录吗?',
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+    })
+
+    // 调用 userStore 的 logout 方法清除所有数据
+    userStore.logout()
+
+    showToast({
+      type: 'success',
+      message: '退出成功'
+    })
+
+    // 跳转到登录页
+    setTimeout(() => {
+      router.replace('/login')
+    }, 500)
+  } catch {
+    // 用户取消退出
+  }
 }
 </script>
 
@@ -375,5 +418,22 @@ const goToComplaint = () => {
 .tool-label {
   font-size: 13px;
   color: #666;
+}
+
+/* 退出登录区域 */
+.logout-section {
+  margin: 16px 12px;
+  padding: 0;
+}
+
+.logout-section .van-button {
+  height: 46px;
+  font-size: 15px;
+  font-weight: 500;
+  border: 1px solid #ee0a24;
+}
+
+.logout-section .van-button:active {
+  opacity: 0.8;
 }
 </style>

@@ -24,7 +24,6 @@
         <el-select v-model="queryParams.status" placeholder="请选择申请状态" clearable size="small">
           <el-option label="待审批" value="0" />
           <el-option label="已入驻" value="1" />
-          <el-option label="驳回补充" value="2" />
           <el-option label="不通过" value="3" />
         </el-select>
       </el-form-item>
@@ -69,18 +68,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-content">
-            <div class="stat-number">{{ statistics.supplementCount || 0 }}</div>
-            <div class="stat-label">驳回补充</div>
-            <div class="stat-icon supplement">
-              <i class="el-icon-edit-outline"></i>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
+      <el-col :span="8">
         <el-card shadow="hover" class="stat-card">
           <div class="stat-content">
             <div class="stat-number">{{ statistics.rejectedCount || 0 }}</div>
@@ -91,7 +79,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :span="8">
         <el-card shadow="hover" class="stat-card">
           <div class="stat-content">
             <div class="stat-number">{{ statistics.totalCount || 0 }}</div>
@@ -116,17 +104,6 @@
           @click="handleBatchApprove"
           v-hasPermi="['pension:institution:approve']"
         >批量通过</el-button>
-      </el-col>
-      <el-col :span="1.5">
-        <el-button
-          type="warning"
-          plain
-          icon="el-icon-edit-outline"
-          size="mini"
-          :disabled="multiple"
-          @click="handleBatchSupplement"
-          v-hasPermi="['pension:institution:supplement']"
-        >批量驳回补充</el-button>
       </el-col>
       <el-col :span="1.5">
         <el-button
@@ -196,14 +173,6 @@
             v-if="scope.row.status === '0'"
             v-hasPermi="['pension:institution:approve']"
           >通过</el-button>
-          <el-button
-            size="mini"
-            type="text"
-            icon="el-icon-edit-outline"
-            @click="handleSupplement(scope.row)"
-            v-if="scope.row.status === '0'"
-            v-hasPermi="['pension:institution:supplement']"
-          >驳回补充</el-button>
           <el-button
             size="mini"
             type="text"
@@ -323,19 +292,6 @@
       </div>
     </el-dialog>
 
-    <!-- 驳回补充对话框 -->
-    <el-dialog title="驳回补充" :visible.sync="supplementOpen" width="500px" append-to-body>
-      <el-form ref="supplementForm" :model="supplementForm" :rules="supplementRules" label-width="80px">
-        <el-form-item label="补充说明" prop="remark">
-          <el-input v-model="supplementForm.remark" type="textarea" :rows="4" placeholder="请输入需要补充的材料说明" />
-        </el-form-item>
-      </el-form>
-      <div slot="footer" class="dialog-footer">
-        <el-button type="primary" @click="submitSupplement">确 定</el-button>
-        <el-button @click="cancelSupplement">取 消</el-button>
-      </div>
-    </el-dialog>
-
     <!-- 审批拒绝对话框 -->
     <el-dialog title="不通过" :visible.sync="rejectOpen" width="500px" append-to-body>
       <el-form ref="rejectForm" :model="rejectForm" :rules="rejectRules" label-width="80px">
@@ -352,7 +308,7 @@
 </template>
 
 <script>
-import { listApproval, listAllInstitution, getInstitution, approveInstitution, rejectInstitution, supplementInstitution, getApprovalStatistics, batchApprove, batchSupplement, exportApproval } from "@/api/pension/supervisionInstitution";
+import { listApproval, listAllInstitution, getInstitution, approveInstitution, rejectInstitution, getApprovalStatistics, batchApprove, exportApproval } from "@/api/pension/supervisionInstitution";
 
 export default {
   name: "InstitutionApproval",
@@ -381,8 +337,6 @@ export default {
       title: "",
       // 是否显示详情弹出层
       detailOpen: false,
-      // 是否显示驳回补充弹出层
-      supplementOpen: false,
       // 是否显示拒绝弹出层
       rejectOpen: false,
       // 当前机构信息
@@ -394,17 +348,6 @@ export default {
         institutionName: null,
         creditCode: null,
         status: "0" // 默认只查询待审批
-      },
-      // 驳回补充表单
-      supplementForm: {
-        institutionId: null,
-        remark: ''
-      },
-      // 驳回补充表单校验
-      supplementRules: {
-        remark: [
-          { required: true, message: "补充说明不能为空", trigger: "blur" }
-        ]
       },
       // 拒绝表单
       rejectForm: {
@@ -480,7 +423,7 @@ export default {
       const institutionId = row.institutionId;
       const institutionName = row.institutionName;
 
-      this.$modal.confirm('是否确认审批通过"' + institutionName + '"的入驻申请？通过后系统将自动生成机构登录账号并发送通知。').then(() => {
+      this.$modal.confirm('是否确认审批通过"' + institutionName + '"的入驻申请？通过后系统将自动生成机构登录账号、开通监管账户并发送通知。').then(() => {
         return approveInstitution(institutionId);
       }).then((response) => {
         this.getList();
@@ -494,23 +437,16 @@ export default {
               <p><strong>机构登录账号已生成：</strong></p>
               <p>登录账号：<span style="color: #409EFF; font-weight: bold;">${response.data.loginAccount}</span></p>
               <p>初始密码：<span style="color: #F56C6C; font-weight: bold;">${response.data.initialPassword || '123456'}</span></p>
-              <p style="color: #909399; font-size: 12px; margin-top: 10px;">请将此账号信息通知机构，机构需及时前往银行开设监管账户。</p>
+              <p style="color: #67C23A; font-size: 13px; margin-top: 10px;">✓ 监管账户已自动开户</p>
+              <p style="color: #909399; font-size: 12px;">请将此账号信息通知机构。</p>
             </div>
-          `, '账号生成成功', {
+          `, '审批成功', {
             dangerouslyUseHTMLString: true,
             type: 'success',
             confirmButtonText: '我知道了'
           });
         }
       }).catch(() => {});
-    },
-    /** 驳回补充操作 */
-    handleSupplement(row) {
-      this.supplementForm = {
-        institutionId: row.institutionId,
-        remark: ''
-      };
-      this.supplementOpen = true;
     },
     /** 审批拒绝操作 */
     handleReject(row) {
@@ -519,24 +455,6 @@ export default {
         remark: ''
       };
       this.rejectOpen = true;
-    },
-    /** 提交驳回补充 */
-    submitSupplement() {
-      this.$refs["supplementForm"].validate(valid => {
-        if (valid) {
-          supplementInstitution(this.supplementForm.institutionId, this.supplementForm).then(response => {
-            this.getList();
-            this.getStatistics();
-            this.supplementOpen = false;
-            this.$modal.msgSuccess("驳回补充成功，机构将收到通知并补充材料");
-          });
-        }
-      });
-    },
-    /** 取消驳回补充 */
-    cancelSupplement() {
-      this.supplementOpen = false;
-      this.resetForm("supplementForm");
     },
     /** 提交拒绝 */
     submitReject() {
@@ -562,33 +480,8 @@ export default {
       const institutionNames = this.institutionList.filter(item => institutionIds.includes(item.institutionId))
         .map(item => item.institutionName).join('、');
 
-      this.$modal.confirm('是否确认批量审批通过以下机构："' + institutionNames + '"？通过后将自动生成登录账号。').then(() => {
+      this.$modal.confirm('是否确认批量审批通过以下机构："' + institutionNames + '"？通过后将自动生成登录账号并开通监管账户。').then(() => {
         return batchApprove(institutionIds);
-      }).then(response => {
-        this.getList();
-        this.getStatistics();
-        this.$modal.msgSuccess(response.msg);
-      }).catch(() => {});
-    },
-    /** 批量驳回补充操作 */
-    handleBatchSupplement() {
-      const institutionIds = this.ids;
-      const institutionNames = this.institutionList.filter(item => institutionIds.includes(item.institutionId))
-        .map(item => item.institutionName).join('、');
-
-      this.$prompt('请输入批量驳回补充的说明', '批量驳回补充', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        inputType: 'textarea',
-        inputPlaceholder: '请输入需要补充的材料说明...',
-        inputValidator: (value) => {
-          if (!value) {
-            return '补充说明不能为空';
-          }
-          return true;
-        }
-      }).then(({ value }) => {
-        return batchSupplement({ institutionIds: institutionIds, remark: value });
       }).then(response => {
         this.getList();
         this.getStatistics();

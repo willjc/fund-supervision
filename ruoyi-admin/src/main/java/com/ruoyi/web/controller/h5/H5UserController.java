@@ -17,7 +17,6 @@ import com.ruoyi.common.core.domain.model.LoginUser;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.common.utils.StringUtils;
-import com.ruoyi.common.utils.MessageUtils;
 import org.springframework.util.DigestUtils;
 import com.ruoyi.framework.web.service.TokenService;
 import com.ruoyi.domain.ElderInfo;
@@ -114,7 +113,7 @@ public class H5UserController
         String token = tokenService.createToken(loginUser);
 
         // 查询用户关联的老人列表
-        List<ElderInfo> elders = getEldersByUserId(user.getUserId());
+        List<Map<String, Object>> elders = getEldersByUserId(user.getUserId());
 
         // 返回结果
         Map<String, Object> data = new HashMap<>();
@@ -139,7 +138,7 @@ public class H5UserController
             SysUser user = loginUser.getUser();
 
             // 查询用户关联的老人列表
-            List<ElderInfo> elders = getEldersByUserId(user.getUserId());
+            List<Map<String, Object>> elders = getEldersByUserId(user.getUserId());
 
             Map<String, Object> data = new HashMap<>();
             data.put("user", buildUserInfo(user));
@@ -179,26 +178,41 @@ public class H5UserController
     }
 
     /**
-     * 获取用户关联的老人列表
+     * 获取用户关联的老人列表(包含家属关系)
      *
      * @param userId 用户ID
-     * @return 老人列表
+     * @return 老人列表(包含关系信息)
      */
-    private List<ElderInfo> getEldersByUserId(Long userId)
+    private List<Map<String, Object>> getEldersByUserId(Long userId)
     {
         // 查询用户关联的家属关系
         ElderFamily queryFamily = new ElderFamily();
         queryFamily.setUserId(userId);
         List<ElderFamily> familyList = elderFamilyService.selectElderFamilyList(queryFamily);
 
-        // 获取所有关联的老人信息
-        List<ElderInfo> elders = new ArrayList<>();
+        // 获取所有关联的老人信息,并附加家属关系
+        List<Map<String, Object>> elders = new ArrayList<>();
         for (ElderFamily family : familyList)
         {
             ElderInfo elder = elderInfoService.selectElderInfoByElderId(family.getElderId());
             if (elder != null)
             {
-                elders.add(elder);
+                Map<String, Object> elderData = new HashMap<>();
+                elderData.put("elderId", elder.getElderId());
+                elderData.put("elderName", elder.getElderName());
+                elderData.put("gender", elder.getGender());
+                elderData.put("idCard", elder.getIdCard());
+                elderData.put("birthDate", elder.getBirthDate());
+                elderData.put("age", elder.getAge());
+                elderData.put("phone", elder.getPhone());
+                elderData.put("address", elder.getAddress());
+                elderData.put("healthStatus", elder.getHealthStatus());
+                elderData.put("photoPath", elder.getPhotoPath());
+                // 附加家属关系信息
+                elderData.put("relationType", family.getRelationType());
+                elderData.put("relationName", family.getRelationName());
+                elderData.put("isMainContact", family.getIsMainContact());
+                elders.add(elderData);
             }
         }
         return elders;

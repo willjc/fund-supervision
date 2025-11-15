@@ -91,6 +91,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         LEFT JOIN pension_institution pi ON bi.institution_id = pi.institution_id
         LEFT JOIN account_info ai ON ei.elder_id = ai.elder_id
         WHERE 1=1
+        <!-- 数据权限过滤: 如果传入了currentUserId,则只查询该用户有权限的机构的入住人 -->
+        <if test="currentUserId != null">
+            AND bi.institution_id IN (
+                SELECT institution_id FROM sys_user_institution WHERE user_id = #{currentUserId}
+            )
+        </if>
         <if test="elderName != null and elderName != ''">
             AND ei.elder_name LIKE CONCAT('%', #{elderName}, '%')
         </if>

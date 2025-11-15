@@ -46,54 +46,6 @@
       </el-form-item>
     </el-form>
 
-    <!-- 统计卡片 -->
-    <el-row :gutter="20" class="mb8">
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-content">
-            <div class="stat-number">{{ statistics.totalCount || 0 }}</div>
-            <div class="stat-label">总申请数</div>
-            <div class="stat-icon total">
-              <i class="el-icon-document"></i>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-content">
-            <div class="stat-number">{{ statistics.pendingCount || 0 }}</div>
-            <div class="stat-label">待审批</div>
-            <div class="stat-icon pending">
-              <i class="el-icon-time"></i>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-content">
-            <div class="stat-number">￥{{ formatMoney(statistics.approvedAmount || 0) }}</div>
-            <div class="stat-label">已批准金额</div>
-            <div class="stat-icon approved">
-              <i class="el-icon-check"></i>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-content">
-            <div class="stat-number">￥{{ formatMoney(statistics.paidAmount || 0) }}</div>
-            <div class="stat-label">已拨付金额</div>
-            <div class="stat-icon paid">
-              <i class="el-icon-coin"></i>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
-
     <!-- 操作按钮 -->
     <el-row :gutter="10" class="mb8">
       <el-col :span="1.5">
@@ -124,10 +76,15 @@
       v-loading="loading"
       :data="depositUseList"
       @selection-change="handleSelectionChange"
-      height="calc(100vh - 450px)"
+      height="calc(100vh - 350px)"
       border>
       <el-table-column type="selection" width="55" align="center" />
       <el-table-column label="申请编号" align="center" prop="applyNo" width="150" />
+      <el-table-column label="机构名称" align="center" prop="institutionName" width="150">
+        <template slot-scope="scope">
+          <span>{{ scope.row.institutionName || '-' }}</span>
+        </template>
+      </el-table-column>
       <el-table-column label="入住人姓名" align="center" prop="elderName" width="120" />
       <el-table-column label="床位信息" align="center" prop="bedInfo" width="120">
         <template slot-scope="scope">
@@ -166,7 +123,7 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="申请时间" align="center" prop="createTime" width="100">
+      <el-table-column label="申请时间" align="center" prop="createTime" min-width="120">
         <template slot-scope="scope">
           <span>{{ parseTime(scope.row.createTime, '{y}-{m}-{d}') }}</span>
         </template>
@@ -470,14 +427,6 @@ export default {
       // 当前操作数据
       currentPaymentData: {},
 
-      // 统计数据
-      statistics: {
-        totalCount: 0,
-        pendingCount: 0,
-        approvedAmount: 0,
-        paidAmount: 0
-      },
-
       // 使用事由选项
       purposeOptions: [
         { label: "医疗费用", value: "医疗费用" },
@@ -518,7 +467,6 @@ export default {
   },
   created() {
     this.getList();
-    this.getStatistics();
   },
   methods: {
     /** 查询押金使用申请列表 */
@@ -529,17 +477,6 @@ export default {
         this.total = response.total;
         this.loading = false;
       });
-    },
-
-    /** 获取统计数据 */
-    getStatistics() {
-      // 模拟统计数据，实际应该调用API获取
-      this.statistics = {
-        totalCount: 45,
-        pendingCount: 8,
-        approvedAmount: 125000,
-        paidAmount: 89000
-      };
     },
 
     /** 搜索按钮操作 */
@@ -893,55 +830,6 @@ export default {
 </script>
 
 <style scoped>
-.stat-card {
-  height: 100px;
-  margin-bottom: 10px;
-}
-
-.stat-content {
-  display: flex;
-  align-items: center;
-  height: 100%;
-  position: relative;
-}
-
-.stat-number {
-  font-size: 24px;
-  font-weight: bold;
-  color: #303133;
-  margin-bottom: 5px;
-}
-
-.stat-label {
-  font-size: 14px;
-  color: #909399;
-}
-
-.stat-icon {
-  position: absolute;
-  right: 20px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 30px;
-  opacity: 0.8;
-}
-
-.stat-icon.total {
-  color: #409EFF;
-}
-
-.stat-icon.pending {
-  color: #E6A23C;
-}
-
-.stat-icon.approved {
-  color: #67C23A;
-}
-
-.stat-icon.paid {
-  color: #F56C6C;
-}
-
 .detail-content {
   max-height: 600px;
   overflow-y: auto;

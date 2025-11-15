@@ -52,6 +52,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <select id="selectOrderInfoList" parameterType="OrderInfo" resultMap="OrderInfoResult">
         <include refid="selectOrderInfoVo"/>
         <where>
+            <!-- 数据权限过滤: 如果传入了currentUserId,则只查询该用户有权限的机构的订单 -->
+            <if test="currentUserId != null">
+                and o.institution_id IN (
+                    SELECT institution_id FROM sys_user_institution WHERE user_id = #{currentUserId}
+                )
+            </if>
             <if test="orderNo != null  and orderNo != ''"> and o.order_no like concat('%', #{orderNo}, '%')</if>
             <if test="orderType != null  and orderType != ''"> and o.order_type = #{orderType}</if>
             <if test="elderId != null "> and o.elder_id = #{elderId}</if>

@@ -215,7 +215,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         set status = #{status},
             approve_time = #{approveTime},
             approve_user = #{approveUser},
-            approve_remark = #{approveRemark}
+            approve_remark = #{approveRemark},
+            <!-- 审批通过时自动将监管账户状态设置为已开户 -->
+            <if test="status == '1'">
+                supervise_account_status = '1',
+            </if>
         where institution_id = #{institutionId}
     </update>
 

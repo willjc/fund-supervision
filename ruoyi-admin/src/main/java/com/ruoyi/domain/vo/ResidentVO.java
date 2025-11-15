@@ -113,6 +113,9 @@ public class ResidentVO
     /** 账户ID */
     private Long accountId;
 
+    /** 当前用户ID(用于数据权限过滤) */
+    private Long currentUserId;
+
     /** 订单列表 */
     private List<OrderInfo> orders;
 
@@ -365,6 +368,14 @@ public class ResidentVO
 
     public void setAccountId(Long accountId) {
         this.accountId = accountId;
+    }
+
+    public Long getCurrentUserId() {
+        return currentUserId;
+    }
+
+    public void setCurrentUserId(Long currentUserId) {
+        this.currentUserId = currentUserId;
     }
 
     public List<OrderInfo> getOrders() {

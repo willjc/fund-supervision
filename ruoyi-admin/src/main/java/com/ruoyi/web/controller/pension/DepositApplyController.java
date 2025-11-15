@@ -43,6 +43,8 @@ public class DepositApplyController extends BaseController
     public TableDataInfo list(DepositApply depositApply)
     {
         startPage();
+        // 数据权限过滤: 只查询当前用户关联的机构的押金申请
+        depositApply.setCurrentUserId(getUserId());
         List<DepositApply> list = depositApplyService.selectDepositApplyList(depositApply);
         return getDataTable(list);
     }

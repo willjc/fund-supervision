@@ -113,6 +113,9 @@ public class OrderInfo extends BaseEntity
     @Excel(name = "机构名称")
     private String institutionName;
 
+    /** 当前用户ID(用于数据权限过滤) */
+    private Long currentUserId;
+
     /** 关联的房间号 */
     @Excel(name = "房间号")
     private String roomNumber;
@@ -325,6 +328,16 @@ public class OrderInfo extends BaseEntity
     public String getInstitutionName()
     {
         return institutionName;
+    }
+
+    public Long getCurrentUserId()
+    {
+        return currentUserId;
+    }
+
+    public void setCurrentUserId(Long currentUserId)
+    {
+        this.currentUserId = currentUserId;
     }
     public void setRoomNumber(String roomNumber)
     {

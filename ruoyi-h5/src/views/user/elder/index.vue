@@ -70,26 +70,55 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast, showConfirmDialog } from 'vant'
+import { useUserStore } from '@/store/modules/user'
 
 const router = useRouter()
+const userStore = useUserStore()
 
-// 老人列表数据
-const elderList = ref([])
-
-// 模拟数据
-const mockElderList = [
-  {
-    id: 1,
-    name: '张伟',
-    relation: '本人',
-    age: 88,
-    idCard: '430222188025656565',
-    avatar: 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
+// 老人列表数据 - 从 userStore 获取
+const elderList = computed(() => {
+  if (!userStore.elders || userStore.elders.length === 0) {
+    return []
   }
-]
+
+  // 将后端返回的老人数据转换为页面需要的格式
+  return userStore.elders.map(elder => ({
+    id: elder.elderId,
+    name: elder.elderName,
+    relation: getRelationText(elder.relationWithUser), // 需要根据实际字段调整
+    age: elder.age || calculateAge(elder.birthDate),
+    idCard: elder.idCard,
+    avatar: elder.avatar || 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
+  }))
+})
+
+// 根据关系类型码转换为文字
+const getRelationText = (relationType) => {
+  const relationMap = {
+    '1': '子女',
+    '2': '父母',
+    '3': '配偶',
+    '4': '兄弟姐妹',
+    '5': '其他'
+  }
+  return relationMap[relationType] || '家属'
+}
+
+// 根据出生日期计算年龄
+const calculateAge = (birthDate) => {
+  if (!birthDate) return 0
+  const birth = new Date(birthDate)
+  const today = new Date()
+  let age = today.getFullYear() - birth.getFullYear()
+  const monthDiff = today.getMonth() - birth.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--
+  }
+  return age
+}
 
 // 获取关系标签类型
 const getRelationTagType = (relation) => {
@@ -123,33 +152,14 @@ const handleDelete = async (elder) => {
       message: `确定要删除老人 ${elder.name} 的信息吗?`
     })
 
-    // 模拟删除操作
-    await new Promise(resolve => setTimeout(resolve, 500))
-
-    elderList.value = elderList.value.filter(item => item.id !== elder.id)
-    showToast('删除成功')
+    // TODO: 调用后端API删除老人关系
+    showToast('删除功能开发中')
   } catch (error) {
-    if (error !== 'cancel') {
-      showToast('删除失败')
-    }
+    // 用户取消删除
   }
 }
 
-// 加载老人列表
-const loadElderList = async () => {
-  try {
-    // 模拟网络延迟
-    await new Promise(resolve => setTimeout(resolve, 300))
-
-    elderList.value = mockElderList
-  } catch (error) {
-    showToast('加载失败')
-  }
-}
-
-onMounted(() => {
-  loadElderList()
-})
+// 不需要 onMounted,因为 elderList 是从 userStore 计算属性获取的
 </script>
 
 <style scoped>
