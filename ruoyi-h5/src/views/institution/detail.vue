@@ -51,17 +51,14 @@
         <!-- 三个设施卡片 -->
         <div class="facility-cards">
           <div class="facility-card" @click="showFacilityImages('room')">
-            <div class="card-icon">🏠</div>
             <div class="card-title">房间设施</div>
             <div class="card-count">({{ detail.roomFacilities?.length || 0 }}) ></div>
           </div>
           <div class="facility-card" @click="showFacilityImages('basic')">
-            <div class="card-icon">🏢</div>
             <div class="card-title">基础设施</div>
             <div class="card-count">({{ detail.basicFacilities?.length || 0 }}) ></div>
           </div>
           <div class="facility-card" @click="showFacilityImages('park')">
-            <div class="card-icon">🌳</div>
             <div class="card-title">园址设施</div>
             <div class="card-count">({{ detail.parkFacilities?.length || 0 }}) ></div>
           </div>
@@ -73,7 +70,6 @@
           <div class="bed-info-box">
             <div class="bed-title">床位数</div>
             <div class="bed-value">{{ detail.availableBeds }}/{{ detail.totalBeds }}</div>
-            <div class="bed-desc">可供预约{{ detail.availableBeds }}间,共计{{ detail.totalBeds }}间</div>
           </div>
 
           <!-- 地址电话栏 -->
@@ -527,11 +523,6 @@ onMounted(() => {
   transform: scale(0.95);
 }
 
-.card-icon {
-  font-size: 24px;
-  margin-bottom: 6px;
-}
-
 .card-title {
   font-size: 13px;
   margin-bottom: 4px;
@@ -552,28 +543,25 @@ onMounted(() => {
 
 .bed-info-box {
   flex: 1;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #f7f8fa;
   border-radius: 12px;
-  padding: 16px;
-  text-align: center;
-  color: white;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 }
 
 .bed-title {
   font-size: 13px;
+  color: #999;
   margin-bottom: 8px;
-  opacity: 0.9;
 }
 
 .bed-value {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: bold;
-  margin-bottom: 6px;
-}
-
-.bed-desc {
-  font-size: 12px;
-  opacity: 0.8;
+  color: #333;
 }
 
 .contact-box {

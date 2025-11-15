@@ -29,7 +29,7 @@
             <div class="step-icon">
               <van-icon name="home-o" size="24" />
             </div>
-            <div class="step-text">审核通过<br/>免费入住</div>
+            <div class="step-text">审核通过</div>
           </div>
         </div>
       </div>

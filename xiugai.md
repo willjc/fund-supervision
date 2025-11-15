@@ -20696,3 +20696,157 @@ unfavoriteInstitution(institutionId)
 - CSS渐变背景增强视觉效果
 - 圆角和阴影提升设计感
 - 响应式设计,适配移动端
+
+
+---
+
+## 2025-01-15 免费入驻申请页面文字优化
+
+### 修改文件
+- `ruoyi-h5/src/views/freetrial/apply.vue`
+
+### 修改内容
+
+**流程步骤文字简化** (Line 32)
+
+修改前:
+```vue
+<div class="step-text">审核通过<br/>免费入住</div>
+```
+
+修改后:
+```vue
+<div class="step-text">审核通过</div>
+```
+
+### 修改原因
+- 去掉"免费入住"四个字,只保留"审核通过"
+- 简化流程步骤文字,使界面更简洁
+- 避免重复强调"免费"概念
+
+
+---
+
+## 2025-01-15 关闭后台登录验证码
+
+### 修改内容
+
+**数据库配置修改**
+
+执行SQL:
+```sql
+UPDATE sys_config 
+SET config_value = 'false' 
+WHERE config_key = 'sys.account.captchaEnabled';
+```
+
+### 修改说明
+
+- 将 `sys_config` 表中 `sys.account.captchaEnabled` 配置项的值从 `true` 改为 `false`
+- 关闭后台登录验证码功能,方便测试期间登录
+- 配置立即生效,无需重启服务
+
+### 验证方法
+
+1. 访问后台登录页面 http://localhost:8080
+2. 登录表单中不再显示验证码输入框
+3. 只需输入用户名和密码即可登录
+
+### 恢复方法
+
+如需重新开启验证码,执行以下SQL:
+```sql
+UPDATE sys_config 
+SET config_value = 'true' 
+WHERE config_key = 'sys.account.captchaEnabled';
+```
+
+或者在后台管理界面: 系统管理 -> 参数设置 -> 修改 "账号自助-验证码开关" 为 true
+
+
+---
+
+## 2025-01-15 机构详情页面样式优化
+
+### 修改文件
+- `ruoyi-h5/src/views/institution/detail.vue`
+
+### 修改内容
+
+#### 1. 设施卡片去掉图标 (Lines 53-64)
+
+修改前:
+```vue
+<div class="facility-card">
+  <div class="card-icon">🏠</div>
+  <div class="card-title">房间设施</div>
+  <div class="card-count">(10) ></div>
+</div>
+```
+
+修改后:
+```vue
+<div class="facility-card">
+  <div class="card-title">房间设施</div>
+  <div class="card-count">(10) ></div>
+</div>
+```
+
+- 删除了房间设施、基础设施、园址设施卡片中的emoji图标
+- 只保留文字和数量显示
+- 删除了 `.card-icon` CSS样式 (原Line 526-529)
+
+#### 2. 床位数区域样式简化 (Lines 70-73, Lines 549-570)
+
+修改前:
+```vue
+<div class="bed-info-box">
+  <div class="bed-title">床位数</div>
+  <div class="bed-value">8/50</div>
+  <div class="bed-desc">可供预约8间,共计50间</div>
+</div>
+```
+
+CSS样式 - 紫色渐变背景:
+```css
+.bed-info-box {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+```
+
+修改后:
+```vue
+<div class="bed-info-box">
+  <div class="bed-title">床位数</div>
+  <div class="bed-value">8/50</div>
+</div>
+```
+
+CSS样式 - 浅灰背景,与右侧地址区域一致:
+```css
+.bed-info-box {
+  background: #f7f8fa;
+  color: #333;
+}
+```
+
+变更说明:
+- 删除了 `床位描述文字` (可供预约8间,共计50间)
+- 床位数字从 28px 调整为 24px
+- 背景从紫色渐变改为浅灰色 (#f7f8fa)
+- 文字颜色从白色改为深灰色 (#333)
+- 与右侧地址区域保持一致的视觉风格
+
+### 优化效果
+
+1. **设施卡片更简洁**: 去掉emoji图标,减少视觉干扰
+2. **床位区域不再花哨**: 统一使用浅灰背景,风格协调
+3. **减少区域占用**: 去掉床位描述文字,节省垂直空间
+4. **整体更统一**: 左右两个区域使用相同的背景色和风格
+
+### 技术要点
+
+- 删除无用的HTML元素和CSS样式
+- 统一视觉风格,提升界面一致性
+- 简化信息展示,突出核心数据
