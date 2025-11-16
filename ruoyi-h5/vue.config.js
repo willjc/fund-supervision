@@ -35,7 +35,7 @@ module.exports = defineConfig({
   },
 
   // 生产环境配置
-  publicPath: process.env.NODE_ENV === 'production' ? './' : '/',
+  publicPath: '/',  // 使用绝对路径,避免深层路由资源加载问题
   outputDir: 'dist',
   assetsDir: 'static',
   productionSourceMap: false

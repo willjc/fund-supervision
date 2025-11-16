@@ -21937,3 +21937,410 @@ SELECT * FROM elder_info WHERE elder_id = 16;
 - **Store**: ruoyi-h5/src/store/modules/user.js
 - **API**: ruoyi-h5/src/api/user.js
 - **Database**: elder_info, elder_family, sys_user
+
+## 2025-11-16 隐藏后台顶部源码地址和文档地址
+
+### 问题描述
+- 用户要求: 去掉后台顶部的源码地址和文档地址链接
+
+### 前端修改
+
+#### 文件: ruoyi-ui/src/layout/components/Navbar.vue
+- **修改内容**:
+  1. 注释掉源码地址和文档地址的组件 (行12-19):
+     - 注释 <el-tooltip content="源码地址"> 和 <ruo-yi-git> 组件
+     - 注释 <el-tooltip content="文档地址"> 和 <ruo-yi-doc> 组件
+  2. 注释掉不再使用的组件导入 (行58-59, 70-71):
+     - 注释 import RuoYiGit
+     - 注释 import RuoYiDoc
+     - 从 components 中移除这两个组件
+
+### 效果
+- 后台顶部导航栏不再显示"源码地址"和"文档地址"图标
+- 保留搜索、全屏、布局大小等其他功能
+- 界面更简洁,符合项目定制化需求
+
+### 相关文件
+- **Frontend**: ruoyi-ui/src/layout/components/Navbar.vue
+
+
+## 2025-11-16 H5端生产环境部署配置
+
+### 配置说明
+- 后端API已部署到: http://jg.dayushaiwang.com
+- 需要配置H5前端连接到生产环境API
+
+### 修改文件
+
+#### 1. ruoyi-h5/.env.production
+- **修改内容**:
+  - 将 VUE_APP_BASE_API 从 'http://your-production-server.com' 改为 'http://jg.dayushaiwang.com'
+
+**修改前**:
+```env
+VUE_APP_BASE_API = 'http://your-production-server.com'
+```
+
+**修改后**:
+```env
+VUE_APP_BASE_API = 'http://jg.dayushaiwang.com'
+```
+
+### 新增文件
+
+#### 1. H5部署指南.md
+- **位置**: 项目根目录
+- **内容**: 完整的H5端部署文档,包含:
+  - 本地构建步骤
+  - Nginx/Apache服务器部署配置
+  - 跨域处理方案
+  - HTTPS配置
+  - 部署检查清单
+  - 常见问题排查
+  - 性能优化建议
+
+#### 2. ruoyi-h5/deploy.bat
+- **位置**: ruoyi-h5目录
+- **用途**: Windows环境一键构建脚本
+- **使用**: 双击运行或命令行执行 `deploy.bat`
+
+#### 3. ruoyi-h5/deploy.sh
+- **位置**: ruoyi-h5目录
+- **用途**: Linux/Mac环境一键构建脚本
+- **使用**: 
+  ```bash
+  chmod +x deploy.sh
+  ./deploy.sh
+  ```
+
+#### 4. ruoyi-h5/nginx.conf.example
+- **位置**: ruoyi-h5目录
+- **用途**: Nginx配置示例文件
+- **使用**: 复制到服务器 /etc/nginx/conf.d/h5.conf 并修改
+
+### 部署步骤
+
+#### 第一步: 本地构建
+```bash
+cd ruoyi-h5
+npm install
+npm run build
+# 或者使用部署脚本
+./deploy.sh
+```
+
+#### 第二步: 上传到服务器
+```bash
+# 将 dist 目录上传到服务器
+scp -r dist/* root@服务器IP:/var/www/h5/
+```
+
+#### 第三步: 配置Nginx
+```bash
+# 复制配置文件
+cp nginx.conf.example /etc/nginx/conf.d/h5.conf
+
+# 修改配置中的域名和路径
+vim /etc/nginx/conf.d/h5.conf
+
+# 测试配置
+nginx -t
+
+# 重启Nginx
+systemctl restart nginx
+```
+
+#### 第四步: 访问测试
+- 访问: http://h5.dayushaiwang.com
+- 测试登录功能
+- 检查API调用是否正常
+
+### 关键配置说明
+
+#### 1. API地址配置
+- 开发环境: `/api` (通过vue.config.js代理到 http://localhost:8080)
+- 生产环境: `http://jg.dayushaiwang.com` (直接访问后端)
+
+#### 2. 跨域处理
+- 方案1(推荐): 后端配置CORS允许H5域名访问
+- 方案2: Nginx反向代理,前端访问 /api,Nginx转发到后端
+
+#### 3. 路由模式
+- 使用 HTML5 History 模式
+- Nginx需要配置 `try_files $uri $uri/ /index.html;`
+- 否则刷新页面会404
+
+### 注意事项
+
+1. **API地址检查**:
+   - 确保 http://jg.dayushaiwang.com 可以访问
+   - 测试接口: http://jg.dayushaiwang.com/h5/user/info
+
+2. **跨域问题**:
+   - 如果出现CORS错误,检查后端CORS配置
+   - 或使用Nginx反向代理
+
+3. **静态资源路径**:
+   - vue.config.js中 publicPath 已设置为相对路径 './'
+   - 支持部署到子目录
+
+4. **缓存策略**:
+   - index.html 不缓存(实时更新)
+   - 静态资源(js/css/图片)缓存30天
+
+### 相关文件
+- **配置**: ruoyi-h5/.env.production
+- **文档**: H5部署指南.md
+- **脚本**: ruoyi-h5/deploy.bat, ruoyi-h5/deploy.sh
+- **Nginx**: ruoyi-h5/nginx.conf.example
+
+
+## 2025-11-16 H5端跨域问题修复
+
+### 问题描述
+- H5前端部署后访问后端API出现跨域错误
+- 错误信息: "Access to XMLHttpRequest has been blocked by CORS policy"
+- 原因: 前端(h5.dayushaiwang.com)和后端(jg.dayushaiwang.com)域名不同
+
+### 后端修改
+
+#### 文件: ruoyi-framework/src/main/java/com/ruoyi/framework/config/ResourcesConfig.java
+- **修改内容**: 
+  - 在CORS配置中添加 `config.setAllowCredentials(true);`
+  - 允许携带Cookie和Authorization头
+
+**修改前**:
+```java
+@Bean
+public CorsFilter corsFilter()
+{
+    CorsConfiguration config = new CorsConfiguration();
+    config.addAllowedOriginPattern("*");
+    config.addAllowedHeader("*");
+    config.addAllowedMethod("*");
+    config.setMaxAge(1800L);
+    // 缺少 setAllowCredentials 配置
+    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+    source.registerCorsConfiguration("/**", config);
+    return new CorsFilter(source);
+}
+```
+
+**修改后**:
+```java
+@Bean
+public CorsFilter corsFilter()
+{
+    CorsConfiguration config = new CorsConfiguration();
+    config.addAllowedOriginPattern("*");
+    config.addAllowedHeader("*");
+    config.addAllowedMethod("*");
+    config.setAllowCredentials(true);  // 新增: 允许携带凭证
+    config.setMaxAge(1800L);
+    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+    source.registerCorsConfiguration("/**", config);
+    return new CorsFilter(source);
+}
+```
+
+### 新增文件
+
+#### H5跨域配置说明.md
+- **位置**: 项目根目录
+- **内容**: 完整的跨域配置文档,包含:
+  - 跨域问题说明
+  - 后端CORS配置方案(推荐)
+  - Nginx反向代理方案(备选)
+  - 测试方法和验证步骤
+  - 常见问题排查
+  - 生产环境建议
+
+### 配置生效步骤
+
+1. **重新编译后端**:
+```bash
+cd ruoyi-admin
+mvn clean package
+```
+
+2. **重启后端服务**:
+```bash
+# 停止旧服务
+ps -ef | grep ruoyi
+kill -9 <pid>
+
+# 启动新服务
+nohup java -jar ruoyi-admin/target/ruoyi-admin.jar &
+```
+
+3. **验证配置**:
+   - 访问H5页面
+   - 打开浏览器F12开发者工具
+   - 查看Network面板
+   - 检查API请求的Response Headers是否包含CORS头
+
+### CORS配置说明
+
+#### 关键配置项
+- `addAllowedOriginPattern("*")`: 允许所有域名跨域访问
+- `addAllowedHeader("*")`: 允许所有请求头
+- `addAllowedMethod("*")`: 允许所有HTTP方法(GET/POST/PUT/DELETE等)
+- `setAllowCredentials(true)`: 允许携带Cookie和Authorization头
+- `setMaxAge(1800L)`: OPTIONS预检请求缓存30分钟
+
+#### 预期Response Headers
+```
+Access-Control-Allow-Origin: http://h5.dayushaiwang.com
+Access-Control-Allow-Credentials: true
+Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
+Access-Control-Allow-Headers: Authorization, Content-Type
+```
+
+### 备用方案: Nginx反向代理
+
+如果不方便重启后端,可以使用Nginx反向代理:
+
+1. 修改H5的Nginx配置,添加:
+```nginx
+location /api/ {
+    proxy_pass http://jg.dayushaiwang.com/;
+    add_header Access-Control-Allow-Origin *;
+    add_header Access-Control-Allow-Credentials 'true';
+    
+    if ($request_method = 'OPTIONS') {
+        return 204;
+    }
+}
+```
+
+2. 修改前端API地址:
+```env
+# .env.production
+VUE_APP_BASE_API = '/api'
+```
+
+### 测试方法
+
+#### 浏览器测试
+1. 访问 http://h5.dayushaiwang.com
+2. 打开F12开发者工具
+3. 尝试登录(账号: 15981934928, 密码: 123456)
+4. 查看Network面板的请求详情
+
+#### curl命令测试
+```bash
+curl -i -X POST http://jg.dayushaiwang.com/h5/user/login \
+  -H "Origin: http://h5.dayushaiwang.com" \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"15981934928","password":"123456"}'
+```
+
+### 常见问题
+
+1. **修改后仍报CORS错误**:
+   - 检查后端是否已重新编译
+   - 检查后端服务是否已重启
+   - 清除浏览器缓存
+
+2. **OPTIONS预检请求失败**:
+   - 确保CORS配置允许OPTIONS方法
+   - 检查是否有其他拦截器干扰
+
+3. **Authorization头未携带**:
+   - 确保配置了 `setAllowCredentials(true)`
+   - 前端请求要设置 `withCredentials: true`
+
+### 生产环境建议
+
+**安全优化**:
+将 `addAllowedOriginPattern("*")` 改为具体域名:
+```java
+config.addAllowedOrigin("https://h5.dayushaiwang.com");
+config.addAllowedOrigin("http://localhost:8081"); // 开发环境
+```
+
+### 相关文件
+- **后端配置**: ruoyi-framework/src/main/java/com/ruoyi/framework/config/ResourcesConfig.java
+- **配置文档**: H5跨域配置说明.md
+
+
+## 2025-11-16 H5端静态资源路径404问题修复
+
+### 问题描述
+- H5部署后,在深层路由页面(如 /institution/detail/1)点击按钮跳转时报错
+- 错误信息: "Loading chunk 139 failed"
+- 原因: 静态资源路径错误,应为 `/static/js/xxx.js` 但加载成了 `/institution/detail/static/js/xxx.js`
+
+### 错误日志
+```
+GET http://mzh5.dayushaiwang.com/institution/detail/static/js/139.6e1d3106.js 404 (Not Found)
+ChunkLoadError: Loading chunk 139 failed.
+```
+
+### 前端修改
+
+#### 文件: ruoyi-h5/vue.config.js
+- **修改内容**: 将 publicPath 从相对路径改为绝对路径
+
+**修改前**:
+```javascript
+publicPath: process.env.NODE_ENV === 'production' ? './' : '/',
+```
+
+**修改后**:
+```javascript
+publicPath: '/',  // 使用绝对路径,避免深层路由资源加载问题
+```
+
+### 问题原因分析
+
+1. **相对路径问题**:
+   - `publicPath: './'` 表示静态资源相对于当前页面路径加载
+   - 在 `/` 页面: 资源加载为 `./static/js/xxx.js` → `/static/js/xxx.js` ✅
+   - 在 `/institution/detail/1` 页面: 资源加载为 `./static/js/xxx.js` → `/institution/detail/static/js/xxx.js` ❌
+
+2. **路由懒加载触发**:
+   - Vue Router使用代码分割,页面组件会延迟加载
+   - 点击按钮跳转时需要加载新的chunk文件
+   - 由于路径错误导致404
+
+### 解决方案
+
+使用绝对路径 `/`:
+- 在任何页面: 资源加载为 `/static/js/xxx.js` → `/static/js/xxx.js` ✅
+- 确保静态资源始终从根目录加载
+
+### 重新部署步骤
+
+1. **重新构建**:
+```bash
+cd ruoyi-h5
+npm run build
+```
+
+2. **上传到服务器**:
+```bash
+scp -r dist/* root@服务器IP:/var/www/h5/
+```
+
+3. **清除浏览器缓存**:
+   - Ctrl + Shift + Delete
+   - 或强制刷新 Ctrl + F5
+
+### 验证方法
+
+1. 访问首页
+2. 点击任意机构进入详情页 `/institution/detail/1`
+3. 点击"申请入驻"按钮
+4. 页面应正常跳转,无404错误
+5. 检查浏览器Network面板,确认静态资源路径为 `/static/js/xxx.js`
+
+### 注意事项
+
+- 使用绝对路径要求H5必须部署在域名根目录
+- 如果部署在子目录(如 /h5/),需要改为: `publicPath: '/h5/'`
+- 修改后必须重新构建并部署
+
+### 相关文件
+- **配置文件**: ruoyi-h5/vue.config.js
+
