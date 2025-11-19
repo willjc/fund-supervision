@@ -51,3 +51,18 @@ export function delPensionInstitution(institutionId) {
     method: 'delete'
   })
 }
+
+// 获取字典数据
+export function getDictData(dictType) {
+  return request({
+    url: `/system/dict/data/type/${dictType}`,
+    method: 'get'
+  })
+}
+
+// 以下是别名导出,与index.vue中的导入保持一致
+export const listInstitution = listPensionInstitution
+export const getInstitution = getPensionInstitution
+export const addInstitution = addPensionInstitution
+export const updateInstitution = updatePensionInstitution
+export const delInstitution = delPensionInstitution

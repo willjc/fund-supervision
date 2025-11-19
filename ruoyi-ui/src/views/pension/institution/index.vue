@@ -42,6 +42,46 @@
           <el-option label="解除监管" value="3" />
         </el-select>
       </el-form-item>
+      <el-form-item label="所属区域" prop="districtCode">
+        <el-select v-model="queryParams.districtCode" placeholder="请选择区域" clearable>
+          <el-option
+            v-for="item in districtOptions"
+            :key="item.dictValue"
+            :label="item.dictLabel"
+            :value="item.dictValue"
+          />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="机构性质" prop="institutionNature">
+        <el-select v-model="queryParams.institutionNature" placeholder="请选择机构性质" clearable>
+          <el-option
+            v-for="item in natureOptions"
+            :key="item.dictValue"
+            :label="item.dictLabel"
+            :value="item.dictValue"
+          />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="医疗条件" prop="medicalCondition">
+        <el-select v-model="queryParams.medicalCondition" placeholder="请选择医疗条件" clearable>
+          <el-option
+            v-for="item in medicalOptions"
+            :key="item.dictValue"
+            :label="item.dictLabel"
+            :value="item.dictValue"
+          />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="机构星级" prop="ratingLevel">
+        <el-select v-model="queryParams.ratingLevel" placeholder="请选择星级" clearable>
+          <el-option
+            v-for="item in ratingOptions"
+            :key="item.dictValue"
+            :label="item.dictLabel"
+            :value="Number(item.dictValue)"
+          />
+        </el-select>
+      </el-form-item>
       <el-form-item>
         <el-button type="primary" icon="el-icon-search" size="mini" @click="handleQuery">搜索</el-button>
         <el-button icon="el-icon-refresh" size="mini" @click="resetQuery">重置</el-button>
@@ -90,6 +130,53 @@
         </template>
       </el-table-column>
       <el-table-column label="床位数" align="center" prop="bedCount" />
+      <el-table-column label="所属区域" align="center" prop="districtCode">
+        <template slot-scope="scope">
+          <dict-tag :options="districtOptions" :value="scope.row.districtCode"/>
+        </template>
+      </el-table-column>
+      <el-table-column label="机构性质" align="center" prop="institutionNature">
+        <template slot-scope="scope">
+          <dict-tag :options="natureOptions" :value="scope.row.institutionNature"/>
+        </template>
+      </el-table-column>
+      <el-table-column label="收住类型" align="center" prop="careLevels">
+        <template slot-scope="scope">
+          <el-tag
+            v-for="level in parseCareLevels(scope.row.careLevels)"
+            :key="level"
+            size="mini"
+            style="margin: 2px"
+          >
+            {{ getCareLevelLabel(level) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="医疗条件" align="center" prop="medicalCondition">
+        <template slot-scope="scope">
+          <dict-tag :options="medicalOptions" :value="scope.row.medicalCondition"/>
+        </template>
+      </el-table-column>
+      <el-table-column label="机构星级" align="center" prop="ratingLevel">
+        <template slot-scope="scope">
+          <el-rate v-model="scope.row.ratingLevel" disabled show-score text-color="#ff9900" />
+        </template>
+      </el-table-column>
+      <el-table-column label="价格区间" align="center" prop="priceRange" width="150">
+        <template slot-scope="scope">
+          <span v-if="scope.row.priceRangeMin && scope.row.priceRangeMax">
+            ¥{{ scope.row.priceRangeMin }}-{{ scope.row.priceRangeMax }}
+          </span>
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="免费试住" align="center" prop="freeTrial">
+        <template slot-scope="scope">
+          <el-tag :type="scope.row.freeTrial === '1' ? 'success' : 'info'" size="mini">
+            {{ scope.row.freeTrial === '1' ? '是' : '否' }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column label="联系人" align="center" prop="contactPerson" />
       <el-table-column label="联系电话" align="center" prop="contactPhone" />
       <el-table-column label="状态" align="center" prop="status">
@@ -360,6 +447,85 @@
             </el-form-item>
           </el-col>
         </el-row>
+        <el-divider content-position="left">筛选维度信息</el-divider>
+        <el-row>
+          <el-col :span="8">
+            <el-form-item label="所属区域" prop="districtCode">
+              <el-select v-model="form.districtCode" placeholder="请选择区域">
+                <el-option
+                  v-for="item in districtOptions"
+                  :key="item.dictValue"
+                  :label="item.dictLabel"
+                  :value="item.dictValue"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="机构性质" prop="institutionNature">
+              <el-select v-model="form.institutionNature" placeholder="请选择机构性质">
+                <el-option
+                  v-for="item in natureOptions"
+                  :key="item.dictValue"
+                  :label="item.dictLabel"
+                  :value="item.dictValue"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="医疗条件" prop="medicalCondition">
+              <el-select v-model="form.medicalCondition" placeholder="请选择医疗条件">
+                <el-option
+                  v-for="item in medicalOptions"
+                  :key="item.dictValue"
+                  :label="item.dictLabel"
+                  :value="item.dictValue"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="收住类型" prop="careLevels">
+              <el-checkbox-group v-model="form.careLevelsArray">
+                <el-checkbox
+                  v-for="item in careLevelOptions"
+                  :key="item.dictValue"
+                  :label="item.dictValue"
+                >
+                  {{ item.dictLabel }}
+                </el-checkbox>
+              </el-checkbox-group>
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
+            <el-form-item label="机构星级" prop="ratingLevel">
+              <el-rate v-model="form.ratingLevel" show-text></el-rate>
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
+            <el-form-item label="免费试住" prop="freeTrial">
+              <el-radio-group v-model="form.freeTrial">
+                <el-radio label="1">是</el-radio>
+                <el-radio label="0">否</el-radio>
+              </el-radio-group>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="最低价格(元/月)" prop="priceRangeMin">
+              <el-input-number v-model="form.priceRangeMin" :precision="2" :min="0" style="width: 100%"/>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="最高价格(元/月)" prop="priceRangeMax">
+              <el-input-number v-model="form.priceRangeMax" :precision="2" :min="0" style="width: 100%"/>
+            </el-form-item>
+          </el-col>
+        </el-row>
         <el-row>
           <el-col :span="12">
             <el-form-item label="备案号" prop="recordNumber">
@@ -431,6 +597,7 @@
 
 <script>
 import { listInstitution, getInstitution, delInstitution, addInstitution, updateInstitution, approveInstitution } from "@/api/pension/institution";
+import { getDictData } from "@/api/pension/institution";
 
 export default {
   name: "PensionInstitution",
@@ -448,6 +615,12 @@ export default {
       open: false,
       approveOpen: false,
       isView: false,
+      // 字典选项数据
+      districtOptions: [],
+      natureOptions: [],
+      careLevelOptions: [],
+      medicalOptions: [],
+      ratingOptions: [],
       // 查询参数
       queryParams: {
         pageNum: 1,
@@ -456,7 +629,11 @@ export default {
         creditCode: null,
         contactPerson: null,
         contactPhone: null,
-        status: null
+        status: null,
+        districtCode: null,
+        institutionNature: null,
+        medicalCondition: null,
+        ratingLevel: null
       },
       // 表单参数
       form: {},
@@ -492,9 +669,30 @@ export default {
     };
   },
   created() {
+    this.loadDictData();
     this.getList();
   },
   methods: {
+    /** 加载字典数据 */
+    async loadDictData() {
+      try {
+        const [districts, natures, careLevels, medicals, ratings] = await Promise.all([
+          getDictData('pension_district'),
+          getDictData('pension_institution_nature'),
+          getDictData('pension_care_level'),
+          getDictData('pension_medical_condition'),
+          getDictData('pension_rating_level')
+        ]);
+
+        this.districtOptions = districts.data || [];
+        this.natureOptions = natures.data || [];
+        this.careLevelOptions = careLevels.data || [];
+        this.medicalOptions = medicals.data || [];
+        this.ratingOptions = ratings.data || [];
+      } catch (error) {
+        console.error('加载字典数据失败:', error);
+      }
+    },
     /** 查询养老机构列表 */
     getList() {
       this.loading = true;
@@ -536,7 +734,17 @@ export default {
         approveUser: null,
         approveRemark: null,
         blacklistFlag: null,
-        remark: null
+        remark: null,
+        // 新增筛选字段
+        districtCode: null,
+        institutionNature: null,
+        careLevels: null,
+        careLevelsArray: [],
+        medicalCondition: null,
+        ratingLevel: null,
+        priceRangeMin: null,
+        priceRangeMax: null,
+        freeTrial: '0'
       };
       this.resetForm("form");
     },
@@ -589,6 +797,12 @@ export default {
       const institutionId = row.institutionId || this.ids
       getInstitution(institutionId).then(response => {
         this.form = response.data;
+        // 处理收住类型:字符串转数组
+        if (this.form.careLevels) {
+          this.form.careLevelsArray = this.form.careLevels.split(',');
+        } else {
+          this.form.careLevelsArray = [];
+        }
         this.isView = false;
         this.open = true;
         this.title = "修改养老机构信息";
@@ -598,14 +812,23 @@ export default {
     submitForm() {
       this.$refs["form"].validate(valid => {
         if (valid) {
-          if (this.form.institutionId != null) {
-            updateInstitution(this.form).then(response => {
+          // 处理收住类型:数组转字符串
+          const submitForm = { ...this.form };
+          if (submitForm.careLevelsArray && submitForm.careLevelsArray.length > 0) {
+            submitForm.careLevels = submitForm.careLevelsArray.join(',');
+          } else {
+            submitForm.careLevels = '';
+          }
+          delete submitForm.careLevelsArray;
+
+          if (submitForm.institutionId != null) {
+            updateInstitution(submitForm).then(response => {
               this.$modal.msgSuccess("修改成功");
               this.open = false;
               this.getList();
             });
           } else {
-            addInstitution(this.form).then(response => {
+            addInstitution(submitForm).then(response => {
               this.$modal.msgSuccess("新增成功");
               this.open = false;
               this.getList();
@@ -667,6 +890,16 @@ export default {
         '3': '公建民营'
       };
       return typeMap[type] || type;
+    },
+    /** 解析收住类型字符串为数组 */
+    parseCareLevels(careLevels) {
+      if (!careLevels) return [];
+      return careLevels.split(',').filter(level => level);
+    },
+    /** 获取收住类型标签文本 */
+    getCareLevelLabel(value) {
+      const item = this.careLevelOptions.find(c => c.dictValue === value);
+      return item ? item.dictLabel : value;
     }
   }
 };

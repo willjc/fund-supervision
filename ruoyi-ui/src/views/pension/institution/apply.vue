@@ -28,8 +28,15 @@
 
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="所属街道/区域" prop="street">
-              <el-input v-model="applyForm.street" placeholder="请输入所属街道/区域" />
+            <el-form-item label="所属区域" prop="districtCode">
+              <el-select v-model="applyForm.districtCode" placeholder="请选择所属区域" style="width: 100%">
+                <el-option
+                  v-for="item in districtOptions"
+                  :key="item.dictValue"
+                  :label="item.dictLabel"
+                  :value="item.dictValue"
+                />
+              </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -239,7 +246,7 @@
 
 <script>
 import { submitInstitutionApply, saveDraftApply } from "@/api/pension/institutionApply";
-import { getPensionInstitution } from "@/api/pension/institution";
+import { getPensionInstitution, getDictData } from "@/api/pension/institution";
 import { getToken } from "@/utils/auth";
 
 export default {
@@ -247,6 +254,8 @@ export default {
   data() {
     return {
       submitting: false,
+      // 区域选项
+      districtOptions: [],
       // 文件上传配置
       uploadConfig: {
         url: process.env.VUE_APP_BASE_API + "/common/upload",
@@ -262,7 +271,7 @@ export default {
         institutionName: '',
         registeredCapital: null,
         registeredAddress: '',
-        street: '',
+        districtCode: '',
         creditCode: '',
         recordNumber: '',
         contactPerson: '',
@@ -298,8 +307,8 @@ export default {
         registeredAddress: [
           { required: true, message: "注册地址不能为空", trigger: "blur" }
         ],
-        street: [
-          { required: true, message: "所属街道/区域不能为空", trigger: "blur" }
+        districtCode: [
+          { required: true, message: "所属区域不能为空", trigger: "change" }
         ],
         creditCode: [
           { required: true, message: "社会统一信用代码不能为空", trigger: "blur" },
@@ -360,6 +369,8 @@ export default {
     };
   },
   created() {
+    // 加载区域数据
+    this.loadDistrictData();
     // 检查是否是编辑模式
     const institutionId = this.$route.query.id;
     if (institutionId) {
@@ -367,6 +378,15 @@ export default {
     }
   },
   methods: {
+    // 加载区域数据
+    loadDistrictData() {
+      getDictData('pension_district').then(response => {
+        this.districtOptions = response.data || [];
+      }).catch(error => {
+        console.error('加载区域数据失败:', error);
+        this.$modal.msgError("加载区域数据失败");
+      });
+    },
     // 加载机构数据
     loadInstitutionData(institutionId) {
       getPensionInstitution(institutionId).then(response => {
@@ -377,7 +397,7 @@ export default {
           institutionName: data.institutionName || '',
           registeredCapital: data.registeredCapital,
           registeredAddress: data.registeredAddress || '',
-          street: data.street || '',
+          districtCode: data.districtCode || '',
           creditCode: data.creditCode || '',
           recordNumber: data.recordNumber || '',
           contactPerson: data.contactPerson || '',
@@ -526,7 +546,7 @@ export default {
         institutionName: '',
         registeredCapital: null,
         registeredAddress: '',
-        street: '',
+        districtCode: '',
         creditCode: '',
         recordNumber: '',
         contactPerson: '',

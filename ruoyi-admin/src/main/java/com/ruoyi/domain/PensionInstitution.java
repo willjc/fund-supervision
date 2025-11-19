@@ -72,6 +72,38 @@ public class PensionInstitution extends BaseEntity
     @Excel(name = "床位数")
     private Long bedCount;
 
+    /** 区县代码(关联pension_district字典) */
+    @Excel(name = "区县代码")
+    private String districtCode;
+
+    /** 机构性质: 1-民办 2-公办 3-公建民营 */
+    @Excel(name = "机构性质", readConverterExp = "1=民办,2=公办,3=公建民营")
+    private String institutionNature;
+
+    /** 收住类型(多选,逗号分隔): 1-自理,2-半护理,3-全护理,4-失能,5-失智 */
+    @Excel(name = "收住类型")
+    private String careLevels;
+
+    /** 医疗条件: 1-内设医疗机构,2-与医疗机构合作,3-自营医疗机构,4-无医养结合 */
+    @Excel(name = "医疗条件", readConverterExp = "1=内设医疗机构,2=与医疗机构合作,3=自营医疗机构,4=无医养结合")
+    private String medicalCondition;
+
+    /** 星级评分: 1-5星 */
+    @Excel(name = "星级评分")
+    private Integer ratingLevel;
+
+    /** 最低价格(元/月) */
+    @Excel(name = "最低价格")
+    private java.math.BigDecimal priceRangeMin;
+
+    /** 最高价格(元/月) */
+    @Excel(name = "最高价格")
+    private java.math.BigDecimal priceRangeMax;
+
+    /** 是否支持免费试住: 0-否 1-是 */
+    @Excel(name = "免费试住", readConverterExp = "0=否,1=是")
+    private String freeTrial;
+
     /** 收费区间 */
     @Excel(name = "收费区间")
     private String feeRange;
@@ -298,6 +330,86 @@ public class PensionInstitution extends BaseEntity
         return bedCount;
     }
 
+    public void setDistrictCode(String districtCode)
+    {
+        this.districtCode = districtCode;
+    }
+
+    public String getDistrictCode()
+    {
+        return districtCode;
+    }
+
+    public void setInstitutionNature(String institutionNature)
+    {
+        this.institutionNature = institutionNature;
+    }
+
+    public String getInstitutionNature()
+    {
+        return institutionNature;
+    }
+
+    public void setCareLevels(String careLevels)
+    {
+        this.careLevels = careLevels;
+    }
+
+    public String getCareLevels()
+    {
+        return careLevels;
+    }
+
+    public void setMedicalCondition(String medicalCondition)
+    {
+        this.medicalCondition = medicalCondition;
+    }
+
+    public String getMedicalCondition()
+    {
+        return medicalCondition;
+    }
+
+    public void setRatingLevel(Integer ratingLevel)
+    {
+        this.ratingLevel = ratingLevel;
+    }
+
+    public Integer getRatingLevel()
+    {
+        return ratingLevel;
+    }
+
+    public void setPriceRangeMin(java.math.BigDecimal priceRangeMin)
+    {
+        this.priceRangeMin = priceRangeMin;
+    }
+
+    public java.math.BigDecimal getPriceRangeMin()
+    {
+        return priceRangeMin;
+    }
+
+    public void setPriceRangeMax(java.math.BigDecimal priceRangeMax)
+    {
+        this.priceRangeMax = priceRangeMax;
+    }
+
+    public java.math.BigDecimal getPriceRangeMax()
+    {
+        return priceRangeMax;
+    }
+
+    public void setFreeTrial(String freeTrial)
+    {
+        this.freeTrial = freeTrial;
+    }
+
+    public String getFreeTrial()
+    {
+        return freeTrial;
+    }
+
     public void setFeeRange(String feeRange)
     {
         this.feeRange = feeRange;
@@ -515,6 +627,14 @@ public class PensionInstitution extends BaseEntity
             .append("businessScope", getBusinessScope())
             .append("institutionType", getInstitutionType())
             .append("bedCount", getBedCount())
+            .append("districtCode", getDistrictCode())
+            .append("institutionNature", getInstitutionNature())
+            .append("careLevels", getCareLevels())
+            .append("medicalCondition", getMedicalCondition())
+            .append("ratingLevel", getRatingLevel())
+            .append("priceRangeMin", getPriceRangeMin())
+            .append("priceRangeMax", getPriceRangeMax())
+            .append("freeTrial", getFreeTrial())
             .append("feeRange", getFeeRange())
             .append("establishedDate", getEstablishedDate())
             .append("organizer", getOrganizer())

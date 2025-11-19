@@ -80,3 +80,14 @@ export function unfavoriteInstitution(institutionId) {
     method: 'post'
   })
 }
+
+/**
+ * 获取字典数据
+ * @param {String} dictType 字典类型
+ */
+export function getDictData(dictType) {
+  return request({
+    url: `/system/dict/data/type/${dictType}`,
+    method: 'get'
+  })
+}

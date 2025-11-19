@@ -19,6 +19,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="businessScope"    column="business_scope"    />
         <result property="institutionType"  column="institution_type"  />
         <result property="bedCount"         column="bed_count"         />
+        <result property="districtCode"     column="district_code"     />
+        <result property="institutionNature" column="institution_nature" />
+        <result property="careLevels"       column="care_levels"       />
+        <result property="medicalCondition" column="medical_condition" />
+        <result property="ratingLevel"      column="rating_level"      />
+        <result property="priceRangeMin"    column="price_range_min"   />
+        <result property="priceRangeMax"    column="price_range_max"   />
+        <result property="freeTrial"        column="free_trial"        />
         <result property="feeRange"         column="fee_range"         />
         <result property="establishedDate"   column="established_date"   />
         <result property="organizer"        column="organizer"         />
@@ -50,7 +58,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         select institution_id, institution_name, credit_code, registered_capital,
                registered_address, street, actual_address, legal_person, contact_person,
                contact_phone, contact_email, business_scope, institution_type,
-               bed_count, fee_range, established_date, organizer, responsible_name,
+               bed_count, district_code, institution_nature, care_levels, medical_condition,
+               rating_level, price_range_min, price_range_max, free_trial,
+               fee_range, established_date, organizer, responsible_name,
                responsible_id_card, responsible_address, responsible_phone, record_number,
                fixed_assets, business_license, approval_certificate, supervision_agreement,
                bank_account, supervise_account, status, apply_time, approve_time,
@@ -74,6 +84,30 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="contactPhone != null and contactPhone != ''"> and contact_phone = #{contactPhone}</if>
             <if test="status != null and status != ''"> and status = #{status}</if>
             <if test="institutionType != null and institutionType != ''"> and institution_type = #{institutionType}</if>
+
+            <!-- 新增筛选条件 -->
+            <if test="districtCode != null and districtCode != ''"> and district_code = #{districtCode}</if>
+            <if test="institutionNature != null and institutionNature != ''"> and institution_nature = #{institutionNature}</if>
+            <if test="medicalCondition != null and medicalCondition != ''"> and medical_condition = #{medicalCondition}</if>
+            <if test="ratingLevel != null"> and rating_level = #{ratingLevel}</if>
+            <if test="freeTrial != null and freeTrial != ''"> and free_trial = #{freeTrial}</if>
+
+            <!-- 收住类型多选筛选: careLevels字段存储逗号分隔的值,如"1,2,3" -->
+            <if test="careLevels != null and careLevels != ''">
+                and (
+                <foreach collection="careLevels.split(',')" item="level" separator=" or ">
+                    FIND_IN_SET(#{level}, care_levels)
+                </foreach>
+                )
+            </if>
+
+            <!-- 价格区间筛选 -->
+            <if test="priceRangeMin != null">
+                and price_range_max &gt;= #{priceRangeMin}
+            </if>
+            <if test="priceRangeMax != null">
+                and price_range_min &lt;= #{priceRangeMax}
+            </if>
         </where>
         order by create_time desc
     </select>
@@ -99,6 +133,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="businessScope != null and businessScope != ''">business_scope,</if>
             <if test="institutionType != null and institutionType != ''">institution_type,</if>
             <if test="bedCount != null">bed_count,</if>
+            <if test="districtCode != null and districtCode != ''">district_code,</if>
+            <if test="institutionNature != null and institutionNature != ''">institution_nature,</if>
+            <if test="careLevels != null and careLevels != ''">care_levels,</if>
+            <if test="medicalCondition != null and medicalCondition != ''">medical_condition,</if>
+            <if test="ratingLevel != null">rating_level,</if>
+            <if test="priceRangeMin != null">price_range_min,</if>
+            <if test="priceRangeMax != null">price_range_max,</if>
+            <if test="freeTrial != null">free_trial,</if>
             <if test="feeRange != null and feeRange != ''">fee_range,</if>
             <if test="establishedDate != null">established_date,</if>
             <if test="organizer != null and organizer != ''">organizer,</if>
@@ -139,6 +181,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="businessScope != null and businessScope != ''">#{businessScope},</if>
             <if test="institutionType != null and institutionType != ''">#{institutionType},</if>
             <if test="bedCount != null">#{bedCount},</if>
+            <if test="districtCode != null and districtCode != ''">#{districtCode},</if>
+            <if test="institutionNature != null and institutionNature != ''">#{institutionNature},</if>
+            <if test="careLevels != null and careLevels != ''">#{careLevels},</if>
+            <if test="medicalCondition != null and medicalCondition != ''">#{medicalCondition},</if>
+            <if test="ratingLevel != null">#{ratingLevel},</if>
+            <if test="priceRangeMin != null">#{priceRangeMin},</if>
+            <if test="priceRangeMax != null">#{priceRangeMax},</if>
+            <if test="freeTrial != null">#{freeTrial},</if>
             <if test="feeRange != null and feeRange != ''">#{feeRange},</if>
             <if test="establishedDate != null">#{establishedDate},</if>
             <if test="organizer != null and organizer != ''">#{organizer},</if>
@@ -183,6 +233,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="businessScope != null and businessScope != ''">business_scope = #{businessScope},</if>
             <if test="institutionType != null and institutionType != ''">institution_type = #{institutionType},</if>
             <if test="bedCount != null">bed_count = #{bedCount},</if>
+            <if test="districtCode != null and districtCode != ''">district_code = #{districtCode},</if>
+            <if test="institutionNature != null and institutionNature != ''">institution_nature = #{institutionNature},</if>
+            <if test="careLevels != null and careLevels != ''">care_levels = #{careLevels},</if>
+            <if test="medicalCondition != null and medicalCondition != ''">medical_condition = #{medicalCondition},</if>
+            <if test="ratingLevel != null">rating_level = #{ratingLevel},</if>
+            <if test="priceRangeMin != null">price_range_min = #{priceRangeMin},</if>
+            <if test="priceRangeMax != null">price_range_max = #{priceRangeMax},</if>
+            <if test="freeTrial != null">free_trial = #{freeTrial},</if>
             <if test="feeRange != null and feeRange != ''">fee_range = #{feeRange},</if>
             <if test="establishedDate != null">established_date = #{establishedDate},</if>
             <if test="organizer != null and organizer != ''">organizer = #{organizer},</if>
@@ -239,6 +297,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="businessScope != null and businessScope != ''">business_scope = #{businessScope},</if>
             <if test="institutionType != null and institutionType != ''">institution_type = #{institutionType},</if>
             <if test="bedCount != null">bed_count = #{bedCount},</if>
+            <if test="districtCode != null and districtCode != ''">district_code = #{districtCode},</if>
+            <if test="institutionNature != null and institutionNature != ''">institution_nature = #{institutionNature},</if>
+            <if test="careLevels != null and careLevels != ''">care_levels = #{careLevels},</if>
+            <if test="medicalCondition != null and medicalCondition != ''">medical_condition = #{medicalCondition},</if>
+            <if test="ratingLevel != null">rating_level = #{ratingLevel},</if>
+            <if test="priceRangeMin != null">price_range_min = #{priceRangeMin},</if>
+            <if test="priceRangeMax != null">price_range_max = #{priceRangeMax},</if>
+            <if test="freeTrial != null">free_trial = #{freeTrial},</if>
             <if test="feeRange != null and feeRange != ''">fee_range = #{feeRange},</if>
             <if test="establishedDate != null">established_date = #{establishedDate},</if>
             <if test="organizer != null and organizer != ''">organizer = #{organizer},</if>

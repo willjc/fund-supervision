@@ -39,7 +39,9 @@
       "Bash(detail.certificationTags.length)",
       "Bash(0\"\n\n''@\")",
       "Bash(findstr:*)",
-      "Bash(del \"D:\\newhm\\newzijin\\temp_update.txt\")"
+      "Bash(del \"D:\\newhm\\newzijin\\temp_update.txt\")",
+      "Bash(java:*)",
+      "Bash(mvn:*)"
     ],
     "deny": [],
     "ask": []
