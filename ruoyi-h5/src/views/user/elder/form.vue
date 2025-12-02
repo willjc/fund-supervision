@@ -10,23 +10,69 @@
 
     <div class="form-content">
       <van-form @submit="onSubmit">
-        <!-- 图片上传 -->
+        <!-- 照片上传 -->
         <van-cell-group inset title="照片上传">
-          <div class="upload-section">
-            <van-uploader
-              v-model="formData.images"
-              multiple
-              :max-count="3"
-              :max-size="5 * 1024 * 1024"
-              @oversize="onOversize"
-            >
-              <template #default>
-                <div class="upload-placeholder">
-                  <van-icon name="photograph" size="32" color="#999" />
-                  <div class="upload-text">上传照片(最多3张)</div>
-                </div>
-              </template>
-            </van-uploader>
+          <!-- 老人照片 -->
+          <div class="upload-item">
+            <div class="upload-label">老人照片（1张）</div>
+            <div class="upload-section">
+              <van-uploader
+                v-model="formData.elderPhoto"
+                :max-count="1"
+                :max-size="5 * 1024 * 1024"
+                @oversize="onOversize"
+                @delete="onElderPhotoDelete"
+              >
+                <template #default>
+                  <div class="upload-placeholder">
+                    <van-icon name="photograph" size="32" color="#999" />
+                    <div class="upload-text">老人照片</div>
+                  </div>
+                </template>
+              </van-uploader>
+            </div>
+          </div>
+
+          <!-- 身份证正面 -->
+          <div class="upload-item">
+            <div class="upload-label">身份证正面（1张）</div>
+            <div class="upload-section">
+              <van-uploader
+                v-model="formData.idCardFront"
+                :max-count="1"
+                :max-size="5 * 1024 * 1024"
+                @oversize="onOversize"
+                @delete="onIdCardFrontDelete"
+              >
+                <template #default>
+                  <div class="upload-placeholder">
+                    <van-icon name="idcard" size="32" color="#999" />
+                    <div class="upload-text">身份证正面</div>
+                  </div>
+                </template>
+              </van-uploader>
+            </div>
+          </div>
+
+          <!-- 身份证反面 -->
+          <div class="upload-item">
+            <div class="upload-label">身份证反面（1张）</div>
+            <div class="upload-section">
+              <van-uploader
+                v-model="formData.idCardBack"
+                :max-count="1"
+                :max-size="5 * 1024 * 1024"
+                @oversize="onOversize"
+                @delete="onIdCardBackDelete"
+              >
+                <template #default>
+                  <div class="upload-placeholder">
+                    <van-icon name="idcard" size="32" color="#999" />
+                    <div class="upload-text">身份证反面</div>
+                  </div>
+                </template>
+              </van-uploader>
+            </div>
           </div>
         </van-cell-group>
 
@@ -131,6 +177,7 @@
         :columns="relationOptions"
         @confirm="onRelationConfirm"
         @cancel="showRelationPicker = false"
+        :default-index="0"
       />
     </van-popup>
 
@@ -149,18 +196,24 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { showToast } from 'vant'
+import { getToken } from '@/utils/auth'
+import { useUserStore } from '@/store/modules/user'
 
 const router = useRouter()
 const route = useRoute()
+const userStore = useUserStore()
 
 // 是否为编辑模式
 const isEdit = ref(false)
 
 // 表单数据
 const formData = ref({
-  images: [],
+  elderPhoto: [],     // 老人照片
+  idCardFront: [],     // 身份证正面
+  idCardBack: [],      // 身份证反面
   name: '',
   relation: '',
+  relationType: '',    // 关系类型（对应后端）
   age: '',
   idCard: '',
   phone: '',
@@ -173,15 +226,25 @@ const formData = ref({
 const showRelationPicker = ref(false)
 const showHealthPicker = ref(false)
 
-// 关系选项
+// 关系选项（对应数据库类型：0:本人 1:子女 2:配偶 3:兄弟姐妹 4:其他亲属 5:朋友）
 const relationOptions = [
-  { text: '本人', value: '本人' },
-  { text: '父亲', value: '父亲' },
-  { text: '母亲', value: '母亲' },
-  { text: '配偶', value: '配偶' },
-  { text: '子女', value: '子女' },
-  { text: '其他', value: '其他' }
+  { text: '本人', value: '0' },
+  { text: '配偶', value: '2' },
+  { text: '子女', value: '1' },
+  { text: '兄弟姐妹', value: '3' },
+  { text: '其他亲属', value: '4' },
+  { text: '朋友', value: '5' }
 ]
+
+// 关系类型映射
+const relationTypeMap = {
+  '0': '本人',
+  '1': '子女',
+  '2': '配偶',
+  '3': '兄弟姐妹',
+  '4': '其他亲属',
+  '5': '朋友'
+}
 
 // 健康状况选项
 const healthOptions = [
@@ -193,8 +256,40 @@ const healthOptions = [
 ]
 
 // 关系选择确认
-const onRelationConfirm = (value) => {
-  formData.value.relation = value.selectedOptions[0].text
+const onRelationConfirm = (result) => {
+  console.log('关系选择参数:', result) // 调试日志
+
+  // 根据控制台日志，van-picker返回格式：
+  // {
+  //   selectedValues: ['2'],
+  //   selectedOptions: [{...}],
+  //   selectedIndexes: [1]
+  // }
+
+  if (result && result.selectedValues && result.selectedValues.length > 0) {
+    const selectedValue = result.selectedValues[0]
+    const selectedIndex = result.selectedIndexes[0]
+    const selectedOption = result.selectedOptions[0]
+
+    console.log('选中值:', selectedValue)
+    console.log('选中索引:', selectedIndex)
+    console.log('选中选项:', selectedOption)
+
+    // 优先使用索引获取我们的选项配置
+    const ourOption = relationOptions[selectedIndex]
+    console.log('我们的配置选项:', ourOption)
+
+    if (ourOption) {
+      formData.value.relation = ourOption.text // 显示文本
+      formData.value.relationType = ourOption.value // 关系类型
+      console.log('设置完成 - relation:', formData.value.relation, 'relationType:', formData.value.relationType)
+    } else {
+      console.error('未找到对应的配置选项')
+    }
+  } else {
+    console.error('选择参数格式错误')
+  }
+
   showRelationPicker.value = false
 }
 
@@ -209,19 +304,194 @@ const onOversize = () => {
   showToast('图片大小不能超过5MB')
 }
 
+// 图片删除处理
+const onElderPhotoDelete = () => {
+  formData.value.elderPhoto = []
+}
+
+const onIdCardFrontDelete = () => {
+  formData.value.idCardFront = []
+}
+
+const onIdCardBackDelete = () => {
+  formData.value.idCardBack = []
+}
+
 // 提交表单
 const onSubmit = async (values) => {
   try {
-    // 模拟提交
-    await new Promise(resolve => setTimeout(resolve, 500))
+    // 参数验证
+    if (!formData.value.name.trim()) {
+      showToast('请输入老人姓名')
+      return
+    }
+    if (!formData.value.relationType) {
+      showToast('请选择与本人关系')
+      return
+    }
+    if (!formData.value.age) {
+      showToast('请输入年龄')
+      return
+    }
+    if (!formData.value.idCard) {
+      showToast('请输入身份证号')
+      return
+    }
 
-    showToast(isEdit.value ? '修改成功' : '添加成功')
+    // 上传图片
+    const uploadedImages = await uploadImages()
 
-    setTimeout(() => {
-      router.back()
-    }, 1000)
+    // 准备提交数据
+    const submitData = {
+      elderName: formData.value.name.trim(),
+      relationType: formData.value.relationType,
+      age: formData.value.age,
+      idCard: formData.value.idCard,
+      phone: formData.value.phone,
+      address: formData.value.address,
+      healthStatus: formData.value.healthStatus,
+      medicalHistory: formData.value.medicalHistory,
+      photoPath: uploadedImages.elderPhoto || null,
+      idCardFrontPath: uploadedImages.idCardFront || null,
+      idCardBackPath: uploadedImages.idCardBack || null
+    }
+
+    // 如果是编辑模式,添加elderId
+    if (isEdit.value && route.query.id) {
+      submitData.elderId = route.query.id
+    }
+
+    // 调用后端接口
+    const token = getToken()
+    console.log('提交表单使用的token:', token) // 调试日志
+
+    // 根据模式选择不同的接口
+    const apiUrl = isEdit.value ? '/api/h5/user/updateElder' : '/api/h5/user/addElder'
+    console.log('调用接口:', apiUrl, '数据:', submitData)
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? 'Bearer ' + token : ''
+      },
+      body: JSON.stringify(submitData)
+    })
+
+    const result = await response.json()
+
+    if (result.code === 200) {
+      showToast(isEdit.value ? '修改成功' : '添加成功')
+
+      // 刷新老人列表数据
+      try {
+        // 直接调用接口刷新数据，避免 userStore 方法缓存问题
+        const token = getToken()
+        const refreshResponse = await fetch('/api/h5/user/info', {
+          method: 'GET',
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : ''
+          }
+        })
+
+        const refreshResult = await refreshResponse.json()
+        if (refreshResult.code === 200 && refreshResult.data && refreshResult.data.elders) {
+          // 更新 userStore 数据，从 data.elders 获取老人列表
+          userStore.setElders(refreshResult.data.elders)
+          console.log('老人列表刷新成功，最新数据:', refreshResult.data.elders)
+        } else {
+          console.error('刷新老人列表接口失败:', refreshResult.msg)
+        }
+      } catch (error) {
+        console.error('刷新老人列表失败:', error)
+      }
+
+      setTimeout(() => {
+        router.back()
+      }, 1000)
+    } else {
+      showToast(result.msg || '操作失败')
+    }
   } catch (error) {
-    showToast('操作失败,请重试')
+    console.error('提交失败:', error)
+    showToast('操作失败，请重试')
+  }
+}
+
+// 上传图片
+const uploadImages = async () => {
+  const uploadedImages = {}
+
+  // 上传老人照片
+  if (formData.value.elderPhoto.length > 0) {
+    const photo = formData.value.elderPhoto[0]
+    // 如果有file属性,说明是新上传的图片,需要调用上传接口
+    // 如果只有url属性,说明是从数据库加载的图片,直接使用原URL
+    if (photo.file) {
+      uploadedImages.elderPhoto = await uploadSingleImage(photo)
+    } else if (photo.url) {
+      uploadedImages.elderPhoto = photo.url
+    }
+  }
+
+  // 上传身份证正面
+  if (formData.value.idCardFront.length > 0) {
+    const front = formData.value.idCardFront[0]
+    if (front.file) {
+      uploadedImages.idCardFront = await uploadSingleImage(front)
+    } else if (front.url) {
+      uploadedImages.idCardFront = front.url
+    }
+  }
+
+  // 上传身份证反面
+  if (formData.value.idCardBack.length > 0) {
+    const back = formData.value.idCardBack[0]
+    if (back.file) {
+      uploadedImages.idCardBack = await uploadSingleImage(back)
+    } else if (back.url) {
+      uploadedImages.idCardBack = back.url
+    }
+  }
+
+  return uploadedImages
+}
+
+// 上传单张图片
+const uploadSingleImage = async (file) => {
+  try {
+    const formData = new FormData()
+    formData.append('file', file.file)
+
+    const token = getToken()
+    console.log('上传图片使用的token:', token) // 调试日志
+
+    const response = await fetch('/api/common/upload', {
+      method: 'POST',
+      headers: {
+        'Authorization': token ? 'Bearer ' + token : ''
+      },
+      body: formData
+    })
+
+    const result = await response.json()
+    console.log('图片上传返回结果:', result) // 调试日志
+
+    if (result.code === 200) {
+      // 若依框架的文件上传接口，url字段直接在根级别
+      if (result.url) {
+        console.log('上传成功，图片URL:', result.url)
+        return result.url // 返回图片路径
+      } else {
+        console.error('上传返回数据中没有url字段:', result)
+        throw new Error('上传返回数据中没有url字段')
+      }
+    } else {
+      throw new Error(result.msg || '上传失败')
+    }
+  } catch (error) {
+    console.error('图片上传失败:', error)
+    throw error
   }
 }
 
@@ -232,23 +502,76 @@ const loadElderInfo = async () => {
   isEdit.value = true
 
   try {
-    // 模拟加载数据
-    await new Promise(resolve => setTimeout(resolve, 300))
+    // 调用后端接口获取老人信息
+    const token = getToken()
+    const response = await fetch(`/api/h5/user/getElderById?elderId=${route.query.id}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : ''
+      }
+    })
 
-    // 填充表单数据
-    formData.value = {
-      images: [],
-      name: '张伟',
-      relation: '本人',
-      age: '88',
-      idCard: '430222188025656565',
-      phone: '13800138000',
-      address: '河南省郑州市金水区花园路123号',
-      healthStatus: '良好',
-      medicalHistory: '高血压'
+    const result = await response.json()
+    console.log('获取老人信息返回:', result)
+
+    if (result.code === 200 && result.data) {
+      const { elderInfo, attachments, familyRelation } = result.data
+
+      // 填充表单基本数据
+      formData.value = {
+        elderPhoto: [],
+        idCardFront: [],
+        idCardBack: [],
+        name: elderInfo.elderName || '',
+        relation: relationTypeMap[familyRelation?.relationType || '0'],
+        relationType: familyRelation?.relationType || '0',
+        age: elderInfo.age ? elderInfo.age.toString() : '',
+        idCard: elderInfo.idCard || '',
+        phone: elderInfo.phone || '',
+        address: elderInfo.address || '',
+        healthStatus: elderInfo.healthStatus || '',
+        medicalHistory: ''
+      }
+
+      // 设置老人照片
+      if (elderInfo.photoPath) {
+        formData.value.elderPhoto = [{
+          url: elderInfo.photoPath,
+          file: null,
+          isImage: true
+        }]
+      }
+
+      // 设置身份证照片
+      if (attachments && attachments.length > 0) {
+        attachments.forEach(attachment => {
+          if (attachment.attachmentType === '1') {
+            // 身份证正面
+            formData.value.idCardFront = [{
+              url: attachment.filePath,
+              file: null,
+              isImage: true
+            }]
+          } else if (attachment.attachmentType === '2') {
+            // 身份证反面
+            formData.value.idCardBack = [{
+              url: attachment.filePath,
+              file: null,
+              isImage: true
+            }]
+          }
+        })
+      }
+
+      console.log('老人信息加载成功:', formData.value)
+    } else {
+      showToast(result.msg || '加载失败')
+      router.back()
     }
   } catch (error) {
+    console.error('加载老人信息失败:', error)
     showToast('加载失败')
+    router.back()
   }
 }
 
@@ -273,6 +596,21 @@ onMounted(() => {
 }
 
 /* 图片上传 */
+.upload-item {
+  margin-bottom: 16px;
+}
+
+.upload-item:last-child {
+  margin-bottom: 0;
+}
+
+.upload-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8px;
+}
+
 .upload-section {
   padding: 16px;
 }

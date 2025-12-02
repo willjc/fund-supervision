@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { getUserInfo, setUserInfo, clearAuth } from '@/utils/auth'
+import { getUserInfo, setUserInfo, clearAuth, getToken } from '@/utils/auth'
 
 export const useUserStore = defineStore('user', {
   state: () => ({
@@ -68,6 +68,30 @@ export const useUserStore = defineStore('user', {
     updateUserInfo(info) {
       this.userInfo = { ...this.userInfo, ...info }
       setUserInfo(this.userInfo)
+    },
+
+    // 获取老人列表
+    async fetchElders() {
+      try {
+        const token = getToken()
+        const response = await fetch('/api/h5/user/getEldersByUserId', {
+          method: 'GET',
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : ''
+          }
+        })
+
+        const result = await response.json()
+        if (result.code === 200 && result.data) {
+          this.setElders(result.data)
+          return result.data
+        } else {
+          throw new Error(result.msg || '获取老人列表失败')
+        }
+      } catch (error) {
+        console.error('获取老人列表失败:', error)
+        return []
+      }
     }
   }
 })

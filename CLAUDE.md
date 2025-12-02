@@ -26,6 +26,12 @@ npm install --registry=https://registry.npmmirror.com
 npm run dev        # 开发环境 (端口: 80)
 npm run build:prod # 生产环境构建
 npm run build:stage # 测试环境构建
+
+# H5小程序开发
+cd ruoyi-h5
+npm install
+npm run dev        # 开发环境 (端口: 3000)
+npm run build      # 生产环境构建
 ```
 
 ### 数据库初始化
@@ -44,6 +50,7 @@ mysql -u root -p < sql/quartz.sql
 - **ruoyi-common**: 通用工具模块，包含注解、常量、工具类
 - **ruoyi-generator**: 代码生成模块
 - **ruoyi-quartz**: 定时任务模块
+- **ruoyi-h5**: H5小程序接口模块（独立模块）
 
 ### 当前系统状态
 #### 数据库层面（已导入19张基础表）
@@ -72,6 +79,8 @@ mysql -u root -p < sql/quartz.sql
 - `monitor/` - 系统监控控制器（在线用户、定时任务、数据监控等）
 - `common/` - 通用控制器（文件上传、代码生成等）
 - `tool/` - 工具控制器（构建页面、Swagger文档等）
+- `pension/` - 养老机构业务控制器（已实现床位管理、入住管理、资金监管等）
+- `h5/` - H5小程序接口控制器
 
 #### 前端页面层面（完整若依界面）
 **系统管理页面**（`ruoyi-ui/src/views/system/`）:
@@ -82,16 +91,24 @@ mysql -u root -p < sql/quartz.sql
 - 系统监控、服务监控、缓存监控
 - 在线用户、定时任务、代码生成、系统接口
 
+**养老机构管理页面**（`ruoyi-ui/src/views/pension/`）:
+- 账户资金管理、公告管理、余额预警
+- 银行支付和监管接口、床位列表
+- 押金申请和管理、仪表盘
+- 入住管理、机构管理等核心业务功能
+
 ### 养老机构业务架构
-**业务代码位置**（待开发）:
+
+**业务代码位置**（已开发）:
 ```
 ruoyi-admin/src/main/java/com/ruoyi/
-├── controller/pension/    # 养老机构控制器
-├── service/pension/       # 业务逻辑层
-├── domain/pension/        # 实体类
-└── mapper/pension/        # 数据访问层
+├── controller/pension/    # 养老机构控制器（已实现）
+├── service/pension/       # 业务逻辑层（已实现）
+├── domain/pension/        # 实体类（已实现）
+└── mapper/pension/        # 数据访问层（已实现）
 
-ruoyi-ui/src/views/pension/   # 养老机构页面
+ruoyi-ui/src/views/pension/   # 养老机构页面（已实现）
+ruoyi-h5/                    # H5小程序端（独立模块）
 ```
 
 ### 前端结构
@@ -114,6 +131,7 @@ ruoyi-ui/src/views/pension/   # 养老机构页面
 - 数据库: MySQL (localhost:3306/newzijin)
 - 用户名: root
 - 密码: 123456 (在 application-druid.yml 中配置)
+- Druid监控: http://localhost:8080/druid (用户名: yl, 密码: 123456)
 
 ### Redis配置
 - 地址: localhost:6379
@@ -123,7 +141,7 @@ ruoyi-ui/src/views/pension/   # 养老机构页面
 ### 端口配置
 - 后端: 8080
 - 前端: 80
-- Druid监控: http://localhost:8080/druid (用户名: ruoyi, 密码: 123456)
+- H5前端: 3000 (ruoyi-h5模块)
 
 ## 默认账号
 - 用户名: admin
@@ -154,38 +172,58 @@ ruoyi-ui/src/views/pension/   # 养老机构页面
 ### 后端构建
 ```bash
 mvn clean package
+# 或使用提供的脚本
+./ry.sh start    # 启动服务
+./ry.sh stop     # 停止服务
+./ry.sh restart  # 重启服务
+./ry.sh status   # 查看状态
 ```
 生成的JAR文件位于 `ruoyi-admin/target/` 目录
 
 ### 前端构建
 ```bash
 cd ruoyi-ui
-npm run build:prod
+npm run build:prod    # 生产环境构建
+npm run build:stage   # 测试环境构建
+
+# H5构建
+cd ruoyi-h5
+npm run build
 ```
 生成的静态文件位于 `ruoyi-ui/dist/` 目录
 
 ## 监控和管理
 - 应用启动后访问 http://localhost:8080
 - Swagger文档: http://localhost:8080/swagger-ui/
-- Druid监控: http://localhost:8080/druid/
+- Druid监控: http://localhost:8080/druid/ (用户名: yl, 密码: 123456)
+- H5小程序: http://localhost:3000
 
 ## 养老机构业务功能规划
 
-### 功能开发优先级
-1. **机构入驻申请** ⭐⭐⭐ - 系统基础入口，涉及机构信息管理
-2. **老人入住管理** ⭐⭐⭐ - 核心业务流程，系统主要价值
-3. **订单支付功能** ⭐⭐⭐ - 资金流转关键环节
-4. **账户资金管理** ⭐⭐ - 资金监管核心功能
-5. **预警监控** ⭐⭐ - 风险控制功能
-6. **小程序端** ⭐ - 便民服务功能
+### 已实现核心功能
+1. **✅ 机构信息管理** - 养老机构基础信息管理、附件上传、审核流程
+2. **✅ 老人入住管理** - 老人信息登记、家庭成员管理、入住流程
+3. **✅ 床位管理** - 床位信息管理、床位分配、状态跟踪
+4. **✅ 账户资金管理** - 老人账户管理、资金流水、余额预警
+5. **✅ 押金管理** - 押金申请、审核、使用记录
+6. **✅ 银行接口** - 支付接口、监管银行对接
+7. **✅ H5小程序端** - 机构展示、预约参观、投诉建议等便民服务
 
-### 核心业务表（待创建）
-- `pension_institution` - 养老机构信息表
-- `pension_institution_attach` - 机构附件材料表
-- `elder_info` - 老人基础信息表
-- `order_info` - 订单主表
-- `account_info` - 老人账户信息表
-- `warning_record` - 预警记录表
+### 待完善功能
+1. **订单支付功能** ⭐⭐⭐ - 资金流转关键环节
+2. **预警监控** ⭐⭐ - 风险控制功能
+3. **数据统计分析** ⭐⭐ - 监管决策支持
+
+### 核心业务表（已实现）
+- `pension_institution` - 养老机构信息表 ✅
+- `pension_institution_attach` - 机构附件材料表 ✅
+- `elder_info` - 老人基础信息表 ✅
+- `elder_family` - 老人家庭成员表 ✅
+- `elder_check_in` - 入住管理表 ✅
+- `bed_info` - 床位信息表 ✅
+- `account_info` - 老人账户信息表 ✅
+- `deposit_apply` - 押金申请表 ✅
+- `balance_warning` - 余额预警表 ✅
 
 ## 开发注意事项
 

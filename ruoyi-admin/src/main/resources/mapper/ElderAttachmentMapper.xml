@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.mapper.ElderAttachmentMapper">
+
+    <resultMap type="ElderAttachment" id="ElderAttachmentResult">
+        <result property="attachmentId"    column="attachment_id"    />
+        <result property="elderId"         column="elder_id"         />
+        <result property="attachmentType" column="attachment_type" />
+        <result property="filePath"        column="file_path"        />
+        <result property="fileName"        column="file_name"        />
+        <result property="fileSize"        column="file_size"        />
+        <result property="createTime"      column="create_time"      />
+    </resultMap>
+
+    <sql id="selectElderAttachmentVo">
+        select attachment_id, elder_id, attachment_type, file_path, file_name, file_size, create_time from elder_attachment
+    </sql>
+
+    <select id="selectElderAttachmentList" parameterType="ElderAttachment" resultMap="ElderAttachmentResult">
+        <include refid="selectElderAttachmentVo"/>
+        <where>
+            <if test="elderId != null "> and elder_id = #{elderId}</if>
+            <if test="attachmentType != null  and attachmentType != ''"> and attachment_type = #{attachmentType}</if>
+            <if test="filePath != null  and filePath != ''"> and file_path like concat('%', #{filePath}, '%')</if>
+            <if test="fileName != null  and fileName != ''"> and file_name like concat('%', #{fileName}, '%')</if>
+        </where>
+    </select>
+
+    <select id="selectElderAttachmentByAttachmentId" parameterType="Long" resultMap="ElderAttachmentResult">
+        <include refid="selectElderAttachmentVo"/>
+        where attachment_id = #{attachmentId}
+    </select>
+
+    <select id="selectAttachmentsByElderId" parameterType="Long" resultMap="ElderAttachmentResult">
+        <include refid="selectElderAttachmentVo"/>
+        where elder_id = #{elderId}
+        order by attachment_type asc
+    </select>
+
+    <select id="selectAttachmentByElderIdAndType" resultMap="ElderAttachmentResult">
+        <include refid="selectElderAttachmentVo"/>
+        where elder_id = #{elderId} and attachment_type = #{attachmentType}
+        limit 1
+    </select>
+
+    <insert id="insertElderAttachment" parameterType="ElderAttachment" useGeneratedKeys="true" keyProperty="attachmentId">
+        insert into elder_attachment
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="elderId != null">elder_id,</if>
+            <if test="attachmentType != null and attachmentType != ''">attachment_type,</if>
+            <if test="filePath != null and filePath != ''">file_path,</if>
+            <if test="fileName != null">file_name,</if>
+            <if test="fileSize != null">file_size,</if>
+            create_time
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="elderId != null">#{elderId},</if>
+            <if test="attachmentType != null and attachmentType != ''">#{attachmentType},</if>
+            <if test="filePath != null and filePath != ''">#{filePath},</if>
+            <if test="fileName != null">#{fileName},</if>
+            <if test="fileSize != null">#{fileSize},</if>
+            sysdate()
+        </trim>
+    </insert>
+
+    <update id="updateElderAttachment" parameterType="ElderAttachment">
+        update elder_attachment
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="elderId != null">elder_id = #{elderId},</if>
+            <if test="attachmentType != null and attachmentType != ''">attachment_type = #{attachmentType},</if>
+            <if test="filePath != null and filePath != ''">file_path = #{filePath},</if>
+            <if test="fileName != null">file_name = #{fileName},</if>
+            <if test="fileSize != null">file_size = #{fileSize},</if>
+        </trim>
+        where attachment_id = #{attachmentId}
+    </update>
+
+    <delete id="deleteElderAttachmentByAttachmentId" parameterType="Long">
+        delete from elder_attachment where attachment_id = #{attachmentId}
+    </delete>
+
+    <delete id="deleteElderAttachmentByAttachmentIds" parameterType="String">
+        delete from elder_attachment where attachment_id in
+        <foreach item="attachmentId" collection="array" open="(" separator="," close=")">
+            #{attachmentId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteAttachmentsByElderId" parameterType="Long">
+        delete from elder_attachment where elder_id = #{elderId}
+    </delete>
+
+</mapper>

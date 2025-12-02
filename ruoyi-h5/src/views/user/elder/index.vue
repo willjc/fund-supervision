@@ -74,9 +74,35 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast, showConfirmDialog } from 'vant'
 import { useUserStore } from '@/store/modules/user'
+import { getToken } from '@/utils/auth'
 
 const router = useRouter()
 const userStore = useUserStore()
+
+// 页面加载时刷新老人列表数据
+onMounted(async () => {
+  try {
+    // 调用 /info 接口获取最新的老人列表
+    const token = getToken()
+    const response = await fetch('/api/h5/user/info', {
+      method: 'GET',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : ''
+      }
+    })
+
+    const result = await response.json()
+    if (result.code === 200 && result.data && result.data.elders) {
+      // 更新 userStore 中的老人列表数据
+      userStore.setElders(result.data.elders)
+      console.log('老人信息页面数据刷新成功:', result.data.elders)
+    } else {
+      console.error('获取老人列表失败:', result.msg)
+    }
+  } catch (error) {
+    console.error('刷新老人列表数据失败:', error)
+  }
+})
 
 // 老人列表数据 - 从 userStore 获取
 const elderList = computed(() => {
@@ -88,21 +114,21 @@ const elderList = computed(() => {
   return userStore.elders.map(elder => ({
     id: elder.elderId,
     name: elder.elderName,
-    relation: getRelationText(elder.relationWithUser), // 需要根据实际字段调整
+    relation: getRelationText(elder.relationType), // 修复字段映射问题
     age: elder.age || calculateAge(elder.birthDate),
     idCard: elder.idCard,
-    avatar: elder.avatar || 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
+    avatar: elder.photoPath || 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
   }))
 })
 
-// 根据关系类型码转换为文字
+// 根据关系类型码转换为文字（对应数据库定义：1:子女 2:配偶 3:兄弟姐妹 4:其他亲属 5:朋友）
 const getRelationText = (relationType) => {
   const relationMap = {
     '1': '子女',
-    '2': '父母',
-    '3': '配偶',
-    '4': '兄弟姐妹',
-    '5': '其他'
+    '2': '配偶',
+    '3': '兄弟姐妹',
+    '4': '其他亲属',
+    '5': '朋友'
   }
   return relationMap[relationType] || '家属'
 }
@@ -159,7 +185,7 @@ const handleDelete = async (elder) => {
   }
 }
 
-// 不需要 onMounted,因为 elderList 是从 userStore 计算属性获取的
+// 页面每次进入时都会通过 onMounted 刷新数据，确保显示最新信息
 </script>
 
 <style scoped>
