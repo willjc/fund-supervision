@@ -92,6 +92,24 @@ public class PensionInstitutionPublic extends BaseEntity
     @Excel(name = "公示状态", readConverterExp = "0=未公示,1=已公示")
     private String isPublished;
 
+    /** 房间设施图片(JSON数组) */
+    private String roomFacilities;
+
+    /** 基础设施图片(JSON数组) */
+    private String basicFacilities;
+
+    /** 园址设施图片(JSON数组) */
+    private String parkFacilities;
+
+    /** 生活设施选项(JSON数组) */
+    private String lifeFacilities;
+
+    /** 医疗设施选项(JSON数组) */
+    private String medicalFacilities;
+
+    /** 每日服务安排(JSON数组) */
+    private String dailyServices;
+
     // 关联查询字段(不映射到数据库)
     /** 机构名称 */
     @Excel(name = "机构名称")
@@ -416,6 +434,54 @@ public class PensionInstitutionPublic extends BaseEntity
 
     public void setCurrentUserId(Long currentUserId) {
         this.currentUserId = currentUserId;
+    }
+
+    public String getRoomFacilities() {
+        return roomFacilities;
+    }
+
+    public void setRoomFacilities(String roomFacilities) {
+        this.roomFacilities = roomFacilities;
+    }
+
+    public String getBasicFacilities() {
+        return basicFacilities;
+    }
+
+    public void setBasicFacilities(String basicFacilities) {
+        this.basicFacilities = basicFacilities;
+    }
+
+    public String getParkFacilities() {
+        return parkFacilities;
+    }
+
+    public void setParkFacilities(String parkFacilities) {
+        this.parkFacilities = parkFacilities;
+    }
+
+    public String getLifeFacilities() {
+        return lifeFacilities;
+    }
+
+    public void setLifeFacilities(String lifeFacilities) {
+        this.lifeFacilities = lifeFacilities;
+    }
+
+    public String getMedicalFacilities() {
+        return medicalFacilities;
+    }
+
+    public void setMedicalFacilities(String medicalFacilities) {
+        this.medicalFacilities = medicalFacilities;
+    }
+
+    public String getDailyServices() {
+        return dailyServices;
+    }
+
+    public void setDailyServices(String dailyServices) {
+        this.dailyServices = dailyServices;
     }
 
     @Override

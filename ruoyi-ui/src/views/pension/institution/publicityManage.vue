@@ -264,6 +264,95 @@
           <image-upload v-model="form.environmentImgs" :limit="9" />
           <div style="color: #999; font-size: 12px;">最多上传9张图片</div>
         </el-form-item>
+
+        <!-- 设施图片上传 -->
+        <el-divider content-position="left">设施图片</el-divider>
+
+        <el-form-item label="房间设施图片">
+          <image-upload v-model="form.roomFacilities" :limit="5" />
+          <div style="color: #999; font-size: 12px;">上传房间设施图片（单人间、双人间、套间等），最多5张</div>
+        </el-form-item>
+
+        <el-form-item label="基础设施图片">
+          <image-upload v-model="form.basicFacilities" :limit="5" />
+          <div style="color: #999; font-size: 12px;">上传基础设施图片（建筑外观、公共区域、配套设施等），最多5张</div>
+        </el-form-item>
+
+        <el-form-item label="园址设施图片">
+          <image-upload v-model="form.parkFacilities" :limit="5" />
+          <div style="color: #999; font-size: 12px;">上传园址设施图片（花园、活动场地、休闲区等），最多5张</div>
+        </el-form-item>
+
+        <!-- 设施选项 -->
+        <el-divider content-position="left">设施选项</el-divider>
+
+        <el-form-item label="生活设施">
+          <el-checkbox-group v-model="selectedLifeFacilities">
+            <el-checkbox label="独立卫浴">独立卫浴</el-checkbox>
+            <el-checkbox label="紧急呼叫">紧急呼叫</el-checkbox>
+            <el-checkbox label="洗衣服务">洗衣服务</el-checkbox>
+            <el-checkbox label="活动室">活动室</el-checkbox>
+            <el-checkbox label="图书阅览室">图书阅览室</el-checkbox>
+            <el-checkbox label="电视/娱乐设备">电视/娱乐设备</el-checkbox>
+            <el-checkbox label="空调设备">空调设备</el-checkbox>
+            <el-checkbox label="暖气设备">暖气设备</el-checkbox>
+            <el-checkbox label="无线网络">无线网络</el-checkbox>
+            <el-checkbox label="储物柜">储物柜</el-checkbox>
+            <el-checkbox label="衣柜">衣柜</el-checkbox>
+            <el-checkbox label="吧台/茶水间">吧台/茶水间</el-checkbox>
+            <el-checkbox label="阳台/露台">阳台/露台</el-checkbox>
+          </el-checkbox-group>
+          <div style="color: #999; font-size: 12px;">请选择机构拥有的生活设施</div>
+        </el-form-item>
+
+        <el-form-item label="医疗设施">
+          <el-checkbox-group v-model="selectedMedicalFacilities">
+            <el-checkbox label="医疗室">医疗室</el-checkbox>
+            <el-checkbox label="康复室">康复室</el-checkbox>
+            <el-checkbox label="理疗室">理疗室</el-checkbox>
+            <el-checkbox label="健康监测">健康监测</el-checkbox>
+            <el-checkbox label="药房">药房</el-checkbox>
+            <el-checkbox label="急救设备">急救设备</el-checkbox>
+            <el-checkbox label="专业医生">专业医生</el-checkbox>
+            <el-checkbox label="护士站">护士站</el-checkbox>
+            <el-checkbox label="体检设备">体检设备</el-checkbox>
+            <el-checkbox label="心电图机">心电图机</el-checkbox>
+            <el-checkbox label="血压监测">血压监测</el-checkbox>
+            <el-checkbox label="输液设备">输液设备</el-checkbox>
+            <el-checkbox label="氧气设备">氧气设备</el-checkbox>
+            <el-checkbox label="呼叫系统">呼叫系统</el-checkbox>
+          </el-checkbox-group>
+          <div style="color: #999; font-size: 12px;">请选择机构拥有的医疗设施</div>
+        </el-form-item>
+
+        <!-- 每日服务时间安排 -->
+        <el-divider content-position="left">每日服务时间安排</el-divider>
+        <el-form-item label="服务安排">
+          <div style="margin-bottom: 15px;">
+            <div v-for="(service, index) in dailyServices" :key="index" style="display: flex; align-items: center; margin-bottom: 10px;">
+              <el-time-picker
+                v-model="service.time"
+                placeholder="选择时间"
+                format="HH:mm"
+                value-format="HH:mm"
+                style="width: 120px; margin-right: 10px;"></el-time-picker>
+              <el-input
+                v-model="service.content"
+                placeholder="请输入服务内容"
+                style="flex: 1; margin-right: 10px;"></el-input>
+              <el-button
+                type="danger"
+                icon="el-icon-delete"
+                size="small"
+                @click="removeService(index)">删除</el-button>
+            </div>
+          </div>
+          <el-button
+            type="primary"
+            icon="el-icon-plus"
+            @click="addService"
+            size="small">添加服务项</el-button>
+        </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
         <el-button type="info" icon="el-icon-view" @click="handlePreview">预 览</el-button>
@@ -383,6 +472,89 @@
               fit="cover"
               class="gallery-image"
             ></el-image>
+          </div>
+        </div>
+
+        <!-- 设施图片 -->
+        <div class="detail-section" v-if="viewData.roomFacilities && getImageList(viewData.roomFacilities).length > 0">
+          <h4>房间设施图片</h4>
+          <div class="image-gallery">
+            <el-image
+              v-for="(img, index) in getImageList(viewData.roomFacilities)"
+              :key="index"
+              :src="img"
+              :preview-src-list="getImageList(viewData.roomFacilities)"
+              fit="cover"
+              class="gallery-image"
+            ></el-image>
+          </div>
+        </div>
+
+        <div class="detail-section" v-if="viewData.basicFacilities && getImageList(viewData.basicFacilities).length > 0">
+          <h4>基础设施图片</h4>
+          <div class="image-gallery">
+            <el-image
+              v-for="(img, index) in getImageList(viewData.basicFacilities)"
+              :key="index"
+              :src="img"
+              :preview-src-list="getImageList(viewData.basicFacilities)"
+              fit="cover"
+              class="gallery-image"
+            ></el-image>
+          </div>
+        </div>
+
+        <div class="detail-section" v-if="viewData.parkFacilities && getImageList(viewData.parkFacilities).length > 0">
+          <h4>园址设施图片</h4>
+          <div class="image-gallery">
+            <el-image
+              v-for="(img, index) in getImageList(viewData.parkFacilities)"
+              :key="index"
+              :src="img"
+              :preview-src-list="getImageList(viewData.parkFacilities)"
+              fit="cover"
+              class="gallery-image"
+            ></el-image>
+          </div>
+        </div>
+
+        <!-- 设施选项 -->
+        <div class="detail-section" v-if="viewData.parsedLifeFacilities && viewData.parsedLifeFacilities.length > 0">
+          <h4>生活设施</h4>
+          <div class="facility-list">
+            <el-tag
+              v-for="(facility, index) in viewData.parsedLifeFacilities"
+              :key="index"
+              type="success"
+              size="medium"
+              style="margin: 2px 5px 2px 0;">
+              {{ facility }}
+            </el-tag>
+          </div>
+        </div>
+
+        <div class="detail-section" v-if="viewData.parsedMedicalFacilities && viewData.parsedMedicalFacilities.length > 0">
+          <h4>医疗设施</h4>
+          <div class="facility-list">
+            <el-tag
+              v-for="(facility, index) in viewData.parsedMedicalFacilities"
+              :key="index"
+              type="primary"
+              size="medium"
+              style="margin: 2px 5px 2px 0;">
+              {{ facility }}
+            </el-tag>
+          </div>
+        </div>
+
+        <!-- 每日服务时间安排 -->
+        <div class="detail-section" v-if="viewData.parsedDailyServices && viewData.parsedDailyServices.length > 0">
+          <h4>每日服务时间安排</h4>
+          <div class="service-schedule">
+            <div v-for="(service, index) in viewData.parsedDailyServices" :key="index" class="service-item">
+              <el-tag type="info" size="small">{{ service.time }}</el-tag>
+              <span class="service-content">{{ service.content }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -509,6 +681,10 @@ export default {
       form: {},
       // 收住对象能力列表
       acceptElderTypeList: [],
+      // 新增设施数据
+      selectedLifeFacilities: [],
+      selectedMedicalFacilities: [],
+      dailyServices: [],
       // 表单校验
       rules: {
         landArea: [
@@ -616,6 +792,10 @@ export default {
         buildingArea: null,
         environmentImgs: null,
         mainPicture: null,
+        // 设施图片字段
+        roomFacilities: null,
+        basicFacilities: null,
+        parkFacilities: null,
         // 结构化费用字段
         nursingFeeMin: 0,
         nursingFeeMax: 0,
@@ -627,6 +807,9 @@ export default {
         isPublished: '0'
       };
       this.acceptElderTypeList = [];
+      this.selectedLifeFacilities = [];
+      this.selectedMedicalFacilities = [];
+      this.dailyServices = [];
       this.previewData = {};
       this.resetForm("form");
     },
@@ -693,6 +876,30 @@ export default {
         if (this.form.acceptElderType) {
           this.acceptElderTypeList = this.form.acceptElderType.split(',');
         }
+        // 解析生活设施选择
+        if (this.form.lifeFacilities) {
+          try {
+            this.selectedLifeFacilities = JSON.parse(this.form.lifeFacilities);
+          } catch (e) {
+            this.selectedLifeFacilities = [];
+          }
+        }
+        // 解析医疗设施选择
+        if (this.form.medicalFacilities) {
+          try {
+            this.selectedMedicalFacilities = JSON.parse(this.form.medicalFacilities);
+          } catch (e) {
+            this.selectedMedicalFacilities = [];
+          }
+        }
+        // 解析每日服务
+        if (this.form.dailyServices) {
+          try {
+            this.dailyServices = JSON.parse(this.form.dailyServices);
+          } catch (e) {
+            this.dailyServices = [];
+          }
+        }
         // 填充机构名称和预览数据
         this.form.institutionName = response.data.institutionName;
         this.previewData = {
@@ -717,6 +924,55 @@ export default {
       const publicId = row.publicId;
       getPublicity(publicId).then(response => {
         this.viewData = response.data;
+
+        // 调试信息：打印原始数据
+        console.log("查看对话框原始数据:", this.viewData);
+
+        // 为查看对话框解析设施数据（因为查��对话框中显示的是原始数据，需要处理）
+        // 生活设施数据处理
+        if (this.viewData.lifeFacilities) {
+          try {
+            this.viewData.parsedLifeFacilities = JSON.parse(this.viewData.lifeFacilities);
+            console.log("生活设施解析结果:", this.viewData.parsedLifeFacilities);
+          } catch (e) {
+            this.viewData.parsedLifeFacilities = [];
+            console.error("生活设施解析失败:", e);
+          }
+        } else {
+          this.viewData.parsedLifeFacilities = [];
+        }
+
+        // 医疗设施数据处理
+        if (this.viewData.medicalFacilities) {
+          try {
+            this.viewData.parsedMedicalFacilities = JSON.parse(this.viewData.medicalFacilities);
+            console.log("医疗设施解析结果:", this.viewData.parsedMedicalFacilities);
+          } catch (e) {
+            this.viewData.parsedMedicalFacilities = [];
+            console.error("医疗设施解析失败:", e);
+          }
+        } else {
+          this.viewData.parsedMedicalFacilities = [];
+        }
+
+        // 每日服务数据处理
+        if (this.viewData.dailyServices) {
+          try {
+            this.viewData.parsedDailyServices = JSON.parse(this.viewData.dailyServices);
+            console.log("每日服务解析结果:", this.viewData.parsedDailyServices);
+          } catch (e) {
+            this.viewData.parsedDailyServices = [];
+            console.error("每日服务解析失败:", e);
+          }
+        } else {
+          this.viewData.parsedDailyServices = [];
+        }
+
+        // 调试信息：打印图片数据
+        console.log("房间设施图片:", this.viewData.roomFacilities);
+        console.log("基础设施图片:", this.viewData.basicFacilities);
+        console.log("园址设施图片:", this.viewData.parkFacilities);
+
         this.viewOpen = true;
       });
     },
@@ -742,6 +998,13 @@ export default {
         if (valid) {
           // 将收住对象能力数组转为逗号分隔字符串
           this.form.acceptElderType = this.acceptElderTypeList.join(',');
+
+          // 将设施选择数组转为JSON字符串
+          this.form.lifeFacilities = this.selectedLifeFacilities.length > 0 ? JSON.stringify(this.selectedLifeFacilities) : null;
+          this.form.medicalFacilities = this.selectedMedicalFacilities.length > 0 ? JSON.stringify(this.selectedMedicalFacilities) : null;
+
+          // 将每日服务数组转为JSON字符串
+          this.form.dailyServices = this.dailyServices.length > 0 ? JSON.stringify(this.dailyServices.filter(service => service.time && service.content)) : null;
 
           if (this.form.publicId != null) {
             updatePublicity(this.form).then(response => {
@@ -837,6 +1100,16 @@ export default {
       }
       // 否则拼接基础路径
       return process.env.VUE_APP_BASE_API + imgStr;
+    },
+
+    // 添加每日服务项
+    addService() {
+      this.dailyServices.push({ time: '', content: '' });
+    },
+
+    // 删除每日服务项
+    removeService(index) {
+      this.dailyServices.splice(index, 1);
     }
   }
 };
@@ -939,5 +1212,34 @@ export default {
 .main-image-container {
   margin-bottom: 15px;
   text-align: center;
+}
+
+/* 设施列表样式 */
+.facility-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+/* 服务时间安排样式 */
+.service-schedule {
+  margin-top: 10px;
+}
+
+.service-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  border-left: 3px solid #409eff;
+}
+
+.service-content {
+  margin-left: 10px;
+  font-size: 14px;
+  color: #333;
 }
 </style>

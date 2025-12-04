@@ -24777,3 +24777,175 @@ const areaStreetMap = ref({
 - 统一色彩系统：使用一致的蓝色主题和渐变效果
 - 增强视觉层次：通过阴影、间距和字体大小区分不同内容级别
 - 全面提升页面协调性：保持功能不变的前提下进行微微美化
+# 2025-01-05 完善维护公示信息表单功能
+
+## 修改目的：
+在维护公示信息表单中增加设施管理功能，包括设施图片上传、生活/医疗设施选择、每日服务配置等功能。
+
+## 新增功能：
+
+### 1. 设施图片上传区域
+- **房间设施图片**：使用 image-upload 组件，限制5张图片
+- **基础设施图片**：使用 image-upload 组件，限制5张图片  
+- **园址设施图片**：使用 image-upload 组件，限制5张图片
+- 参考现有环境图片的配置和代码实现
+
+### 2. 生活设施多选功能
+提供14种标准化生活设施选项：
+- 独立卫浴、紧急呼叫、洗衣服务、活动室、图书阅览室
+- 电视/娱乐设备、空调设备、暖气设备、无线网络、储物柜、衣柜
+- 吧台/茶水间、阳台/露台
+
+### 3. 医疗设施多选功能
+提供14种标准化医疗设施选项：
+- 医疗室、康复室、理疗室、健康监测、药房、急救设备
+- 专业医生、护士站、体检设备、心电图机、血压监测
+- 输液设备、氧气设备、呼叫系统
+
+### 4. 每日服务时间安排
+- 时间选择器：支持选择服务时间（HH:mm格式）
+- 服务内容输入框：支持输入具体服务内容
+- 动态增删：支持添加和删除服务项
+- 数据验证：只保存有时间和内容的完整服务项
+
+## 技术实现：
+
+### 前端组件扩展
+- 使用 el-divider 分组不同功能模块
+- 使用 el-checkbox-group 实现多选功能
+- 使用 el-time-picker 实现时间选择
+- 使用 image-upload 组件统一图片上传体验
+
+### 数据处理逻辑
+- **存储格式**：使用JSON字符串存储数组数据
+- **序列化**：生活/医疗设施数组 → JSON字符串
+- **反序列化**：JSON字符串 → 数组（编辑时）
+- **数据过滤**：每日服务只保存有效的(time和content都存在)数据
+
+### 表单字段扩展
+- **新增form字段**：
+  - roomFacilities (房间设施图片)
+  - basicFacilities (基础设施图片)
+  - parkFacilities (园址设施图片)
+  - lifeFacilities (生活设施选择)
+  - medicalFacilities (医疗设施选择)
+  - dailyServices (每日服务安排)
+
+- **新增数组字段**：
+  - selectedLifeFacilities (生活设施选择数组)
+  - selectedMedicalFacilities (医疗设施选择数组)
+  - dailyServices (每日服务数组)
+
+## 修改文件：
+
+### ruoyi-ui/src/views/pension/institution/publicityManage.vue
+
+#### 表单结构扩展 (行263-355)：
+- 添加了3个设施图片上传组件
+- 添加了2个设施选项多选组件
+- 添加了每日服务时间配置组件
+
+#### 数据结构扩展：
+- data中添加了selectedLifeFacilities、selectedMedicalFacilities、dailyServices字段
+- reset方法中包含所有新字段的重置
+- form对象中添加了roomFacilities、basicFacilities、parkFacilities字段
+
+#### 方法扩展：
+- addService() - 添加每日服务项
+- removeService(index) - 删除指定索引的每日服务项
+- submitForm() - 增加JSON数据序列化逻辑
+- handleUpdate() - 增加JSON数据反序列化逻辑
+
+## 数据库对应关系：
+- room_facilities → form.roomFacilities
+- basic_facilities → form.basicFacilities  
+- park_facilities → form.parkFacilities
+- life_facilities → form.lifeFacilities (JSON字符串)
+- medical_facilities → form.medicalFacilities (JSON字符串)
+- daily_services → form.dailyServices (JSON字符串)
+
+## 用户体验改进：
+- ✅ 参考现有环境图片组件，保持界面一致性
+- ✅ 图片上传支持数量限制和提示文字
+- ✅ 设施选项提供常用选项，用户友好
+- ✅ 每日服务支持模板化配置
+- ✅ 数据加载时正确解析现有数据
+- ✅ 表单提交时正确序列化存储数据
+
+## 测试建议：
+1. 测试图片上传功能是否正常工作
+2. 测试设施选项多选是否正确保存和加载
+3. 测试每日服务的增删功能
+4. 测试编辑操作是否能正确加载已保存的数据
+5. 测试表单验证和提交功能
+
+## 预期效果：
+机构用户可以在维护公示信息时：
+- 上传不同类型的设施图片
+- 选择机构拥有的生活设施和医疗设施
+- 配置每日的服务时间安排
+- 所有数据能正确保存到数据库并在编辑时恢复显示
+
+
+文件修改记录 - 2025年12月 5日  1:51:28
+修复查看对话框缺失设施数据显示：
+1. 在查看对话框中新增三种设施图片显示：房间设施、基础设施、园址设施图片
+2. 新增生活设施和医疗设施选项显示，使用el-tag组件展示
+3. 新增每日服务时间安排显示，包含时间和内容
+4. 添加数据处理方法：getLifeFacilities、getMedicalFacilities、getDailyServices
+5. 新增CSS样式：facility-list、service-schedule、service-item
+修改文件：ruoyi-ui/src/views/pension/institution/publicityManage.vue
+修复publicity.vue页面设施管理功能：
+1. 添加三种设施图片上传功能：房间设施、基础设施、园址设施
+2. 添加生活设施和医疗设施的多选功能，各14个选项
+3. 添加每日服务时间安排配置功能
+4. 修改data属性添加设施数据字段：roomFacilities、basicFacilities、parkFacilities、lifeFacilities、medicalFacilities、dailyServices
+5. 修改handleSave方法添加设施数据序列化处理
+6. 修改loadPublicityData方法添加设施数据解析和初始化
+7. 添加设施图片上传处理方法和handleFacilityImages辅助方法
+修改文件：ruoyi-ui/src/views/pension/institution/publicity.vue
+修复查看对话框无法显示设施数据的问题：
+1. 修改handleView方法，在获取数据后立即解析JSON设施数据
+2. 为viewData添加解析后的字段：parsedLifeFacilities、parsedMedicalFacilities、parsedDailyServices
+3. 修改查看对话框中的设施选项显示，使用解析后的数据直接渲染
+4. 删除不必要的getLifeFacilities、getMedicalFacilities、getDailyServices方法
+5. 修复语法错误，确保JavaScript代码正确
+修改文件：ruoyi-ui/src/views/pension/institution/publicityManage.vue
+确认修复完成：publicityManage.vue的查看功能已修复
+添加调试信息到handleView方法，帮助排查数据显示问题
+
+### 2025-12-05 养老机构公示信息设施管理功能修复
+
+#### 问题描述
+用户反馈在机构公示信息管理页面添加了设施管理功能（房间设施、基础设施、园址设施图片上传，生活医疗设施多选，每日服务安排），编辑时显示保存成功，但点击查看时看不到新增的内容。
+
+#### 问题排查
+1. **前端页面检查**: publicityManage.vue 确认已正确实现设施管理UI组件和数据处理逻辑
+2. **数据库表检查**: pension_institution_public 表确认已包含所有必需字段（room_facilities, basic_facilities, park_facilities, life_facilities, medical_facilities, daily_services）
+3. **数据检查**: 通过数据库查询发现这些字段值为NULL，说明数据未正确保存
+4. **后端实体类检查**: 发现 PensionInstitutionPublic.java 缺少对应设施字段的声明
+
+#### 根本原因
+后端实体类 PensionInstitutionPublic.java 缺少设施管理相关字段的声明，导致ORM无法将前端提交的设施数据保存到数据库。
+
+#### 修复内容
+
+**1. 修改后端实体类**
+**文件**: ruoyi-admin/src/main/java/com/ruoyi/domain/PensionInstitutionPublic.java
+- 添加6个新字段声明：roomFacilities, basicFacilities, parkFacilities, lifeFacilities, medicalFacilities, dailyServices
+- 为每个字段添加对应的getter和setter方法
+
+**2. 修改MyBatis映射文件**
+**文件**: ruoyi-admin/src/main/resources/mapper/pension/PensionInstitutionPublicMapper.xml
+- 更新resultMap: 添加新字段的映射关系
+- 更新select查询: 在select语句中添加新字段查询
+- 更新insert语句: 在insert语句中添加新字段插入逻辑
+- 更新update语句: 在update语句中添加新字段更新逻辑
+
+#### 修复效果
+- 设施数据能够正确保存到数据库
+- 查看功能能够显示已保存的设施信息
+- 完善了机构公示信息管理的设施管理功能
+- 支持三种设施图片上传展示
+- 支持生活医疗设施多选展示
+- 支持每日服务时间安排展示

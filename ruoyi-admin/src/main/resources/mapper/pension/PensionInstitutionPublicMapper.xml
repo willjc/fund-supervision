@@ -25,6 +25,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="mealFeeMax"    column="meal_fee_max"    />
         <result property="acceptElderType"    column="accept_elder_type"    />
         <result property="isPublished"    column="is_published"    />
+        <result property="roomFacilities"    column="room_facilities"    />
+        <result property="basicFacilities"    column="basic_facilities"    />
+        <result property="parkFacilities"    column="park_facilities"    />
+        <result property="lifeFacilities"    column="life_facilities"    />
+        <result property="medicalFacilities"    column="medical_facilities"    />
+        <result property="dailyServices"    column="daily_services"    />
         <result property="createBy"    column="create_by"    />
         <result property="createTime"    column="create_time"    />
         <result property="updateBy"    column="update_by"    />
@@ -65,6 +71,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             p.meal_fee_max,
             p.accept_elder_type,
             p.is_published,
+            p.room_facilities,
+            p.basic_facilities,
+            p.park_facilities,
+            p.life_facilities,
+            p.medical_facilities,
+            p.daily_services,
             p.create_by,
             p.create_time,
             p.update_by,
@@ -134,6 +146,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="mealFeeMax != null">meal_fee_max,</if>
             <if test="acceptElderType != null">accept_elder_type,</if>
             <if test="isPublished != null">is_published,</if>
+            <if test="roomFacilities != null">room_facilities,</if>
+            <if test="basicFacilities != null">basic_facilities,</if>
+            <if test="parkFacilities != null">park_facilities,</if>
+            <if test="lifeFacilities != null">life_facilities,</if>
+            <if test="medicalFacilities != null">medical_facilities,</if>
+            <if test="dailyServices != null">daily_services,</if>
             <if test="createBy != null">create_by,</if>
             <if test="createTime != null">create_time,</if>
             <if test="updateBy != null">update_by,</if>
@@ -159,6 +177,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="mealFeeMax != null">#{mealFeeMax},</if>
             <if test="acceptElderType != null">#{acceptElderType},</if>
             <if test="isPublished != null">#{isPublished},</if>
+            <if test="roomFacilities != null">#{roomFacilities},</if>
+            <if test="basicFacilities != null">#{basicFacilities},</if>
+            <if test="parkFacilities != null">#{parkFacilities},</if>
+            <if test="lifeFacilities != null">#{lifeFacilities},</if>
+            <if test="medicalFacilities != null">#{medicalFacilities},</if>
+            <if test="dailyServices != null">#{dailyServices},</if>
             <if test="createBy != null">#{createBy},</if>
             <if test="createTime != null">#{createTime},</if>
             <if test="updateBy != null">#{updateBy},</if>
@@ -188,6 +212,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="mealFeeMax != null">meal_fee_max = #{mealFeeMax},</if>
             <if test="acceptElderType != null">accept_elder_type = #{acceptElderType},</if>
             <if test="isPublished != null">is_published = #{isPublished},</if>
+            <if test="roomFacilities != null">room_facilities = #{roomFacilities},</if>
+            <if test="basicFacilities != null">basic_facilities = #{basicFacilities},</if>
+            <if test="parkFacilities != null">park_facilities = #{parkFacilities},</if>
+            <if test="lifeFacilities != null">life_facilities = #{lifeFacilities},</if>
+            <if test="medicalFacilities != null">medical_facilities = #{medicalFacilities},</if>
+            <if test="dailyServices != null">daily_services = #{dailyServices},</if>
             <if test="updateBy != null">update_by = #{updateBy},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>
         </trim>
