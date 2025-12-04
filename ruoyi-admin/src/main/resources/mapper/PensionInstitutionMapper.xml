@@ -20,6 +20,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="institutionType"  column="institution_type"  />
         <result property="bedCount"         column="bed_count"         />
         <result property="districtCode"     column="district_code"     />
+        <result property="areaCode"         column="area_code"         />
         <result property="institutionNature" column="institution_nature" />
         <result property="careLevels"       column="care_levels"       />
         <result property="medicalCondition" column="medical_condition" />
@@ -58,7 +59,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         select institution_id, institution_name, credit_code, registered_capital,
                registered_address, street, actual_address, legal_person, contact_person,
                contact_phone, contact_email, business_scope, institution_type,
-               bed_count, district_code, institution_nature, care_levels, medical_condition,
+               bed_count, district_code, area_code, institution_nature, care_levels, medical_condition,
                rating_level, price_range_min, price_range_max, free_trial,
                fee_range, established_date, organizer, responsible_name,
                responsible_id_card, responsible_address, responsible_phone, record_number,
@@ -87,6 +88,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
             <!-- 新增筛选条件 -->
             <if test="districtCode != null and districtCode != ''"> and district_code = #{districtCode}</if>
+            <if test="areaCode != null and areaCode != ''"> and area_code = #{areaCode}</if>
             <if test="institutionNature != null and institutionNature != ''"> and institution_nature = #{institutionNature}</if>
             <if test="medicalCondition != null and medicalCondition != ''"> and medical_condition = #{medicalCondition}</if>
             <if test="ratingLevel != null"> and rating_level = #{ratingLevel}</if>
@@ -107,6 +109,22 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             </if>
             <if test="priceRangeMax != null">
                 and price_range_min &lt;= #{priceRangeMax}
+            </if>
+
+            <!-- 区域代码多选筛选 -->
+            <if test="areaCodes != null and areaCodes.size() > 0">
+                and area_code in
+                <foreach collection="areaCodes" item="areaCode" open="(" separator="," close=")">
+                    #{areaCode}
+                </foreach>
+            </if>
+
+            <!-- 街道名称多选筛选 -->
+            <if test="streetNames != null and streetNames.size() > 0">
+                and street in
+                <foreach collection="streetNames" item="streetName" open="(" separator="," close=")">
+                    #{streetName}
+                </foreach>
             </if>
         </where>
         order by create_time desc
@@ -134,6 +152,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="institutionType != null and institutionType != ''">institution_type,</if>
             <if test="bedCount != null">bed_count,</if>
             <if test="districtCode != null and districtCode != ''">district_code,</if>
+            <if test="areaCode != null and areaCode != ''">area_code,</if>
             <if test="institutionNature != null and institutionNature != ''">institution_nature,</if>
             <if test="careLevels != null and careLevels != ''">care_levels,</if>
             <if test="medicalCondition != null and medicalCondition != ''">medical_condition,</if>
@@ -182,6 +201,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="institutionType != null and institutionType != ''">#{institutionType},</if>
             <if test="bedCount != null">#{bedCount},</if>
             <if test="districtCode != null and districtCode != ''">#{districtCode},</if>
+            <if test="areaCode != null and areaCode != ''">#{areaCode},</if>
             <if test="institutionNature != null and institutionNature != ''">#{institutionNature},</if>
             <if test="careLevels != null and careLevels != ''">#{careLevels},</if>
             <if test="medicalCondition != null and medicalCondition != ''">#{medicalCondition},</if>
@@ -234,6 +254,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="institutionType != null and institutionType != ''">institution_type = #{institutionType},</if>
             <if test="bedCount != null">bed_count = #{bedCount},</if>
             <if test="districtCode != null and districtCode != ''">district_code = #{districtCode},</if>
+            <if test="areaCode != null and areaCode != ''">area_code = #{areaCode},</if>
             <if test="institutionNature != null and institutionNature != ''">institution_nature = #{institutionNature},</if>
             <if test="careLevels != null and careLevels != ''">care_levels = #{careLevels},</if>
             <if test="medicalCondition != null and medicalCondition != ''">medical_condition = #{medicalCondition},</if>
@@ -298,6 +319,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="institutionType != null and institutionType != ''">institution_type = #{institutionType},</if>
             <if test="bedCount != null">bed_count = #{bedCount},</if>
             <if test="districtCode != null and districtCode != ''">district_code = #{districtCode},</if>
+            <if test="areaCode != null and areaCode != ''">area_code = #{areaCode},</if>
             <if test="institutionNature != null and institutionNature != ''">institution_nature = #{institutionNature},</if>
             <if test="careLevels != null and careLevels != ''">care_levels = #{careLevels},</if>
             <if test="medicalCondition != null and medicalCondition != ''">medical_condition = #{medicalCondition},</if>

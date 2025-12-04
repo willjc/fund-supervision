@@ -96,14 +96,21 @@ public class SupervisionInstitutionController extends BaseController
             return AjaxResult.error("机构申请不存在");
         }
 
-        if (!"0".equals(institution.getStatus())) {
+        if (!"0".equals(institution.getStatus()) && !"6".equals(institution.getStatus())) {
             return AjaxResult.error("只能审批待审批状态的申请");
         }
 
-        // 更新状态为已入驻
+        boolean isMaintenance = "6".equals(institution.getStatus());
+
+        // 根据原状态更新: 待审批(0) -> 已入驻(1), 维护待审批(6) -> 已入驻(1)
         institution.setStatus("1");
         institution.setApproveUser(getUsername());
         institution.setApproveTime(new java.util.Date());
+
+        // 如果是维护申请，添加审批备注
+        if (isMaintenance) {
+            institution.setApproveRemark("维护申请审批通过，机构信息已更新");
+        }
 
         return toAjax(pensionInstitutionService.updatePensionInstitution(institution));
     }
@@ -121,15 +128,23 @@ public class SupervisionInstitutionController extends BaseController
             return AjaxResult.error("机构申请不存在");
         }
 
-        if (!"0".equals(existing.getStatus())) {
+        if (!"0".equals(existing.getStatus()) && !"6".equals(existing.getStatus())) {
             return AjaxResult.error("只能审批待审批状态的申请");
         }
+
+        boolean isMaintenance = "6".equals(existing.getStatus());
 
         // 更新状态为已驳回
         existing.setStatus("2");
         existing.setApproveUser(getUsername());
         existing.setApproveTime(new java.util.Date());
-        existing.setApproveRemark(institution.getRemark()); // 拒绝原因
+
+        // 设置审批备注（维护申请有默认备注，否则使用拒绝原因）
+        if (isMaintenance) {
+            existing.setApproveRemark("维护申请审批驳回，机构信息保持不变");
+        } else {
+            existing.setApproveRemark(institution.getRemark()); // 拒绝原因
+        }
 
         return toAjax(pensionInstitutionService.updatePensionInstitution(existing));
     }

@@ -42,13 +42,23 @@
           <el-option label="解除监管" value="3" />
         </el-select>
       </el-form-item>
-      <el-form-item label="所属区域" prop="districtCode">
-        <el-select v-model="queryParams.districtCode" placeholder="请选择区域" clearable>
+      <el-form-item label="所属区域" prop="areaCodes">
+        <el-select v-model="queryParams.areaCodes" multiple placeholder="请选择区域" clearable @change="onAreaChange">
           <el-option
-            v-for="item in districtOptions"
-            :key="item.dictValue"
-            :label="item.dictLabel"
-            :value="item.dictValue"
+            v-for="item in areaOptions"
+            :key="item.areaCode"
+            :label="item.areaName"
+            :value="item.areaCode"
+          />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="所属街道" prop="streetNames">
+        <el-select v-model="queryParams.streetNames" multiple placeholder="请选择街道" clearable>
+          <el-option
+            v-for="item in streetOptions"
+            :key="item.streetName"
+            :label="item.streetName"
+            :value="item.streetName"
           />
         </el-select>
       </el-form-item>
@@ -598,6 +608,7 @@
 <script>
 import { listInstitution, getInstitution, delInstitution, addInstitution, updateInstitution, approveInstitution } from "@/api/pension/institution";
 import { getDictData } from "@/api/pension/institution";
+import { listAreas, listStreetsByArea } from "@/api/pension/areaStreet";
 
 export default {
   name: "PensionInstitution",
@@ -616,7 +627,9 @@ export default {
       approveOpen: false,
       isView: false,
       // 字典选项数据
-      districtOptions: [],
+      areaOptions: [],
+      streetOptions: [],
+      allStreets: [], // 所有街道数据，用于筛选
       natureOptions: [],
       careLevelOptions: [],
       medicalOptions: [],
@@ -630,7 +643,8 @@ export default {
         contactPerson: null,
         contactPhone: null,
         status: null,
-        districtCode: null,
+        areaCodes: [],
+        streetNames: [],
         institutionNature: null,
         medicalCondition: null,
         ratingLevel: null
@@ -676,15 +690,18 @@ export default {
     /** 加载字典数据 */
     async loadDictData() {
       try {
-        const [districts, natures, careLevels, medicals, ratings] = await Promise.all([
-          getDictData('pension_district'),
+        const [areas, natures, careLevels, medicals, ratings] = await Promise.all([
+          listAreas(),
           getDictData('pension_institution_nature'),
           getDictData('pension_care_level'),
           getDictData('pension_medical_condition'),
           getDictData('pension_rating_level')
         ]);
 
-        this.districtOptions = districts.data || [];
+        this.areaOptions = areas.data || [];
+
+        // 加载所有街道数据
+        await this.loadAllStreets();
         this.natureOptions = natures.data || [];
         this.careLevelOptions = careLevels.data || [];
         this.medicalOptions = medicals.data || [];
@@ -692,6 +709,50 @@ export default {
       } catch (error) {
         console.error('加载字典数据失败:', error);
       }
+    },
+    /** 加载所有街道数据 */
+    async loadAllStreets() {
+      try {
+        const areas = this.areaOptions;
+        let allStreets = [];
+
+        for (const area of areas) {
+          const streets = await listStreetsByArea(area.areaCode);
+          if (streets.data) {
+            allStreets = allStreets.concat(streets.data);
+          }
+        }
+
+        this.allStreets = allStreets;
+        this.updateStreetOptions();
+      } catch (error) {
+        console.error('加载街道数据失败:', error);
+      }
+    },
+    /** 更新街道选项 */
+    updateStreetOptions() {
+      if (this.queryParams.areaCodes.length === 0) {
+        this.streetOptions = this.allStreets;
+      } else {
+        this.streetOptions = this.allStreets.filter(street =>
+          this.queryParams.areaCodes.includes(street.areaCode)
+        );
+      }
+
+      // 清空不在筛选范围内的街道选择
+      if (this.queryParams.streetNames.length > 0) {
+        this.queryParams.streetNames = this.queryParams.streetNames.filter(streetName =>
+          this.streetOptions.some(street => street.streetName === streetName)
+        );
+      }
+    },
+    /** 区域变更事件 */
+    onAreaChange() {
+      this.updateStreetOptions();
+      // 清空街道选择
+      this.queryParams.streetNames = [];
+      // 重新查询列表
+      this.handleQuery();
     },
     /** 查询养老机构列表 */
     getList() {

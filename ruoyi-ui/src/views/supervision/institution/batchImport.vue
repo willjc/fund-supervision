@@ -76,6 +76,20 @@
       </el-form-item>
     </el-form>
 
+    <!-- 账号生成规则说明 -->
+    <el-alert
+      title="账号生成规则说明"
+      type="info"
+      :closable="false"
+      show-icon
+      style="margin-bottom: 20px;">
+      <div style="line-height: 1.6;">
+        <strong>用户名生成：</strong>jg + 联系电话后6位（如：13800138000 → jg38000，如有重复则加数字后缀）<br>
+        <strong>初始密码：</strong>联系电话后6位（如：13800138000 → 38000）<br>
+        <strong>默认角色：</strong>机构管理员，可直接登录使用
+      </div>
+    </el-alert>
+
     <!-- 数据表格 -->
     <el-table v-loading="loading" :data="institutionList" @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="55" align="center" />

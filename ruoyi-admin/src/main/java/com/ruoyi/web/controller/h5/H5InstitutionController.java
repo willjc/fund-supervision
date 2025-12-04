@@ -3,12 +3,14 @@ package com.ruoyi.web.controller.h5;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.stream.Collectors;
 import org.springframework.util.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
@@ -39,15 +41,76 @@ public class H5InstitutionController extends BaseController
 
     /**
      * 查询养老机构列表 (H5端,不需要权限)
+     * 支持区域街道多选筛选，优先使用公示数据，与首页推荐接口保持一致
      */
     @GetMapping("/list")
-    public TableDataInfo list(PensionInstitution pensionInstitution)
+    public TableDataInfo list(PensionInstitution pensionInstitution,
+                             @RequestParam(required = false) List<String> areaCodes,
+                             @RequestParam(required = false) List<String> streetNames)
     {
         startPage();
+
+        // 设置多选筛选参数
+        if (areaCodes != null && !areaCodes.isEmpty()) {
+            pensionInstitution.setAreaCodes(areaCodes);
+        }
+        if (streetNames != null && !streetNames.isEmpty()) {
+            pensionInstitution.setStreetNames(streetNames);
+        }
+
         // H5端只显示审核通过且正常运营的机构
         pensionInstitution.setStatus("1");  // 1-正常运营
-        List<PensionInstitution> list = pensionInstitutionService.selectPensionInstitutionList(pensionInstitution);
-        return getDataTable(list);
+        List<PensionInstitution> institutionList = pensionInstitutionService.selectPensionInstitutionList(pensionInstitution);
+
+        // 获取机构ID列表，用于查询公示信息
+        List<Long> institutionIds = institutionList.stream()
+                .map(PensionInstitution::getInstitutionId)
+                .collect(Collectors.toList());
+
+        // 查询这些机构的公示信息
+        List<PensionInstitutionPublic> publicityList = new ArrayList<>();
+        if (!institutionIds.isEmpty()) {
+            PensionInstitutionPublic queryPublicity = new PensionInstitutionPublic();
+            queryPublicity.setIsPublished("1");  // 只查询已发布的公示信息
+            publicityList = pensionInstitutionPublicService.selectPensionInstitutionPublicList(queryPublicity)
+                    .stream()
+                    .filter(publicity -> publicity.getInstitutionId() != null && institutionIds.contains(publicity.getInstitutionId()))
+                    .collect(Collectors.toList());
+        }
+
+        // 创建institutionId到公示信息的映射
+        Map<Long, PensionInstitutionPublic> publicityMap = publicityList.stream()
+                .collect(Collectors.toMap(
+                        PensionInstitutionPublic::getInstitutionId,
+                        publicity -> publicity,
+                        (existing, replacement) -> existing  // 如果有重复，保留第一个
+                ));
+
+        // 创建institutionId到机构信息的映射
+        Map<Long, PensionInstitution> institutionMap = institutionList.stream()
+                .collect(Collectors.toMap(
+                        PensionInstitution::getInstitutionId,
+                        institution -> institution,
+                        (existing, replacement) -> existing  // 如果有重复，保留第一个
+                ));
+
+        // 优先使用公示数据，转换为H5前端期望的格式
+        List<Map<String, Object>> convertedList = institutionList.stream()
+                .map(institution -> {
+                    // 如果有公示信息，使用公示数据；否则使用基础数据
+                    if (publicityMap.containsKey(institution.getInstitutionId())) {
+                        return convertPublicityToH5Format(publicityMap.get(institution.getInstitutionId()), institution);
+                    } else {
+                        return convertToH5Format(institution);
+                    }
+                })
+                .collect(Collectors.toList());
+
+        // 使用分页信息包装转换后的数据
+        TableDataInfo dataTable = getDataTable(institutionList);
+        dataTable.setRows(convertedList);  // 替换为转换后的数据
+
+        return dataTable;
     }
 
     /**
@@ -72,40 +135,108 @@ public class H5InstitutionController extends BaseController
     /**
      * 获取推荐机构列表 (首页展示)
      * 返回H5前端期望的数据格式，优先使用公示信息数据
+     * 支持区域街道多选筛选
      */
     @GetMapping("/recommend")
-    public AjaxResult getRecommendList()
+    public AjaxResult getRecommendList(@RequestParam(required = false) List<String> areaCodes,
+                                     @RequestParam(required = false) List<String> streetNames)
     {
         // 查询已发布的公示信息
         PensionInstitutionPublic queryPublicity = new PensionInstitutionPublic();
         queryPublicity.setIsPublished("1");  // 只查询已发布的公示信息
 
-        List<PensionInstitutionPublic> publicityList = pensionInstitutionPublicService.selectPensionInstitutionPublicList(queryPublicity);
+        // 设置多选筛选参数到关联的机构查询中
+        if ((areaCodes != null && !areaCodes.isEmpty()) || (streetNames != null && !streetNames.isEmpty())) {
+            // 如果有筛选条件，需要通过机构表筛选
+            PensionInstitution institutionQuery = new PensionInstitution();
+            institutionQuery.setStatus("1");  // 只查询正常运营的机构
+            if (areaCodes != null && !areaCodes.isEmpty()) {
+                institutionQuery.setAreaCodes(areaCodes);
+            }
+            if (streetNames != null && !streetNames.isEmpty()) {
+                institutionQuery.setStreetNames(streetNames);
+            }
 
-        // 转换为H5前端期望的格式
-        List<Map<String, Object>> convertedList = publicityList.stream()
-                .filter(publicity -> publicity.getInstitutionId() != null)  // 过滤掉没有机构ID的记录
-                .limit(8)  // 返回前8个机构，与mock数据数量一致
-                .map(this::convertPublicityToH5Format)
-                .collect(Collectors.toList());
+            // 先查询符合筛选条件的机构
+            List<PensionInstitution> filteredInstitutions = pensionInstitutionService.selectPensionInstitutionList(institutionQuery);
+            if (filteredInstitutions.isEmpty()) {
+                return AjaxResult.success(new ArrayList<>());  // 没有符合条件的机构
+            }
 
-        return AjaxResult.success(convertedList);
+            // 获取筛选后的机构ID列表
+            List<Long> institutionIds = filteredInstitutions.stream()
+                    .map(PensionInstitution::getInstitutionId)
+                    .collect(Collectors.toList());
+
+            // 查询这些机构的公示信息
+            List<PensionInstitutionPublic> publicityList = pensionInstitutionPublicService.selectPensionInstitutionPublicList(queryPublicity)
+                    .stream()
+                    .filter(publicity -> publicity.getInstitutionId() != null && institutionIds.contains(publicity.getInstitutionId()))
+                    .collect(Collectors.toList());
+
+            // 转换为H5前端期望的格式
+            List<Map<String, Object>> convertedList = publicityList.stream()
+                    .map(this::convertPublicityToH5Format)
+                    .limit(8)  // 限制返回数量
+                    .collect(Collectors.toList());
+
+            return AjaxResult.success(convertedList);
+        } else {
+            // 没有筛选条件，按原逻辑查询
+            List<PensionInstitutionPublic> publicityList = pensionInstitutionPublicService.selectPensionInstitutionPublicList(queryPublicity);
+
+            // 转换为H5前端期望的格式
+            List<Map<String, Object>> convertedList = publicityList.stream()
+                    .filter(publicity -> publicity.getInstitutionId() != null)  // 过滤掉没有机构ID的记录
+                    .limit(8)  // 返回前8个机构，与mock数据数量一致
+                    .map(this::convertPublicityToH5Format)
+                    .collect(Collectors.toList());
+
+            return AjaxResult.success(convertedList);
+        }
     }
 
     /**
-     * 将PensionInstitutionPublic实体转换为H5前端期望的数据格式
+     * 将PensionInstitutionPublic实体转换为H5前端期望的数据格式（简化版，用于推荐接口）
      */
     private Map<String, Object> convertPublicityToH5Format(PensionInstitutionPublic publicity)
+    {
+        // 先通过机构ID获取基础机构信息
+        PensionInstitution institution = pensionInstitutionService.selectPensionInstitutionByInstitutionId(publicity.getInstitutionId());
+        return convertPublicityToH5Format(publicity, institution);
+    }
+
+    /**
+     * 将PensionInstitutionPublic实体转换为H5前端期望的数据格式（带机构信息）
+     */
+    private Map<String, Object> convertPublicityToH5Format(PensionInstitutionPublic publicity, PensionInstitution institution)
     {
         Map<String, Object> result = new HashMap<>();
 
         // 基础字段映射（下划线转驼峰）
         result.put("institutionId", publicity.getInstitutionId());
-        result.put("institutionName", publicity.getInstitutionName());
-        result.put("address", publicity.getActualAddress() == null || publicity.getActualAddress().trim().isEmpty() ?
-                    "地址信息完善中" : publicity.getActualAddress());
-        result.put("contactPhone", publicity.getContactPhone() != null ? publicity.getContactPhone() : ""); // 返回真实的联系电话
-        result.put("bedCount", publicity.getBedCount() != null ? publicity.getBedCount() : 0);
+        // 使用基础机构信息中的机构名称
+        result.put("institutionName", institution != null ? institution.getInstitutionName() : "未知机构");
+
+        // 使用机构基础信息中的实际地址（公示表可能没有）
+        String address = (institution != null && institution.getActualAddress() != null && !institution.getActualAddress().trim().isEmpty()) ?
+                        institution.getActualAddress() : publicity.getActualAddress();
+        result.put("address", address == null || address.trim().isEmpty() ?
+                    "地址信息完善中" : address);
+
+        // 使用机构基础信息中的联系电话（公示表可能没有）
+        String contactPhone = (institution != null && institution.getContactPhone() != null && !institution.getContactPhone().trim().isEmpty()) ?
+                             institution.getContactPhone() : publicity.getContactPhone();
+        result.put("contactPhone", contactPhone != null ? contactPhone : "");
+
+        // 使用公示表的床位数，如果没有则使用基础机构的床位数
+        Integer bedCount = publicity.getBedCount();
+        if (bedCount == null && institution != null) {
+            // 处理类型转换：Long -> Integer
+            Long institutionBedCount = institution.getBedCount();
+            bedCount = institutionBedCount != null ? institutionBedCount.intValue() : null;
+        }
+        result.put("bedCount", bedCount != null ? bedCount : 0);
         result.put("institutionType", "nursing_home"); // 默认类型
 
         // 获取床位统计
@@ -225,9 +356,23 @@ public class H5InstitutionController extends BaseController
         result.put("institutionName", institution.getInstitutionName());
         result.put("address", institution.getActualAddress() == null || institution.getActualAddress().trim().isEmpty() ?
                     "地址信息完善中" : institution.getActualAddress());
-        result.put("contactPhone", institution.getContactPhone());
-        result.put("bedCount", institution.getBedCount() != null ? institution.getBedCount() : 0);
+        result.put("contactPhone", institution.getContactPhone() != null ? institution.getContactPhone() : "");
+        // 处理类型转换：Long -> Integer
+        Long institutionBedCount = institution.getBedCount();
+        result.put("bedCount", institutionBedCount != null ? institutionBedCount.intValue() : 0);
         result.put("institutionType", convertInstitutionType(institution.getInstitutionType()));
+
+        // 获取床位统计（与首页推荐接口保持一致）
+        try {
+            Map<String, Object> bedStatistics = bedInfoService.getBedStatistics(institution.getInstitutionId());
+            result.put("totalBeds", bedStatistics.get("totalBeds"));
+            result.put("availableBeds", bedStatistics.get("availableBeds"));
+        } catch (Exception e) {
+            // 异常时使用默认值
+            Long totalBedCount = institution.getBedCount();
+            result.put("totalBeds", totalBedCount != null ? totalBedCount.intValue() : 0);
+            result.put("availableBeds", 0);
+        }
 
         // 费用区间构建 - 使用真实数据库数据
         Map<String, Object> priceRanges = new HashMap<>();

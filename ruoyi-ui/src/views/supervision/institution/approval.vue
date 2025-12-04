@@ -24,7 +24,11 @@
         <el-select v-model="queryParams.status" placeholder="请选择申请状态" clearable size="small">
           <el-option label="待审批" value="0" />
           <el-option label="已入驻" value="1" />
-          <el-option label="不通过" value="3" />
+          <el-option label="已驳回" value="2" />
+          <el-option label="解除监管" value="3" />
+          <el-option label="草稿" value="4" />
+          <el-option label="维护中" value="5" />
+          <el-option label="维护待审批" value="6" />
         </el-select>
       </el-form-item>
       <el-form-item label="申请时间">
@@ -170,7 +174,7 @@
             type="text"
             icon="el-icon-check"
             @click="handleApprove(scope.row)"
-            v-if="scope.row.status === '0'"
+            v-if="scope.row.status === '0' || scope.row.status === '6'"
             v-hasPermi="['pension:institution:approve']"
           >通过</el-button>
           <el-button
@@ -178,7 +182,7 @@
             type="text"
             icon="el-icon-close"
             @click="handleReject(scope.row)"
-            v-if="scope.row.status === '0'"
+            v-if="scope.row.status === '0' || scope.row.status === '6'"
             v-hasPermi="['pension:institution:reject']"
           >不通过</el-button>
         </template>
@@ -422,16 +426,22 @@ export default {
     handleApprove(row) {
       const institutionId = row.institutionId;
       const institutionName = row.institutionName;
+      const isMaintenance = row.status === '6'; // 是否为维护申请
 
-      this.$modal.confirm('是否确认审批通过"' + institutionName + '"的入驻申请？通过后系统将自动生成机构登录账号、开通监管账户并发送通知。').then(() => {
+      const confirmMessage = isMaintenance
+        ? `是否确认审批通过"${institutionName}"的维护申请？通过后机构信息将更新为最新内容。`
+        : `是否确认审批通过"${institutionName}"的入驻申请？通过后系统将自动生成机构登录账号、开通监管账户并发送通知。`;
+
+      this.$modal.confirm(confirmMessage).then(() => {
         return approveInstitution(institutionId);
       }).then((response) => {
         this.getList();
         this.getStatistics();
-        this.$modal.msgSuccess(response.msg || "审批通过成功");
+        const successMsg = isMaintenance ? "维护申请审批通过成功" : "入驻申请审批通过成功";
+        this.$modal.msgSuccess(response.msg || successMsg);
 
-        // 显示生成的账号信息
-        if (response.data && response.data.loginAccount) {
+        // 只有入驻申请才显示生成的账号信息
+        if (!isMaintenance && response.data && response.data.loginAccount) {
           this.$alert(`
             <div style="line-height: 1.8;">
               <p><strong>机构登录账号已生成：</strong></p>

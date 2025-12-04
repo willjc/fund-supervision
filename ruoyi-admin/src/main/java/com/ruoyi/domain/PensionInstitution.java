@@ -1,6 +1,7 @@
 package com.ruoyi.domain;
 
 import java.util.Date;
+import java.util.List;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
@@ -75,6 +76,10 @@ public class PensionInstitution extends BaseEntity
     /** 区县代码(关联pension_district字典) */
     @Excel(name = "区县代码")
     private String districtCode;
+
+    /** 区域代码(标准化行政区划代码) */
+    @Excel(name = "区域代码")
+    private String areaCode;
 
     /** 机构性质: 1-民办 2-公办 3-公建民营 */
     @Excel(name = "机构性质", readConverterExp = "1=民办,2=公办,3=公建民营")
@@ -216,6 +221,12 @@ public class PensionInstitution extends BaseEntity
 
     /** 当前用户ID(用于数据权限过滤,不映射到数据库) */
     private Long currentUserId;
+
+    /** 区域代码多选参数(用于筛选,不映射到数据库) */
+    private transient List<String> areaCodes;
+
+    /** 街道名称多选参数(用于筛选,不映射到数据库) */
+    private transient List<String> streetNames;
 
     public void setInstitutionId(Long institutionId)
     {
@@ -365,6 +376,16 @@ public class PensionInstitution extends BaseEntity
     public String getDistrictCode()
     {
         return districtCode;
+    }
+
+    public void setAreaCode(String areaCode)
+    {
+        this.areaCode = areaCode;
+    }
+
+    public String getAreaCode()
+    {
+        return areaCode;
     }
 
     public void setInstitutionNature(String institutionNature)
@@ -725,6 +746,7 @@ public class PensionInstitution extends BaseEntity
             .append("institutionType", getInstitutionType())
             .append("bedCount", getBedCount())
             .append("districtCode", getDistrictCode())
+            .append("areaCode", getAreaCode())
             .append("institutionNature", getInstitutionNature())
             .append("careLevels", getCareLevels())
             .append("medicalCondition", getMedicalCondition())
@@ -775,5 +797,25 @@ public class PensionInstitution extends BaseEntity
     public void setCurrentUserId(Long currentUserId)
     {
         this.currentUserId = currentUserId;
+    }
+
+    public List<String> getAreaCodes()
+    {
+        return areaCodes;
+    }
+
+    public void setAreaCodes(List<String> areaCodes)
+    {
+        this.areaCodes = areaCodes;
+    }
+
+    public List<String> getStreetNames()
+    {
+        return streetNames;
+    }
+
+    public void setStreetNames(List<String> streetNames)
+    {
+        this.streetNames = streetNames;
     }
 }

@@ -1,5 +1,11 @@
 <template>
   <div class="app-container">
+    <div class="page-header" style="margin-bottom: 20px;">
+      <h2>{{ isEditMode ? '机构信息维护' : '机构入驻申请' }}</h2>
+      <p style="color: #666; margin-top: 5px;">
+        {{ isEditMode ? '修改现有机构信息，提交后需要重新��核' : '填写机构基本信息，提交后等待民政部门审批' }}
+      </p>
+    </div>
     <el-form ref="applyForm" :model="applyForm" :rules="applyRules" label-width="140px">
 
       <!-- 一、注册信息 -->
@@ -28,18 +34,33 @@
 
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="所属区域" prop="districtCode">
-              <el-select v-model="applyForm.districtCode" placeholder="请选择所属区域" style="width: 100%">
+            <el-form-item label="所属区域" prop="areaCode">
+              <el-select v-model="applyForm.areaCode" placeholder="请选择所属区域" @change="onAreaChange" style="width: 100%">
                 <el-option
-                  v-for="item in districtOptions"
-                  :key="item.dictValue"
-                  :label="item.dictLabel"
-                  :value="item.dictValue"
+                  v-for="item in areaOptions"
+                  :key="item.areaCode"
+                  :label="item.areaName"
+                  :value="item.areaCode"
                 />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
+            <el-form-item label="所属街道" prop="street">
+              <el-select v-model="applyForm.street" placeholder="请选择所属街道" :disabled="!applyForm.areaCode" style="width: 100%">
+                <el-option
+                  v-for="item in streetOptions"
+                  :key="item.streetName"
+                  :label="item.streetName"
+                  :value="item.streetName"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+                  </el-row>
+
+        <el-row :gutter="20">
+          <el-col :span="24">
             <el-form-item label="社会统一信用代码" prop="creditCode">
               <el-input v-model="applyForm.creditCode" placeholder="请输入18位统一信用代码" maxlength="18" />
             </el-form-item>
@@ -237,7 +258,9 @@
       <!-- 操作按钮 -->
       <div class="button-group">
         <el-button @click="saveDraft" icon="el-icon-document">保存草稿</el-button>
-        <el-button type="primary" @click="submitApply" :loading="submitting" icon="el-icon-check">提交申请</el-button>
+        <el-button type="primary" @click="submitApply" :loading="submitting" icon="el-icon-check">
+          {{ isEditMode ? '提交维护' : '提交申请' }}
+        </el-button>
         <el-button @click="handleReset" icon="el-icon-refresh-left">重置表单</el-button>
       </div>
     </el-form>
@@ -245,8 +268,9 @@
 </template>
 
 <script>
-import { submitInstitutionApply, saveDraftApply } from "@/api/pension/institutionApply";
+import { submitInstitutionApply, saveDraftApply, submitMaintainApply, saveMaintainDraft } from "@/api/pension/institutionApply";
 import { getPensionInstitution, getDictData } from "@/api/pension/institution";
+import { listAreas, listStreetsByArea } from "@/api/pension/areaStreet";
 import { getToken } from "@/utils/auth";
 
 export default {
@@ -254,8 +278,10 @@ export default {
   data() {
     return {
       submitting: false,
+      isEditMode: false, // 是否为编辑模式
       // 区域选项
-      districtOptions: [],
+      areaOptions: [],
+      streetOptions: [],
       // 文件上传配置
       uploadConfig: {
         url: process.env.VUE_APP_BASE_API + "/common/upload",
@@ -271,7 +297,8 @@ export default {
         institutionName: '',
         registeredCapital: null,
         registeredAddress: '',
-        districtCode: '',
+        areaCode: '',
+        street: '',
         creditCode: '',
         recordNumber: '',
         contactPerson: '',
@@ -307,8 +334,11 @@ export default {
         registeredAddress: [
           { required: true, message: "注册地址不能为空", trigger: "blur" }
         ],
-        districtCode: [
+        areaCode: [
           { required: true, message: "所属区域不能为空", trigger: "change" }
+        ],
+        street: [
+          { required: true, message: "所属街道不能为空", trigger: "change" }
         ],
         creditCode: [
           { required: true, message: "社会统一信用代码不能为空", trigger: "blur" },
@@ -370,22 +400,38 @@ export default {
   },
   created() {
     // 加载区域数据
-    this.loadDistrictData();
+    this.loadAreaData();
     // 检查是否是编辑模式
     const institutionId = this.$route.query.id;
     if (institutionId) {
+      this.isEditMode = true;
       this.loadInstitutionData(institutionId);
     }
   },
   methods: {
     // 加载区域数据
-    loadDistrictData() {
-      getDictData('pension_district').then(response => {
-        this.districtOptions = response.data || [];
+    loadAreaData() {
+      listAreas().then(response => {
+        this.areaOptions = response.data || [];
       }).catch(error => {
         console.error('加载区域数据失败:', error);
         this.$modal.msgError("加载区域数据失败");
       });
+    },
+    // 区域变更事件
+    onAreaChange(areaCode) {
+      // 清空街道选择
+      this.applyForm.street = '';
+      this.streetOptions = [];
+
+      if (areaCode) {
+        listStreetsByArea(areaCode).then(response => {
+          this.streetOptions = response.data || [];
+        }).catch(error => {
+          console.error('加载街道数据失败:', error);
+          this.$modal.msgError("加载街道数据失败");
+        });
+      }
     },
     // 加载机构数据
     loadInstitutionData(institutionId) {
@@ -397,7 +443,8 @@ export default {
           institutionName: data.institutionName || '',
           registeredCapital: data.registeredCapital,
           registeredAddress: data.registeredAddress || '',
-          districtCode: data.districtCode || '',
+          areaCode: data.areaCode || '',
+          street: data.street || '',
           creditCode: data.creditCode || '',
           recordNumber: data.recordNumber || '',
           contactPerson: data.contactPerson || '',
@@ -492,19 +539,27 @@ export default {
       }
     },
 
-    // 提交申请
+    // 提交申请/维护
     submitApply() {
       // 检查是否上传了所有必需材料
       if (!this.applyForm.businessLicense || !this.applyForm.approvalCertificate || !this.applyForm.supervisionAgreement) {
-        this.$modal.msgError("请上传所有必需材料（营业执照、批准证书、三方监管协议）后再提交申请");
+        this.$modal.msgError("请上传所有必需材料（营业执照、批准证书、三方监管协议）后再提交");
         return;
       }
 
       this.$refs["applyForm"].validate(valid => {
         if (valid) {
           this.submitting = true;
-          submitInstitutionApply(this.applyForm).then(response => {
-            this.$modal.msgSuccess("申请提交成功，请等待民政部门审批");
+
+          const submitPromise = this.isEditMode
+            ? submitMaintainApply(this.applyForm)
+            : submitInstitutionApply(this.applyForm);
+
+          submitPromise.then(response => {
+            const successMsg = this.isEditMode
+              ? "维护信息提交成功，请等待民政部门审批"
+              : "申请提交成功，请等待民政部门审批";
+            this.$modal.msgSuccess(successMsg);
             this.resetForm();
           }).catch(() => {
             this.submitting = false;
@@ -521,7 +576,11 @@ export default {
     // 保存草稿
     saveDraft() {
       // 草稿不需要验证，允许部分填写
-      saveDraftApply(this.applyForm).then(response => {
+      const savePromise = this.isEditMode
+        ? saveMaintainDraft(this.applyForm)
+        : saveDraftApply(this.applyForm);
+
+      savePromise.then(response => {
         this.$modal.msgSuccess("草稿保存成功");
       }).catch(() => {
         this.$modal.msgError("草稿保存失败");
@@ -546,7 +605,8 @@ export default {
         institutionName: '',
         registeredCapital: null,
         registeredAddress: '',
-        districtCode: '',
+        areaCode: '',
+        street: '',
         creditCode: '',
         recordNumber: '',
         contactPerson: '',

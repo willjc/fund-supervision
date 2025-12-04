@@ -1,8 +1,313 @@
-# 若依项目初始化和修改记录
+# 若依项目初始化和��改记录
 
 ## 项目基本信息
 - 项目名称：若�?(RuoYi) 管理系统
 - 版本：v3.9.0
+
+## 2025-12-04 机构列表页数据真实化改造
+
+### 修改背景
+H5机构列表页中图片、月参考价格、床位数显示的不是真实数据，需要参考首页优选机构的接口实现，使用真实数据。
+
+### 后端修改
+**文件**: `ruoyi-admin/src/main/java/com/ruoyi/web/controller/h5/H5InstitutionController.java`
+
+1. **修改 `/list` 接口方法**
+   - 添加数据转换逻辑，调用 `convertToH5Format` 方法
+   - 使用 `TableDataInfo` 包装转换后的数据返回给前端
+
+2. **优化 `convertToH5Format` 方法**
+   - 添加真实的床位统计数据获取：调用 `bedInfoService.getBedStatistics()`
+   - 获取 `totalBeds` 和 `availableBeds` 真实数据
+   - 添加异常处理，确保数据完整性
+
+### 前端修改
+**文件**: `ruoyi-h5/src/views/institution/index.vue`
+
+1. **更新数据处理逻辑**
+   - 使用后端��回的 `priceRanges.total.min/max` 而非简单的 `priceRangeMin/Max`
+   - 使用后端返回的 `coverImage` 字段
+   - 将 `availableBeds` 默认值从8改为0，显示真实数据
+
+2. **移除模拟数据**
+   - 删除 `mockInstitutions` 模拟数据数组
+   - 简化错误处理逻辑，不再依赖模拟数据
+
+### 改造效果
+- **图片**: 显示机构真实封面图片（mainPicture -> environmentImgs -> 默认图片）
+- **价格**: 显示详细的分项价格（总费用、床位费、护理费、膳食费）
+- **床位**: 显示真实的总床位和可定床位数统计
+- **数据一致性**: 机构列表页与首页使用相同的数据结构和处理逻辑
+
+### 2025-12-04 机构列表页数据源优化
+
+#### 问题描述
+机构列表页仍然显示模拟数据（图片、价格不真实，床位数部分真实），原因是：
+- 首页使用 `pension_institution_public` 表（公示信息，包含真实图片和详细价格）
+- 机构列表页使用 `pension_institution` 表（基础信息，缺少详细数据）
+
+#### 解决方案
+**文件**: `ruoyi-admin/src/main/java/com/ruoyi/web/controller/h5/H5InstitutionController.java`
+
+1. **重构 `/list` 接口逻辑**
+   - 优先使用公示数据 (`pension_institution_public`)
+   - 回退到基础数据 (`pension_institution`)
+   - 创建机构信息映射，确保数据完整性
+
+2. **优化 `convertPublicityToH5Format` 方法**
+   - 创建重载方法：一个带机构参数，一个简化版
+   - 使用基础机构的名称、地址、联系电话等字段
+   - 优先使用公示表的图片和详细价格数据
+
+3. **数据优先级策略**
+   - **机构名称**: 基础表 → "未知机构"
+   - **图片**: 公示表主图 → 公示表环境图 → 默认图片
+   - **价格**: 公示表分项价格 → 基础表简单价格 → 默认价格
+   - **床位**: 公示表床位数 → 基础表床位数 → 0
+
+#### 预期效果
+机构列表页现在将显示：
+- **真实图片**: 来自数据库的机构封面照片
+- **真实价格**: 详细的分��价格（护理费、床位费、膳食费）
+- **真实床位数**: 来自 `bedInfoService.getBedStatistics()` 的统计数据
+- **完整数据**: 机构名称、地址、联系电话等基础信息
+
+### 2025-12-04 修复类型转换编译错误
+
+#### 问题描述
+后端编译出现类型转换错误：`Type mismatch: cannot convert from Long to Integer`
+
+#### 错误原因
+- 数据库中的 `bedCount` 字段类型为 `Long`
+- 代码中 `bedCount` 变量类型为 `Integer`
+- 直接赋值导致类型不匹配
+
+#### 解决方案
+**文件**: `ruoyi-admin/src/main/java/com/ruoyi/web/controller/h5/H5InstitutionController.java`
+
+修复了3处类型转换问题：
+
+1. **第236行**: `convertPublicityToH5Format` 方法中
+   ```java
+   // 处理类型转换：Long -> Integer
+   Long institutionBedCount = institution.getBedCount();
+   bedCount = institutionBedCount != null ? institutionBedCount.intValue() : null;
+   ```
+
+2. **第360-362行**: `convertToH5Format` 方法中
+   ```java
+   // 处理类型转换：Long -> Integer
+   Long institutionBedCount = institution.getBedCount();
+   result.put("bedCount", institutionBedCount != null ? institutionBedCount.intValue() : 0);
+   ```
+
+3. **第372-373行**: 异常处理中
+   ```java
+   // 异常时使用默认值
+   Long totalBedCount = institution.getBedCount();
+   result.put("totalBeds", totalBedCount != null ? totalBedCount.intValue() : 0);
+   ```
+
+#### 修复结果
+- 编译错误已解决
+- 机构列表页可以正常加载真实数据
+- 类型安全转换，避免数据丢失
+
+### 2025-12-04 机构详情页优化改造
+
+#### 优化需求
+根据用户要求对机构详情页进行以下优化：
+1. 去掉顶部的幻灯区域
+2. 将房间设施、基础设施、园址设施区域换成可滑动的图片区域
+3. 优化床位数右侧的地址和电话图标位置（图标放在地址右侧）
+4. 优化月参考价格区域，采用列表页的价格摆放方式
+
+#### 修改内容
+**文件**: `ruoyi-h5/src/views/institution/detail.vue`
+
+**1. 去掉顶部轮播图**
+- 删除了 `<van-swipe>` 组件及其相关样式
+- 移除了轮播图的图片预览功能（保留方法以防万一）
+
+**2. 设施区域改为可滑动图片**
+- 将原来的三个设施卡片改为三个可滑动的图片区域
+- 使用 `van-swipe` 组件，每个项目宽度120px
+- 点击图片可以单独预览
+- 每个图片显示设施名称
+
+**3. 优化地址电话图标位置**
+- 将地址和电话图标从地址下方移到地址右侧
+- 使用 `flex` 布局，地址文字 `flex: 1`，图标固定宽度
+- 图标与地址文字在同一行显示
+
+**4. 优化月参考价格显示**
+- 去掉了原来的渐变色价格卡片和费用列表
+- 采用与列表页相同的四格布局：总费用、床位费、护理费、膳食费
+- 使用淡蓝色背景 `#e8f4fc`，与列表页样式保持一致
+- 数据结构与列表页统一，使用 `priceRanges` 对象
+
+**5. 新增功能和样式**
+- 添加 `previewFacilityImage` 方法用于预览单个设施图片
+- 新增 `.facility-images-section` 样式区域
+- 新增 `.price-section` 样式，与列表页价格区域保持一致
+- 更新模拟数据，添加 `priceRanges` 数据结构
+
+#### 预期效果
+机构详情页现在具有：
+- **简洁的页面结构**：去掉冗余的轮播图，信息更聚焦
+- **直观的设施展示**：可滑动浏览房间设施、基础设施、园址设施的图片
+- **优化的布局**：地址和电话图标在同一行，空间利用更合理
+- **统一的价格展示**：与列表页保持一致的四格价格布局
+- **良好的用户体验**：点击图片可预览，滑动浏览更流畅
+
+## 2025-12-04 批量导入账号生成规则调研
+
+### 发现的功能页面
+- **页面位置**: `ruoyi-ui/src/views/supervision/institution/batchImport.vue`
+- **访问地址**: http://localhost/supervision/institution/batchImport
+- **功能描述**: 民政监管端批量导入机构账号管理页面
+
+### 账号生成规则（来自 `InstitutionManageController.java`）
+
+#### 1. 用户名生成规则
+```java
+// 生成用户名: jg + 电话后6位
+String userName = "jg" + contactPhone.substring(contactPhone.length() - 6);
+
+// 检查用户名是否已存在,如果存在则加随机数
+int suffix = 1;
+String finalUserName = userName;
+while (userService.selectUserByUserName(finalUserName) != null) {
+    finalUserName = userName + suffix;
+    suffix++;
+}
+```
+
+#### 2. 初始密码规则
+```java
+// 初始密码:联系电话后6位
+String password = contactPhone.substring(contactPhone.length() - 6);
+```
+
+#### 3. 角色分配
+- **角色ID**: 100L (机构管理员角色)
+- **权限范围**: 机构管理员权限，通过 `sys_user_institution` 表关联机构
+
+#### 4. 用户状态
+- **初始状态**: "0" (正常状态)
+- **创建方式**: 系统自动创建，无需审核
+
+#### 5. 数据关联关系
+- **用户-机构关联**: 通过 `sys_user_institution` 表建立关联
+- **级联删除**: 删除机构时，关联的用户账号也会被级联删除
+
+### 批量导入功能特点
+
+#### 1. Excel模板字段
+```
+机构名称*, 统一信用代码*, 负责人姓名*, 联系电话*,
+注册资金, 注册地址, 实际地址, 法定代表人,
+联系邮箱, 床位数, 机构类型
+```
+
+#### 2. 数据验证
+- 统一信用代码唯一性验证
+- 必填字段验证
+- 机构状态设为"4"(草稿状态)
+
+#### 3. 导入结果处理
+- 成功记录：显示生成的用户名和密码
+- 失败记录：显示具体的失败原因
+- 支持导出账号信息为CSV文件
+
+#### 4. 密码重置功能
+- 重置密码为默认值："123456"
+- 支持单个机构密码重置
+
+### 关键代码位置
+- **后端控制器**: `ruoyi-admin/src/main/java/com/ruoyi/web/controller/supervision/InstitutionManageController.java`
+- **前端页面**: `ruoyi-ui/src/views/supervision/institution/batchImport.vue`
+- **API接口**: `ruoyi-ui/src/api/supervision/institution.js`
+
+### 账号生成总结
+1. **用户名格式**: `jg` + 联系电话后6位 (如有重复则加数字后缀)
+2. **初始密码**: 联系电话后6位
+3. **默认角色**: 机构管理员 (角色ID=100)
+4. **状态**: 正常，直接可用
+5. **关联方式**: 通过 `sys_user_institution` 表与机构ID关联
+
+### 页面优化
+- **文件**: `ruoyi-ui/src/views/supervision/institution/batchImport.vue`
+- **修改内容**: 在搜索栏下方添加账号生成规则说明区域
+- **显示内容**:
+  - 用户名生成规则：jg + 联系电话后6位
+  - 初始密码规则：联系电话后6位
+  - 默认角色：机构管理员，可直接登录使用
+- **UI组件**: 使用 `el-alert` 组件显示蓝色信息提示框
+
+### 维护申请审批修复
+- **问题**: 审批维护待审批状态(status='6')的机构申请时提示"只能审批待审批状态的申请"
+- **原因**: 状态验证逻辑只允许 status='0'（待审批）的申请通过审批
+- **文件**: `ruoyi-admin/src/main/java/com/ruoyi/web/controller/pension/SupervisionInstitutionController.java`
+- **修改内容**:
+  - 修改状态验证逻辑：允许 status='0' 和 status='6' 的申请进行审批
+  - 区分维护申请和普通入驻申请的审批处理
+  - 维护申请通过时添加备注："维护申请审批通过，机构信息已更新"
+  - 维护申请驳回时添加备注："维护申请审批驳回，机构信息保持不变"
+- **代码逻辑**:
+  ```java
+  if (!"0".equals(institution.getStatus()) && !"6".equals(institution.getStatus())) {
+      return AjaxResult.error("只能审批待审批状态的申请");
+  }
+  boolean isMaintenance = "6".equals(institution.getStatus());
+  // 处理维护申请的特殊逻辑
+  ```
+
+### 机构列表区域街道筛选功能完善
+- **问题**: 机构列表页面的区域街道筛选UI已实现，但后端查询逻辑不完整，无法进行多选筛选
+- **文件**: `ruoyi-admin/src/main/java/com/ruoyi/domain/PensionInstitution.java`
+- **修改内容**:
+  - 添加`List<String> areaCodes`字段（区域代码多选参数，transient）
+  - 添加`List<String> streetNames`字段（街道名称多选参数，transient）
+  - 添加对应的getter/setter方法
+
+- **文件**: `ruoyi-admin/src/main/resources/mapper/PensionInstitutionMapper.xml`
+- **修改内容**: 在`selectPensionInstitutionList`方法的where条件中添加
+  ```xml
+  <!-- 区域代码多选筛选 -->
+  <if test="areaCodes != null and areaCodes.size() > 0">
+      and area_code in
+      <foreach collection="areaCodes" item="areaCode" open="(" separator="," close=")">
+          #{areaCode}
+      </foreach>
+  </if>
+
+  <!-- 街道名称多选筛选 -->
+  <if test="streetNames != null and streetNames.size() > 0">
+      and street in
+      <foreach collection="streetNames" item="streetName" open="(" separator="," close=")">
+          #{streetName}
+      </foreach>
+  </if>
+  ```
+
+- **文件**: `ruoyi-admin/src/main/java/com/ruoyi/service/impl/PensionInstitutionServiceImpl.java`
+- **修改内容**: 在`selectPensionInstitutionList`方法中添加多选参数处理
+  ```java
+  // 处理前端传递的多选参数，避免空集合查询
+  if (pensionInstitution.getAreaCodes() != null && pensionInstitution.getAreaCodes().isEmpty()) {
+      pensionInstitution.setAreaCodes(null);
+  }
+  if (pensionInstitution.getStreetNames() != null && pensionInstitution.getStreetNames().isEmpty()) {
+      pensionInstitution.setStreetNames(null);
+  }
+  ```
+
+- **技术特点**:
+  - 使用`@Transient`注解标记多选字段，不映射到数据库
+  - 使用MyBatis的`foreach`标签实现IN查询
+  - 处理空集合参数，避免SQL错误
+  - 前端已有的区域街道级联筛选UI无需修改
 
 ## 2025-10-31 首页重构
 
@@ -23976,3 +24281,488 @@ H5首页显示：总费用、床位费、护理费、膳食费 + 真实机构图
 
 结果：用户可以上传一张机构主图，该图片将在H5端作为机构的主要展示图片使用
 
+## 机构入驻申请区域-街道筛选功能开发
+
+### 时间
+2025年12月 4日 19:28:01
+
+### 功能描述
+为机构入驻申请添加区域和街道选择功能，并在机构列表页添加区域-街道的筛选功能，支持多选。
+
+### 实施内容
+1. 扩展数据库表结构
+2. 创建AreaStreet相关文件
+3. 修改PensionInstitution相关文件
+4. 修改前端页面
+5. 创建数据导入工具
+
+---
+## 区域-街道筛选功能实施完成
+
+### 完成时间
+2025年12月 4日 19:38:49
+
+### 实施内容
+1. ✅ **数据库表结构扩展**
+   - 创建 area_street 表（区域街道信息表）
+   - 为 pension_institution 表添加 area_code 字段
+
+2. ✅ **后端功能实现**
+   - 创建 AreaStreet 实体类、Mapper、Service、Controller
+   - 实现区域列表查询、街道列表查询、数据导入等API
+   - 扩展 PensionInstitution 实体类和Mapper，支持 area_code 字段
+
+3. ✅ **前端功能实现**
+   - 创建 areaStreet.js API文件
+   - 修改机构入驻申请页面，支持区域-街道级联选择
+   - 修改机构列表页面，支持区域和街道多选筛选
+   - 实现区域变更时街道选项动态更新
+
+4. ✅ **数据导入**
+   - 创建 Python 数据导入工具
+   - 成功导入 quxian_data.json 中的郑州市16个区县数据
+   - 共导入199条区域街道记录，覆盖所有街道
+
+### 关键文件修改
+
+#### 后端文件
+- 数据库：area_street表、pension_institution.area_code字段
+- 实体类：AreaStreet.java、PensionInstitution.java（添加areaCode字段）
+- Mapper：AreaStreetMapper.java、AreaStreetMapper.xml
+- Service：IAreaStreetService.java、AreaStreetServiceImpl.java
+- Controller：AreaStreetController.java
+- PensionInstitutionMapper.xml：添加areaCode字段支持
+
+#### 前端文件
+- API：ruoyi-ui/src/api/pension/areaStreet.js
+- 机构申请：ruoyi-ui/src/views/pension/institution/apply.vue
+- 机构列表：ruoyi-ui/src/views/pension/institution/index.vue
+- 数据导入：import_area_street_data.py
+
+### 功能特性
+1. **级联选择**：机构入驻申请支持区域-街道级联选择
+2. **多选筛选**：机构列表支持区域和街道的多选筛选
+3. **数据同步**：区域变更时街道选项自动更新
+4. **标准数据**：使用郑州市标准行政区划代码
+5. **完整覆盖**：覆盖郑州市16个区县的199个街道
+
+### 预期效果
+- 机构入驻申请时可选择准确的区域和街道
+- 管理端可按区域和街道筛选机构，支持多选
+- 数据来源统一，基于真实行政区划数据
+- 为后续H5端区域-街道筛选提供完整数据支持
+
+---
+## 修复机构维护功能问题
+
+### 问题描述
+在机构列表页面点击维护按钮时，系统跳转到申请页面但显示为新增申请模式，导致出现重复的机构申请。用户期望点击维护应该是编辑现有机构信息，而不是创建新的申请。
+
+### 问题根因
+1. 申请页面缺乏编辑模式标识
+2. 提交时统一使用新增申请API，没有区分维护和新增
+3. 页面标题和按钮文字没有根据模式变化
+
+### 解决方案
+
+#### 1. 增加模式标识
+- 添加 isEditMode 字段标识是否为编辑模式
+- 在 created 钩子中根据URL参数设置模式
+
+#### 2. 修改页面显示
+- 编辑模式显示机构信息维护，新增模式显示机构入驻申请
+- 提交按钮文字根据模式变化：提交维护 vs 提交申请
+- 添加页面描述文字说明当前操作
+
+#### 3. 区分API调用
+- 编辑模式使用：submitMaintainApply、saveMaintainDraft
+- 新增模式使用：submitInstitutionApply、saveDraftApply
+
+#### 4. 修改的文件
+- ruoyi-ui/src/views/pension/institution/apply.vue
+  - 添加 isEditMode 字段
+  - 修改页面标题和按钮文字
+  - 更新 submitApply 和 saveDraft 方法
+  - 导入维护相关API
+
+### 修复效果
+- 点击维护按钮后正确显示机构信息维护页面
+- 提交时调用维护API，更新现有机构信息
+- 避免创建重复的机构申请
+- 用户体验更加清晰直观
+
+---
+## 修复审批页面无法显示维护申请问题
+
+### 问题描述
+当机构点击维护后，申请状态变为维护待审批，但在民政监管的审批页面(http://localhost/supervision/institution/approval)看不到这个维护申请。
+
+### 问题根因
+1. 数据字典中缺少维护相关的状态定义
+2. 审批页面的状态筛选选项不完整，缺少维护待审批等状态
+3. 状态映射不完整，导致维护申请无法正确显示
+
+### 解决方案
+
+#### 1. 完善数据字典
+在 sys_dict_data 表中添加缺失的状态：
+- '3': 解除监管
+- '4': 草稿  
+- '5': 维护中
+- '6': 维护待审批
+
+#### 2. 更新审批页面筛选
+完善审批页面的状态筛选选项，包含所有状态：
+- 待审批 (0)
+- 已入驻 (1) 
+- 已驳回 (2)
+- ��除监管 (3)
+- 草稿 (4)
+- 维护中 (5)
+- 维护待审批 (6)
+
+#### 3. 修改的文件
+- 数据库：sys_dict_data 表（新增4条状态记录）
+- ruoyi-ui/src/views/supervision/institution/approval.vue（完善状态筛选选项）
+
+### 修复效果
+- 审批页面现在可以显示所有状态的机构申请
+- 维护待审批的机构会正确显示在审批列表中
+- 状态筛选功能支持维护相关状态
+- 状态标签使用字典数据，显示一致且准确
+
+### 状态对应关系
+- 0: 待审批 (warning标签)
+- 1: 已入驻 (success标签)  
+- 2: 已驳回 (danger标签)
+- 3: 解除监管 (info标签)
+- 4: 草稿 (info标签)
+- 5: 维护中 (primary标签)
+- 6: 维护待审批 (warning标签)
+
+---
+## 修复审批页面维护申请操作按钮问题
+
+### 问题描述
+在审批页面可以看到维护待审批的申请，但是缺少通过和驳回的操作按钮，只能查看详情，无法进行审批操作。
+
+### 问题根因
+1. 操作按钮显示条件过于严格，只在status === '0'（待审批）时显示
+2. 维护申请（status === '6'）应该也需要审批操作，但被排除在外
+3. 审批提示信息没有区分入驻申请和维护申请
+
+### 解决方案
+
+#### 1. 扩展审批按钮显示条件
+修改审批页面操作列的显示条件，支持维护待审批状态：
+
+
+#### 2. 优化审批提示信息
+根据申请类型显示不同的提示信息：
+- **维护申请**：显示维护申请相关的确认信息
+- **入驻申请**：显示入驻申请相关的确认信息和账号生成提示
+
+#### 3. 修改的文件
+- ruoyi-ui/src/views/supervision/institution/approval.vue
+  - 扩展操作按钮显示条件
+  - 优化handleApprove方法的提示信息
+  - 区分维护申请和入驻申请的处理逻辑
+
+### 修复效果
+- 维护待审批��机构现在显示通过和驳回按钮
+- 审批提示信息根据申请类型动态显示
+- 维护申请审批通过后更新机构信息，不生成新账号
+- 入驻申请审批通过后生成登录账号和监管账户
+
+### 功能特性
+1. **状态区分**：自动识别申请类型（维护 vs 入驻）
+2. **智能提示**：根据申请类型显示相应的确认信息
+3. **差异化处理**：维护申请不生成账号，入驻申请生成账号
+4. **用户体验**：审批流程更加清晰直观
+
+---
+## 修复审批页面维护申请操作按钮问题
+
+### 问题描述
+在审批页面可以看到维护待审批的申请，但是缺少通过和驳回的操作按钮，只能查看详情，无法进行审批操作。
+
+### 问题根因
+1. 操作按钮显示条件过于严格，只在status === '0'（待审批）时显示
+2. 维护申请（status === '6'）应该也需要审批操作，但被排除在外
+3. 审批提示信息没有区分入驻申请和维护申请
+
+### 解决方案
+
+#### 1. 扩展审批按钮显示条件
+修改审批页面操作列的显示条件，支持维护待审批状态
+
+#### 2. 优化审批提示信息
+根据申请类型显示不同的提示信息：
+- 维护申请：显示维护申请相关的确认信息
+- 入驻申请：显示入驻申请相关的确认信息和账号生成提示
+
+### 修复效果
+- 维护待审批的机构现在显示通过和驳回按钮
+- 审批提示信息根据申请类型动态显示
+- 维护申请审批通过后更新机构信息，不生成新账号
+- 入驻申请审批通过后生成登录账号和监管账户
+
+---
+
+## 2025-01-04 H5机构列表多选区域街道筛选功能
+
+### 修改文件：H5后端控制器
+**文件**: `ruoyi-admin/src/main/java/com/ruoyi/web/controller/h5/H5InstitutionController.java`
+
+#### 修改内容：
+- 添加 `@RequestParam` 导入
+- 修改 `/list` 方法支持多选区域街道参数：
+  - 新增 `@RequestParam(required = false) List<String> areaCodes`
+  - 新增 `@RequestParam(required = false) List<String> streetNames`
+  - 设置多选参数到 `PensionInstitution` 对象
+- 修改 `/recommend` 方法支持多选筛选：
+  - 添加同样的多选参数
+  - 实现有筛选条件时通过机构表筛选，无筛选条件时按原逻辑查询
+- 添加 `ArrayList` 导入
+
+#### 关键代码：
+```java
+@GetMapping("/list")
+public TableDataInfo list(PensionInstitution pensionInstitution,
+                         @RequestParam(required = false) List<String> areaCodes,
+                         @RequestParam(required = false) List<String> streetNames)
+
+@GetMapping("/recommend")
+public AjaxResult getRecommendList(@RequestParam(required = false) List<String> areaCodes,
+                                 @RequestParam(required = false) List<String> streetNames)
+```
+
+### 修改文件：H5前端机构列表页面
+**文件**: `ruoyi-h5/src/views/institution/index.vue`
+
+#### 修改内容：
+
+##### 1. 筛选组件更新
+- 将单选区域下拉菜单改为多选区域街道筛选面板
+- 添加区域多选功能：使用 `van-tag` 组件实现区域多选
+- 添加街道多选功能：当选中区域后显示对应街道供多选
+- 添加级联逻辑：选择区域后动态加载对应街道选项
+
+##### 2. 数据结构更新
+- 更新 `filterParams` 结构：
+  - 添加 `areaCodes: []` 数组字段
+  - 添加 `streetNames: []` 数组字段
+  - 移除 `districtCode` 单选字段
+- 添加 `areaFilterRef` 引用
+
+##### 3. 区域街道数据
+- 更新 `districtOptions` 为15个区域的完整列表
+- 添加 `areaStreetMap` 包含各区域对应的街道数据
+
+##### 4. 方法更新
+- **新增方法**：
+  - `toggleArea(areaCode)` - 区域切换选择
+  - `toggleStreet(streetName)` - 街道切换选择
+  - `getAvailableStreets()` - 获取选中区域的街道列表
+  - `resetAreaFilter()` - 重置区域街道筛选
+  - `confirmAreaFilter()` - 确认区域街道筛选
+- **修改方法**：
+  - `resetFilter()` - 包含区域街道重置
+  - `loadInstitutions()` - 使用真实API调用，支持多选参数传递
+
+##### 5. API调用更新
+- 导入 `getInstitutionList` API
+- 修改 `loadInstitutions` 方法：
+  - 构建包含 `areaCodes` 和 `streetNames` 的查询参数
+  - 调用真实API获取数据
+  - 添加错误处理和备用模拟数据机制
+  - 转换API数据格式以适配前端显示
+
+##### 6. 显示优化
+- 更新机构卡片显示：
+  - 床位信息：显示 "床位数：可定数/总数(可定床位数/总床位数)"
+  - 费用信息：使用真实的价格结构数据（总费用、床位费、护理费、膳食费）
+  - 支持 `priceRanges` 结构化数据和备用价格数据
+
+### 关键代码示例：
+
+#### 区域街道筛选组件：
+```vue
+<van-dropdown-item title="区域街道" ref="areaFilterRef">
+  <div class="filter-content">
+    <div class="filter-section">
+      <div class="filter-title">所属区域（可多选）</div>
+      <div class="filter-options">
+        <van-tag
+          v-for="item in districtOptions"
+          :key="item.value"
+          :type="filterParams.areaCodes.includes(item.value) ? 'primary' : 'default'"
+          @click="toggleArea(item.value)">
+          {{ item.text }}
+        </van-tag>
+      </div>
+    </div>
+    <div class="filter-section" v-if="filterParams.areaCodes.length > 0">
+      <div class="filter-title">所属街道（可多选）</div>
+      <!-- 街道选项 -->
+    </div>
+  </div>
+</van-dropdown-item>
+```
+
+#### API调用参数构建：
+```javascript
+const params = {
+  pageNum: 1,
+  pageSize: 50,
+  institutionName: filterParams.value.institutionName || undefined,
+  areaCodes: filterParams.value.areaCodes.length > 0 ? filterParams.value.areaCodes : undefined,
+  streetNames: filterParams.value.streetNames.length > 0 ? filterParams.value.streetNames : undefined
+}
+```
+
+#### 区域街道数据映射：
+```javascript
+const areaStreetMap = ref({
+  '410102': ['航海西路街道办事处', '三官庙街道办事处', ...],
+  '410103': ['大学路办事处', '五里堡街道办事处', ...],
+  // 其他区域街道数据...
+})
+```
+
+### 功能特点：
+1. **多选筛选**：支持同时选择多个区域和街道
+2. **级联选择**：选择区域后显示对应街道选项
+3. **动态加载**：街道选项根据选中区域动态更新
+4. **数据完整**：包含郑州市15个区域和对应街道的完整数据
+5. **API集成**：后端已支持多选参数查询
+6. **容错处理**：API失败时使用备用模拟数据
+7. **用户体验**：清晰的选中状态和重置功能
+
+### 测试要点：
+1. 测试区域多选功能
+2. 测试街道级联选择
+3. 测试API参数传递和返回结果
+4. 测试重置功能
+5. 测试与原有筛选条件的兼容性
+
+---
+
+## 2025-01-04 H5区域街道筛选界面美化优化
+
+### 修改文件：H5机构列表页面
+**文件**: `ruoyi-h5/src/views/institution/index.vue`
+
+#### 美化改造内容：
+
+##### 1. 筛选界面重新设计
+- **替换原有van-tag布局**：改为网格化卡片式布局
+- **增加选中状态提示**：顶部显示已选择区域和街道数量
+- **分组视觉优化**：区域和街道分别采用不同的视觉风格
+
+##### 2. 区域选择美化
+- **网格布局**：3列网格排列，充分利用屏幕空间
+- **卡片样式**：每个区域显示为独立卡片，带边框和阴影效果
+- **选中状态**：蓝色背景+边框+勾选图标，视觉反馈明显
+- **悬停效果**：鼠标悬停时的颜色变化
+- **统计信息**：显示已选择数量(x/总数)
+
+##### 3. 街道选择美化
+- **容器背景**：灰色背景区分区域选择
+- **提示信息**：橙色提示条说明多选功能
+- **滚动容器**：街道列表支持滚动，最大高度200px
+- **自定义滚动条**：美化滚动条样式
+- **列表项优化**：圆角卡片，清晰的选中状态
+
+##### 4. 交互体验提升
+- **图标增强**：区域用位置图标，街道用房屋图标
+- **按钮美化**：重置和确定按钮增加图标和选中计数
+- **点击反馈**：添加点击时的涟漪动画效果
+- **响应式设计**：小屏幕设备自适应2列布局
+
+##### 5. 视觉层次优化
+- **颜色系统**：
+  - 主题色：#1989fa (蓝色)
+  - 成功色：#07c160 (绿色勾选)
+  - 提示色：#fa8c16 (橙色提示)
+- **间距规范**：统一的内外边距设计
+- **字体层级**：标题、正文、提示文字大小层级分明
+
+#### 关键设计特点：
+
+##### 用户体验优化：
+1. **清晰的视觉反馈**：选中状态明显，颜色变化丰富
+2. **操作引导明确**：提示信息和统计计数
+3. **空间利用高效**：网格布局最大化显示选项
+4. **操作流畅自然**：动画过渡和点击反馈
+
+##### 界面布局优化：
+```vue
+<!-- 选中状态提示 -->
+<van-notice-bar :text="`已选择 ${filterParams.areaCodes.length} 个区域，${filterParams.streetNames.length} 个街道`" />
+
+<!-- 区域选择网格 -->
+<div class="filter-options-grid">
+  <div class="area-item" :class="{ 'selected': isSelected }">
+    <span class="area-text">{{ ���域名称 }}</span>
+    <van-icon v-if="isSelected" name="success" class="check-icon" />
+  </div>
+</div>
+
+<!-- 街道选择滚动容器 -->
+<div class="filter-options-scroll">
+  <div class="street-item" :class="{ 'selected': isSelected }">
+    <span class="street-text">{{ 街道名称 }}</span>
+    <van-icon v-if="isSelected" name="success" class="check-icon" />
+  </div>
+</div>
+```
+
+##### CSS样式亮点：
+```css
+/* 网格布局 */
+.filter-options-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+/* 选中状态样式 */
+.area-item.selected {
+  border-color: #1989fa;
+  background: #ecf5ff;
+  box-shadow: 0 2px 4px rgba(25, 137, 250, 0.15);
+}
+
+/* 点击涟漪动画 */
+.area-item:active::after {
+  width: 100px;
+  height: 100px;
+}
+```
+
+#### 改进效果：
+
+##### 视觉体验：
+- **更现代的设计**：卡片式布局替代简单标签
+- **更清晰的信息层级**：颜色、大小、间距层次分明
+- **更好的视觉反馈**：悬停、选中、点击状态明确
+
+##### 交互体验：
+- **更直观的操作**：网格布局便于快速选择
+- **更明确的状态**：实时显示选择数量和状态
+- **更流畅的操作**：动画过渡和反馈效果
+
+##### 功能增强：
+- **统计功能**：实时显示已选择项目数量
+- **提示引导**：操作提示和使用说明
+- **响应式适配**：不同屏幕尺寸的最佳显示效果
+
+### 测试要点：
+1. 测试不同屏幕尺寸下的布局效果
+2. 验证选中状态的视觉反馈
+3. 测试滚动容器的用户体验
+4. 验证动画效果的流畅性
+5. 测试与原有筛选功能的兼容性
+
+---

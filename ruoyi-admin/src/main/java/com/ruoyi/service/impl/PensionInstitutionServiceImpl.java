@@ -41,6 +41,14 @@ public class PensionInstitutionServiceImpl implements IPensionInstitutionService
     @Override
     public List<PensionInstitution> selectPensionInstitutionList(PensionInstitution pensionInstitution)
     {
+        // 处理前端传递的多选参数，避免空集合查询
+        if (pensionInstitution.getAreaCodes() != null && pensionInstitution.getAreaCodes().isEmpty()) {
+            pensionInstitution.setAreaCodes(null);
+        }
+        if (pensionInstitution.getStreetNames() != null && pensionInstitution.getStreetNames().isEmpty()) {
+            pensionInstitution.setStreetNames(null);
+        }
+
         return pensionInstitutionMapper.selectPensionInstitutionList(pensionInstitution);
     }
 

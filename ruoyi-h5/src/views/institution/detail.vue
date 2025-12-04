@@ -1,12 +1,19 @@
 <template>
   <div class="institution-detail">
-    <van-nav-bar title="机构详情" left-arrow @click-left="$router.back()" fixed placeholder>
+    <!-- 导航栏 -->
+    <van-nav-bar
+      :title="detail.name || '机构详情'"
+      left-text="返回"
+      left-arrow
+      @click-left="onClickLeft"
+      fixed
+      placeholder
+    >
       <template #right>
         <van-icon
-          :name="detail.isFavorite ? 'like' : 'like-o'"
-          size="20"
-          :color="detail.isFavorite ? '#ee0a24' : '#333'"
-          @click="toggleFavorite"
+          name="share-o"
+          size="18"
+          @click="onShare"
         />
       </template>
     </van-nav-bar>
@@ -16,13 +23,6 @@
     </div>
 
     <div v-else class="detail-content">
-      <!-- 轮播图 -->
-      <van-swipe class="swipe" :autoplay="3000" indicator-color="white">
-        <van-swipe-item v-for="(image, index) in detail.images" :key="index" @click="previewImages(index)">
-          <van-image :src="image" fit="cover" height="200" />
-        </van-swipe-item>
-      </van-swipe>
-
       <!-- 基本信息 -->
       <div class="info-card">
         <div class="title">{{ detail.name }}</div>
@@ -37,8 +37,8 @@
         <!-- 认证标签 -->
         <div v-if="detail.certificationTags && detail.certificationTags.length > 0" class="cert-tags">
           <van-tag
-            v-for="(tag, index) in detail.certificationTags"
-            :key="index"
+            v-for="tag in detail.certificationTags"
+            :key="tag"
             plain
             color="#FF6B00"
             text-color="#FF6B00"
@@ -48,19 +48,83 @@
           </van-tag>
         </div>
 
-        <!-- 三个设施卡片 -->
-        <div class="facility-cards">
-          <div class="facility-card" @click="showFacilityImages('room')">
-            <div class="card-title">房间设施</div>
-            <div class="card-count">({{ detail.roomFacilities?.length || 0 }}) ></div>
+        <!-- 设施图片滑动区域 -->
+        <div class="facility-images-section">
+          <!-- 设施类型选择按钮 -->
+          <div class="facility-type-selector">
+            <div
+              v-if="detail.roomFacilities && detail.roomFacilities.length > 0"
+              class="facility-type-btn"
+              :class="{ active: selectedFacilityType === 'room' }"
+              @click="selectFacilityType('room')"
+            >
+              房间设施
+            </div>
+            <div
+              v-if="detail.basicFacilities && detail.basicFacilities.length > 0"
+              class="facility-type-btn"
+              :class="{ active: selectedFacilityType === 'basic' }"
+              @click="selectFacilityType('basic')"
+            >
+              基础设施
+            </div>
+            <div
+              v-if="detail.parkFacilities && detail.parkFacilities.length > 0"
+              class="facility-type-btn"
+              :class="{ active: selectedFacilityType === 'park' }"
+              @click="selectFacilityType('park')"
+            >
+              园址设施
+            </div>
           </div>
-          <div class="facility-card" @click="showFacilityImages('basic')">
-            <div class="card-title">基础设施</div>
-            <div class="card-count">({{ detail.basicFacilities?.length || 0 }}) ></div>
+
+          <!-- 显示当前选中类型的设施图片 -->
+          <div v-if="selectedFacilityType === 'room' && detail.roomFacilities && detail.roomFacilities.length > 0" class="facility-swipe-container">
+            <van-swipe
+              :width="120"
+              :loop="false"
+              :show-indicators="false"
+              class="facility-swipe"
+            >
+              <van-swipe-item v-for="(facility, index) in detail.roomFacilities" :key="index" @click="previewFacilityImage(facility.image)">
+                <div class="facility-image-item">
+                  <van-image :src="facility.image" fit="cover" width="100" height="80" />
+                  <div class="facility-name">{{ facility.name }}</div>
+                </div>
+              </van-swipe-item>
+            </van-swipe>
           </div>
-          <div class="facility-card" @click="showFacilityImages('park')">
-            <div class="card-title">园址设施</div>
-            <div class="card-count">({{ detail.parkFacilities?.length || 0 }}) ></div>
+
+          <div v-if="selectedFacilityType === 'basic' && detail.basicFacilities && detail.basicFacilities.length > 0" class="facility-swipe-container">
+            <van-swipe
+              :width="120"
+              :loop="false"
+              :show-indicators="false"
+              class="facility-swipe"
+            >
+              <van-swipe-item v-for="(facility, index) in detail.basicFacilities" :key="index" @click="previewFacilityImage(facility.image)">
+                <div class="facility-image-item">
+                  <van-image :src="facility.image" fit="cover" width="100" height="80" />
+                  <div class="facility-name">{{ facility.name }}</div>
+                </div>
+              </van-swipe-item>
+            </van-swipe>
+          </div>
+
+          <div v-if="selectedFacilityType === 'park' && detail.parkFacilities && detail.parkFacilities.length > 0" class="facility-swipe-container">
+            <van-swipe
+              :width="120"
+              :loop="false"
+              :show-indicators="false"
+              class="facility-swipe"
+            >
+              <van-swipe-item v-for="(facility, index) in detail.parkFacilities" :key="index" @click="previewFacilityImage(facility.image)">
+                <div class="facility-image-item">
+                  <van-image :src="facility.image" fit="cover" width="100" height="80" />
+                  <div class="facility-name">{{ facility.name }}</div>
+                </div>
+              </van-swipe-item>
+            </van-swipe>
           </div>
         </div>
 
@@ -74,25 +138,36 @@
 
           <!-- 地址电话栏 -->
           <div class="contact-box">
-            <div class="address-text">{{ detail.address }}</div>
-            <div class="contact-icons">
-              <van-icon name="location-o" size="20" color="#4A9EFF" @click="showToast('地图功能开发中')" />
-              <van-icon name="phone-o" size="20" color="#4A9EFF" @click="showToast('电话:' + detail.contactPhone)" />
+            <div class="address-row">
+              <span class="address-text">{{ detail.address }}</span>
+              <div class="contact-icons">
+                <van-icon name="location-o" size="20" color="#4A9EFF" @click="showToast('地图功能开发中')" />
+                <van-icon name="phone-o" size="20" color="#4A9EFF" @click="showToast('电话:' + detail.contactPhone)" />
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- 月参考价格卡片 -->
-        <div class="price-card">
-          <div class="price-label">月参考价格</div>
-          <div class="price-range">¥{{ detail.monthlyPrice }}/月</div>
-        </div>
-
-        <!-- 费用信息 -->
-        <div v-if="detail.priceList && detail.priceList.length > 0" class="fee-list">
-          <div v-for="(item, index) in detail.priceList" :key="index" class="fee-item">
-            <span class="fee-label">{{ item.name }}:</span>
-            <span class="fee-value">¥{{ item.min }} - ¥{{ item.max }}</span>
+        <!-- 月参考价格区域 (参考列表页样式) -->
+        <div class="price-section">
+          <div class="price-header">月参考价格</div>
+          <div class="price-grid">
+            <div class="price-item">
+              <span class="price-label">总费用:</span>
+              <span class="price-value">¥{{ detail.priceRanges?.total?.min || 1500 }} ~ ¥{{ detail.priceRanges?.total?.max || 3500 }}</span>
+            </div>
+            <div class="price-item">
+              <span class="price-label">床位费:</span>
+              <span class="price-value">¥{{ detail.priceRanges?.bed?.min || 500 }} ~ ¥{{ detail.priceRanges?.bed?.max || 800 }}</span>
+            </div>
+            <div class="price-item">
+              <span class="price-label">护理费:</span>
+              <span class="price-value">¥{{ detail.priceRanges?.nursing?.min || 800 }} ~ ¥{{ detail.priceRanges?.nursing?.max || 2000 }}</span>
+            </div>
+            <div class="price-item">
+              <span class="price-label">膳食费:</span>
+              <span class="price-value">¥{{ detail.priceRanges?.diet?.min || 600 }} ~ ¥{{ detail.priceRanges?.diet?.max || 1200 }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -145,21 +220,22 @@
               <van-rate v-model="detail.rating" :size="16" color="#ffd21e" void-icon="star" void-color="#eee" readonly />
               <div class="rating-count">{{ detail.reviewCount }}条评价</div>
             </div>
-            <div class="rating-details">
+
+            <div class="rating-breakdown">
               <div class="rating-item">
                 <span class="rating-label">环境</span>
-                <van-rate v-model="detail.ratingEnvironment" :size="14" color="#ffd21e" void-icon="star" void-color="#eee" readonly />
-                <span class="rating-text">{{ detail.ratingEnvironment }}</span>
+                <van-rate v-model="detail.ratingEnvironment" :size="12" color="#ffd21e" void-icon="star" void-color="#eee" readonly />
+                <span class="rating-score">{{ detail.ratingEnvironment }}</span>
               </div>
               <div class="rating-item">
                 <span class="rating-label">服务</span>
-                <van-rate v-model="detail.ratingService" :size="14" color="#ffd21e" void-icon="star" void-color="#eee" readonly />
-                <span class="rating-text">{{ detail.ratingService }}</span>
+                <van-rate v-model="detail.ratingService" :size="12" color="#ffd21e" void-icon="star" void-color="#eee" readonly />
+                <span class="rating-score">{{ detail.ratingService }}</span>
               </div>
               <div class="rating-item">
                 <span class="rating-label">价格</span>
-                <van-rate v-model="detail.ratingPrice" :size="14" color="#ffd21e" void-icon="star" void-color="#eee" readonly />
-                <span class="rating-text">{{ detail.ratingPrice }}</span>
+                <van-rate v-model="detail.ratingPrice" :size="12" color="#ffd21e" void-icon="star" void-color="#eee" readonly />
+                <span class="rating-score">{{ detail.ratingPrice }}</span>
               </div>
             </div>
           </div>
@@ -193,23 +269,21 @@
               </div>
             </div>
           </div>
-
-          <van-empty v-if="!detail.reviews || detail.reviews.length === 0" description="暂无评价" />
         </van-tab>
       </van-tabs>
-    </div>
 
-    <!-- 底部操作栏 -->
-    <div class="action-bar">
-      <van-button type="default" size="small" @click="freeTrial">
-        免费试住
-      </van-button>
-      <van-button type="warning" size="small" @click="bookVisit">
-        预约参观
-      </van-button>
-      <van-button type="primary" size="small" @click="applyEnter">
-        申请入住
-      </van-button>
+      <!-- 底部操作栏 -->
+      <div class="action-bar">
+        <van-button round plain icon="star-o" @click="toggleFavorite">
+          {{ detail.isFavorite ? '已收藏' : '收藏' }}
+        </van-button>
+        <van-button round plain icon="phone-o" @click="makeCall">
+          电话咨询
+        </van-button>
+        <van-button round type="primary" @click="applyEnter">
+          申请入住
+        </van-button>
+      </div>
     </div>
   </div>
 </template>
@@ -224,6 +298,7 @@ const router = useRouter()
 
 const loading = ref(false)
 const activeTab = ref('intro')
+const selectedFacilityType = ref('room') // 默认选中房间设施
 
 // 模拟机构详情数据
 const mockDetail = {
@@ -238,6 +313,13 @@ const mockDetail = {
     '/images/banners/banner2.jpg',
     '/images/banners/banner3.jpg'
   ],
+  // 添加价格范围数据，与列表页保持一致
+  priceRanges: {
+    total: { min: 2800, max: 3500 },
+    bed: { min: 800, max: 1500 },
+    nursing: { min: 1200, max: 2800 },
+    diet: { min: 600, max: 800 }
+  },
   videos: [], // 视频列表
   totalBeds: 50,
   availableBeds: 8,
@@ -246,22 +328,6 @@ const mockDetail = {
   certificationTags: ['公办养老', '自理', '失智', '失能', '内设医疗机构', '试点机构无忧退费'], // 认证标签
   monthlyPrice: '2800-3500', // 月参考价格
   isFavorite: false, // 是否收藏
-  lifeFacilities: [
-    { icon: 'service-o', name: '24小时热水' },
-    { icon: 'fire-o', name: '中央空调' },
-    { icon: 'tv-o', name: '有线电视' },
-    { icon: 'wap-home-o', name: '无线网络' },
-    { icon: 'home-o', name: '独立卫浴' },
-    { icon: 'clock-o', name: '紧急呼叫' },
-    { icon: 'shopping-cart-o', name: '洗衣服务' },
-    { icon: 'friends-o', name: '活动室' }
-  ],
-  medicalFacilities: [
-    { icon: 'medal-o', name: '医疗室' },
-    { icon: 'cluster-o', name: '康复室' },
-    { icon: 'manager-o', name: '理疗室' },
-    { icon: 'chart-trending-o', name: '健康监测' }
-  ],
   // 三个设施卡片数据
   roomFacilities: [
     { name: '单人间', image: 'https://via.placeholder.com/300x200/4A90E2/FFFFFF?text=单人间' },
@@ -273,7 +339,12 @@ const mockDetail = {
     { name: '护理房', image: 'https://via.placeholder.com/300x200/95E1D3/FFFFFF?text=护理房' },
     { name: '观察房', image: 'https://via.placeholder.com/300x200/F38181/FFFFFF?text=观察房' },
     { name: '康复房', image: 'https://via.placeholder.com/300x200/AA96DA/FFFFFF?text=康复房' },
-    { name: '临终关怀房', image: 'https://via.placeholder.com/300x200/FCBAD3/FFFFFF?text=临终关怀房' }
+    { name: '临终关怀房', image: 'https://via.placeholder.com/300x200/FCBAD3/FFFFFF?text=临终关怀房' },
+    { name: '豪华单间', image: 'https://via.placeholder.com/300x200/C7CEEA/FFFFFF?text=豪华单间' },
+    { name: '标准双间', image: 'https://via.placeholder.com/300x200/B5EAD7/FFFFFF?text=标准双间' },
+    { name: '家庭套房', image: 'https://via.placeholder.com/300x200/FF9FF3/FFFFFF?text=家庭套房' },
+    { name: '无障碍房', image: 'https://via.placeholder.com/300x200/54A0FF/FFFFFF?text=无障碍房' },
+    { name: '隔离病房', image: 'https://via.placeholder.com/300x200/48C9B0/FFFFFF?text=隔离病房' }
   ],
   basicFacilities: [
     { name: '餐厅', image: 'https://via.placeholder.com/300x200/4A90E2/FFFFFF?text=餐厅' },
@@ -285,9 +356,26 @@ const mockDetail = {
     { name: '洗衣房', image: 'https://via.placeholder.com/300x200/95E1D3/FFFFFF?text=洗衣房' },
     { name: '接待室', image: 'https://via.placeholder.com/300x200/F38181/FFFFFF?text=接待室' },
     { name: '会议室', image: 'https://via.placeholder.com/300x200/AA96DA/FFFFFF?text=会议室' },
-    { name: '多功能厅', image: 'https://via.placeholder.com/300x200/FCBAD3/FFFFFF?text=多功能厅' }
+    { name: '多功能厅', image: 'https://via.placeholder.com/300x200/FCBAD3/FFFFFF?text=多功能厅' },
+    { name: '医务室', image: 'https://via.placeholder.com/300x200/C7CEEA/FFFFFF?text=医务室' },
+    { name: '药房', image: 'https://via.placeholder.com/300x200/B5EAD7/FFFFFF?text=药房' },
+    { name: '理疗室', image: 'https://via.placeholder.com/300x200/FF9FF3/FFFFFF?text=理疗室' },
+    { name: '餐厅包间', image: 'https://via.placeholder.com/300x200/54A0FF/FFFFFF?text=餐厅包间' }
   ],
-  parkFacilities: [],
+  parkFacilities: [
+    { name: '花园', image: 'https://via.placeholder.com/300x200/90EE90/FFFFFF?text=花园' },
+    { name: '健身广场', image: 'https://via.placeholder.com/300x200/87CEEB/FFFFFF?text=健身广场' },
+    { name: '休闲亭', image: 'https://via.placeholder.com/300x200/DDA0DD/FFFFFF?text=休闲亭' },
+    { name: '步道', image: 'https://via.placeholder.com/300x200/F0E68C/FFFFFF?text=步道' },
+    { name: '垂钓区', image: 'https://via.placeholder.com/300x200/20B2AA/FFFFFF?text=垂钓区' },
+    { name: '观景台', image: 'https://via.placeholder.com/300x200/FFB6C1/FFFFFF?text=观景台' },
+    { name: '太极广场', image: 'https://via.placeholder.com/300x200/FFA07A/FFFFFF?text=太极广场' },
+    { name: '棋牌区', image: 'https://via.placeholder.com/300x200/98D8C8/FFFFFF?text=棋牌区' },
+    { name: '荷花池', image: 'https://via.placeholder.com/300x200/F7DC6F/FFFFFF?text=荷花池' },
+    { name: '竹林', image: 'https://via.placeholder.com/300x200/82E0AA/FFFFFF?text=竹林' },
+    { name: '儿童乐园', image: 'https://via.placeholder.com/300x200/85C1E2/FFFFFF?text=儿童乐园' },
+    { name: '烧烤区', image: 'https://via.placeholder.com/300x200/F8B739/FFFFFF?text=烧烤区' }
+  ],
   priceList: [
     { name: '试住费', min: 1500, max: 3500 },
     { name: '休假费', min: 500, max: 500 },
@@ -306,6 +394,18 @@ const mockDetail = {
     { time: '18:30', content: '晚间散步、娱乐活动' },
     { time: '21:00', content: '晚间护理、就寝准备' }
   ],
+  lifeFacilities: [
+    { icon: 'home-o', name: '独立卫浴' },
+    { icon: 'clock-o', name: '紧急呼叫' },
+    { icon: 'shopping-cart-o', name: '洗衣服务' },
+    { icon: 'friends-o', name: '活动室' }
+  ],
+  medicalFacilities: [
+    { icon: 'medal-o', name: '医疗室' },
+    { icon: 'cluster-o', name: '康复室' },
+    { icon: 'manager-o', name: '理疗室' },
+    { icon: 'chart-trending-o', name: '健康监测' }
+  ],
   rating: 4.5,
   reviewCount: 128,
   ratingEnvironment: 4.8,
@@ -313,21 +413,10 @@ const mockDetail = {
   ratingPrice: 4.2,
   reviews: [
     {
-      userName: '张女士',
+      userName: '李先生',
       avatar: '',
       rating: 5,
       createTime: '2025-01-10',
-      content: '环境很好，服务人员态度也很好，老人住得很开心。设施齐全，每天都有丰富的活动，护理人员专业细心。',
-      images: [
-        'https://via.placeholder.com/100x100/4A90E2/FFFFFF?text=图1',
-        'https://via.placeholder.com/100x100/7ED321/FFFFFF?text=图2'
-      ]
-    },
-    {
-      userName: '李先生',
-      avatar: '',
-      rating: 4,
-      createTime: '2025-01-08',
       content: '整体不错，饮食营养均衡，医护人员很专业。唯一的建议是希望能增加一些户外活动。',
       images: []
     },
@@ -365,41 +454,36 @@ const toggleFavorite = async () => {
   }
 }
 
-// 显示设施图片
-const showFacilityImages = (type) => {
-  let facilities = []
-  let title = ''
-
-  if (type === 'room') {
-    facilities = detail.value.roomFacilities
-    title = '房间设施'
-  } else if (type === 'basic') {
-    facilities = detail.value.basicFacilities
-    title = '基础设施'
-  } else if (type === 'park') {
-    facilities = detail.value.parkFacilities
-    title = '园址设施'
-  }
-
-  if (facilities.length === 0) {
-    showToast('暂无设施图片')
-    return
-  }
-
-  const images = facilities.map(f => f.image)
+// 预览单个设施图片
+const previewFacilityImage = (image) => {
   showImagePreview({
-    images,
+    images: [image],
     closeable: true
   })
 }
 
-// 轮播图点击放大
+// 切换设施类型
+const selectFacilityType = (type) => {
+  selectedFacilityType.value = type
+}
+
+// 轮播图点击放大 (已去掉轮播图，保留以防万一)
 const previewImages = (startIndex) => {
   showImagePreview({
     images: detail.value.images,
     startPosition: startIndex,
     closeable: true
   })
+}
+
+// 返回上一页
+const onClickLeft = () => {
+  router.back()
+}
+
+// 分享
+const onShare = () => {
+  showToast('分享功能开发中')
 }
 
 // 免费试住
@@ -410,12 +494,9 @@ const freeTrial = () => {
   })
 }
 
-// 预约参观
-const bookVisit = () => {
-  router.push({
-    name: 'AppointmentBooking',
-    params: { institutionId: route.params.id }
-  })
+// 电话咨询
+const makeCall = () => {
+  window.location.href = `tel:${detail.value.contactPhone}`
 }
 
 // 申请入住
@@ -462,10 +543,6 @@ onMounted(() => {
   height: 300px;
 }
 
-.swipe {
-  height: 200px;
-}
-
 .info-card {
   background: #fff;
   padding: 16px;
@@ -474,22 +551,22 @@ onMounted(() => {
 
 .title {
   font-size: 18px;
-  font-weight: bold;
+  font-weight: 600;
   color: #333;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 /* 星级评分区域 */
 .rating-section {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   margin-bottom: 12px;
 }
 
 .rating-info {
   font-size: 12px;
-  color: #999;
+  color: #666;
 }
 
 /* 认证标签 */
@@ -500,7 +577,104 @@ onMounted(() => {
   margin-bottom: 16px;
 }
 
-/* 三个设施卡片 */
+/* 设施图片滑动区域 */
+.facility-images-section {
+  margin-bottom: 16px;
+}
+
+/* 设施类型选择按钮 */
+.facility-type-selector {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.facility-type-btn {
+  padding: 8px 16px;
+  background: #f7f8fa;
+  border-radius: 20px;
+  font-size: 14px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 1px solid #e5e5e5;
+}
+
+.facility-type-btn.active {
+  background: linear-gradient(135deg, #4A9EFF 0%, #67B5FF 100%);
+  color: white;
+  border-color: #4A9EFF;
+  box-shadow: 0 2px 8px rgba(74, 158, 255, 0.3);
+}
+
+.facility-type-btn:active {
+  transform: scale(0.95);
+}
+
+/* 设施滑动容器 */
+.facility-swipe-container {
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+/* 修复 facility-swipe 样式 */
+.facility-swipe {
+  background: #f7f8fa;
+  border-radius: 8px;
+  padding: 8px;
+  width: 100%;
+}
+
+.facility-swipe :deep(.van-swipe-item) {
+  width: 120px;
+  flex-shrink: 0;
+}
+
+.facility-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.facility-image-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 120px;
+  margin-right: 8px;
+}
+
+.facility-name {
+  font-size: 12px;
+  color: #666;
+  text-align: center;
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
+}
+
+/* 设施水平布局容器 */
+.facility-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.facility-column {
+  flex: 1;
+  min-width: 0;
+}
+
+.facility-column .facility-image-group {
+  margin-bottom: 0 !important;
+}
+
+/* 原三个设施卡片样式保留但不显示 */
 .facility-cards {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -565,7 +739,7 @@ onMounted(() => {
 }
 
 .contact-box {
-  flex: 1;
+  flex: 2;
   background: #f7f8fa;
   border-radius: 12px;
   padding: 12px;
@@ -574,14 +748,19 @@ onMounted(() => {
   justify-content: space-between;
 }
 
+.address-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .address-text {
   font-size: 13px;
   color: #333;
   line-height: 1.5;
-  margin-bottom: 8px;
   flex: 1;
-  display: flex;
-  align-items: center;
+  min-width: 0; /* 允许文字换行 */
 }
 
 .contact-icons {
@@ -594,52 +773,43 @@ onMounted(() => {
   cursor: pointer;
 }
 
-/* 月参考价格卡片 */
-.price-card {
-  background: linear-gradient(135deg, #FF6B00 0%, #FF8F40 100%);
-  border-radius: 12px;
-  padding: 16px 20px;
+/* 月参考价格区域 (参考列表页样式) */
+.price-section {
+  background: #e8f4fc;
+  border-radius: 8px;
+  padding: 12px;
   margin-bottom: 12px;
+}
+
+.price-header {
+  font-size: 12px;
+  color: #1989fa;
+  margin-bottom: 8px;
+}
+
+.price-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.price-item {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  box-shadow: 0 4px 12px rgba(255, 107, 0, 0.25);
+  gap: 3px;
+  font-size: 12px;
+  flex: 0 0 calc(50% - 3px);
 }
 
 .price-label {
-  font-size: 15px;
-  color: white;
+  color: #666;
+  white-space: nowrap;
+}
+
+.price-value {
+  color: #1989fa;
   font-weight: 500;
-}
-
-.price-range {
-  font-size: 24px;
-  color: white;
-  font-weight: bold;
-}
-
-/* 费用信息列表 */
-.fee-list {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-}
-
-.fee-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.fee-label {
-  font-size: 12px;
-  color: #999;
-}
-
-.fee-value {
-  font-size: 14px;
-  color: #4A9EFF;
-  font-weight: 500;
+  white-space: nowrap;
 }
 
 /* 设施网格 */
@@ -663,16 +833,15 @@ onMounted(() => {
   text-align: center;
 }
 
-/* 每日服务 */
+/* 服务时间表 */
 .service-schedule {
   padding: 16px;
 }
 
 .schedule-item {
   display: flex;
-  gap: 16px;
   padding: 12px 0;
-  border-bottom: 1px solid #f5f5f5;
+  border-bottom: 1px solid #eee;
 }
 
 .schedule-item:last-child {
@@ -680,17 +849,17 @@ onMounted(() => {
 }
 
 .schedule-time {
-  flex-shrink: 0;
-  width: 60px;
+  width: 80px;
   font-size: 14px;
   font-weight: 500;
   color: #1989fa;
+  flex-shrink: 0;
 }
 
 .schedule-content {
   flex: 1;
-  font-size: 13px;
-  color: #666;
+  font-size: 14px;
+  color: #333;
   line-height: 1.6;
 }
 
@@ -700,40 +869,34 @@ onMounted(() => {
   font-size: 14px;
   color: #666;
   line-height: 1.8;
-  text-align: justify;
 }
 
-/* 评价汇总 */
+/* 评价摘要 */
 .review-summary {
   background: #fff;
   padding: 16px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .overall-rating {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #f5f5f5;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .rating-score {
-  font-size: 48px;
+  font-size: 32px;
   font-weight: bold;
-  color: #ffd21e;
-  line-height: 1;
-  margin-bottom: 8px;
+  color: #ff9900;
 }
 
 .rating-count {
-  font-size: 13px;
-  color: #999;
-  margin-top: 8px;
+  font-size: 14px;
+  color: #666;
 }
 
-.rating-details {
-  padding-top: 16px;
+.rating-breakdown {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -742,20 +905,19 @@ onMounted(() => {
 .rating-item {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .rating-label {
-  width: 50px;
+  width: 40px;
   font-size: 14px;
   color: #666;
 }
 
-.rating-text {
+.rating-score {
   font-size: 14px;
-  color: #ffd21e;
+  color: #ff9900;
   font-weight: 500;
-  margin-left: 8px;
 }
 
 /* 评价列表 */
@@ -765,7 +927,7 @@ onMounted(() => {
 
 .review-item {
   padding: 16px;
-  border-bottom: 10px solid #f5f5f5;
+  border-bottom: 1px solid #eee;
 }
 
 .review-item:last-child {
@@ -818,7 +980,7 @@ onMounted(() => {
   right: 0;
   display: flex;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 12px 16px;
   background: #fff;
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
   z-index: 100;
