@@ -585,30 +585,39 @@ onMounted(() => {
 /* 设施类型选择按钮 */
 .facility-type-selector {
   display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 0 4px;
 }
 
 .facility-type-btn {
-  padding: 8px 16px;
-  background: #f7f8fa;
-  border-radius: 20px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 22px;
   font-size: 14px;
+  font-weight: 500;
   color: #666;
   cursor: pointer;
-  transition: all 0.3s ease;
-  border: 1px solid #e5e5e5;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid #e0e6ed;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 .facility-type-btn.active {
-  background: linear-gradient(135deg, #4A9EFF 0%, #67B5FF 100%);
+  background: linear-gradient(135deg, #1976d2 0%, #42a5f5 100%);
   color: white;
-  border-color: #4A9EFF;
-  box-shadow: 0 2px 8px rgba(74, 158, 255, 0.3);
+  border-color: #1976d2;
+  box-shadow: 0 3px 12px rgba(25, 118, 210, 0.4);
+  transform: translateY(-1px);
+}
+
+.facility-type-btn:hover:not(.active) {
+  background: linear-gradient(135deg, #f1f3f4 0%, #e2e6ea 100%);
+  transform: translateY(-1px);
 }
 
 .facility-type-btn:active {
-  transform: scale(0.95);
+  transform: scale(0.96) translateY(0);
 }
 
 /* 设施滑动容器 */
