@@ -69,31 +69,45 @@ public class H5UserController
     @PostMapping("/login")
     public AjaxResult login(@RequestBody Map<String, String> loginMap)
     {
-        String phone = loginMap.get("phone");
+        String account = loginMap.get("account");      // 修改为account(支持手机号或身份证号)
         String password = loginMap.get("password");
 
         // 参数校验
-        if (StringUtils.isEmpty(phone))
+        if (StringUtils.isEmpty(account))
         {
-            return AjaxResult.error("手机号不能为空");
+            return AjaxResult.error("账号不能为空");
         }
         if (StringUtils.isEmpty(password))
         {
             return AjaxResult.error("密码不能为空");
         }
 
-        // 手机号格式校验
-        if (!phone.matches("^1[3-9]\\d{9}$"))
-        {
-            return AjaxResult.error("手机号格式不正确");
-        }
+        SysUser user = null;
+        ElderInfo elderInfo = null;
+        boolean isElderLogin = false;  // 标记是否为老人身份证号登录
 
-        // 根据手机号查询用户(直接使用Mapper,避免数据权限切面拦截)
-        SysUser user = userMapper.selectUserByPhonenumber(phone);
+        // 判断是手机号还是身份证号
+        if (account.matches("^1[3-9]\\d{9}$")) {
+            // 手机号登录 - 查询sys_user表
+            user = userMapper.selectUserByPhonenumber(account);
+            if (user == null) {
+                return AjaxResult.error("该手机号未注册");
+            }
+        } else if (account.matches("^[1-9]\\d{5}(18|19|20)\\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\\d|3[01])\\d{3}[\\dXx]$")) {
+            // 身份证号登录 - 查询elder_info表
+            elderInfo = elderInfoService.selectElderInfoByIdCard(account);
+            if (elderInfo == null) {
+                return AjaxResult.error("该身份证号未注册");
+            }
+            if (StringUtils.isEmpty(elderInfo.getPassword())) {
+                return AjaxResult.error("该老人未设置密码,请联系管理员");
+            }
+            isElderLogin = true;
 
-        if (user == null)
-        {
-            return AjaxResult.error("该手机号未注册");
+            // 根据老人信息查找或创建对应的sys_user账号
+            user = getOrCreateUserForElder(elderInfo);
+        } else {
+            return AjaxResult.error("账号格式不正确,请输入手机号或身份证号");
         }
 
         // 验证用户状态
@@ -106,9 +120,14 @@ public class H5UserController
             return AjaxResult.error("账号已删除");
         }
 
-        // 验证密码 - 使用MD5
+        // 密码验证 - 统一使用MD5
         String md5Password = DigestUtils.md5DigestAsHex(password.getBytes());
-        if (!md5Password.equals(user.getPassword()))
+
+        // 如果是老人登录,验证elder_info表的密码
+        // 如果是家属登录,验证sys_user表的密码
+        String storedPassword = isElderLogin ? elderInfo.getPassword() : user.getPassword();
+
+        if (!md5Password.equals(storedPassword))
         {
             return AjaxResult.error("密码错误");
         }
@@ -124,13 +143,62 @@ public class H5UserController
         // 查询用户关联的老人列表
         List<Map<String, Object>> elders = getEldersByUserId(user.getUserId());
 
-        // 返回结果
+        // 构建返回数据
         Map<String, Object> data = new HashMap<>();
         data.put("token", token);
         data.put("user", buildUserInfo(user));
         data.put("elders", elders);
+        data.put("loginType", isElderLogin ? "idcard" : "phone");  // 标记登录方式
 
         return AjaxResult.success(data);
+    }
+
+    /**
+     * 为老人获取或创建对应的sys_user账号
+     * 身份证登录创建独立账号，不与家属账号混淆
+     *
+     * @param elderInfo 老人信息
+     * @return sys_user账号
+     */
+    private SysUser getOrCreateUserForElder(ElderInfo elderInfo)
+    {
+        // 身份证登录：使用身份证号作为用户名创建独立的老人账号
+        String userName = "elder_" + elderInfo.getIdCard();  // 添加前缀避免与家属用户名冲突
+
+        // 先尝试查找是否已存在该老人的独立账号
+        SysUser existingUser = userService.selectUserByUserName(userName);
+        if (existingUser != null) {
+            return existingUser;
+        }
+
+        // 创建新的老人独立账号
+        SysUser newUser = new SysUser();
+        newUser.setUserName(userName);  // 使用 elder_身份证号 作为用户名
+        newUser.setNickName(elderInfo.getElderName());
+        newUser.setPhonenumber(elderInfo.getPhone());  // 可能为空
+        newUser.setPassword(elderInfo.getPassword());  // 使用老人的密码
+        newUser.setStatus("0");
+        newUser.setCreateTime(new Date());
+        newUser.setCreateBy("system");  // 标记为系统创建
+
+        // 插入用户
+        userService.insertUser(newUser);
+
+        // 创建elder_family关联关系，让老人账号关联自己（关系类型设为"本人"）
+        ElderFamily selfRelation = new ElderFamily();
+        selfRelation.setUserId(newUser.getUserId());
+        selfRelation.setElderId(elderInfo.getElderId());
+        selfRelation.setRelationType("0");  // 0表示本人
+        selfRelation.setRelationName("本人");
+        selfRelation.setIsDefault("1");   // 默认显示自己
+        selfRelation.setIsMainContact("0");  // 不是主要联系人
+        selfRelation.setStatus("0");  // 状态正常
+        selfRelation.setCreateBy("system");
+        selfRelation.setCreateTime(new Date());
+
+        elderFamilyService.insertElderFamily(selfRelation);
+
+        return newUser;
     }
 
     /**

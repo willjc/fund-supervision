@@ -19,6 +19,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="careLevel"    column="care_level"    />
         <result property="specialNeeds"    column="special_needs"    />
         <result property="photoPath"    column="photo_path"    />
+        <result property="password"    column="password"    />
         <result property="status"     column="status"     />
         <result property="createBy"   column="create_by"   />
         <result property="createTime" column="create_time" />
@@ -30,7 +31,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <sql id="selectElderInfoVo">
         select elder_id, elder_name, gender, id_card, birth_date, age, phone, address,
                emergency_contact, emergency_phone, health_status, care_level, special_needs,
-               photo_path, status, create_by, create_time, update_by, update_time, remark
+               photo_path, password, status, create_by, create_time, update_by, update_time, remark
         from elder_info
     </sql>
 
@@ -73,6 +74,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="careLevel != null">care_level,</if>
             <if test="specialNeeds != null and specialNeeds != ''">special_needs,</if>
             <if test="photoPath != null and photoPath != ''">photo_path,</if>
+            <if test="password != null and password != ''">password,</if>
             <if test="status != null">status,</if>
             <if test="createBy != null and createBy != ''">create_by,</if>
             <if test="createTime != null">create_time,</if>
@@ -94,6 +96,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="careLevel != null">#{careLevel},</if>
             <if test="specialNeeds != null and specialNeeds != ''">#{specialNeeds},</if>
             <if test="photoPath != null and photoPath != ''">#{photoPath},</if>
+            <if test="password != null and password != ''">#{password},</if>
             <if test="status != null">#{status},</if>
             <if test="createBy != null and createBy != ''">#{createBy},</if>
             <if test="createTime != null">#{createTime},</if>
@@ -119,6 +122,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="careLevel != null">care_level = #{careLevel},</if>
             <if test="specialNeeds != null and specialNeeds != ''">special_needs = #{specialNeeds},</if>
             <if test="photoPath != null and photoPath != ''">photo_path = #{photoPath},</if>
+            <if test="password != null and password != ''">password = #{password},</if>
             <if test="status != null">status = #{status},</if>
             <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>

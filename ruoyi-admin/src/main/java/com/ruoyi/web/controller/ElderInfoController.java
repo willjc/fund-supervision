@@ -1,9 +1,11 @@
 package com.ruoyi.web.controller;
 
 import java.util.List;
+import java.util.Map;
 import javax.servlet.http.HttpServletResponse;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -20,6 +22,7 @@ import com.ruoyi.domain.ElderInfo;
 import com.ruoyi.service.IElderInfoService;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.common.core.page.TableDataInfo;
+import org.springframework.util.DigestUtils;
 
 /**
  * 老人基础信息Controller
@@ -106,6 +109,47 @@ public class ElderInfoController extends BaseController
     public AjaxResult edit(@RequestBody ElderInfo elderInfo)
     {
         return toAjax(elderInfoService.updateElderInfo(elderInfo));
+    }
+
+    /**
+     * 设置老人密码
+     */
+    @PreAuthorize("@ss.hasPermi('elder:info:edit')")
+    @Log(title = "设置老人密码", businessType = BusinessType.UPDATE)
+    @PostMapping("/setPassword")
+    public AjaxResult setPassword(@RequestBody Map<String, Object> params)
+    {
+        Long elderId = Long.valueOf(params.get("elderId").toString());
+        String password = params.get("password").toString();
+
+        // 参数校验
+        if (StringUtils.isEmpty(password)) {
+            return error("密码不能为空");
+        }
+        if (password.length() < 6) {
+            return error("密码长度不能少于6位");
+        }
+
+        // 查询老人是否存在
+        ElderInfo elderInfo = elderInfoService.selectElderInfoByElderId(elderId);
+        if (elderInfo == null) {
+            return error("老人信息不存在");
+        }
+
+        // MD5加密密码
+        String md5Password = DigestUtils.md5DigestAsHex(password.getBytes());
+
+        // 更新密码
+        ElderInfo updateInfo = new ElderInfo();
+        updateInfo.setElderId(elderId);
+        updateInfo.setPassword(md5Password);
+
+        int result = elderInfoService.updateElderInfo(updateInfo);
+        if (result > 0) {
+            return success("密码设置成功");
+        } else {
+            return error("密码设置失败");
+        }
     }
 
     /**

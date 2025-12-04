@@ -24,20 +24,30 @@
       <!-- 登录表单 -->
       <div class="login-form">
         <van-form @submit="handleLogin">
-          <!-- 手机号 -->
+          <!-- 账号 -->
           <van-field
-            v-model="loginForm.phone"
-            name="phone"
-            label="手机号"
-            placeholder="请输入手机号"
+            v-model="loginForm.account"
+            name="account"
+            label="账号"
+            placeholder="请输入手机号或身份证号"
             clearable
             :rules="[
-              { required: true, message: '请输入手机号' },
-              { pattern: /^1[3-9]\d{9}$/, message: '手机号格式不正确' }
+              { required: true, message: '请输入手机号或身份证号' },
+              {
+                validator: (value) => {
+                  if (!value) return false;
+                  // 验证手机号格式
+                  if (/^1[3-9]\d{9}$/.test(value)) return true;
+                  // 验证身份证号格式
+                  if (/^[1-9]\d{5}(18|19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{3}[\dXx]$/.test(value)) return true;
+                  return false;
+                },
+                message: '请输入正确的手机号或身份证号'
+              }
             ]"
           >
             <template #left-icon>
-              <van-icon name="phone-o" />
+              <van-icon name="user-o" />
             </template>
           </van-field>
 
@@ -82,6 +92,13 @@
             <span @click="goToRegister">注册账号</span>
             <span @click="goToForgetPassword">忘记密码</span>
           </div>
+
+          <!-- 登录方式提示 -->
+          <div class="login-tips">
+            <div class="tips-title">支持的登录方式:</div>
+            <div class="tip-item">• 手机号 + 密码 (家属账号)</div>
+            <div class="tip-item">• 身份证号 + 密码 (老人账号)</div>
+          </div>
         </van-form>
       </div>
     </div>
@@ -103,7 +120,7 @@ const userStore = useUserStore()
 const loginType = ref('password')
 const loading = ref(false)
 const loginForm = ref({
-  phone: '',
+  account: '',
   password: ''
 })
 
@@ -119,7 +136,7 @@ const handleLogin = async () => {
     loading.value = true
 
     const res = await login({
-      phone: loginForm.value.phone,
+      account: loginForm.value.account,
       password: loginForm.value.password
     })
 
@@ -136,8 +153,11 @@ const handleLogin = async () => {
         userStore.setElders(res.data.elders)
       }
 
+      // 根据登录方式显示不同提示
+      const loginTypeText = res.data.loginType === 'idcard' ? '身份证号' : '手机号'
+
       showToast({
-        message: '登录成功',
+        message: `${loginTypeText}登录成功`,
         onClose: () => {
           // 跳转到重定向地址或首页
           const redirect = route.query.redirect || '/home'
@@ -224,5 +244,25 @@ const goToForgetPassword = () => {
 
 .other-actions span:hover {
   color: #1989fa;
+}
+
+.login-tips {
+  margin-top: 20px;
+  padding: 12px;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+  font-size: 12px;
+  color: #666;
+}
+
+.tips-title {
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.tip-item {
+  line-height: 1.5;
+  margin-bottom: 4px;
 }
 </style>

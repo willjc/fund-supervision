@@ -398,7 +398,7 @@
 </template>
 
 <script>
-import { listElder, getElder, delElder, addElder, updateElder } from "@/api/elder/info";
+import { listElder, getElder, delElder, addElder, updateElder, setPassword } from "@/api/elder/info";
 import { listFamily, addFamily, updateFamily, delFamily } from "@/api/elder/family";
 
 export default {
@@ -759,15 +759,19 @@ export default {
     submitPasswordForm() {
       this.$refs.passwordForm.validate(valid => {
         if (valid) {
-          // TODO: 调用后端API设置密码
-          this.$axios.post('/elder/info/setPassword', {
+          const data = {
             elderId: this.passwordForm.elderId,
             password: this.passwordForm.password
-          }).then(response => {
-            this.$message.success('密码设置成功');
-            this.passwordDialogOpen = false;
+          };
+          setPassword(data).then(response => {
+            if (response.code === 200) {
+              this.$modal.msgSuccess("密码设置成功");
+              this.passwordDialogOpen = false;
+            } else {
+              this.$modal.msgError(response.msg || "密码设置失败");
+            }
           }).catch(error => {
-            this.$message.error(error.message || '密码设置失败');
+            this.$modal.msgError("密码设置失败，请重试");
           });
         }
       });

@@ -11,6 +11,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **架构模式**: 四端协同（民政监管端 + 养老机构端 + 小程序端 + 数据统计平台）
 - **开发策略**: 单模块开发（所有后端代码放在ruoyi-admin模块），功能导向，快速迭代
 
+## 数据库配置
+
+**开发环境数据库连接信息**：
+- **数据库名**: newzijin
+- **主机**: localhost
+- **端口**: 3306
+- **用户名**: root
+- **密码**: 123456
+- **连接URL**: jdbc:mysql://localhost:3306/newzijin?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8
+
+**说明**：
+- 使用 MySQL MCP 工具时，直接连接到此数据库
+- 配置文件位置：`ruoyi-admin/src/main/resources/application-druid.yml`
+
 ## 常用开发命令
 
 ### 后端启动
@@ -252,6 +266,29 @@ npm run build
 - 在系统管理中配置养老机构相关菜单和权限
 - 使用 `@PreAuthorize` 注解控制接口权限
 - 按钮权限使用若依�� `v-hasPermi` 指令控制
+
+## 数据库配置
+
+### 数据库连接信息
+- **配置文件**: `ruoyi-admin/src/main/resources/application-druid.yml`
+- **数据库地址**: localhost:3306
+- **数据库名**: newzijin
+- **用户名**: root
+- **密码**: 123456
+- **字符集**: utf8mb4
+
+### 数据库管理
+- **连接数据库**: `mysql -h localhost -u root -p newzijin`
+- **查看表结构**: `DESC table_name;`
+- **查看数据**: `SELECT * FROM table_name LIMIT 10;`
+- **表结构说明**: elder_info表已添加password字段用于老人登录密码
+
+### Druid监控
+- **访问地址**: http://localhost:8080/druid
+- **用户名**: yl
+- **密码**: 123456
+
+**注意**: 所有数据库相关的查询和操作都应该使用上述配置信息进行连接。
 
 ## 常见问题
 - 确保MySQL和Redis服务已启动

@@ -72,6 +72,9 @@ public class ElderInfo extends BaseEntity
     /** 照片路径 */
     private String photoPath;
 
+    /** 登录密码(MD5加密) */
+    private String password;
+
     /** 状态(0未入住 1已入住 2已退住) */
     @Excel(name = "状态", readConverterExp = "0=未入住,1=已入住,2=已退住")
     private String status;
@@ -202,7 +205,18 @@ public class ElderInfo extends BaseEntity
     {
         return photoPath;
     }
-    public void setStatus(String status)
+
+  public void setPassword(String password)
+    {
+        this.password = password;
+    }
+
+    public String getPassword()
+    {
+        return password;
+    }
+
+  public void setStatus(String status)
     {
         this.status = status;
     }
@@ -229,6 +243,7 @@ public class ElderInfo extends BaseEntity
             .append("careLevel", getCareLevel())
             .append("specialNeeds", getSpecialNeeds())
             .append("photoPath", getPhotoPath())
+            .append("password", getPassword())
             .append("status", getStatus())
             .append("createBy", getCreateBy())
             .append("createTime", getCreateTime())

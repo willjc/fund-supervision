@@ -59,3 +59,12 @@ export function exportElder(query) {
     data: query
   })
 }
+
+// 设置老人密码
+export function setPassword(data) {
+  return request({
+    url: '/elder/info/setPassword',
+    method: 'post',
+    data: data
+  })
+}

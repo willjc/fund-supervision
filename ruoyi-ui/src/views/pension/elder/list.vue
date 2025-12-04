@@ -258,6 +258,14 @@
             @click="handleFamilyManage(scope.row)"
             v-hasPermi="['elder:resident:query']"
           >家属管理</el-button>
+          <!-- 设置密码:新增功能 -->
+          <el-button
+            size="mini"
+            type="text"
+            icon="el-icon-key"
+            @click="handleSetPassword(scope.row)"
+            v-hasPermi="['elder:resident:edit']"
+          >设置密码</el-button>
           <!-- 删除:所有人都能删除 -->
           <el-button
             size="mini"
@@ -868,12 +876,39 @@
         <el-button @click="familyFormOpen = false">取 消</el-button>
       </div>
     </el-dialog>
+
+    <!-- 设置密码对话框 -->
+    <el-dialog title="设置密码" :visible.sync="passwordDialogOpen" width="500px" append-to-body>
+      <el-form ref="passwordForm" :model="passwordForm" :rules="passwordRules" label-width="100px">
+        <el-form-item label="老人姓名">
+          <el-input v-model="passwordForm.elderName" disabled />
+        </el-form-item>
+        <el-form-item label="身份证号">
+          <el-input v-model="passwordForm.idCard" disabled />
+        </el-form-item>
+        <el-form-item label="新密码" prop="password">
+          <el-input v-model="passwordForm.password" type="password" placeholder="请输入新密码" show-password />
+        </el-form-item>
+        <el-form-item label="确认密码" prop="confirmPassword">
+          <el-input v-model="passwordForm.confirmPassword" type="password" placeholder="请再次输入密码" show-password />
+        </el-form-item>
+        <el-alert
+          title="说明: 设置密码后,家属可以使用老人的身份证号作为账号、密码进行H5登录"
+          type="info"
+          :closable="false">
+        </el-alert>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button type="primary" @click="submitPasswordForm">确 定</el-button>
+        <el-button @click="passwordDialogOpen = false">取 消</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script>
 import { listResident, getResident, delResident, renewResident, refundResident, applyDepositUse, getResidentStatistics } from "@/api/elder/resident";
-import { updateElderInfo } from "@/api/elder/elderInfo";
+import { updateElderInfo, setPassword } from "@/api/elder/elderInfo";
 import { listPensionInstitution } from "@/api/pension/institution";
 import { listFamily, addFamily, updateFamily, delFamily } from "@/api/elder/family";
 
@@ -914,6 +949,33 @@ export default {
       importOpen: false,
       // 是否显示维护弹出层
       updateOpen: false,
+      // 是否显示密码设置弹出层
+      passwordDialogOpen: false,
+      // 密码设置表单
+      passwordForm: {
+        elderId: null,
+        elderName: '',
+        idCard: '',
+        password: '',
+        confirmPassword: ''
+      },
+      // 密码设置表单校验规则
+      passwordRules: {
+        password: [
+          { required: true, message: "请输入新密码", trigger: "blur" },
+          { min: 6, message: "密码长度不能少于6位", trigger: "blur" }
+        ],
+        confirmPassword: [
+          { required: true, message: "请确认密码", trigger: "blur" },
+          { validator: (rule, value, callback) => {
+              if (value !== this.passwordForm.password) {
+                callback(new Error("两次输入的密码不一致"));
+              } else {
+                callback();
+              }
+            }, trigger: "blur" }
+        ]
+      },
       // 入住人详情
       residentDetail: {
         orders: [],
@@ -1389,6 +1451,50 @@ export default {
       this.currentElderForFamily = row;
       this.familyManageOpen = true;
       this.getFamilyList(row.elderId);
+    },
+    /** 设置密码按钮操作 */
+    handleSetPassword(row) {
+      this.resetPasswordForm();
+      this.passwordForm.elderId = row.elderId;
+      this.passwordForm.elderName = row.elderName;
+      this.passwordForm.idCard = row.idCard;
+      this.passwordDialogOpen = true;
+    },
+    /** 重置密码表单 */
+    resetPasswordForm() {
+      this.passwordForm = {
+        elderId: null,
+        elderName: '',
+        idCard: '',
+        password: '',
+        confirmPassword: ''
+      };
+      if (this.$refs.passwordForm) {
+        this.$refs.passwordForm.resetFields();
+      }
+    },
+    /** 提交密码设置 */
+    submitPasswordForm() {
+      this.$refs.passwordForm.validate(valid => {
+        if (valid) {
+          // 调用后端API设置密码
+          const data = {
+            elderId: this.passwordForm.elderId,
+            password: this.passwordForm.password
+          };
+
+          setPassword(data).then(response => {
+            if (response.code === 200) {
+              this.$modal.msgSuccess("密码设置成功");
+              this.passwordDialogOpen = false;
+            } else {
+              this.$modal.msgError(response.msg || "密码设置失败");
+            }
+          }).catch(error => {
+            this.$modal.msgError("密码设置失败，请重试");
+          });
+        }
+      });
     },
     /** 获取家属列表 */
     getFamilyList(elderId) {
