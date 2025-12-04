@@ -13,6 +13,11 @@ module.exports = defineConfig({
         pathRewrite: {
           '^/api': ''
         }
+      },
+      // 代理图片访问路径，解决404问题
+      '/profile': {
+        target: 'http://localhost:8080',
+        changeOrigin: true
       }
     }
   },

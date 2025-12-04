@@ -66,11 +66,100 @@
         </el-form-item>
 
         <el-form-item label="收费标准" prop="chargeStandard">
-          <el-input
-            type="textarea"
-            v-model="form.chargeStandard"
-            :rows="4"
-            placeholder="请输入收费标准说明"></el-input>
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-form-item label="护理费(元/月)" prop="nursingFee">
+                <el-row :gutter="10">
+                  <el-col :span="12">
+                    <el-input-number
+                      v-model="form.nursingFee.min"
+                      :min="0"
+                      :precision="2"
+                      placeholder="护理费-最低费用"
+                      style="width: 100%"></el-input-number>
+                  </el-col>
+                  <el-col :span="12">
+                    <el-input-number
+                      v-model="form.nursingFee.max"
+                      :min="0"
+                      :precision="2"
+                      placeholder="护理费-最高费用"
+                      style="width: 100%"></el-input-number>
+                  </el-col>
+                </el-row>
+                <div class="form-tip">护理费最低和最高费用</div>
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="床位费(元/月)" prop="bedFee">
+                <el-row :gutter="10">
+                  <el-col :span="12">
+                    <el-input-number
+                      v-model="form.bedFee.min"
+                      :min="0"
+                      :precision="2"
+                      placeholder="床位费-最低费用"
+                      style="width: 100%"></el-input-number>
+                  </el-col>
+                  <el-col :span="12">
+                    <el-input-number
+                      v-model="form.bedFee.max"
+                      :min="0"
+                      :precision="2"
+                      placeholder="床位费-最高费用"
+                      style="width: 100%"></el-input-number>
+                  </el-col>
+                </el-row>
+                <div class="form-tip">床位费最低和最高费用</div>
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-form-item label="膳食费(元/月)" prop="mealFee">
+                <el-row :gutter="10">
+                  <el-col :span="12">
+                    <el-input-number
+                      v-model="form.mealFee.min"
+                      :min="0"
+                      :precision="2"
+                      placeholder="膳食费-最低费用"
+                      style="width: 100%"></el-input-number>
+                  </el-col>
+                  <el-col :span="12">
+                    <el-input-number
+                      v-model="form.mealFee.max"
+                      :min="0"
+                      :precision="2"
+                      placeholder="膳食费-最高费用"
+                      style="width: 100%"></el-input-number>
+                  </el-col>
+                </el-row>
+                <div class="form-tip">膳食费最低和最高费用</div>
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="总费用(元/月)">
+                <el-row :gutter="10">
+                  <el-col :span="12">
+                    <el-input
+                      v-model="totalFee.min"
+                      readonly
+                      placeholder="总费用-最低(自动计算)"
+                      style="width: 100%"></el-input>
+                  </el-col>
+                  <el-col :span="12">
+                    <el-input
+                      v-model="totalFee.max"
+                      readonly
+                      placeholder="总费用-最高(自动计算)"
+                      style="width: 100%"></el-input>
+                  </el-col>
+                </el-row>
+                <div class="form-tip">总费用自动计算：护理费+床位费+膳食费</div>
+              </el-form-item>
+            </el-col>
+          </el-row>
         </el-form-item>
 
         <!-- 资质信息 -->
@@ -178,6 +267,7 @@ export default {
     return {
       saving: false,
       form: {
+        institutionId: null,
         institutionName: '',
         creditCode: '',
         legalPerson: '',
@@ -186,6 +276,11 @@ export default {
         approvedBeds: 0,
         actualElders: 0,
         serviceItems: [],
+        // 结构化费用数据
+        nursingFee: { min: 0, max: 0 },
+        bedFee: { min: 0, max: 0 },
+        mealFee: { min: 0, max: 0 },
+        // 保留原有字段兼容
         chargeStandard: '',
         businessLicenseExpiry: '',
         foodLicenseExpiry: '',
@@ -194,7 +289,8 @@ export default {
         caregiverCount: 0,
         facilities: '',
         isPublic: false,
-        publicNotice: ''
+        publicNotice: '',
+        coverImages: null
       },
       rules: {
         legalPerson: [
@@ -216,44 +312,147 @@ export default {
       dialogVisible: false
     }
   },
+  computed: {
+    // 计算总费用
+    totalFee() {
+      const nursingMin = this.form.nursingFee.min || 0
+      const nursingMax = this.form.nursingFee.max || 0
+      const bedMin = this.form.bedFee.min || 0
+      const bedMax = this.form.bedFee.max || 0
+      const mealMin = this.form.mealFee.min || 0
+      const mealMax = this.form.mealFee.max || 0
+
+      return {
+        min: (nursingMin + bedMin + mealMin).toFixed(2),
+        max: (nursingMax + bedMax + mealMax).toFixed(2)
+      }
+    }
+  },
+  watch: {
+    // 监听费用变化，自动更新总费用显示
+    'form.nursingFee.min': {
+      handler() {
+        this.$forceUpdate()
+      },
+      deep: true
+    },
+    'form.nursingFee.max': {
+      handler() {
+        this.$forceUpdate()
+      },
+      deep: true
+    },
+    'form.bedFee.min': {
+      handler() {
+        this.$forceUpdate()
+      },
+      deep: true
+    },
+    'form.bedFee.max': {
+      handler() {
+        this.$forceUpdate()
+      },
+      deep: true
+    },
+    'form.mealFee.min': {
+      handler() {
+        this.$forceUpdate()
+      },
+      deep: true
+    },
+    'form.mealFee.max': {
+      handler() {
+        this.$forceUpdate()
+      },
+      deep: true
+    }
+  },
   created() {
     this.loadPublicityData()
   },
   methods: {
     // 加载公示信息
     loadPublicityData() {
-      // TODO: 调用后端API获取机构公示信息
-      // 临时使用模拟数据
-      this.form = {
-        institutionName: '幸福养老院',
-        creditCode: '91410100MA44XXXX01',
-        legalPerson: '张三',
-        contactPhone: '13800138000',
-        address: '郑州市金水区XX路XX号',
-        approvedBeds: 200,
-        actualElders: 168,
-        serviceItems: ['生活照料', '医疗护理', '康复训练'],
-        chargeStandard: '护理费：2000-5000元/月\n床位费：800-1500元/月\n餐费：600元/月',
-        businessLicenseExpiry: '2026-12-31',
-        foodLicenseExpiry: '2025-12-31',
-        doctorCount: 5,
-        nurseCount: 15,
-        caregiverCount: 30,
-        facilities: '配备医疗器械、康复器材、无障碍设施等',
-        isPublic: true,
-        publicNotice: '本机构为民政部门登记备案的合法养老服务机构'
-      }
+      this.$http.get('/pension/publicity/info').then(response => {
+        if (response.code === 200) {
+          const data = response.data
+          this.form = {
+            institutionId: data.institutionId,
+            institutionName: data.institutionName,
+            creditCode: data.creditCode,
+            legalPerson: data.legalPerson,
+            contactPhone: data.contactPhone,
+            address: data.address,
+            approvedBeds: data.approvedBeds,
+            actualElders: data.actualElders,
+            serviceItems: data.serviceItems,
+            // 结构化费用数据
+            nursingFee: data.nursingFee || { min: null, max: null },
+            bedFee: data.bedFee || { min: null, max: null },
+            mealFee: data.mealFee || { min: null, max: null },
+            // 保留原有字段
+            chargeStandard: data.chargeStandard || '',
+            businessLicenseExpiry: data.businessLicenseExpiry,
+            foodLicenseExpiry: data.foodLicenseExpiry,
+            doctorCount: data.doctorCount,
+            nurseCount: data.nurseCount,
+            caregiverCount: data.caregiverCount,
+            facilities: data.facilities,
+            isPublic: data.isPublic,
+            publicNotice: data.publicNotice,
+            coverImages: data.coverImages
+          }
+
+          // 处理图片列表
+          if (data.coverImages) {
+            try {
+              const imageUrls = JSON.parse(data.coverImages)
+              this.environmentPictures = imageUrls.map((url, index) => ({
+                name: `图片${index + 1}`,
+                url: url
+              }))
+            } catch (e) {
+              this.environmentPictures = []
+            }
+          } else {
+            this.environmentPictures = []
+          }
+        }
+      }).catch(error => {
+        console.error('加载公示信息失败:', error)
+        this.$message.error('加载公示信息失败')
+      })
     },
     // 保存公示信息
     handleSave() {
       this.$refs.publicityForm.validate(valid => {
         if (valid) {
           this.saving = true
-          // TODO: 调用后端API保存
-          setTimeout(() => {
+
+          // 准备保存的数据
+          const saveData = {
+            institutionId: this.form.institutionId,
+            nursingFee: this.form.nursingFee,
+            bedFee: this.form.bedFee,
+            mealFee: this.form.mealFee,
+            coverImages: this.form.coverImages,
+            legalPerson: this.form.legalPerson,
+            contactPhone: this.form.contactPhone,
+            address: this.form.address
+          }
+
+          this.$http.post('/pension/publicity/save', saveData).then(response => {
+            if (response.code === 200) {
+              this.$message.success('公示信息保存成功')
+            } else {
+              this.$message.error(response.msg || '保存失败')
+            }
+          }).catch(error => {
+            console.error('保存公示信息失败:', error)
+            this.$message.error('保存失败')
+          }).finally(() => {
             this.saving = false
-            this.$message.success('公示信息保存成功')
-          }, 1000)
+          })
         }
       })
     },
@@ -265,10 +464,14 @@ export default {
     // 移除图片
     handleRemove(file, fileList) {
       this.environmentPictures = fileList
+      // 更新form中的图片URL列表
+      this.form.coverImages = JSON.stringify(fileList.map(item => item.url))
     },
     // 上传成功
     handleUploadSuccess(response, file, fileList) {
       this.environmentPictures = fileList
+      // 更新form中的图片URL列表
+      this.form.coverImages = JSON.stringify(fileList.map(item => item.url))
       this.$message.success('图片上传成功')
     }
   }

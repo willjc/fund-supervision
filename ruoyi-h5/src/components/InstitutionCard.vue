@@ -34,16 +34,16 @@
     <div v-if="institution.priceRanges" class="card-price">
       <div class="price-grid">
         <div class="price-item">
-          <span class="price-name">护理费:</span>
-          <span class="price-range">¥ {{ institution.priceRanges.nursing.min }} ~ ¥ {{ institution.priceRanges.nursing.max }}</span>
-        </div>
-        <div class="price-item">
-          <span class="price-name">伙食费:</span>
-          <span class="price-range">¥ {{ institution.priceRanges.meal.min }} ~ ¥ {{ institution.priceRanges.meal.max }}</span>
+          <span class="price-name">总费用:</span>
+          <span class="price-range">¥ {{ institution.priceRanges.total.min }} ~ ¥ {{ institution.priceRanges.total.max }}</span>
         </div>
         <div class="price-item">
           <span class="price-name">床位费:</span>
           <span class="price-range">¥ {{ institution.priceRanges.bed.min }} ~ ¥ {{ institution.priceRanges.bed.max }}</span>
+        </div>
+        <div class="price-item">
+          <span class="price-name">护理费:</span>
+          <span class="price-range">¥ {{ institution.priceRanges.nursing.min }} ~ ¥ {{ institution.priceRanges.nursing.max }}</span>
         </div>
         <div class="price-item">
           <span class="price-name">膳食费:</span>

@@ -13,9 +13,16 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="landArea"    column="land_area"    />
         <result property="buildingArea"    column="building_area"    />
         <result property="environmentImgs"    column="environment_imgs"    />
+        <result property="mainPicture"    column="main_picture"    />
         <result property="rating"    column="rating"    />
         <result property="feeRangeMin"    column="fee_range_min"    />
         <result property="feeRangeMax"    column="fee_range_max"    />
+        <result property="nursingFeeMin"    column="nursing_fee_min"    />
+        <result property="nursingFeeMax"    column="nursing_fee_max"    />
+        <result property="bedFeeMin"    column="bed_fee_min"    />
+        <result property="bedFeeMax"    column="bed_fee_max"    />
+        <result property="mealFeeMin"    column="meal_fee_min"    />
+        <result property="mealFeeMax"    column="meal_fee_max"    />
         <result property="acceptElderType"    column="accept_elder_type"    />
         <result property="isPublished"    column="is_published"    />
         <result property="createBy"    column="create_by"    />
@@ -30,6 +37,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="bedCount"    column="bed_count"    />
         <result property="superviseAccount"    column="supervise_account"    />
         <result property="feeRange"    column="fee_range"    />
+        <!-- 联系方式关联查询字段 -->
+        <result property="contactPerson"    column="contact_person"    />
+        <result property="contactPhone"    column="contact_phone"    />
+        <result property="contactEmail"    column="contact_email"    />
     </resultMap>
 
     <sql id="selectPensionInstitutionPublicVo">
@@ -42,9 +53,16 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             p.land_area,
             p.building_area,
             p.environment_imgs,
+            p.main_picture,
             p.rating,
             p.fee_range_min,
             p.fee_range_max,
+            p.nursing_fee_min,
+            p.nursing_fee_max,
+            p.bed_fee_min,
+            p.bed_fee_max,
+            p.meal_fee_min,
+            p.meal_fee_max,
             p.accept_elder_type,
             p.is_published,
             p.create_by,
@@ -57,7 +75,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             i.actual_address,
             i.bed_count,
             i.supervise_account,
-            i.fee_range
+            i.fee_range,
+            i.contact_person,
+            i.contact_phone,
+            i.contact_email
         from pension_institution i
         left join pension_institution_public p on i.institution_id = p.institution_id
     </sql>
@@ -101,9 +122,16 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="landArea != null">land_area,</if>
             <if test="buildingArea != null">building_area,</if>
             <if test="environmentImgs != null">environment_imgs,</if>
+            <if test="mainPicture != null">main_picture,</if>
             <if test="rating != null">rating,</if>
             <if test="feeRangeMin != null">fee_range_min,</if>
             <if test="feeRangeMax != null">fee_range_max,</if>
+            <if test="nursingFeeMin != null">nursing_fee_min,</if>
+            <if test="nursingFeeMax != null">nursing_fee_max,</if>
+            <if test="bedFeeMin != null">bed_fee_min,</if>
+            <if test="bedFeeMax != null">bed_fee_max,</if>
+            <if test="mealFeeMin != null">meal_fee_min,</if>
+            <if test="mealFeeMax != null">meal_fee_max,</if>
             <if test="acceptElderType != null">accept_elder_type,</if>
             <if test="isPublished != null">is_published,</if>
             <if test="createBy != null">create_by,</if>
@@ -119,9 +147,16 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="landArea != null">#{landArea},</if>
             <if test="buildingArea != null">#{buildingArea},</if>
             <if test="environmentImgs != null">#{environmentImgs},</if>
+            <if test="mainPicture != null">#{mainPicture},</if>
             <if test="rating != null">#{rating},</if>
             <if test="feeRangeMin != null">#{feeRangeMin},</if>
             <if test="feeRangeMax != null">#{feeRangeMax},</if>
+            <if test="nursingFeeMin != null">#{nursingFeeMin},</if>
+            <if test="nursingFeeMax != null">#{nursingFeeMax},</if>
+            <if test="bedFeeMin != null">#{bedFeeMin},</if>
+            <if test="bedFeeMax != null">#{bedFeeMax},</if>
+            <if test="mealFeeMin != null">#{mealFeeMin},</if>
+            <if test="mealFeeMax != null">#{mealFeeMax},</if>
             <if test="acceptElderType != null">#{acceptElderType},</if>
             <if test="isPublished != null">#{isPublished},</if>
             <if test="createBy != null">#{createBy},</if>
@@ -141,9 +176,16 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="landArea != null">land_area = #{landArea},</if>
             <if test="buildingArea != null">building_area = #{buildingArea},</if>
             <if test="environmentImgs != null">environment_imgs = #{environmentImgs},</if>
+            <if test="mainPicture != null">main_picture = #{mainPicture},</if>
             <if test="rating != null">rating = #{rating},</if>
             <if test="feeRangeMin != null">fee_range_min = #{feeRangeMin},</if>
             <if test="feeRangeMax != null">fee_range_max = #{feeRangeMax},</if>
+            <if test="nursingFeeMin != null">nursing_fee_min = #{nursingFeeMin},</if>
+            <if test="nursingFeeMax != null">nursing_fee_max = #{nursingFeeMax},</if>
+            <if test="bedFeeMin != null">bed_fee_min = #{bedFeeMin},</if>
+            <if test="bedFeeMax != null">bed_fee_max = #{bedFeeMax},</if>
+            <if test="mealFeeMin != null">meal_fee_min = #{mealFeeMin},</if>
+            <if test="mealFeeMax != null">meal_fee_max = #{mealFeeMax},</if>
             <if test="acceptElderType != null">accept_elder_type = #{acceptElderType},</if>
             <if test="isPublished != null">is_published = #{isPublished},</if>
             <if test="updateBy != null">update_by = #{updateBy},</if>

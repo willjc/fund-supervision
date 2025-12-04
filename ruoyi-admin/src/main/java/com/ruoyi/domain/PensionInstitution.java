@@ -100,6 +100,33 @@ public class PensionInstitution extends BaseEntity
     @Excel(name = "最高价格")
     private java.math.BigDecimal priceRangeMax;
 
+    /** 护理费最低价 */
+    @Excel(name = "护理费最低价")
+    private java.math.BigDecimal nursingFeeMin;
+
+    /** 护理费最高价 */
+    @Excel(name = "护理费最高价")
+    private java.math.BigDecimal nursingFeeMax;
+
+    /** 床位费最低价 */
+    @Excel(name = "床位费最低价")
+    private java.math.BigDecimal bedFeeMin;
+
+    /** 床位费最高价 */
+    @Excel(name = "床位费最高价")
+    private java.math.BigDecimal bedFeeMax;
+
+    /** 膳食费最低价 */
+    @Excel(name = "膳食费最低价")
+    private java.math.BigDecimal mealFeeMin;
+
+    /** 膳食费最高价 */
+    @Excel(name = "膳食费最高价")
+    private java.math.BigDecimal mealFeeMax;
+
+    /** 机构封面图片(JSON格式) */
+    private String coverImages;
+
     /** 是否支持免费试住: 0-否 1-是 */
     @Excel(name = "免费试住", readConverterExp = "0=否,1=是")
     private String freeTrial;
@@ -400,6 +427,76 @@ public class PensionInstitution extends BaseEntity
         return priceRangeMax;
     }
 
+    public void setNursingFeeMin(java.math.BigDecimal nursingFeeMin)
+    {
+        this.nursingFeeMin = nursingFeeMin;
+    }
+
+    public java.math.BigDecimal getNursingFeeMin()
+    {
+        return nursingFeeMin;
+    }
+
+    public void setNursingFeeMax(java.math.BigDecimal nursingFeeMax)
+    {
+        this.nursingFeeMax = nursingFeeMax;
+    }
+
+    public java.math.BigDecimal getNursingFeeMax()
+    {
+        return nursingFeeMax;
+    }
+
+    public void setBedFeeMin(java.math.BigDecimal bedFeeMin)
+    {
+        this.bedFeeMin = bedFeeMin;
+    }
+
+    public java.math.BigDecimal getBedFeeMin()
+    {
+        return bedFeeMin;
+    }
+
+    public void setBedFeeMax(java.math.BigDecimal bedFeeMax)
+    {
+        this.bedFeeMax = bedFeeMax;
+    }
+
+    public java.math.BigDecimal getBedFeeMax()
+    {
+        return bedFeeMax;
+    }
+
+    public void setMealFeeMin(java.math.BigDecimal mealFeeMin)
+    {
+        this.mealFeeMin = mealFeeMin;
+    }
+
+    public java.math.BigDecimal getMealFeeMin()
+    {
+        return mealFeeMin;
+    }
+
+    public void setMealFeeMax(java.math.BigDecimal mealFeeMax)
+    {
+        this.mealFeeMax = mealFeeMax;
+    }
+
+    public java.math.BigDecimal getMealFeeMax()
+    {
+        return mealFeeMax;
+    }
+
+    public void setCoverImages(String coverImages)
+    {
+        this.coverImages = coverImages;
+    }
+
+    public String getCoverImages()
+    {
+        return coverImages;
+    }
+
     public void setFreeTrial(String freeTrial)
     {
         this.freeTrial = freeTrial;
@@ -634,6 +731,13 @@ public class PensionInstitution extends BaseEntity
             .append("ratingLevel", getRatingLevel())
             .append("priceRangeMin", getPriceRangeMin())
             .append("priceRangeMax", getPriceRangeMax())
+            .append("nursingFeeMin", getNursingFeeMin())
+            .append("nursingFeeMax", getNursingFeeMax())
+            .append("bedFeeMin", getBedFeeMin())
+            .append("bedFeeMax", getBedFeeMax())
+            .append("mealFeeMin", getMealFeeMin())
+            .append("mealFeeMax", getMealFeeMax())
+            .append("coverImages", getCoverImages())
             .append("freeTrial", getFreeTrial())
             .append("feeRange", getFeeRange())
             .append("establishedDate", getEstablishedDate())

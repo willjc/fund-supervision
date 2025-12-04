@@ -77,15 +77,7 @@
           <span>{{ scope.row.bedCount }}张</span>
         </template>
       </el-table-column>
-      <el-table-column label="收费范围" align="center" width="150">
-        <template slot-scope="scope">
-          <span v-if="scope.row.feeRangeMin && scope.row.feeRangeMax">
-            {{ scope.row.feeRangeMin }}-{{ scope.row.feeRangeMax }}元/月
-          </span>
-          <span v-else>-</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="公示状态" align="center" prop="isPublished" width="100">
+        <el-table-column label="公示状态" align="center" prop="isPublished" width="100">
         <template slot-scope="scope">
           <el-tag v-if="scope.row.isPublished === '1'" type="success">已公示</el-tag>
           <el-tag v-else-if="scope.row.publicId" type="info">未公示</el-tag>
@@ -183,18 +175,70 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="最低收费(元/月)" prop="feeRangeMin">
-              <el-input-number v-model="form.feeRangeMin" :min="0" :precision="2" style="width: 100%;" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="最高收费(元/月)" prop="feeRangeMax">
-              <el-input-number v-model="form.feeRangeMax" :min="0" :precision="2" style="width: 100%;" />
-            </el-form-item>
-          </el-col>
-        </el-row>
+        <!-- 结构化费用信息 -->
+        <el-divider content-position="left">费用信息</el-divider>
+
+        <!-- 护理费 -->
+        <el-form-item label="护理费(元/月)" prop="nursingFee">
+          <el-row :gutter="20">
+            <el-col :span="8">
+              <el-input-number v-model="form.nursingFeeMin" :min="0" :precision="2" placeholder="最低护理费用" style="width: 100%;" />
+            </el-col>
+            <el-col :span="8">
+              <el-input-number v-model="form.nursingFeeMax" :min="0" :precision="2" placeholder="最高护理费用" style="width: 100%;" />
+            </el-col>
+            <el-col :span="8">
+              <div class="form-tip" style="line-height: 32px;">护理费最低和最高费用</div>
+            </el-col>
+          </el-row>
+        </el-form-item>
+
+        <!-- 床位费 -->
+        <el-form-item label="床位费(元/月)" prop="bedFee">
+          <el-row :gutter="20">
+            <el-col :span="8">
+              <el-input-number v-model="form.bedFeeMin" :min="0" :precision="2" placeholder="最低床位费用" style="width: 100%;" />
+            </el-col>
+            <el-col :span="8">
+              <el-input-number v-model="form.bedFeeMax" :min="0" :precision="2" placeholder="最高床位费用" style="width: 100%;" />
+            </el-col>
+            <el-col :span="8">
+              <div class="form-tip" style="line-height: 32px;">床位费最低和最高费用</div>
+            </el-col>
+          </el-row>
+        </el-form-item>
+
+        <!-- 膳食费 -->
+        <el-form-item label="膳食费(元/月)" prop="mealFee">
+          <el-row :gutter="20">
+            <el-col :span="8">
+              <el-input-number v-model="form.mealFeeMin" :min="0" :precision="2" placeholder="最低膳食费用" style="width: 100%;" />
+            </el-col>
+            <el-col :span="8">
+              <el-input-number v-model="form.mealFeeMax" :min="0" :precision="2" placeholder="最高膳食费用" style="width: 100%;" />
+            </el-col>
+            <el-col :span="8">
+              <div class="form-tip" style="line-height: 32px;">膳食费最低和最高费用</div>
+            </el-col>
+          </el-row>
+        </el-form-item>
+
+        <!-- 总费用 -->
+        <el-form-item label="总费用(元/月)">
+          <el-row :gutter="20">
+            <el-col :span="6">
+              <el-input v-model="totalFeeMin" readonly placeholder="最低总费用(自动计算)" style="width: 100%;" />
+            </el-col>
+            <el-col :span="6">
+              <el-input v-model="totalFeeMax" readonly placeholder="最高总费用(自动计算)" style="width: 100%;" />
+            </el-col>
+            <el-col :span="12">
+              <div class="form-tip" style="line-height: 32px;">
+                <strong>总费用 = 护理费 + 床位费 + 膳食费</strong>
+              </div>
+            </el-col>
+          </el-row>
+        </el-form-item>
         <el-form-item label="收住对象能力" prop="acceptElderType">
           <el-checkbox-group v-model="acceptElderTypeList">
             <el-checkbox label="self_care">自理老人</el-checkbox>
@@ -202,6 +246,10 @@
             <el-checkbox label="disabled">失能老人</el-checkbox>
             <el-checkbox label="dementia">失智老人</el-checkbox>
           </el-checkbox-group>
+        </el-form-item>
+        <el-form-item label="机构主图">
+          <image-upload v-model="form.mainPicture" :limit="1" />
+          <div style="color: #999; font-size: 12px; margin-top: 8px;">只能上传1张图片，作为机构主要展示图片，建议尺寸800x600</div>
         </el-form-item>
         <el-form-item label="机构简介" prop="institutionIntro">
           <el-input v-model="form.institutionIntro" type="textarea" :rows="4" placeholder="请输入机构简介" />
@@ -238,6 +286,9 @@
           <el-descriptions-item label="统一信用代码">{{ viewData.creditCode || '-' }}</el-descriptions-item>
           <el-descriptions-item label="机构备案号">{{ viewData.recordNumber || '-' }}</el-descriptions-item>
           <el-descriptions-item label="机构地址" :span="2">{{ viewData.actualAddress || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="联系人">{{ viewData.contactPerson || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="联系电话">{{ viewData.contactPhone || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="联系邮箱" :span="2">{{ viewData.contactEmail || '-' }}</el-descriptions-item>
           <el-descriptions-item label="监管账户" :span="2">{{ viewData.superviseAccount || '-' }}</el-descriptions-item>
         </el-descriptions>
 
@@ -257,15 +308,39 @@
         </el-descriptions>
 
         <el-descriptions title="服务信息" :column="2" border style="margin-top: 20px;">
-          <el-descriptions-item label="收费范围">
-            <span v-if="viewData.feeRangeMin && viewData.feeRangeMax">
-              {{ viewData.feeRangeMin }}-{{ viewData.feeRangeMax }}元/月
-            </span>
-            <span v-else-if="viewData.feeRange">{{ viewData.feeRange }}</span>
-            <span v-else>-</span>
-          </el-descriptions-item>
           <el-descriptions-item label="收住对象能力">
             {{ formatAcceptElderType(viewData.acceptElderType) }}
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <!-- 费用信息 -->
+        <el-descriptions title="费用信息(元/月)" :column="2" border style="margin-top: 20px;">
+          <el-descriptions-item label="护理费">
+            <span v-if="viewData.nursingFeeMin != null && viewData.nursingFeeMax != null">
+              {{ viewData.nursingFeeMin }} - {{ viewData.nursingFeeMax }}
+            </span>
+            <span v-else>-</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="床位费">
+            <span v-if="viewData.bedFeeMin != null && viewData.bedFeeMax != null">
+              {{ viewData.bedFeeMin }} - {{ viewData.bedFeeMax }}
+            </span>
+            <span v-else>-</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="膳食费">
+            <span v-if="viewData.mealFeeMin != null && viewData.mealFeeMax != null">
+              {{ viewData.mealFeeMin }} - {{ viewData.mealFeeMax }}
+            </span>
+            <span v-else>-</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="总费用">
+            <span v-if="viewData.nursingFeeMin != null && viewData.nursingFeeMax != null &&
+                      viewData.bedFeeMin != null && viewData.bedFeeMax != null &&
+                      viewData.mealFeeMin != null && viewData.mealFeeMax != null">
+              {{ (viewData.nursingFeeMin + viewData.bedFeeMin + viewData.mealFeeMin).toFixed(2) }} -
+              {{ (viewData.nursingFeeMax + viewData.bedFeeMax + viewData.mealFeeMax).toFixed(2) }}
+            </span>
+            <span v-else>-</span>
           </el-descriptions-item>
         </el-descriptions>
 
@@ -282,6 +357,19 @@
         <div class="detail-section" v-if="viewData.serviceFeatures">
           <h4>特色服务</h4>
           <p>{{ viewData.serviceFeatures }}</p>
+        </div>
+
+        <!-- 机构主图 -->
+        <div class="detail-section" v-if="viewData.mainPicture">
+          <h4>机构主图</h4>
+          <div class="main-image-container">
+            <el-image
+              :src="getImageUrl(viewData.mainPicture)"
+              :preview-src-list="[getImageUrl(viewData.mainPicture)]"
+              fit="cover"
+              style="width: 300px; height: 200px; border-radius: 5px;"
+            ></el-image>
+          </div>
         </div>
 
         <div class="detail-section" v-if="viewData.environmentImgs">
@@ -326,13 +414,6 @@
         </el-descriptions>
 
         <el-descriptions title="服务信息" :column="2" border style="margin-top: 20px;">
-          <el-descriptions-item label="收费范围">
-            <span v-if="form.feeRangeMin && form.feeRangeMax">
-              {{ form.feeRangeMin }}-{{ form.feeRangeMax }}元/月
-            </span>
-            <span v-else-if="previewData.feeRange">{{ previewData.feeRange }}</span>
-            <span v-else>-</span>
-          </el-descriptions-item>
           <el-descriptions-item label="收住对象能力">
             {{ previewAcceptElderType() }}
           </el-descriptions-item>
@@ -371,6 +452,7 @@
         <el-button @click="previewOpen = false">关 闭</el-button>
       </div>
     </el-dialog>
+
   </div>
 </template>
 
@@ -441,6 +523,61 @@ export default {
       }
     };
   },
+  computed: {
+    // 计算总费用最低价
+    totalFeeMin() {
+      const nursing = this.form.nursingFeeMin || 0;
+      const bed = this.form.bedFeeMin || 0;
+      const meal = this.form.mealFeeMin || 0;
+      return (nursing + bed + meal).toFixed(2);
+    },
+    // 计算总费用最高价
+    totalFeeMax() {
+      const nursing = this.form.nursingFeeMax || 0;
+      const bed = this.form.bedFeeMax || 0;
+      const meal = this.form.mealFeeMax || 0;
+      return (nursing + bed + meal).toFixed(2);
+    }
+  },
+  watch: {
+    // 监听费用变化，实时更新总费用显示
+    'form.nursingFeeMin': {
+      handler() {
+        this.$forceUpdate();
+      },
+      deep: true
+    },
+    'form.nursingFeeMax': {
+      handler() {
+        this.$forceUpdate();
+      },
+      deep: true
+    },
+    'form.bedFeeMin': {
+      handler() {
+        this.$forceUpdate();
+      },
+      deep: true
+    },
+    'form.bedFeeMax': {
+      handler() {
+        this.$forceUpdate();
+      },
+      deep: true
+    },
+    'form.mealFeeMin': {
+      handler() {
+        this.$forceUpdate();
+      },
+      deep: true
+    },
+    'form.mealFeeMax': {
+      handler() {
+        this.$forceUpdate();
+      },
+      deep: true
+    }
+  },
   created() {
     this.getList();
     this.getInstitutionList();
@@ -478,8 +615,14 @@ export default {
         landArea: null,
         buildingArea: null,
         environmentImgs: null,
-        feeRangeMin: null,
-        feeRangeMax: null,
+        mainPicture: null,
+        // 结构化费用字段
+        nursingFeeMin: 0,
+        nursingFeeMax: 0,
+        bedFeeMin: 0,
+        bedFeeMax: 0,
+        mealFeeMin: 0,
+        mealFeeMax: 0,
         acceptElderType: null,
         isPublished: '0'
       };
@@ -684,6 +827,16 @@ export default {
         // 否则拼接基础路径
         return process.env.VUE_APP_BASE_API + img;
       });
+    },
+    // 获取单个图片URL
+    getImageUrl(imgStr) {
+      if (!imgStr) return '';
+      // 如果是外部链接,直接返回
+      if (imgStr.startsWith('http://') || imgStr.startsWith('https://')) {
+        return imgStr;
+      }
+      // 否则拼接基础路径
+      return process.env.VUE_APP_BASE_API + imgStr;
     }
   }
 };
@@ -695,6 +848,13 @@ export default {
   max-height: 700px;
   overflow-y: auto;
   padding: 10px;
+}
+
+.form-tip {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 5px;
+  line-height: 1.4;
 }
 
 .detail-header,
@@ -774,5 +934,10 @@ export default {
 .gallery-image:hover {
   transform: scale(1.05);
   box-shadow: 0 0 10px 2px #999;
+}
+
+.main-image-container {
+  margin-bottom: 15px;
+  text-align: center;
 }
 </style>

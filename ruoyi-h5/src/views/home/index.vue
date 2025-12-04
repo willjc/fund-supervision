@@ -85,7 +85,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import InstitutionCard from '@/components/InstitutionCard.vue'
-// import { getInstitutionList } from '@/api/institution' // 暂时使用模拟数据
+import { getRecommendInstitutions } from '@/api/institution'
 
 const router = useRouter()
 
@@ -289,34 +289,46 @@ const goToInstitutionList = () => {
   router.push('/institution')
 }
 
-// 加载机构列表 (使用模拟数据)
+// 加载机构列表 (使用真实API)
 const loadInstitutions = async () => {
   try {
     loading.value = true
 
-    // 模拟网络延迟
-    await new Promise(resolve => setTimeout(resolve, 500))
+    const response = await getRecommendInstitutions()
 
-    // 计算分页数据
-    const startIndex = (pageNum.value - 1) * pageSize.value
-    const endIndex = startIndex + pageSize.value
-    const newList = mockInstitutions.slice(startIndex, endIndex)
+    if (response.code === 200 && response.data) {
+      // 后端已经返回H5期望格式的数据，直接使用
+      if (refreshing.value) {
+        institutionList.value = response.data
+        refreshing.value = false
+      } else {
+        institutionList.value = response.data
+      }
 
-    if (refreshing.value) {
-      institutionList.value = newList
-      refreshing.value = false
-    } else {
-      institutionList.value.push(...newList)
-    }
-
-    // 判断是否还有更多数据
-    if (endIndex >= mockInstitutions.length) {
+      // 标记加载完成
       finished.value = true
     } else {
-      pageNum.value++
+      showToast(response.msg || '获取机构列表失败')
+      // API失败时保留mock数据作为备用方案
+      if (refreshing.value) {
+        institutionList.value = mockInstitutions.slice(0, pageSize.value)
+        refreshing.value = false
+      } else {
+        institutionList.value = mockInstitutions
+      }
+      finished.value = true
     }
   } catch (error) {
-    showToast('加载失败')
+    console.error('获取机构数据失败:', error)
+    showToast('加载失败，显示示例数据')
+    // 网络错误时使用mock数据
+    if (refreshing.value) {
+      institutionList.value = mockInstitutions.slice(0, pageSize.value)
+      refreshing.value = false
+    } else {
+      institutionList.value = mockInstitutions
+    }
+    finished.value = true
   } finally {
     loading.value = false
   }

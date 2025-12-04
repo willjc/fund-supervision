@@ -45,6 +45,9 @@ public class PensionInstitutionPublic extends BaseEntity
     /** 环境图片(JSON数组) */
     private String environmentImgs;
 
+    /** 机构主图 */
+    private String mainPicture;
+
     /** 评级(1-5星) */
     @Excel(name = "评级")
     private String rating;
@@ -56,6 +59,30 @@ public class PensionInstitutionPublic extends BaseEntity
     /** 收费区间最大值 */
     @Excel(name = "最高收费")
     private java.math.BigDecimal feeRangeMax;
+
+    /** 护理费最低价 */
+    @Excel(name = "护理费最低价")
+    private java.math.BigDecimal nursingFeeMin;
+
+    /** 护理费最高价 */
+    @Excel(name = "护理费最高价")
+    private java.math.BigDecimal nursingFeeMax;
+
+    /** 床位费最低价 */
+    @Excel(name = "床位费最低价")
+    private java.math.BigDecimal bedFeeMin;
+
+    /** 床位费最高价 */
+    @Excel(name = "床位费最高价")
+    private java.math.BigDecimal bedFeeMax;
+
+    /** 膳食费最低价 */
+    @Excel(name = "膳食费最低价")
+    private java.math.BigDecimal mealFeeMin;
+
+    /** 膳食费最高价 */
+    @Excel(name = "膳食费最高价")
+    private java.math.BigDecimal mealFeeMax;
 
     /** 收住老人类型(多选,逗号分隔: self_care,semi_disabled,disabled,dementia) */
     @Excel(name = "收住对象")
@@ -90,6 +117,15 @@ public class PensionInstitutionPublic extends BaseEntity
 
     /** 收费区间(来自机构表) */
     private String feeRange;
+
+    /** 联系人(关联查询字段，不映射到数据库) */
+    private String contactPerson;
+
+    /** 联系电话(关联查询字段，不映射到数据库) */
+    private String contactPhone;
+
+    /** 联系邮箱(关联查询字段，不映射到数据库) */
+    private String contactEmail;
 
     /** 当前用户ID (用于数据权限过滤,不映射到数据库) */
     private Long currentUserId;
@@ -174,6 +210,16 @@ public class PensionInstitutionPublic extends BaseEntity
         return environmentImgs;
     }
 
+    public String getMainPicture()
+    {
+        return mainPicture;
+    }
+
+    public void setMainPicture(String mainPicture)
+    {
+        this.mainPicture = mainPicture;
+    }
+
     public void setRating(String rating)
     {
         this.rating = rating;
@@ -202,6 +248,66 @@ public class PensionInstitutionPublic extends BaseEntity
     public java.math.BigDecimal getFeeRangeMax()
     {
         return feeRangeMax;
+    }
+
+    public void setNursingFeeMin(java.math.BigDecimal nursingFeeMin)
+    {
+        this.nursingFeeMin = nursingFeeMin;
+    }
+
+    public java.math.BigDecimal getNursingFeeMin()
+    {
+        return nursingFeeMin;
+    }
+
+    public void setNursingFeeMax(java.math.BigDecimal nursingFeeMax)
+    {
+        this.nursingFeeMax = nursingFeeMax;
+    }
+
+    public java.math.BigDecimal getNursingFeeMax()
+    {
+        return nursingFeeMax;
+    }
+
+    public void setBedFeeMin(java.math.BigDecimal bedFeeMin)
+    {
+        this.bedFeeMin = bedFeeMin;
+    }
+
+    public java.math.BigDecimal getBedFeeMin()
+    {
+        return bedFeeMin;
+    }
+
+    public void setBedFeeMax(java.math.BigDecimal bedFeeMax)
+    {
+        this.bedFeeMax = bedFeeMax;
+    }
+
+    public java.math.BigDecimal getBedFeeMax()
+    {
+        return bedFeeMax;
+    }
+
+    public void setMealFeeMin(java.math.BigDecimal mealFeeMin)
+    {
+        this.mealFeeMin = mealFeeMin;
+    }
+
+    public java.math.BigDecimal getMealFeeMin()
+    {
+        return mealFeeMin;
+    }
+
+    public void setMealFeeMax(java.math.BigDecimal mealFeeMax)
+    {
+        this.mealFeeMax = mealFeeMax;
+    }
+
+    public java.math.BigDecimal getMealFeeMax()
+    {
+        return mealFeeMax;
     }
 
     public void setAcceptElderType(String acceptElderType)
@@ -280,6 +386,30 @@ public class PensionInstitutionPublic extends BaseEntity
         this.feeRange = feeRange;
     }
 
+    public String getContactPerson() {
+        return contactPerson;
+    }
+
+    public void setContactPerson(String contactPerson) {
+        this.contactPerson = contactPerson;
+    }
+
+    public String getContactPhone() {
+        return contactPhone;
+    }
+
+    public void setContactPhone(String contactPhone) {
+        this.contactPhone = contactPhone;
+    }
+
+    public String getContactEmail() {
+        return contactEmail;
+    }
+
+    public void setContactEmail(String contactEmail) {
+        this.contactEmail = contactEmail;
+    }
+
     public Long getCurrentUserId() {
         return currentUserId;
     }
@@ -302,6 +432,12 @@ public class PensionInstitutionPublic extends BaseEntity
             .append("rating", getRating())
             .append("feeRangeMin", getFeeRangeMin())
             .append("feeRangeMax", getFeeRangeMax())
+            .append("nursingFeeMin", getNursingFeeMin())
+            .append("nursingFeeMax", getNursingFeeMax())
+            .append("bedFeeMin", getBedFeeMin())
+            .append("bedFeeMax", getBedFeeMax())
+            .append("mealFeeMin", getMealFeeMin())
+            .append("mealFeeMax", getMealFeeMax())
             .append("acceptElderType", getAcceptElderType())
             .append("isPublished", getIsPublished())
             .append("createBy", getCreateBy())
