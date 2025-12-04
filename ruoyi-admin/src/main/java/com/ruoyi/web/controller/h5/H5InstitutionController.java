@@ -17,6 +17,7 @@ import com.ruoyi.domain.PensionInstitution;
 import com.ruoyi.domain.PensionInstitutionPublic;
 import com.ruoyi.service.IPensionInstitutionService;
 import com.ruoyi.service.IPensionInstitutionPublicService;
+import com.ruoyi.service.IBedInfoService;
 
 /**
  * H5养老机构Controller
@@ -32,6 +33,9 @@ public class H5InstitutionController extends BaseController
 
     @Autowired
     private IPensionInstitutionPublicService pensionInstitutionPublicService;
+
+    @Autowired
+    private IBedInfoService bedInfoService;
 
     /**
      * 查询养老机构列表 (H5端,不需要权限)
@@ -103,6 +107,17 @@ public class H5InstitutionController extends BaseController
         result.put("contactPhone", publicity.getContactPhone() != null ? publicity.getContactPhone() : ""); // 返回真实的联系电话
         result.put("bedCount", publicity.getBedCount() != null ? publicity.getBedCount() : 0);
         result.put("institutionType", "nursing_home"); // 默认类型
+
+        // 获取床位统计
+        try {
+            Map<String, Object> bedStatistics = bedInfoService.getBedStatistics(publicity.getInstitutionId());
+            result.put("totalBeds", bedStatistics.get("totalBeds"));
+            result.put("availableBeds", bedStatistics.get("availableBeds"));
+        } catch (Exception e) {
+            // 异常时使用0
+            result.put("totalBeds", 0);
+            result.put("availableBeds", 0);
+        }
 
         // 费用区间构建 - 优先使用结构化费用数据，回退到简单费用区间
         Map<String, Object> priceRanges = new HashMap<>();

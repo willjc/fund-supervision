@@ -1,6 +1,7 @@
 package com.ruoyi.service;
 
 import java.util.List;
+import java.util.Map;
 import com.ruoyi.domain.BedInfo;
 
 /**
@@ -84,4 +85,12 @@ public interface IBedInfoService
      * @return 导入结果消息
      */
     public String importBedInfo(List<BedInfo> bedList, Long institutionId, boolean updateSupport);
+
+    /**
+     * 获取机构床位统计信息
+     *
+     * @param institutionId 机构ID
+     * @return 床位统计信息 {totalBeds: 总床位, availableBeds: 可定床位}
+     */
+    public Map<String, Object> getBedStatistics(Long institutionId);
 }

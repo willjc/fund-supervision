@@ -152,4 +152,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
           and bed_number = #{bedNumber}
     </select>
 
+    <select id="selectBedStatistics" parameterType="Long" resultType="map">
+        SELECT
+            COUNT(*) as totalBeds,
+            COUNT(CASE WHEN bed_status = '0' THEN 1 END) as availableBeds
+        FROM bed_info
+        WHERE institution_id = #{institutionId}
+    </select>
+
 </mapper>

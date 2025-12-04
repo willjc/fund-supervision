@@ -1,6 +1,7 @@
 package com.ruoyi.service.impl;
 
 import java.util.List;
+import java.util.Map;
 import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -318,5 +319,17 @@ public class BedInfoServiceImpl implements IBedInfoService
                     throw new ServiceException("阳台格式错误,请填写: 是/否");
             }
         }
+    }
+
+    /**
+     * 获取机构床位统计信息
+     *
+     * @param institutionId 机构ID
+     * @return 床位统计信息 {totalBeds: 总床位, availableBeds: 可定床位}
+     */
+    @Override
+    public Map<String, Object> getBedStatistics(Long institutionId)
+    {
+        return bedInfoMapper.selectBedStatistics(institutionId);
     }
 }

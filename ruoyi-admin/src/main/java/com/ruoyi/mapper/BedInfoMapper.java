@@ -1,6 +1,7 @@
 package com.ruoyi.mapper;
 
 import java.util.List;
+import java.util.Map;
 import com.ruoyi.domain.BedInfo;
 import org.apache.ibatis.annotations.Param;
 
@@ -88,4 +89,12 @@ public interface BedInfoMapper
     public BedInfo selectBedByRoomAndBedNumber(@Param("institutionId") Long institutionId,
                                                 @Param("roomNumber") String roomNumber,
                                                 @Param("bedNumber") String bedNumber);
+
+    /**
+     * 统计机构床位信息
+     *
+     * @param institutionId 机构ID
+     * @return 床位统计Map {totalBeds: 总数, availableBeds: 可定数}
+     */
+    public Map<String, Object> selectBedStatistics(Long institutionId);
 }

@@ -15,7 +15,7 @@
         <div class="card-title">{{ institution.institutionName || institution.name }}</div>
 
         <div class="card-meta">
-          <span>开设: 8-50 (可容纳50人/运营机构)</span>
+          <span>床位数：{{ institution.availableBeds || 0 }}/{{ institution.totalBeds || 0 }}(可定床位数/总床位数)</span>
         </div>
 
         <div class="card-info">
