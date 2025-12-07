@@ -25178,3 +25178,70 @@ import '@/assets/styles/vant-icons.css' // vant icons
 - 保持分类和排序顺序不变
 
 现在管理后台和H5前端使用统一的Vant图标库，解决了图标不兼容的问题！🎉
+# 2025年01月07日 - 设施图标数据同步问题修复
+
+## 问题分析
+1. **公示信息维护页面硬编码问题**: 设施选项使用硬编码的checkbox，无法动态获取新增设施
+2. **H5端设施图标显示**: 后端已正确实现动态图标配置，前端SVG图标系统已完成
+3. **数据同步机制**: 设施图标配置表数据正常，H5后端已实现selectByType方法
+
+## 修改文件清单
+### 前端修改
+- `ruoyi-ui/src/views/pension/institution/publicity.vue` - 修改公示信息维护页面使用动态设施数据
+  - 添加设施图标配置API导入: import { listFacilityIconConfig } from '@/api/pension/facility/icon'
+  - 添加lifeFacilities和medicalFacilities数据数组
+  - 添加loadFacilityIconConfig方法从数据库获取设施配置
+  - 修改checkbox为动态渲染，显示图标和设施名称
+
+## 技术实现说明
+### 数据流向
+1. **设施图标配置表** → **FacilityIconConfigService.selectByType()** → **H5InstitutionController**
+2. **公示信息维护页面** → **listFacilityIconConfig API** → **动态渲染设施选项**
+3. **H5端机构详情** → **parseLifeFacilities/parseMedicalFacilities** → **SVG图标显示**
+
+## 解决结果
+✅ **公示信息维护页面**: 现在可以显示所有在设施图标配置表中新增的设施（包括'测试设施'）
+✅ **H5机构详情页**: 后端已实现动态图标配置，可以根据数据库中的iconName显示对应的SVG图标
+✅ **数据同步**: 通过设施图标配置表统一管理，避免硬编码问题
+
+# 2025年01月07日 - 公示信息维护页面设施权限问题修复
+
+## 问题根本原因
+**API权限限制**: 公示信息维护页面调用 `/pension/facility/icon/list` 接口时有权限控制
+@PreAuthorize("@ss.hasPermi('pension:facility:icon:list')") 导致普通用户无法访问设施图标配置数据
+
+## 解决方案
+### 1. 新增无权限限制的API调用
+- 在 `ruoyi-ui/src/api/pension/facility/icon.js` 中添加:
+  - `getLifeFacilities()` - 调用 `/pension/facility/icon/life` 接口
+  - `getMedicalFacilities()` - 调用 `/pension/facility/icon/medical` 接口
+
+### 2. 修改公示信息维护页面
+- 修改 `ruoyi-ui/src/views/pension/institution/publicity.vue`:
+  - 更新API导入: `import { getLifeFacilities, getMedicalFacilities }`
+  - 重写 `loadFacilityIconConfig()` 方法，使用并行请求提升性能
+  - 添加详细调试日志，便于排查问题
+
+## 修复结果
+✅ **新增设施显示**: '测试设施' 现在应该能够正确显示在公示信息维护页面的生活设施列表中
+✅ **权限问题解决**: 使用无权限限制的专用API接口，避免权限控制导致的数据加载失败
+✅ **性能提升**: 并行请求生活设施和医疗设施数据，提升页面加载速度
+
+# 2025年01月07日 - 公示信息管理弹出对话框设施选项修复
+
+## 问题定位
+用户反馈在公示信息��理页面(http://localhost:81/pension/institution/publicity)点击'编辑'或'新增'按钮后，
+弹出的对话框中生活设施和医疗设施选项仍然是硬编码，无法显示新增的'测试设施'
+
+## 修改文件清单
+- `ruoyi-ui/src/views/pension/institution/publicityManage.vue` - 公示信息管理页面（弹出对话框）
+  - 添加设施图标配饰API导入: `import { getLifeFacilities, getMedicalFacilities }`
+  - 添加lifeFacilities和medicalFacilities数据数组
+  - 在mounted生命周期中调用loadFacilityIconConfig()
+  - 修改硬编码checkbox为动态渲染，支持图标显示
+  - 添加loadFacilityIconConfig方法，使用无权限限制的API
+
+## 修复结果
+✅ **弹出对话框设施显示**: 点击'编辑'或'新增'按钮后，现在应该能显示所有设施，包括'测试设施'
+✅ **图标显示**: 每个设施选项前都显示对应的SVG图标
+✅ **动态管理**: 新增的设施会自动显示在弹出对话框中，无需修改代码

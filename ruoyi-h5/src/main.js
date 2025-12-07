@@ -10,7 +10,13 @@ import 'amfe-flexible'
 import Vant from 'vant'
 import 'vant/lib/index.css'
 
+// 引入SVG图标
+import { SvgIcon } from './assets/icons'
+
 const app = createApp(App)
+
+// 注册全局SVG图标组件
+app.component('svg-icon', SvgIcon)
 
 app.use(router)
 app.use(store)

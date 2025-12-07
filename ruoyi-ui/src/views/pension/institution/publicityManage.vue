@@ -288,39 +288,26 @@
 
         <el-form-item label="生活设施">
           <el-checkbox-group v-model="selectedLifeFacilities">
-            <el-checkbox label="独立卫浴">独立卫浴</el-checkbox>
-            <el-checkbox label="紧急呼叫">紧急呼叫</el-checkbox>
-            <el-checkbox label="洗衣服务">洗衣服务</el-checkbox>
-            <el-checkbox label="活动室">活动室</el-checkbox>
-            <el-checkbox label="图书阅览室">图书阅览室</el-checkbox>
-            <el-checkbox label="电视/娱乐设备">电视/娱乐设备</el-checkbox>
-            <el-checkbox label="空调设备">空调设备</el-checkbox>
-            <el-checkbox label="暖气设备">暖气设备</el-checkbox>
-            <el-checkbox label="无线网络">无线网络</el-checkbox>
-            <el-checkbox label="储物柜">储物柜</el-checkbox>
-            <el-checkbox label="衣柜">衣柜</el-checkbox>
-            <el-checkbox label="吧台/茶水间">吧台/茶水间</el-checkbox>
-            <el-checkbox label="阳台/露台">阳台/露台</el-checkbox>
+            <el-checkbox
+              v-for="facility in lifeFacilities"
+              :key="facility.id"
+              :label="facility.facilityName">
+              <svg-icon v-if="facility.iconName" :icon-class="facility.iconName" />
+              {{ facility.facilityName }}
+            </el-checkbox>
           </el-checkbox-group>
           <div style="color: #999; font-size: 12px;">请选择机构拥有的生活设施</div>
         </el-form-item>
 
         <el-form-item label="医疗设施">
           <el-checkbox-group v-model="selectedMedicalFacilities">
-            <el-checkbox label="医疗室">医疗室</el-checkbox>
-            <el-checkbox label="康复室">康复室</el-checkbox>
-            <el-checkbox label="理疗室">理疗室</el-checkbox>
-            <el-checkbox label="健康监测">健康监测</el-checkbox>
-            <el-checkbox label="药房">药房</el-checkbox>
-            <el-checkbox label="急救设备">急救设备</el-checkbox>
-            <el-checkbox label="专业医生">专业医生</el-checkbox>
-            <el-checkbox label="护士站">护士站</el-checkbox>
-            <el-checkbox label="体检设备">体检设备</el-checkbox>
-            <el-checkbox label="心电图机">心电图机</el-checkbox>
-            <el-checkbox label="血压监测">血压监测</el-checkbox>
-            <el-checkbox label="输液设备">输液设备</el-checkbox>
-            <el-checkbox label="氧气设备">氧气设备</el-checkbox>
-            <el-checkbox label="呼叫系统">呼叫系统</el-checkbox>
+            <el-checkbox
+              v-for="facility in medicalFacilities"
+              :key="facility.id"
+              :label="facility.facilityName">
+              <svg-icon v-if="facility.iconName" :icon-class="facility.iconName" />
+              {{ facility.facilityName }}
+            </el-checkbox>
           </el-checkbox-group>
           <div style="color: #999; font-size: 12px;">请选择机构拥有的医疗设施</div>
         </el-form-item>
@@ -631,6 +618,7 @@
 <script>
 import { listPublicity, getPublicity, addPublicity, updatePublicity, delPublicity, publishPublicity, unpublishPublicity, batchPublish } from "@/api/pension/publicityManage";
 import { listInstitution } from "@/api/pension/institution";
+import { getLifeFacilities, getMedicalFacilities } from '@/api/pension/facility/icon';
 import ImageUpload from '@/components/ImageUpload';
 import ImagePreview from '@/components/ImagePreview';
 
@@ -685,6 +673,9 @@ export default {
       selectedLifeFacilities: [],
       selectedMedicalFacilities: [],
       dailyServices: [],
+      // 设施图标配置数据
+      lifeFacilities: [],
+      medicalFacilities: [],
       // 表单校验
       rules: {
         landArea: [
@@ -757,6 +748,9 @@ export default {
   created() {
     this.getList();
     this.getInstitutionList();
+  },
+  mounted() {
+    this.loadFacilityIconConfig();
   },
   methods: {
     /** 查询公示信息列表 */
@@ -1110,6 +1104,43 @@ export default {
     // 删除每日服务项
     removeService(index) {
       this.dailyServices.splice(index, 1);
+    },
+
+    // 加载设施图标配置
+    loadFacilityIconConfig() {
+      console.log('开始加载设施图标配置')
+
+      // 并行加载生活和医疗设施
+      Promise.all([
+        getLifeFacilities(),
+        getMedicalFacilities()
+      ]).then(([lifeResponse, medicalResponse]) => {
+        console.log('生活设施API响应:', lifeResponse)
+        console.log('医疗设施API响应:', medicalResponse)
+
+        if (lifeResponse.code === 200) {
+          this.lifeFacilities = lifeResponse.data || []
+          console.log('生活设施数量:', this.lifeFacilities.length)
+          console.log('生活设施详情:', this.lifeFacilities)
+        } else {
+          this.lifeFacilities = []
+          console.error('获取生活设施失败:', lifeResponse.msg)
+        }
+
+        if (medicalResponse.code === 200) {
+          this.medicalFacilities = medicalResponse.data || []
+          console.log('医疗设施数量:', this.medicalFacilities.length)
+          console.log('医疗设施详情:', this.medicalFacilities)
+        } else {
+          this.medicalFacilities = []
+          console.error('获取医疗设施失败:', medicalResponse.msg)
+        }
+      }).catch(error => {
+        console.error('加载设施图标配置失败:', error)
+        this.$message.error('加载设施图标配置失败')
+        this.lifeFacilities = []
+        this.medicalFacilities = []
+      })
     }
   }
 };

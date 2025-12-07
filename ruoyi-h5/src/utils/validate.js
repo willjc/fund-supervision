@@ -51,3 +51,12 @@ export function validateURL(url) {
   )
   return pattern.test(url)
 }
+
+/**
+ * 判断是否为外部链接
+ * @param path
+ * @returns {boolean}
+ */
+export function isExternal(path) {
+  return /^(https?:|mailto:|tel:)/.test(path)
+}

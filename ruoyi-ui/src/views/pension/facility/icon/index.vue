@@ -67,7 +67,7 @@
       <el-table-column label="设施名称" align="center" prop="facilityName" />
       <el-table-column label="图标" align="center" prop="iconName" width="120">
         <template slot-scope="scope">
-          <i v-if="scope.row.iconName" :class="`van-icon van-icon-${scope.row.iconName}`" style="font-size: 20px; color: #409eff;"></i>
+          <svg-icon v-if="scope.row.iconName" :icon-class="scope.row.iconName" />
           <span v-else>-</span>
         </template>
       </el-table-column>
@@ -118,9 +118,14 @@
         </el-form-item>
         <el-form-item label="图标名称" prop="iconName">
           <el-popover placement="bottom-start" width="460" trigger="click">
-            <VantIconSelect ref="iconSelect" @selected="selected" :active-icon="form.iconName" />
-            <el-input slot="reference" v-model="form.iconName" placeholder="点击选择Vant图标" readonly>
-              <i v-if="form.iconName" :class="`van-icon van-icon-${form.iconName}`" slot="prefix" style="font-size: 16px; margin-left: 5px;"></i>
+            <icon-select ref="iconSelect" @selected="selected" :active-icon="form.iconName" />
+            <el-input slot="reference" v-model="form.iconName" placeholder="点击选择图标" readonly>
+              <svg-icon
+                v-if="form.iconName"
+                slot="prefix"
+                :icon-class="form.iconName"
+                class="el-input__icon"
+              />
             </el-input>
           </el-popover>
         </el-form-item>
@@ -160,13 +165,13 @@
 
 <script>
 import { listFacilityIconConfig, getFacilityIconConfig, delFacilityIconConfig, addFacilityIconConfig, updateFacilityIconConfig } from "@/api/pension/facility/icon";
-import VantIconSelect from '@/components/VantIconSelect'
+import IconSelect from '@/components/IconSelect'
 
 export default {
   name: "FacilityIcon",
   dicts: ['facility_type', 'sys_normal_disable'],
   components: {
-    VantIconSelect
+    IconSelect
   },
   data() {
     return {

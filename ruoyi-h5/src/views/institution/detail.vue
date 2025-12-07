@@ -179,7 +179,7 @@
           <van-cell-group v-if="detail.lifeFacilities && detail.lifeFacilities.length > 0" title="生活设施">
             <div class="facility-grid">
               <div v-for="(facility, index) in detail.lifeFacilities" :key="index" class="facility-item">
-                <van-icon :name="facility.icon" size="28" color="#1989fa" />
+                <svg-icon :icon-class="facility.icon" class="facility-icon" />
                 <span>{{ facility.name }}</span>
               </div>
             </div>
@@ -189,7 +189,7 @@
           <van-cell-group v-if="detail.medicalFacilities && detail.medicalFacilities.length > 0" title="医疗设施">
             <div class="facility-grid">
               <div v-for="(facility, index) in detail.medicalFacilities" :key="index" class="facility-item">
-                <van-icon :name="facility.icon" size="28" color="#07c160" />
+                <svg-icon :icon-class="facility.icon" class="facility-icon medical" />
                 <span>{{ facility.name }}</span>
               </div>
             </div>
@@ -848,6 +848,16 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   gap: 8px;
+}
+
+.facility-icon {
+  width: 28px;
+  height: 28px;
+  color: #1989fa;
+}
+
+.facility-icon.medical {
+  color: #07c160;
 }
 
 .facility-item span {

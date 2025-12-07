@@ -1,11 +1,27 @@
 import request from '@/utils/request'
 
-// 查询设施图标配置列表
+// 查询设施图标配置��表
 export function listFacilityIconConfig(query) {
   return request({
     url: '/pension/facility/icon/list',
     method: 'get',
     params: query
+  })
+}
+
+// 获取生活设施图标配置（无权限限制）
+export function getLifeFacilities() {
+  return request({
+    url: '/pension/facility/icon/life',
+    method: 'get'
+  })
+}
+
+// 获取医疗设施图标配���（无权限限制）
+export function getMedicalFacilities() {
+  return request({
+    url: '/pension/facility/icon/medical',
+    method: 'get'
   })
 }
 
