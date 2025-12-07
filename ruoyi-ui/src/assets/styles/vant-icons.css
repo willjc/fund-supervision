@@ -1,0 +1,49 @@
+/* Vant图标样式 */
+@import url('https://cdn.jsdelivr.net/npm/@vant/icons@latest/index.css');
+
+/* 基础图标样式 */
+.van-icon {
+  display: inline-block;
+  font-family: 'vant-icon', sans-serif;
+  font-style: normal;
+  font-weight: normal;
+  line-height: 1;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 常用图标的fallback样式 */
+.van-icon-home-o::before { content: "🏠"; }
+.van-icon-search::before { content: "🔍"; }
+.van-icon-friends-o::before { content: "👥"; }
+.van-icon-setting-o::before { content: "⚙️"; }
+.van-icon-phone-o::before { content: "📞"; }
+.van-icon-location-o::before { content: "📍"; }
+.van-icon-like-o::before { content: "❤️"; }
+.van-icon-star-o::before { content: "⭐"; }
+.van-icon-edit::before { content: "✏️"; }
+.van-icon-delete::before { content: "🗑️"; }
+.van-icon-plus::before { content: "➕"; }
+.van-icon-minus::before { content: "➖"; }
+
+/* 设施相关图标fallback样式 */
+.van-icon-bathroom-o::before { content: "🛁"; }
+.van-icon-wifi-o::before { content: "📶"; }
+.van-icon-hospital-o::before { content: "🏥"; }
+.van-icon-service-o::before { content: "🔧"; }
+.van-icon-shopping-o::before { content: "🛒"; }
+.van-icon-tv-o::before { content: "📺"; }
+.van-icon-chair::before { content: "🪑"; }
+.van-icon-bed::before { content: "🛏️"; }
+.van-icon-sofa::before { content: "🛋️"; }
+.van-icon-table::before { content: "🪑"; }
+.van-icon-fridge-o::before { content: "🧊"; }
+
+/* 医疗相关图标fallback样式 */
+.van-icon-first-aid-o::before { content: "🚑"; }
+.van-icon-thermometer-o::before { content: "🌡️"; }
+.van-icon-medication::before { content: "💊"; }
+.van-icon-health::before { content: "❤️"; }
+.van-icon-ambulance::before { content: "🚑"; }
+.van-icon-wheelchair::before { content: "♿"; }
+.van-icon-washing-o::before { content: "🧺"; }

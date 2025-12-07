@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.mapper.FacilityIconConfigMapper">
+
+    <resultMap type="FacilityIconConfig" id="FacilityIconConfigResult">
+        <result property="id"    column="id"    />
+        <result property="facilityName"    column="facility_name"    />
+        <result property="iconName"    column="icon_name"    />
+        <result property="facilityType"    column="facility_type"    />
+        <result property="sortOrder"    column="sort_order"    />
+        <result property="status"    column="status"    />
+        <result property="createBy"    column="create_by"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"    column="update_by"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="remark"    column="remark"    />
+    </resultMap>
+
+    <sql id="selectFacilityIconConfigVo">
+        select id, facility_name, icon_name, facility_type, sort_order, status, create_by, create_time, update_by, update_time, remark from facility_icon_config
+    </sql>
+
+    <select id="selectFacilityIconConfigList" parameterType="FacilityIconConfig" resultMap="FacilityIconConfigResult">
+        <include refid="selectFacilityIconConfigVo"/>
+        <where>
+            <if test="facilityName != null  and facilityName != ''"> and facility_name like concat('%', #{facilityName}, '%')</if>
+            <if test="iconName != null  and iconName != ''"> and icon_name like concat('%', #{iconName}, '%')</if>
+            <if test="facilityType != null  and facilityType != ''"> and facility_type = #{facilityType}</if>
+            <if test="sortOrder != null "> and sort_order = #{sortOrder}</if>
+            <if test="status != null  and status != ''"> and status = #{status}</if>
+        </where>
+        order by facility_type, sort_order asc
+    </select>
+
+    <select id="selectFacilityIconConfigById" parameterType="Long" resultMap="FacilityIconConfigResult">
+        <include refid="selectFacilityIconConfigVo"/>
+        where id = #{id}
+    </select>
+
+    <select id="selectByType" parameterType="String" resultMap="FacilityIconConfigResult">
+        <include refid="selectFacilityIconConfigVo"/>
+        where facility_type = #{facilityType}
+        and status = '0'
+        order by sort_order asc
+    </select>
+
+    <insert id="insertFacilityIconConfig" parameterType="FacilityIconConfig" useGeneratedKeys="true" keyProperty="id">
+        insert into facility_icon_config
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="facilityName != null">facility_name,</if>
+            <if test="iconName != null">icon_name,</if>
+            <if test="facilityType != null">facility_type,</if>
+            <if test="sortOrder != null">sort_order,</if>
+            <if test="status != null">status,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="facilityName != null">#{facilityName},</if>
+            <if test="iconName != null">#{iconName},</if>
+            <if test="facilityType != null">#{facilityType},</if>
+            <if test="sortOrder != null">#{sortOrder},</if>
+            <if test="status != null">#{status},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateFacilityIconConfig" parameterType="FacilityIconConfig">
+        update facility_icon_config
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="facilityName != null">facility_name = #{facilityName},</if>
+            <if test="iconName != null">icon_name = #{iconName},</if>
+            <if test="facilityType != null">facility_type = #{facilityType},</if>
+            <if test="sortOrder != null">sort_order = #{sortOrder},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="createBy != null">create_by = #{createBy},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteFacilityIconConfigById" parameterType="Long">
+        delete from facility_icon_config where id = #{id}
+    </delete>
+
+    <delete id="deleteFacilityIconConfigByIds" parameterType="String">
+        delete from facility_icon_config where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

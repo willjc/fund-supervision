@@ -2,8 +2,13 @@
   <div class="app-container">
     <el-card class="publicity-card">
       <div slot="header" class="card-header">
-        <span>机构公示信息维护</span>
-        <el-button type="primary" size="small" @click="handleSave" :loading="saving">保存信息</el-button>
+        <div class="header-left">
+          <span>机构公示信息维护</span>
+        </div>
+        <div class="header-right">
+          <el-button type="warning" plain size="small" icon="el-icon-setting" @click="handleIconMaintenance">图标维护</el-button>
+          <el-button type="primary" size="small" @click="handleSave" :loading="saving">保存信息</el-button>
+        </div>
       </div>
 
       <el-form ref="publicityForm" :model="form" :rules="rules" label-width="150px">
@@ -701,6 +706,11 @@ export default {
       } else {
         targetArray.splice(0, targetArray.length)
       }
+    },
+
+    // 图标维护
+    handleIconMaintenance() {
+      this.$router.push('/pension/facility/icon')
     }
   }
 }
@@ -718,6 +728,15 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.header-left {
+  flex: 1;
+}
+
+.header-right {
+  display: flex;
+  gap: 8px;
 }
 
 .el-divider {

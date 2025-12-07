@@ -24,6 +24,8 @@ import com.ruoyi.domain.PensionInstitutionPublic;
 import com.ruoyi.service.IPensionInstitutionService;
 import com.ruoyi.service.IPensionInstitutionPublicService;
 import com.ruoyi.service.IBedInfoService;
+import com.ruoyi.service.IFacilityIconConfigService;
+import com.ruoyi.domain.FacilityIconConfig;
 
 /**
  * H5养老机构Controller
@@ -42,6 +44,9 @@ public class H5InstitutionController extends BaseController
 
     @Autowired
     private IBedInfoService bedInfoService;
+
+    @Autowired
+    private IFacilityIconConfigService facilityIconConfigService;
 
     /**
      * 查询养老机构列表 (H5端,不需要权限)
@@ -577,7 +582,7 @@ public class H5InstitutionController extends BaseController
             // 其他设施数据 - 转换为前端期望格式
             result.put("lifeFacilities", parseLifeFacilities(publicity.getLifeFacilities()));
             result.put("medicalFacilities", parseMedicalFacilities(publicity.getMedicalFacilities()));
-            result.put("dailyServices", parseJsonToArray(publicity.getDailyServices()));
+            result.put("dailyServices", parseDailyServices(publicity.getDailyServices()));
 
             // 图片数据
             result.put("coverImage", publicity.getMainPicture());
@@ -688,18 +693,47 @@ public class H5InstitutionController extends BaseController
     }
 
     /**
-     * 解析生活设施，转换为前端需要的[{icon, name}]格式
+     * 解析每日服务安排，返回对象数组
+     */
+    private List<Map<String, Object>> parseDailyServices(String jsonStr) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        if (!StringUtils.hasText(jsonStr)) return result;
+
+        try {
+            JSONArray jsonArray = JSON.parseArray(jsonStr);
+            for (int i = 0; i < jsonArray.size(); i++) {
+                JSONObject service = jsonArray.getJSONObject(i);
+                Map<String, Object> serviceMap = new HashMap<>();
+                serviceMap.put("time", service.getString("time"));
+                serviceMap.put("content", service.getString("content"));
+                result.add(serviceMap);
+            }
+            return result;
+        } catch (Exception e) {
+            System.out.println("解析每日服务失败: " + jsonStr);
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * 解析生活设施，使用动态图标配置转换为前端需要的[{icon, name}]格式
      */
     private List<Map<String, String>> parseLifeFacilities(String jsonStr) {
         List<Map<String, String>> result = new ArrayList<>();
         if (!StringUtils.hasText(jsonStr)) return result;
 
         try {
+            // 获取生活设施图标配置
+            List<FacilityIconConfig> iconConfigs = facilityIconConfigService.selectByType("life");
+            Map<String, String> iconMap = iconConfigs.stream()
+                .collect(Collectors.toMap(FacilityIconConfig::getFacilityName, FacilityIconConfig::getIconName));
+
+            // 解析设施数据
             List<String> facilities = JSON.parseArray(jsonStr, String.class);
             for (String facility : facilities) {
                 Map<String, String> item = new HashMap<>();
                 item.put("name", facility);
-                item.put("icon", getLifeFacilityIcon(facility));
+                item.put("icon", iconMap.getOrDefault(facility, "home")); // 默认使用home图标
                 result.add(item);
             }
         } catch (Exception e) {
@@ -709,18 +743,24 @@ public class H5InstitutionController extends BaseController
     }
 
     /**
-     * 解析医疗设施，转换为前端需要的[{icon, name}]格式
+     * 解析医疗设施，使用动态图标配置转换为前端需要的[{icon, name}]格式
      */
     private List<Map<String, String>> parseMedicalFacilities(String jsonStr) {
         List<Map<String, String>> result = new ArrayList<>();
         if (!StringUtils.hasText(jsonStr)) return result;
 
         try {
+            // 获取医疗设施图标配置
+            List<FacilityIconConfig> iconConfigs = facilityIconConfigService.selectByType("medical");
+            Map<String, String> iconMap = iconConfigs.stream()
+                .collect(Collectors.toMap(FacilityIconConfig::getFacilityName, FacilityIconConfig::getIconName));
+
+            // 解析设施数据
             List<String> facilities = JSON.parseArray(jsonStr, String.class);
             for (String facility : facilities) {
                 Map<String, String> item = new HashMap<>();
                 item.put("name", facility);
-                item.put("icon", getMedicalFacilityIcon(facility));
+                item.put("icon", iconMap.getOrDefault(facility, "monitor")); // 默认使用monitor图标
                 result.add(item);
             }
         } catch (Exception e) {
@@ -729,177 +769,5 @@ public class H5InstitutionController extends BaseController
         return result;
     }
 
-    /**
-     * 根据生活设施名称获取对应图标
-     */
-    private String getLifeFacilityIcon(String facilityName) {
-        switch (facilityName) {
-            // 居住相关
-            case "独立卫浴":
-                return "bath-o";
-            case "24小时热水":
-                return "fire-o";
-            case "空调":
-                return "play-o";
-            case "暖气":
-                return "fire-o";
-            case "电梯":
-                return "friends-o";
-            case "衣柜":
-                return "bag-o";
-            case "电视":
-                return "tv-o";
-            case "电话":
-                return "phone-o";
-
-            // 网络通讯
-            case "无线网络":
-                return "wifi-o";
-            case "宽带网络":
-                return "wifi-o";
-
-            // 安全便利
-            case "紧急呼叫":
-                return "warning-o";
-            case "24小时监控":
-                return "shield-o";
-            case "门禁系统":
-                return "lock";
-            case "无障碍设施":
-                return "service-o";
-
-            // 餐饮服务
-            case "餐厅":
-                return "restaurant-o";
-            case "送餐服务":
-                return "service-o";
-            case "小食堂":
-                return "food-o";
-
-            // 清洁服务
-            case "洗衣服务":
-                return "service-o";
-            case "保洁服务":
-                return "shop-o";
-            case "床上用品更换":
-                return "replay";
-
-            // 娱乐休闲
-            case "活动室":
-                return "friends-o";
-            case "阅览室":
-                return "book-o";
-            case "棋牌室":
-                return "game-o";
-            case "健身房":
-                return "fire-o";
-            case "娱乐室":
-                return "video-o";
-            case "理发室":
-                return "manager-o";
-            case "会客厅":
-                return "chat-o";
-
-            // 医疗护理
-            case "医务室":
-                return "hospital-o";
-            case "护理站":
-                return "user-circle-o";
-
-            // 其他服务
-            case "超市购物":
-                return "shopping-cart-o";
-            case "代购服务":
-                return "express-shipping";
-            case "停车服务":
-                return "car-o";
-            case "班车服务":
-                return "logistics";
-
-            default:
-                return "service-o";
-        }
-    }
-
-    /**
-     * 根据医疗设施名称获取对应图标
-     */
-    private String getMedicalFacilityIcon(String facilityName) {
-        switch (facilityName) {
-            // 医疗机构
-            case "医疗室":
-                return "hospital-o";
-            case "诊所":
-                return "hospital-o";
-            case "内设医疗机构":
-                return "buildings-o";
-            case "医务室":
-                return "hospital-o";
-            case "诊室":
-                return "service-o";
-
-            // 康复理疗
-            case "康复室":
-                return "cluster-o";
-            case "理疗室":
-                return "manager-o";
-            case "康复中心":
-                return "friends-o";
-            case "物理治疗室":
-                return "fire-o";
-
-            // 专业人员
-            case "专业护士":
-                return "user-circle-o";
-            case "执业医师":
-                return "contact";
-            case "康复师":
-                return "service";
-            case "护理员":
-                return "friends-o";
-
-            // 医疗设备
-            case "康复设备":
-                return "setting-o";
-            case "理疗设备":
-                return "play-o";
-            case "医疗设备":
-                return "tool-o";
-            case "护理设备":
-                return "bag-o";
-
-            // 药品相关
-            case "药房":
-                return "bag-o";
-            case "药品管理":
-                return "description";
-
-            // 健康监测
-            case "健康监测":
-                return "chart-trending-o";
-            case "体检服务":
-                return "service-o";
-            case "慢病管理":
-                return "calendar-o";
-
-            // 急救相关
-            case "急救室":
-                return "first-aid-o";
-            case "急救设备":
-                return "warning-o";
-            case "氧气供应":
-                return "fire-o";
-
-            // 专门医疗
-            case "中医馆":
-                return "service-o";
-            case "心理咨询室":
-                return "chat-o";
-            case "营养配餐":
-                return "food-o";
-
-            default:
-                return "first-aid-o";
-        }
-    }
+    // 硬编码图标方法已被动态配置替代
 }
