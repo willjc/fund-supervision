@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.mapper.InstitutionRatingMapper">
+
+    <resultMap type="InstitutionRating" id="InstitutionRatingResult">
+        <result property="ratingId"    column="rating_id"    />
+        <result property="institutionId"    column="institution_id"    />
+        <result property="institutionName"    column="institution_name"    />
+        <result property="creditCode"    column="credit_code"    />
+        <result property="ratingLevel"    column="rating_level"    />
+        <result property="totalScore"    column="total_score"    />
+        <result property="serviceScore"    column="service_score"    />
+        <result property="facilityScore"    column="facility_score"    />
+        <result property="managementScore"    column="management_score"    />
+        <result property="safetyScore"    column="safety_score"    />
+        <result property="ratingDate"    column="rating_date"    />
+        <result property="expireDate"    column="expire_date"    />
+        <result property="validityPeriod"    column="validity_period"    />
+        <result property="ratingStatus"    column="rating_status"    />
+        <result property="ratingRemark"    column="rating_remark"    />
+        <result property="createBy"    column="create_by"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"    column="update_by"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="remark"    column="remark"    />
+    </resultMap>
+
+    <sql id="selectInstitutionRatingVo">
+        select rating_id, institution_id, institution_name, credit_code, rating_level, total_score, service_score, facility_score, management_score, safety_score, rating_date, expire_date, validity_period, rating_status, rating_remark, create_by, create_time, update_by, update_time, remark from institution_rating
+    </sql>
+
+    <select id="selectInstitutionRatingList" parameterType="InstitutionRating" resultMap="InstitutionRatingResult">
+        <include refid="selectInstitutionRatingVo"/>
+        <where>
+            <if test="institutionId != null "> and institution_id = #{institutionId}</if>
+            <if test="institutionName != null  and institutionName != ''"> and institution_name like concat('%', #{institutionName}, '%')</if>
+            <if test="creditCode != null  and creditCode != ''"> and credit_code = #{creditCode}</if>
+            <if test="ratingLevel != null "> and rating_level = #{ratingLevel}</if>
+            <if test="totalScore != null "> and total_score = #{totalScore}</if>
+            <if test="serviceScore != null "> and service_score = #{serviceScore}</if>
+            <if test="facilityScore != null "> and facility_score = #{facilityScore}</if>
+            <if test="managementScore != null "> and management_score = #{managementScore}</if>
+            <if test="safetyScore != null "> and safety_score = #{safetyScore}</if>
+            <if test="ratingDate != null "> and rating_date = #{ratingDate}</if>
+            <if test="expireDate != null "> and expire_date = #{expireDate}</if>
+            <if test="validityPeriod != null "> and validity_period = #{validityPeriod}</if>
+            <if test="ratingStatus != null  and ratingStatus != ''"> and rating_status = #{ratingStatus}</if>
+            <if test="ratingRemark != null  and ratingRemark != ''"> and rating_remark like concat('%', #{ratingRemark}, '%')</if>
+        </where>
+        order by rating_date desc
+    </select>
+
+    <select id="selectInstitutionRatingByRatingId" parameterType="Long" resultMap="InstitutionRatingResult">
+        <include refid="selectInstitutionRatingVo"/>
+        where rating_id = #{ratingId}
+    </select>
+
+    <select id="selectInstitutionRatingByInstitutionId" parameterType="Long" resultMap="InstitutionRatingResult">
+        <include refid="selectInstitutionRatingVo"/>
+        where institution_id = #{institutionId}
+        order by rating_date desc
+    </select>
+
+    <select id="checkInstitutionRatingExists" parameterType="Long" resultType="int">
+        select count(1) from institution_rating where institution_id = #{institutionId}
+    </select>
+
+    <insert id="insertInstitutionRating" parameterType="InstitutionRating" useGeneratedKeys="true" keyProperty="ratingId">
+        insert into institution_rating
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="institutionId != null">institution_id,</if>
+            <if test="institutionName != null and institutionName != ''">institution_name,</if>
+            <if test="creditCode != null and creditCode != ''">credit_code,</if>
+            <if test="ratingLevel != null">rating_level,</if>
+            <if test="totalScore != null">total_score,</if>
+            <if test="serviceScore != null">service_score,</if>
+            <if test="facilityScore != null">facility_score,</if>
+            <if test="managementScore != null">management_score,</if>
+            <if test="safetyScore != null">safety_score,</if>
+            <if test="ratingDate != null">rating_date,</if>
+            <if test="expireDate != null">expire_date,</if>
+            <if test="validityPeriod != null">validity_period,</if>
+            <if test="ratingStatus != null and ratingStatus != ''">rating_status,</if>
+            <if test="ratingRemark != null">rating_remark,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="institutionId != null">#{institutionId},</if>
+            <if test="institutionName != null and institutionName != ''">#{institutionName},</if>
+            <if test="creditCode != null and creditCode != ''">#{creditCode},</if>
+            <if test="ratingLevel != null">#{ratingLevel},</if>
+            <if test="totalScore != null">#{totalScore},</if>
+            <if test="serviceScore != null">#{serviceScore},</if>
+            <if test="facilityScore != null">#{facilityScore},</if>
+            <if test="managementScore != null">#{managementScore},</if>
+            <if test="safetyScore != null">#{safetyScore},</if>
+            <if test="ratingDate != null">#{ratingDate},</if>
+            <if test="expireDate != null">#{expireDate},</if>
+            <if test="validityPeriod != null">#{validityPeriod},</if>
+            <if test="ratingStatus != null and ratingStatus != ''">#{ratingStatus},</if>
+            <if test="ratingRemark != null">#{ratingRemark},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateInstitutionRating" parameterType="InstitutionRating">
+        update institution_rating
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="institutionId != null">institution_id = #{institutionId},</if>
+            <if test="institutionName != null and institutionName != ''">institution_name = #{institutionName},</if>
+            <if test="creditCode != null and creditCode != ''">credit_code = #{creditCode},</if>
+            <if test="ratingLevel != null">rating_level = #{ratingLevel},</if>
+            <if test="totalScore != null">total_score = #{totalScore},</if>
+            <if test="serviceScore != null">service_score = #{serviceScore},</if>
+            <if test="facilityScore != null">facility_score = #{facilityScore},</if>
+            <if test="managementScore != null">management_score = #{managementScore},</if>
+            <if test="safetyScore != null">safety_score = #{safetyScore},</if>
+            <if test="ratingDate != null">rating_date = #{ratingDate},</if>
+            <if test="expireDate != null">expire_date = #{expireDate},</if>
+            <if test="validityPeriod != null">validity_period = #{validityPeriod},</if>
+            <if test="ratingStatus != null and ratingStatus != ''">rating_status = #{ratingStatus},</if>
+            <if test="ratingRemark != null">rating_remark = #{ratingRemark},</if>
+            <if test="createBy != null">create_by = #{createBy},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where rating_id = #{ratingId}
+    </update>
+
+    <delete id="deleteInstitutionRatingByRatingId" parameterType="Long">
+        delete from institution_rating where rating_id = #{ratingId}
+    </delete>
+
+    <delete id="deleteInstitutionRatingByRatingIds" parameterType="String">
+        delete from institution_rating where rating_id in
+        <foreach item="ratingId" collection="array" open="(" separator="," close=")">
+            #{ratingId}
+        </foreach>
+    </delete>
+</mapper>

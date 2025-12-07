@@ -25299,3 +25299,96 @@ ESLint检查到svgIcons对象中存在重复的键定义：
 - H5应用的SVG图标系统继续正常工作
 - '独立卫浴'设施使用的'enter'图标保持可用
 - 其他常用图标保持不变
+
+## 2025-12-07 机构评级系统重构
+
+### 修改背景
+用户要求重构机构评级列表功能(http://localhost:81/supervision/institution/ratingList)，实现完整的五级评级体系，包括数据库设计、后端API实现和前端界面完善。
+
+### 修改内容
+
+#### 1. 数据库表���建
+- **创建表**: institution_rating 机构评级表
+- **字段设计**: 包含评级ID、机构ID、机构名称、统一信用代码、评级等级、总分、四个维度评分、评级日期、有效期、评级状态等字段
+- **外键关联**: 与pension_institution表建立外键关联
+
+#### 2. 后端实现
+- **实体类**: ruoyi-admin/src/main/java/com/ruoyi/domain/InstitutionRating.java
+  - 继承BaseEntity，包含完整的评级字段定义
+  - 添加Excel注解，支持数据导出
+- **Mapper接口**: ruoyi-admin/src/main/java/com/ruoyi/mapper/InstitutionRatingMapper.java
+  - 实现基础CRUD操作、条件查询、分页查询
+- **Mapper XML**: ruoyi-admin/src/main/resources/mapper/InstitutionRatingMapper.xml
+  - 完整的SQL映射，支持动态查询条件
+- **Service接口**: ruoyi-admin/src/main/java/com/ruoyi/service/IInstitutionRatingService.java
+  - 定义业务逻辑接口，包含评级算法和数据验证
+- **Service实现**: ruoyi-admin/src/main/java/com/ruoyi/service/impl/InstitutionRatingServiceImpl.java
+  - 实现自动计算总分、评级等级、有效期管理
+  - 数据验证确保评分在0-25分范围内
+- **Controller**: 在InstitutionManageController.java中添加评级相关方法
+  - 查询列表、获取详情、新增、修改、删除、导出等完整API
+  - 权限控制和日志记录
+
+#### 3. 前端实现
+- **API接口**: 完善前端API定义(ruoyi-ui/src/api/supervision/institution.js)
+  - 添加缺失的getRating、addRating、delRating、exportRating接口
+  - 修复updateRating接口方法为PUT
+- **页面修复**: 修复前端评级列表页面(ruoyi-ui/src/views/supervision/institution/ratingList.vue)
+  - 取消注释真实API调用，删除模拟数据
+  - 添加错误处理和loading状态管理
+
+### 核心功能特性
+
+#### 评级算法
+- **五级评级体系**: 根据总分自动计算星级
+  - 90分以上：5星
+  - 80-89分：4星
+  - 70-79分：3星
+  - 60-69分：2星
+  - 60分以下：1星
+
+#### 四维度评分
+- **服务质量** (25分)
+- **设施环境** (25分)
+- **管理水平** (25分)
+- **安全卫生** (25分)
+
+#### 业务逻辑
+- **自动计算**: 根据四个维度评分自动计算总分和评级等级
+- **有效期管理**: 根据评级日期和有效期自动计算过期时间
+- **数据验证**: 确保各维度评分在0-25分范围内
+- **权限控制**: 使用若依权限系统进行接口访问控制
+
+### 路由配置
+- **系统菜单**: sys_menu表中已存在机构评级菜单(3104)
+- **路由路径**: ratingList
+- **组件路径**: supervision/institution/ratingList
+- **权限标识**: supervision:institution:rating
+
+### 修改文件清单
+**新建文件:**
+1. ruoyi-admin/src/main/java/com/ruoyi/domain/InstitutionRating.java
+2. ruoyi-admin/src/main/java/com/ruoyi/mapper/InstitutionRatingMapper.java
+3. ruoyi-admin/src/main/resources/mapper/InstitutionRatingMapper.xml
+4. ruoyi-admin/src/main/java/com/ruoyi/service/IInstitutionRatingService.java
+5. ruoyi-admin/src/main/java/com/ruoyi/service/impl/InstitutionRatingServiceImpl.java
+
+**修改文件:**
+1. ruoyi-admin/src/main/java/com/ruoyi/web/controller/supervision/InstitutionManageController.java - 添加评级相关API方法
+2. ruoyi-ui/src/api/supervision/institution.js - 完善API接口定义
+3. ruoyi-ui/src/views/supervision/institution/ratingList.vue - 修复API连接
+
+### 实现效果
+- ✅ 完整的机构评级管理功能
+- ✅ 五级星级评定体系
+- ✅ 四维度评分机制
+- ✅ 自动化评级算法
+- ✅ 有效期管理
+- ✅ 数据导出功能
+- ✅ 权限控制和操作日志
+- ✅ 前后端API完全对接
+
+### 影响范围
+- 为养老机构监管提供了科学、规范的评级工具
+- 提升监管效率和透明度
+- 支持历史评级记录和数据统计分析

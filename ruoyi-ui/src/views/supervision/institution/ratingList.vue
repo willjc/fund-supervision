@@ -138,16 +138,35 @@
 
     <!-- 新增/修改评级对话框 -->
     <el-dialog :title="title" :visible.sync="open" width="800px" append-to-body>
-      <el-form ref="form" :model="form" :rules="rules" label-width="120px">
+      <el-form ref="form" :model="form" :rules="rules" label-width="140px">
         <el-row>
           <el-col :span="12">
-            <el-form-item label="机构名称" prop="institutionName">
-              <el-input v-model="form.institutionName" placeholder="请输入机构名称" />
+            <el-form-item label="机构名称" prop="institutionId">
+              <el-select
+                v-model="form.institutionId"
+                placeholder="请选择机构"
+                style="width: 100%"
+                filterable
+                remote
+                :remote-method="searchInstitutions"
+                :loading="institutionLoading"
+                @change="handleInstitutionChange"
+              >
+                <el-option
+                  v-for="item in institutionOptions"
+                  :key="item.institutionId"
+                  :label="item.institutionName"
+                  :value="item.institutionId"
+                >
+                  <span style="float: left">{{ item.institutionName }}</span>
+                  <span style="float: right; color: #8492a6; font-size: 13px">{{ item.creditCode }}</span>
+                </el-option>
+              </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="统一信用代码" prop="creditCode">
-              <el-input v-model="form.creditCode" placeholder="请输入统一信用代码" />
+              <el-input v-model="form.creditCode" placeholder="自动载入" readonly />
             </el-form-item>
           </el-col>
         </el-row>
@@ -179,36 +198,38 @@
         <el-row>
           <el-col :span="12">
             <el-form-item label="服务质量 (25分)" prop="serviceScore">
-              <el-input-number v-model="form.serviceScore" :min="0" :max="25" :precision="1" style="width: 100%"/>
+              <el-input-number v-model="form.serviceScore" :min="0" :max="25" :precision="1" style="width: 150px" @change="calculateTotalScore"/>
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="设施环境 (25分)" prop="facilityScore">
-              <el-input-number v-model="form.facilityScore" :min="0" :max="25" :precision="1" style="width: 100%"/>
+              <el-input-number v-model="form.facilityScore" :min="0" :max="25" :precision="1" style="width: 150px" @change="calculateTotalScore"/>
             </el-form-item>
           </el-col>
         </el-row>
         <el-row>
           <el-col :span="12">
             <el-form-item label="管理水平 (25分)" prop="managementScore">
-              <el-input-number v-model="form.managementScore" :min="0" :max="25" :precision="1" style="width: 100%"/>
+              <el-input-number v-model="form.managementScore" :min="0" :max="25" :precision="1" style="width: 150px" @change="calculateTotalScore"/>
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="安全卫生 (25分)" prop="safetyScore">
-              <el-input-number v-model="form.safetyScore" :min="0" :max="25" :precision="1" style="width: 100%"/>
+              <el-input-number v-model="form.safetyScore" :min="0" :max="25" :precision="1" style="width: 150px" @change="calculateTotalScore"/>
             </el-form-item>
           </el-col>
         </el-row>
         <el-row>
           <el-col :span="12">
-            <el-form-item label="评级机构" prop="ratingOrg">
-              <el-input v-model="form.ratingOrg" placeholder="请输入评级机构" />
+            <el-form-item label="总分 (100分)" prop="totalScore">
+              <el-input v-model="form.totalScore" placeholder="自动计算" readonly>
+                <template slot="append">分</template>
+              </el-input>
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="有效期" prop="validityPeriod">
-              <el-input-number v-model="form.validityPeriod" :min="1" :max="60" style="width: 100%">
+            <el-form-item label="有效期(月)" prop="validityPeriod">
+              <el-input-number v-model="form.validityPeriod" :min="1" :max="60" style="width: 150px">
                 <template slot="append">月</template>
               </el-input-number>
             </el-form-item>
@@ -278,7 +299,7 @@
 </template>
 
 <script>
-import { listRating, getRating, delRating, addRating, updateRating } from '@/api/supervision/institution'
+import { listRating, getRating, delRating, addRating, updateRating, exportRating, listApprovedInstitutions } from '@/api/supervision/institution'
 
 export default {
   name: 'RatingList',
@@ -304,9 +325,11 @@ export default {
       form: {},
       detailData: {},
       scoreDetails: [],
+      institutionOptions: [],
+      institutionLoading: false,
       rules: {
-        institutionName: [
-          { required: true, message: '机构名称不能为空', trigger: 'blur' }
+        institutionId: [
+          { required: true, message: '请选择机构', trigger: 'change' }
         ],
         creditCode: [
           { required: true, message: '统一信用代码不能为空', trigger: 'blur' }
@@ -325,9 +348,6 @@ export default {
         ],
         safetyScore: [
           { required: true, message: '安全卫生评分不能为空', trigger: 'blur' }
-        ],
-        ratingOrg: [
-          { required: true, message: '评级机构不能为空', trigger: 'blur' }
         ]
       }
     }
@@ -339,66 +359,11 @@ export default {
     getList() {
       this.loading = true
       listRating(this.queryParams).then(response => {
-        // TODO: 连接真实API
-        // this.ratingList = response.rows
-        // this.total = response.total
-        // this.loading = false
-
-        // 模拟数据
-        setTimeout(() => {
-          this.ratingList = [
-            {
-              ratingId: 1,
-              institutionName: '幸福养老院',
-              creditCode: '91410100MA44XXXX01',
-              ratingLevel: 5,
-              totalScore: 95.5,
-              serviceScore: 24.0,
-              facilityScore: 23.5,
-              managementScore: 24.5,
-              safetyScore: 23.5,
-              ratingStatus: '1',
-              ratingDate: '2024-12-15',
-              expireDate: '2025-12-15',
-              ratingOrg: '民政部养老服务机构评级中心',
-              ratingRemark: '该机构服务质量优秀，设施完善，管理规范，安全卫生状况良��，综合评定为五星级养老机构。'
-            },
-            {
-              ratingId: 2,
-              institutionName: '夕阳红公寓',
-              creditCode: '91410100MA44XXXX02',
-              ratingLevel: 4,
-              totalScore: 82.0,
-              serviceScore: 20.5,
-              facilityScore: 20.0,
-              managementScore: 21.0,
-              safetyScore: 20.5,
-              ratingStatus: '1',
-              ratingDate: '2024-11-20',
-              expireDate: '2025-11-20',
-              ratingOrg: '民政部养老服务机构评级中心',
-              ratingRemark: '该机构服务质量良好，设施基本完善，管理水平较高，安全卫生符合要求，综合评定为四星级养老机构。'
-            },
-            {
-              ratingId: 3,
-              institutionName: '康乐养老中心',
-              creditCode: '91410100MA44XXXX03',
-              ratingLevel: 3,
-              totalScore: 75.0,
-              serviceScore: 18.5,
-              facilityScore: 19.0,
-              managementScore: 18.5,
-              safetyScore: 19.0,
-              ratingStatus: '0',
-              ratingDate: '2024-10-10',
-              expireDate: '2025-10-10',
-              ratingOrg: '民政部养老服务机构评级中心',
-              ratingRemark: '该机构基本达到养老服务标准，但在某些方面仍需改进，综合评定为三星级养老机构。'
-            }
-          ]
-          this.total = this.ratingList.length
-          this.loading = false
-        }, 500)
+        this.ratingList = response.rows
+        this.total = response.total
+        this.loading = false
+      }).catch(() => {
+        this.loading = false
       })
     },
     cancel() {
@@ -408,6 +373,7 @@ export default {
     reset() {
       this.form = {
         ratingId: null,
+        institutionId: null,
         institutionName: null,
         creditCode: null,
         ratingLevel: 3,
@@ -417,10 +383,10 @@ export default {
         managementScore: 0,
         safetyScore: 0,
         ratingDate: null,
-        ratingOrg: null,
         validityPeriod: 12,
         ratingRemark: null
       }
+      this.institutionOptions = []
       this.resetForm('form')
     },
     handleQuery() {
@@ -440,6 +406,14 @@ export default {
       this.reset()
       this.open = true
       this.title = '新增机构评级'
+      // 自动加载前20个机构供选择
+      this.institutionLoading = true
+      listApprovedInstitutions({ pageSize: 20 }).then(response => {
+        this.institutionOptions = response.rows
+        this.institutionLoading = false
+      }).catch(() => {
+        this.institutionLoading = false
+      })
     },
     handleView(row) {
       const ratingId = row.ratingId
@@ -536,6 +510,54 @@ export default {
       if (percentage >= 80) return '#409EFF'
       if (percentage >= 70) return '#E6A23C'
       return '#F56C6C'
+    },
+    // 搜索机构
+    searchInstitutions(query) {
+      this.institutionLoading = true
+      // 如果没有输入查询条件，显示所有机构；否则按名称搜索
+      const params = query ? { institutionName: query, pageSize: 20 } : { pageSize: 20 }
+      listApprovedInstitutions(params).then(response => {
+        this.institutionOptions = response.rows
+        this.institutionLoading = false
+      }).catch(() => {
+        this.institutionLoading = false
+      })
+    },
+    // 机构选择变化
+    handleInstitutionChange(institutionId) {
+      if (institutionId) {
+        const selectedInstitution = this.institutionOptions.find(item => item.institutionId === institutionId)
+        if (selectedInstitution) {
+          this.form.institutionName = selectedInstitution.institutionName
+          this.form.creditCode = selectedInstitution.creditCode
+        }
+      } else {
+        this.form.institutionName = null
+        this.form.creditCode = null
+      }
+    },
+    // 计算总分
+    calculateTotalScore() {
+      const serviceScore = parseFloat(this.form.serviceScore) || 0
+      const facilityScore = parseFloat(this.form.facilityScore) || 0
+      const managementScore = parseFloat(this.form.managementScore) || 0
+      const safetyScore = parseFloat(this.form.safetyScore) || 0
+
+      const totalScore = serviceScore + facilityScore + managementScore + safetyScore
+      this.form.totalScore = totalScore.toFixed(1)
+
+      // 自动计算评级等级
+      if (totalScore >= 90) {
+        this.form.ratingLevel = 5
+      } else if (totalScore >= 80) {
+        this.form.ratingLevel = 4
+      } else if (totalScore >= 70) {
+        this.form.ratingLevel = 3
+      } else if (totalScore >= 60) {
+        this.form.ratingLevel = 2
+      } else {
+        this.form.ratingLevel = 1
+      }
     }
   }
 }

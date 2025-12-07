@@ -11,6 +11,15 @@ export function listInstitutionAccounts(query) {
   })
 }
 
+// 查询已审核通过的机构列表（用于评级选择）
+export function listApprovedInstitutions(query) {
+  return request({
+    url: '/supervision/institution/account/approved/list',
+    method: 'get',
+    params: query
+  })
+}
+
 // 新增单个机构账号
 export function addInstitutionAccount(data) {
   return request({
@@ -142,12 +151,46 @@ export function listRating(query) {
   })
 }
 
+// 查询机构评级详细
+export function getRating(ratingId) {
+  return request({
+    url: '/supervision/institution/rating/' + ratingId,
+    method: 'get'
+  })
+}
+
+// 新增机构评级
+export function addRating(data) {
+  return request({
+    url: '/supervision/institution/rating/add',
+    method: 'post',
+    data: data
+  })
+}
+
 // 更新机构评级
 export function updateRating(data) {
   return request({
     url: '/supervision/institution/rating/update',
-    method: 'post',
+    method: 'put',
     data: data
+  })
+}
+
+// 删除机构评级
+export function delRating(ratingIds) {
+  return request({
+    url: '/supervision/institution/rating/' + ratingIds,
+    method: 'delete'
+  })
+}
+
+// 导出机构评级数据
+export function exportRating(query) {
+  return request({
+    url: '/supervision/institution/rating/export',
+    method: 'post',
+    params: query
   })
 }
 

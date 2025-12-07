@@ -24,8 +24,11 @@ import com.ruoyi.common.core.domain.entity.SysUser;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.SecurityUtils;
+import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.domain.PensionInstitution;
+import com.ruoyi.domain.InstitutionRating;
 import com.ruoyi.service.IPensionInstitutionService;
+import com.ruoyi.service.IInstitutionRatingService;
 import com.ruoyi.system.service.ISysUserService;
 
 /**
@@ -45,6 +48,9 @@ public class InstitutionManageController extends BaseController
     private ISysUserService userService;
 
     @Autowired
+    private IInstitutionRatingService ratingService;
+
+    @Autowired
     private JdbcTemplate jdbcTemplate;
 
     // 机构管理员角色ID
@@ -58,6 +64,10 @@ public class InstitutionManageController extends BaseController
     public TableDataInfo listInstitutionAccounts(PensionInstitution pensionInstitution)
     {
         startPage();
+        // 如果没有指定状态，默认只查询已审核通过的机构(status='1')
+        if (pensionInstitution.getStatus() == null) {
+            pensionInstitution.setStatus("1");
+        }
         List<PensionInstitution> list = pensionInstitutionService.selectPensionInstitutionList(pensionInstitution);
 
         // 补充用户名信息
@@ -501,5 +511,91 @@ public class InstitutionManageController extends BaseController
         failRecord.put("institutionName", institutionName);
         failRecord.put("reason", reason);
         return failRecord;
+      }
+
+    /**
+     * 查询已审核通过的机构列表（用于评级选择）
+     */
+    @PreAuthorize("@ss.hasPermi('supervision:institution:rating')")
+    @GetMapping("/account/approved/list")
+    public TableDataInfo listApprovedInstitutions(PensionInstitution pensionInstitution)
+    {
+        startPage();
+        // 只查询已审核通过的机构(status='1')
+        pensionInstitution.setStatus("1");
+        List<PensionInstitution> list = pensionInstitutionService.selectPensionInstitutionList(pensionInstitution);
+        return getDataTable(list);
+    }
+
+    // ========== 机构评级管理 ==========
+
+    /**
+     * 查询机构评级列表
+     */
+    @PreAuthorize("@ss.hasPermi('supervision:institution:rating')")
+    @GetMapping("/rating/list")
+    public TableDataInfo listRating(InstitutionRating rating)
+    {
+        startPage();
+        List<InstitutionRating> list = ratingService.selectInstitutionRatingList(rating);
+        return getDataTable(list);
+    }
+
+    /**
+     * 获取机构评级详细信息
+     */
+    @PreAuthorize("@ss.hasPermi('supervision:institution:rating')")
+    @GetMapping("/rating/{ratingId}")
+    public AjaxResult getRating(@PathVariable("ratingId") Long ratingId)
+    {
+        return success(ratingService.selectInstitutionRatingByRatingId(ratingId));
+    }
+
+    /**
+     * 新增机构评级
+     */
+    @PreAuthorize("@ss.hasPermi('supervision:institution:rating:add')")
+    @Log(title = "新增机构评级", businessType = BusinessType.INSERT)
+    @PostMapping("/rating/add")
+    public AjaxResult addRating(@RequestBody InstitutionRating rating)
+    {
+        rating.setCreateBy(getUsername());
+        return toAjax(ratingService.insertInstitutionRating(rating));
+    }
+
+    /**
+     * 修改机构评级
+     */
+    @PreAuthorize("@ss.hasPermi('supervision:institution:rating:edit')")
+    @Log(title = "修改机构评级", businessType = BusinessType.UPDATE)
+    @PutMapping("/rating/update")
+    public AjaxResult updateRating(@RequestBody InstitutionRating rating)
+    {
+        rating.setUpdateBy(getUsername());
+        return toAjax(ratingService.updateInstitutionRating(rating));
+    }
+
+    /**
+     * 删除机构评级
+     */
+    @PreAuthorize("@ss.hasPermi('supervision:institution:rating:remove')")
+    @Log(title = "删除机构评级", businessType = BusinessType.DELETE)
+    @DeleteMapping("/rating/{ratingIds}")
+    public AjaxResult delRating(@PathVariable Long[] ratingIds)
+    {
+        return toAjax(ratingService.deleteInstitutionRatingByRatingIds(ratingIds));
+    }
+
+    /**
+     * 导出机构评级数据
+     */
+    @PreAuthorize("@ss.hasPermi('supervision:institution:rating:export')")
+    @Log(title = "导出机构评级", businessType = BusinessType.EXPORT)
+    @PostMapping("/rating/export")
+    public void exportRating(HttpServletResponse response, InstitutionRating rating)
+    {
+        List<InstitutionRating> list = ratingService.selectInstitutionRatingList(rating);
+        ExcelUtil<InstitutionRating> util = new ExcelUtil<InstitutionRating>(InstitutionRating.class);
+        util.exportExcel(response, list, "机构评级数据");
     }
 }
