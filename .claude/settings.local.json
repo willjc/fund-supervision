@@ -41,7 +41,8 @@
       "Bash(findstr:*)",
       "Bash(del \"D:\\newhm\\newzijin\\temp_update.txt\")",
       "Bash(java:*)",
-      "Bash(mvn:*)"
+      "Bash(mvn:*)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []

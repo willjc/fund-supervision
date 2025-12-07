@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.stream.Collectors;
+import java.math.BigDecimal;
 import org.springframework.util.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,6 +13,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONArray;
+import com.alibaba.fastjson2.JSONObject;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
@@ -115,6 +119,7 @@ public class H5InstitutionController extends BaseController
 
     /**
      * 获取养老机构详细信息 (H5端)
+     * 返回格式化的机构详情数据，包含公示信息
      */
     @GetMapping("/{institutionId}")
     public AjaxResult getInfo(@PathVariable("institutionId") Long institutionId)
@@ -129,7 +134,18 @@ public class H5InstitutionController extends BaseController
         {
             return AjaxResult.error("该机构暂不可用");
         }
-        return AjaxResult.success(institution);
+
+        // 查询机构的公示信息
+        PensionInstitutionPublic queryPublicity = new PensionInstitutionPublic();
+        queryPublicity.setInstitutionId(institutionId);
+        queryPublicity.setIsPublished("1");  // 只查询已发布的公示信息
+        List<PensionInstitutionPublic> publicityList = pensionInstitutionPublicService.selectPensionInstitutionPublicList(queryPublicity);
+
+        // 转换为H5详情页面需要的格式
+        Map<String, Object> detailData = convertToH5DetailFormat(institution,
+                publicityList.isEmpty() ? null : publicityList.get(0));
+
+        return AjaxResult.success(detailData);
     }
 
     /**
@@ -508,6 +524,382 @@ public class H5InstitutionController extends BaseController
         } catch (NumberFormatException e) {
             // 解析失败时忽略，使用默认值
             System.out.println("解析fee_range失败: " + feeRange);
+        }
+    }
+
+    /**
+     * 转换为H5详情页面需要的格式
+     */
+    private Map<String, Object> convertToH5DetailFormat(PensionInstitution institution, PensionInstitutionPublic publicity) {
+        Map<String, Object> result = new HashMap<>();
+
+        // 基础信息
+        result.put("institutionId", institution.getInstitutionId());
+        result.put("name", institution.getInstitutionName());
+        result.put("description", publicity != null ? publicity.getInstitutionIntro() : "");
+        result.put("address", institution.getActualAddress());
+        result.put("contactPhone", institution.getContactPhone());
+
+        if (publicity != null) {
+            // 价格信息
+            Map<String, Object> priceRanges = new HashMap<>();
+
+            Map<String, Object> nursingMap = new HashMap<>();
+            nursingMap.put("min", publicity.getNursingFeeMin());
+            nursingMap.put("max", publicity.getNursingFeeMax());
+            priceRanges.put("nursing", nursingMap);
+
+            Map<String, Object> bedMap = new HashMap<>();
+            bedMap.put("min", publicity.getBedFeeMin());
+            bedMap.put("max", publicity.getBedFeeMax());
+            priceRanges.put("bed", bedMap);
+
+            Map<String, Object> dietMap = new HashMap<>();
+            dietMap.put("min", publicity.getMealFeeMin());
+            dietMap.put("max", publicity.getMealFeeMax());
+            priceRanges.put("diet", dietMap);
+
+            // 计算总费用
+            BigDecimal totalMin = publicity.getNursingFeeMin().add(publicity.getBedFeeMin()).add(publicity.getMealFeeMin());
+            BigDecimal totalMax = publicity.getNursingFeeMax().add(publicity.getBedFeeMax()).add(publicity.getMealFeeMax());
+
+            Map<String, Object> totalMap = new HashMap<>();
+            totalMap.put("min", totalMin);
+            totalMap.put("max", totalMax);
+            priceRanges.put("total", totalMap);
+            result.put("priceRanges", priceRanges);
+
+            // **关键：设施图片需要转换为[{image, name}]格式**
+            result.put("roomFacilities", parseFacilityImages(publicity.getRoomFacilities()));
+            result.put("basicFacilities", parseFacilityImages(publicity.getBasicFacilities()));
+            result.put("parkFacilities", parseFacilityImages(publicity.getParkFacilities()));
+
+            // 其他设施数据 - 转换为前端期望格式
+            result.put("lifeFacilities", parseLifeFacilities(publicity.getLifeFacilities()));
+            result.put("medicalFacilities", parseMedicalFacilities(publicity.getMedicalFacilities()));
+            result.put("dailyServices", parseJsonToArray(publicity.getDailyServices()));
+
+            // 图片数据
+            result.put("coverImage", publicity.getMainPicture());
+            result.put("images", parseJsonToArray(publicity.getEnvironmentImgs()));
+            result.put("buildingArea", publicity.getBuildingArea());
+        }
+
+        // 默认值
+        result.put("rating", 4.5);
+        result.put("establishDate", "2024年"); // 可从机构表获取
+        result.put("totalBeds", institution.getBedCount());
+
+        // **通过床位管理系统精确计算可用床位**
+        Map<String, Object> bedStats = bedInfoService.getBedStatistics(institution.getInstitutionId());
+        result.put("availableBeds", bedStats.getOrDefault("availableBeds", 0));
+
+        result.put("certificationTags", generateCertificationTags(institution.getInstitutionType()));
+        result.put("reviews", new ArrayList<>()); // 暂时为空，后续更新
+
+        return result;
+    }
+
+    /**
+     * 解析设施图片，转换为前端需要的[{image, name}]格式
+     * 支持两种格式：JSON格式和逗号分隔格式
+     */
+    private List<Map<String, String>> parseFacilityImages(String imageStr) {
+        List<Map<String, String>> result = new ArrayList<>();
+        if (!StringUtils.hasText(imageStr)) return result;
+
+        try {
+            // 尝试解析为JSON格式
+            JSONArray jsonArray = JSON.parseArray(imageStr);
+            for (int i = 0; i < jsonArray.size(); i++) {
+                JSONObject item = jsonArray.getJSONObject(i);
+                Map<String, String> facility = new HashMap<>();
+                facility.put("image", item.getString("url"));
+                facility.put("name", item.getString("name"));
+                result.add(facility);
+            }
+        } catch (Exception e) {
+            // JSON解析失败，尝试解析为逗号分隔格式
+            try {
+                String[] imageUrls = imageStr.split(",");
+                for (int i = 0; i < imageUrls.length; i++) {
+                    String imageUrl = imageUrls[i].trim();
+                    if (StringUtils.hasText(imageUrl)) {
+                        Map<String, String> facility = new HashMap<>();
+                        facility.put("image", imageUrl);
+                        facility.put("name", "设施" + (i + 1)); // 生成默认名称
+                        result.add(facility);
+                    }
+                }
+            } catch (Exception ex) {
+                // 解析完全失败，返回空列表
+                System.out.println("解析设施图片失败: " + imageStr);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 生成认证标签（基于机构入驻申请的类型选项）
+     */
+    private List<String> generateCertificationTags(String institutionType) {
+        List<String> tags = new ArrayList<>();
+
+        // 基础标签
+        tags.add("民政认证");
+        tags.add("安全监管");
+
+        // 基于机构入驻申请页面的类型选项生成标签
+        switch (institutionType) {
+            case "nursing_home":
+                tags.add("养老院");
+                tags.add("医养结合");
+                break;
+            case "service_center":
+                tags.add("养老服务中心");
+                tags.add("社区服务");
+                break;
+            case "day_care":
+                tags.add("日间照料");
+                tags.add("临时托管");
+                break;
+            case "senior_apartment":
+                tags.add("养老公寓");
+                tags.add("高端养老");
+                break;
+            case "other":
+                tags.add("专业养老机构");
+                break;
+            default:
+                tags.add("养老机构");
+                break;
+        }
+
+        return tags;
+    }
+
+    private List<String> parseJsonToArray(String jsonStr) {
+        if (!StringUtils.hasText(jsonStr)) return new ArrayList<>();
+        try {
+            return JSON.parseArray(jsonStr, String.class);
+        } catch (Exception e) {
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * 解析生活设施，转换为前端需要的[{icon, name}]格式
+     */
+    private List<Map<String, String>> parseLifeFacilities(String jsonStr) {
+        List<Map<String, String>> result = new ArrayList<>();
+        if (!StringUtils.hasText(jsonStr)) return result;
+
+        try {
+            List<String> facilities = JSON.parseArray(jsonStr, String.class);
+            for (String facility : facilities) {
+                Map<String, String> item = new HashMap<>();
+                item.put("name", facility);
+                item.put("icon", getLifeFacilityIcon(facility));
+                result.add(item);
+            }
+        } catch (Exception e) {
+            System.out.println("解析生活设施失败: " + jsonStr);
+        }
+        return result;
+    }
+
+    /**
+     * 解析医疗设施，转换为前端需要的[{icon, name}]格式
+     */
+    private List<Map<String, String>> parseMedicalFacilities(String jsonStr) {
+        List<Map<String, String>> result = new ArrayList<>();
+        if (!StringUtils.hasText(jsonStr)) return result;
+
+        try {
+            List<String> facilities = JSON.parseArray(jsonStr, String.class);
+            for (String facility : facilities) {
+                Map<String, String> item = new HashMap<>();
+                item.put("name", facility);
+                item.put("icon", getMedicalFacilityIcon(facility));
+                result.add(item);
+            }
+        } catch (Exception e) {
+            System.out.println("解析医疗设施失败: " + jsonStr);
+        }
+        return result;
+    }
+
+    /**
+     * 根据生活设施名称获取对应图标
+     */
+    private String getLifeFacilityIcon(String facilityName) {
+        switch (facilityName) {
+            // 居住相关
+            case "独立卫浴":
+                return "bath-o";
+            case "24小时热水":
+                return "fire-o";
+            case "空调":
+                return "play-o";
+            case "暖气":
+                return "fire-o";
+            case "电梯":
+                return "friends-o";
+            case "衣柜":
+                return "bag-o";
+            case "电视":
+                return "tv-o";
+            case "电话":
+                return "phone-o";
+
+            // 网络通讯
+            case "无线网络":
+                return "wifi-o";
+            case "宽带网络":
+                return "wifi-o";
+
+            // 安全便利
+            case "紧急呼叫":
+                return "warning-o";
+            case "24小时监控":
+                return "shield-o";
+            case "门禁系统":
+                return "lock";
+            case "无障碍设施":
+                return "service-o";
+
+            // 餐饮服务
+            case "餐厅":
+                return "restaurant-o";
+            case "送餐服务":
+                return "service-o";
+            case "小食堂":
+                return "food-o";
+
+            // 清洁服务
+            case "洗衣服务":
+                return "service-o";
+            case "保洁服务":
+                return "shop-o";
+            case "床上用品更换":
+                return "replay";
+
+            // 娱乐休闲
+            case "活动室":
+                return "friends-o";
+            case "阅览室":
+                return "book-o";
+            case "棋牌室":
+                return "game-o";
+            case "健身房":
+                return "fire-o";
+            case "娱乐室":
+                return "video-o";
+            case "理发室":
+                return "manager-o";
+            case "会客厅":
+                return "chat-o";
+
+            // 医疗护理
+            case "医务室":
+                return "hospital-o";
+            case "护理站":
+                return "user-circle-o";
+
+            // 其他服务
+            case "超市购物":
+                return "shopping-cart-o";
+            case "代购服务":
+                return "express-shipping";
+            case "停车服务":
+                return "car-o";
+            case "班车服务":
+                return "logistics";
+
+            default:
+                return "service-o";
+        }
+    }
+
+    /**
+     * 根据医疗设施名称获取对应图标
+     */
+    private String getMedicalFacilityIcon(String facilityName) {
+        switch (facilityName) {
+            // 医疗机构
+            case "医疗室":
+                return "hospital-o";
+            case "诊所":
+                return "hospital-o";
+            case "内设医疗机构":
+                return "buildings-o";
+            case "医务室":
+                return "hospital-o";
+            case "诊室":
+                return "service-o";
+
+            // 康复理疗
+            case "康复室":
+                return "cluster-o";
+            case "理疗室":
+                return "manager-o";
+            case "康复中心":
+                return "friends-o";
+            case "物理治疗室":
+                return "fire-o";
+
+            // 专业人员
+            case "专业护士":
+                return "user-circle-o";
+            case "执业医师":
+                return "contact";
+            case "康复师":
+                return "service";
+            case "护理员":
+                return "friends-o";
+
+            // 医疗设备
+            case "康复设备":
+                return "setting-o";
+            case "理疗设备":
+                return "play-o";
+            case "医疗设备":
+                return "tool-o";
+            case "护理设备":
+                return "bag-o";
+
+            // 药品相关
+            case "药房":
+                return "bag-o";
+            case "药品管理":
+                return "description";
+
+            // 健康监测
+            case "健康监测":
+                return "chart-trending-o";
+            case "体检服务":
+                return "service-o";
+            case "慢病管理":
+                return "calendar-o";
+
+            // 急救相关
+            case "急救室":
+                return "first-aid-o";
+            case "急救设备":
+                return "warning-o";
+            case "氧气供应":
+                return "fire-o";
+
+            // 专门医疗
+            case "中医馆":
+                return "service-o";
+            case "心理咨询室":
+                return "chat-o";
+            case "营养配餐":
+                return "food-o";
+
+            default:
+                return "first-aid-o";
         }
     }
 }

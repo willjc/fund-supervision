@@ -292,6 +292,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showToast, showDialog, showImagePreview } from 'vant'
+import { getInstitutionDetail } from '@/api/institution'
 
 const route = useRoute()
 const router = useRouter()
@@ -512,12 +513,25 @@ const loadDetail = async () => {
   try {
     loading.value = true
 
-    // 模拟网络延迟
-    await new Promise(resolve => setTimeout(resolve, 500))
+    // 调用真实API获取机构详情
+    const response = await getInstitutionDetail(route.params.id)
 
-    // 使用模拟数据
-    detail.value = mockDetail
+    // 确保必要字段有默认值
+    detail.value = {
+      ...response.data,
+      isFavorite: false, // 默认未收藏
+      rating: response.data.rating || 4.5, // 默认评分
+      reviews: response.data.reviews || [], // 默认空评价列表
+      // 确保设施数据为数组
+      roomFacilities: response.data.roomFacilities || [],
+      basicFacilities: response.data.basicFacilities || [],
+      parkFacilities: response.data.parkFacilities || [],
+      lifeFacilities: response.data.lifeFacilities || [],
+      medicalFacilities: response.data.medicalFacilities || [],
+      dailyServices: response.data.dailyServices || []
+    }
   } catch (error) {
+    console.error('加载机构详情失败:', error)
     showToast('加载失败')
   } finally {
     loading.value = false
