@@ -431,6 +431,14 @@ export default {
       const ratingId = row.ratingId
       getRating(ratingId).then(response => {
         this.form = response.data
+        // 编辑时也需要加载机构选项
+        this.institutionLoading = true
+        listApprovedInstitutions({ pageSize: 20 }).then(response => {
+          this.institutionOptions = response.rows
+          this.institutionLoading = false
+        }).catch(() => {
+          this.institutionLoading = false
+        })
         this.open = true
         this.title = '修改机构评级'
       })
@@ -438,23 +446,14 @@ export default {
     submitForm() {
       this.$refs['form'].validate(valid => {
         if (valid) {
-          // 计算总分
-          this.form.totalScore = this.form.serviceScore + this.form.facilityScore +
-                                this.form.managementScore + this.form.safetyScore
+          // 确保评分数据为数字类型
+          const serviceScore = parseFloat(this.form.serviceScore) || 0
+          const facilityScore = parseFloat(this.form.facilityScore) || 0
+          const managementScore = parseFloat(this.form.managementScore) || 0
+          const safetyScore = parseFloat(this.form.safetyScore) || 0
 
-          // 计算评级等级
-          const totalScore = this.form.totalScore
-          if (totalScore >= 90) {
-            this.form.ratingLevel = 5
-          } else if (totalScore >= 80) {
-            this.form.ratingLevel = 4
-          } else if (totalScore >= 70) {
-            this.form.ratingLevel = 3
-          } else if (totalScore >= 60) {
-            this.form.ratingLevel = 2
-          } else {
-            this.form.ratingLevel = 1
-          }
+          // 计算总分
+          this.form.totalScore = (serviceScore + facilityScore + managementScore + safetyScore).toFixed(1)
 
           if (this.form.ratingId != null) {
             updateRating(this.form).then(response => {
@@ -545,19 +544,6 @@ export default {
 
       const totalScore = serviceScore + facilityScore + managementScore + safetyScore
       this.form.totalScore = totalScore.toFixed(1)
-
-      // 自动计算评级等级
-      if (totalScore >= 90) {
-        this.form.ratingLevel = 5
-      } else if (totalScore >= 80) {
-        this.form.ratingLevel = 4
-      } else if (totalScore >= 70) {
-        this.form.ratingLevel = 3
-      } else if (totalScore >= 60) {
-        this.form.ratingLevel = 2
-      } else {
-        this.form.ratingLevel = 1
-      }
     }
   }
 }

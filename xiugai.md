@@ -25392,3 +25392,102 @@ ESLint检查到svgIcons对象中存在重复的键定义：
 - 为养老机构监管提供了科学、规范的评级工具
 - 提升监管效率和透明度
 - 支持历史评级记录和数据统计分析
+
+## 2024-12-08 评级系统问题修复
+
+### 问题描述
+用户反馈评级系统存在以下问题：
+1. 评级等级无法修改成功（点击3星保存后依旧没变）
+2. 机构名称显示为"16"而不是机构名称
+3. 列表中的评级等级一直显示3星
+
+### 问题分析
+1. **前端问题**: `submitForm`方法中数据类型处理不当，`calculateTotalScore`方法自动覆盖用户选择的星级
+2. **后端问题**: `InstitutionRatingServiceImpl`中的`insertInstitutionRating`和`updateInstitutionRating`方法强制自动计算评级等级，覆盖前端传递的用户选择
+3. **前端显示问题**: 编辑时未加载机构选项，导致下拉框无法正确显示机构名称
+
+### 修复方案
+
+#### 1. 修复前端submitForm方法
+**文件**: `ruoyi-ui/src/views/supervision/institution/ratingList.vue`
+- 确保评分数据为数字类型，使用`parseFloat`转换
+- 修复总分计算逻辑，确保数据类型正确
+
+#### 2. 移除前端自动计算星级逻辑
+**文件**: `ruoyi-ui/src/views/supervision/institution/ratingList.vue`
+- `calculateTotalScore`方法只计算总分，不再自动设置评级等级
+- 保持用户手动选择的星级
+
+#### 3. 修复后端强制覆盖问题
+**文件**: `ruoyi-admin/src/main/java/com/ruoyi/service/impl/InstitutionRatingServiceImpl.java`
+- `insertInstitutionRating`方法：增加条件判断，只有当前端未传递评级等级或值不合法时才自动计算
+- `updateInstitutionRating`方法：同样增加条件判断，尊重前端传递的用户选择
+
+#### 4. 修复编辑时机构名称显示问题
+**文件**: `ruoyi-ui/src/views/supervision/institution/ratingList.vue`
+- `handleUpdate`方法中增加机构选项加载逻辑
+- 确保编辑时下拉框能正确显示机构名称
+
+### 修复核心代码
+
+#### 前端submitForm方法优化
+```javascript
+submitForm() {
+  this.$refs['form'].validate(valid => {
+    if (valid) {
+      // 确保评分数据为数字类型
+      const serviceScore = parseFloat(this.form.serviceScore) || 0
+      const facilityScore = parseFloat(this.form.facilityScore) || 0
+      const managementScore = parseFloat(this.form.managementScore) || 0
+      const safetyScore = parseFloat(this.form.safetyScore) || 0
+
+      // 计算总分
+      this.form.totalScore = (serviceScore + facilityScore + managementScore + safetyScore).toFixed(1)
+      // ...提交逻辑
+    }
+  })
+}
+```
+
+#### 后端服务层优化
+```java
+// 如果前端未传递评级等级，则自动计算；否则使用前端传递的值
+if (institutionRating.getRatingLevel() == null ||
+    institutionRating.getRatingLevel() < 1 ||
+    institutionRating.getRatingLevel() > 5) {
+    Integer ratingLevel = calculateRatingLevel(totalScore);
+    institutionRating.setRatingLevel(ratingLevel);
+}
+```
+
+#### 前端编辑方法优化
+```javascript
+handleUpdate(row) {
+  this.reset()
+  const ratingId = row.ratingId
+  getRating(ratingId).then(response => {
+    this.form = response.data
+    // 编辑时也需要加载机构选项
+    this.institutionLoading = true
+    listApprovedInstitutions({ pageSize: 20 }).then(response => {
+      this.institutionOptions = response.rows
+      this.institutionLoading = false
+    })
+    // ...后续逻辑
+  })
+}
+```
+
+### 修复效果
+- ✅ 评级等级可以正常修改和保存
+- ✅ 机构名称正确显示，不再显示数字ID
+- ✅ 列表中的星级显示与实际数据一致
+- ✅ 保持自动计算总分功能
+- ✅ 用户可以手动选择星级，系统不再强制覆盖
+- ✅ 编辑时机构下拉框正常工作
+
+### 技术要点
+1. **数据类型一致性**: 确保前后端数据类型匹配，避免字符串/数字转换问题
+2. **业务逻辑优化**: 区分自动计算和用户选择的优先级
+3. **用户体验**: 编辑时保持数据加载的完整性
+4. **向后兼容**: 保留自动计算逻辑作为兜底方案

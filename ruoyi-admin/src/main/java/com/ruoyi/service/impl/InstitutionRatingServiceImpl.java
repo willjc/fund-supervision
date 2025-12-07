@@ -65,9 +65,11 @@ public class InstitutionRatingServiceImpl implements IInstitutionRatingService
         BigDecimal totalScore = calculateTotalScore(institutionRating);
         institutionRating.setTotalScore(totalScore);
 
-        // 自动计算评级等级
-        Integer ratingLevel = calculateRatingLevel(totalScore);
-        institutionRating.setRatingLevel(ratingLevel);
+        // 如果前端未传递评级等级，则自动计算；否则使用前端传递的值
+        if (institutionRating.getRatingLevel() == null || institutionRating.getRatingLevel() < 1 || institutionRating.getRatingLevel() > 5) {
+            Integer ratingLevel = calculateRatingLevel(totalScore);
+            institutionRating.setRatingLevel(ratingLevel);
+        }
 
         // 计算有效期至
         if (institutionRating.getRatingDate() != null && institutionRating.getValidityPeriod() != null) {
@@ -98,9 +100,11 @@ public class InstitutionRatingServiceImpl implements IInstitutionRatingService
         BigDecimal totalScore = calculateTotalScore(institutionRating);
         institutionRating.setTotalScore(totalScore);
 
-        // 自动计算评级等级
-        Integer ratingLevel = calculateRatingLevel(totalScore);
-        institutionRating.setRatingLevel(ratingLevel);
+        // 如果前端未传递评级等级，则自动计算；否则使用前端传递的值
+        if (institutionRating.getRatingLevel() == null || institutionRating.getRatingLevel() < 1 || institutionRating.getRatingLevel() > 5) {
+            Integer ratingLevel = calculateRatingLevel(totalScore);
+            institutionRating.setRatingLevel(ratingLevel);
+        }
 
         // 计算有效期至
         if (institutionRating.getRatingDate() != null && institutionRating.getValidityPeriod() != null) {

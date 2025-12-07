@@ -21,10 +21,12 @@ import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.domain.PensionInstitution;
 import com.ruoyi.domain.PensionInstitutionPublic;
+import com.ruoyi.domain.InstitutionRating;
 import com.ruoyi.service.IPensionInstitutionService;
 import com.ruoyi.service.IPensionInstitutionPublicService;
 import com.ruoyi.service.IBedInfoService;
 import com.ruoyi.service.IFacilityIconConfigService;
+import com.ruoyi.service.IInstitutionRatingService;
 import com.ruoyi.domain.FacilityIconConfig;
 
 /**
@@ -47,6 +49,9 @@ public class H5InstitutionController extends BaseController
 
     @Autowired
     private IFacilityIconConfigService facilityIconConfigService;
+
+    @Autowired
+    private IInstitutionRatingService ratingService;
 
     /**
      * 查询养老机构列表 (H5端,不需要权限)
@@ -601,6 +606,54 @@ public class H5InstitutionController extends BaseController
 
         result.put("certificationTags", generateCertificationTags(institution.getInstitutionType()));
         result.put("reviews", new ArrayList<>()); // 暂时为空，后续更新
+
+        // 添加机构评级数据
+        try {
+            InstitutionRating queryRating = new InstitutionRating();
+            queryRating.setInstitutionId(institution.getInstitutionId());
+            List<InstitutionRating> ratings = ratingService.selectInstitutionRatingList(queryRating);
+
+            if (!ratings.isEmpty()) {
+                // 获取最新的有效评级
+                InstitutionRating latestRating = ratings.stream()
+                        .filter(rating -> "1".equals(rating.getRatingStatus())) // 只获取有效的评级
+                        .sorted((a, b) -> b.getRatingDate().compareTo(a.getRatingDate())) // 按评级日期倒序
+                        .findFirst()
+                        .orElse(null);
+
+                if (latestRating != null) {
+                    Map<String, Object> ratingData = new HashMap<>();
+                    ratingData.put("ratingLevel", latestRating.getRatingLevel());
+                    ratingData.put("totalScore", latestRating.getTotalScore());
+                    ratingData.put("serviceScore", latestRating.getServiceScore());
+                    ratingData.put("facilityScore", latestRating.getFacilityScore());
+                    ratingData.put("managementScore", latestRating.getManagementScore());
+                    ratingData.put("safetyScore", latestRating.getSafetyScore());
+                    ratingData.put("ratingDate", latestRating.getRatingDate());
+                    ratingData.put("expireDate", latestRating.getExpireDate());
+                    ratingData.put("ratingStatus", latestRating.getRatingStatus());
+                    ratingData.put("ratingRemark", latestRating.getRatingRemark());
+
+                    result.put("institutionRating", ratingData);
+
+                    // 更新评分为真实评级数据
+                    result.put("rating", latestRating.getRatingLevel().doubleValue());
+                } else {
+                    // 没有有效评级，使用默认值
+                    result.put("institutionRating", null);
+                    result.put("rating", 4.5);
+                }
+            } else {
+                // 没有评级数据
+                result.put("institutionRating", null);
+                result.put("rating", 4.5);
+            }
+        } catch (Exception e) {
+            // 查询评级失败时使用默认值
+            result.put("institutionRating", null);
+            result.put("rating", 4.5);
+            System.out.println("查询机构评级失败: " + e.getMessage());
+        }
 
         return result;
     }

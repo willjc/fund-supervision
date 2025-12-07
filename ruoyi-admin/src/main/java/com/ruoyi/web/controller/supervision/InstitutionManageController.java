@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.poi.ss.usermodel.*;
@@ -524,7 +525,19 @@ public class InstitutionManageController extends BaseController
         // 只查询已审核通过的机构(status='1')
         pensionInstitution.setStatus("1");
         List<PensionInstitution> list = pensionInstitutionService.selectPensionInstitutionList(pensionInstitution);
-        return getDataTable(list);
+
+        // 转换为前端期望的格式
+        List<Map<String, Object>> convertedList = list.stream().map(institution -> {
+            Map<String, Object> item = new HashMap<>();
+            item.put("institutionId", institution.getInstitutionId());
+            item.put("institutionName", institution.getInstitutionName());
+            item.put("creditCode", institution.getCreditCode());
+            return item;
+        }).collect(Collectors.toList());
+
+        TableDataInfo dataTable = getDataTable(list);
+        dataTable.setRows(convertedList);
+        return dataTable;
     }
 
     // ========== 机构评级管理 ==========
