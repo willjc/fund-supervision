@@ -572,6 +572,36 @@
           <el-descriptions-item label="床位数">{{ previewData.bedCount ? previewData.bedCount + '张' : '-' }}</el-descriptions-item>
         </el-descriptions>
 
+        <!-- 费用信息 -->
+        <el-descriptions title="费用信息(元/月)" :column="2" border style="margin-top: 20px;">
+          <el-descriptions-item label="护理费">
+            <span v-if="form.nursingFeeMin != null && form.nursingFeeMax != null">
+              {{ form.nursingFeeMin }} - {{ form.nursingFeeMax }}
+            </span>
+            <span v-else>-</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="床位费">
+            <span v-if="form.bedFeeMin != null && form.bedFeeMax != null">
+              {{ form.bedFeeMin }} - {{ form.bedFeeMax }}
+            </span>
+            <span v-else>-</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="膳食费">
+            <span v-if="form.mealFeeMin != null && form.mealFeeMax != null">
+              {{ form.mealFeeMin }} - {{ form.mealFeeMax }}
+            </span>
+            <span v-else>-</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="总费用">
+            <span v-if="form.nursingFeeMin != null && form.nursingFeeMax != null &&
+                      form.bedFeeMin != null && form.bedFeeMax != null &&
+                      form.mealFeeMin != null && form.mealFeeMax != null">
+              {{ totalFeeMin }} - {{ totalFeeMax }}
+            </span>
+            <span v-else>-</span>
+          </el-descriptions-item>
+        </el-descriptions>
+
         <el-descriptions title="服务信息" :column="2" border style="margin-top: 20px;">
           <el-descriptions-item label="收住对象能力">
             {{ previewAcceptElderType() }}
@@ -593,6 +623,19 @@
           <p>{{ form.serviceFeatures }}</p>
         </div>
 
+        <!-- 机构主图 -->
+        <div class="detail-section" v-if="form.mainPicture">
+          <h4>机构主图</h4>
+          <div class="main-image-container">
+            <el-image
+              :src="getImageUrl(form.mainPicture)"
+              :preview-src-list="[getImageUrl(form.mainPicture)]"
+              fit="cover"
+              style="width: 300px; height: 200px; border-radius: 5px;"
+            ></el-image>
+          </div>
+        </div>
+
         <div class="detail-section" v-if="form.environmentImgs">
           <h4>环境图片</h4>
           <div class="image-gallery">
@@ -604,6 +647,89 @@
               fit="cover"
               class="gallery-image"
             ></el-image>
+          </div>
+        </div>
+
+        <!-- 设施图片 -->
+        <div class="detail-section" v-if="form.roomFacilities && getImageList(form.roomFacilities).length > 0">
+          <h4>房间设施图片</h4>
+          <div class="image-gallery">
+            <el-image
+              v-for="(img, index) in getImageList(form.roomFacilities)"
+              :key="index"
+              :src="img"
+              :preview-src-list="getImageList(form.roomFacilities)"
+              fit="cover"
+              class="gallery-image"
+            ></el-image>
+          </div>
+        </div>
+
+        <div class="detail-section" v-if="form.basicFacilities && getImageList(form.basicFacilities).length > 0">
+          <h4>基础设施图片</h4>
+          <div class="image-gallery">
+            <el-image
+              v-for="(img, index) in getImageList(form.basicFacilities)"
+              :key="index"
+              :src="img"
+              :preview-src-list="getImageList(form.basicFacilities)"
+              fit="cover"
+              class="gallery-image"
+            ></el-image>
+          </div>
+        </div>
+
+        <div class="detail-section" v-if="form.parkFacilities && getImageList(form.parkFacilities).length > 0">
+          <h4>园址设施图片</h4>
+          <div class="image-gallery">
+            <el-image
+              v-for="(img, index) in getImageList(form.parkFacilities)"
+              :key="index"
+              :src="img"
+              :preview-src-list="getImageList(form.parkFacilities)"
+              fit="cover"
+              class="gallery-image"
+            ></el-image>
+          </div>
+        </div>
+
+        <!-- 设施选项 -->
+        <div class="detail-section" v-if="selectedLifeFacilities && selectedLifeFacilities.length > 0">
+          <h4>生活设施</h4>
+          <div class="facility-list">
+            <el-tag
+              v-for="(facility, index) in selectedLifeFacilities"
+              :key="index"
+              type="success"
+              size="medium"
+              style="margin: 2px 5px 2px 0;">
+              {{ facility }}
+            </el-tag>
+          </div>
+        </div>
+
+        <div class="detail-section" v-if="selectedMedicalFacilities && selectedMedicalFacilities.length > 0">
+          <h4>医疗设施</h4>
+          <div class="facility-list">
+            <el-tag
+              v-for="(facility, index) in selectedMedicalFacilities"
+              :key="index"
+              type="primary"
+              size="medium"
+              style="margin: 2px 5px 2px 0;">
+              {{ facility }}
+            </el-tag>
+          </div>
+        </div>
+
+        <!-- 每日服务时间安排 -->
+        <div class="detail-section" v-if="dailyServices && dailyServices.filter(service => service.time && service.content).length > 0">
+          <h4>每日服务时间安排</h4>
+          <div class="service-schedule">
+            <div v-for="(service, index) in dailyServices.filter(service => service.time && service.content)" :key="index" class="service-item">
+              <el-tag type="info" size="small">{{ service.time }}</el-tag>
+              <span class="service-content">{{ service.content }}</span>
+            </div>
           </div>
         </div>
       </div>

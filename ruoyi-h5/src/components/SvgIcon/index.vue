@@ -7,7 +7,7 @@
 
 <script>
 import { isExternal } from '@/utils/validate'
-import { initSvgSprite, svgIcons } from '@/utils/svgSprite'
+import { initSvgSprite } from '@/utils/svgSprite'
 
 export default {
   name: 'SvgIcon',
