@@ -1229,3 +1229,17 @@ VIP房间     → 豪华床位 (bed_type=2)
 - 插入elder_info表10条记录
 - 插入elder_family表19条记录（含9位原有老人的家属补充）
 - 家属信息使用user_id=106关联，确保权限一致性
+
+### H5订单提交返回数据修复
+**问题**: H5订单提交成功但前端显示'提交订单失败请重试'
+
+**根本原因**: 后端H5OrderController返回数据中缺少前端期望的orderId和orderNo字段
+
+**修复的文件**:
+#### 1. `ruoyi-admin/src/main/java/com/ruoyi/web/controller/h5/H5OrderController.java`
+
+**修复内容**:
+- 添加IOrderInfoService依赖注入，用于查询订单信息
+- 在创建入住申请成功后，查询最新创建的订单记录
+- 返回前端期望的orderId和orderNo字段
+- 添加备用方案：如果查询不到订单信息，使用时间戳生成orderId和orderNo

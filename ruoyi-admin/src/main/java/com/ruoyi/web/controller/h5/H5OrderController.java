@@ -21,9 +21,11 @@ import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.domain.BedInfo;
 import com.ruoyi.domain.ElderInfo;
+import com.ruoyi.domain.OrderInfo;
 import com.ruoyi.domain.PensionCheckinDTO;
 import com.ruoyi.service.IBedInfoService;
 import com.ruoyi.service.IElderInfoService;
+import com.ruoyi.service.IOrderInfoService;
 import com.ruoyi.service.IPensionCheckinService;
 
 /**
@@ -43,6 +45,9 @@ public class H5OrderController extends BaseController
 
     @Autowired
     private IPensionCheckinService pensionCheckinService;
+
+    @Autowired
+    private IOrderInfoService orderInfoService;
 
     /**
      * 获取老人列表
@@ -249,9 +254,34 @@ public class H5OrderController extends BaseController
             int result = pensionCheckinService.createCheckin(checkinDTO, userId);
 
             if (result > 0) {
+                // 查询刚创建的订单信息
+                OrderInfo orderQuery = new OrderInfo();
+                orderQuery.setElderId(elderId);
+                orderQuery.setInstitutionId(institutionId);
+                orderQuery.setOrderDate(new Date());
+                List<OrderInfo> orderList = orderInfoService.selectOrderInfoList(orderQuery);
+
+                OrderInfo latestOrder = null;
+                if (orderList != null && !orderList.isEmpty()) {
+                    // 找到最新创建的订单（按订单ID降序排列）
+                    latestOrder = orderList.stream()
+                        .max((o1, o2) -> o1.getOrderId().compareTo(o2.getOrderId()))
+                        .orElse(null);
+                }
+
                 Map<String, Object> responseData = new HashMap<>();
                 responseData.put("success", true);
                 responseData.put("message", "订单提交成功");
+
+                if (latestOrder != null) {
+                    responseData.put("orderId", latestOrder.getOrderId());
+                    responseData.put("orderNo", latestOrder.getOrderNo());
+                } else {
+                    // 如果查询不到订单信息，使用备用方案
+                    responseData.put("orderId", System.currentTimeMillis());
+                    responseData.put("orderNo", "H5" + System.currentTimeMillis());
+                }
+
                 responseData.put("bedInfo", selectedBed);
                 responseData.put("monthlyFee", monthlyFee);
                 responseData.put("totalAmount", finalAmount);
