@@ -44,6 +44,26 @@ public class BedInfo extends BaseEntity
     @Excel(name = "价格(元/月)", prompt = "必填,单位:元,如:2000")
     private BigDecimal price;
 
+    /** 自理护理价格(元/月) */
+    @Excel(name = "自理护理价格(元/月)", prompt = "选填,自理等级护理费,如:500")
+    private BigDecimal selfCarePrice;
+
+    /** 半护理价格(元/月) */
+    @Excel(name = "半护理价格(元/月)", prompt = "选填,半护理等级护理费,如:800")
+    private BigDecimal halfCarePrice;
+
+    /** 全护理价格(元/月) */
+    @Excel(name = "全护理价格(元/月)", prompt = "选填,全护理等级护理费,如:1200")
+    private BigDecimal fullCarePrice;
+
+    /** 会员费(一次性) */
+    @Excel(name = "会员费(元)", prompt = "选填,一次性会员费,如:5000")
+    private BigDecimal memberFee;
+
+    /** 押金(一次性) */
+    @Excel(name = "押金(元)", prompt = "选填,一次性押金,如:10000")
+    private BigDecimal depositFee;
+
     /** 楼层 */
     @Excel(name = "楼层", prompt = "选填,如:1、2、3")
     private Long floorNumber;
@@ -199,6 +219,56 @@ public class BedInfo extends BaseEntity
         this.currentUserId = currentUserId;
     }
 
+    public BigDecimal getSelfCarePrice()
+    {
+        return selfCarePrice;
+    }
+
+    public void setSelfCarePrice(BigDecimal selfCarePrice)
+    {
+        this.selfCarePrice = selfCarePrice;
+    }
+
+    public BigDecimal getHalfCarePrice()
+    {
+        return halfCarePrice;
+    }
+
+    public void setHalfCarePrice(BigDecimal halfCarePrice)
+    {
+        this.halfCarePrice = halfCarePrice;
+    }
+
+    public BigDecimal getFullCarePrice()
+    {
+        return fullCarePrice;
+    }
+
+    public void setFullCarePrice(BigDecimal fullCarePrice)
+    {
+        this.fullCarePrice = fullCarePrice;
+    }
+
+    public BigDecimal getMemberFee()
+    {
+        return memberFee;
+    }
+
+    public void setMemberFee(BigDecimal memberFee)
+    {
+        this.memberFee = memberFee;
+    }
+
+    public BigDecimal getDepositFee()
+    {
+        return depositFee;
+    }
+
+    public void setDepositFee(BigDecimal depositFee)
+    {
+        this.depositFee = depositFee;
+    }
+
     @Override
     public String toString() {
         return new ToStringBuilder(this,ToStringStyle.MULTI_LINE_STYLE)
@@ -209,6 +279,11 @@ public class BedInfo extends BaseEntity
             .append("bedType", getBedType())
             .append("bedStatus", getBedStatus())
             .append("price", getPrice())
+            .append("selfCarePrice", getSelfCarePrice())
+            .append("halfCarePrice", getHalfCarePrice())
+            .append("fullCarePrice", getFullCarePrice())
+            .append("memberFee", getMemberFee())
+            .append("depositFee", getDepositFee())
             .append("floorNumber", getFloorNumber())
             .append("roomArea", getRoomArea())
             .append("hasBathroom", getHasBathroom())

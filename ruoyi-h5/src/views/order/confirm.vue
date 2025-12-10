@@ -42,32 +42,27 @@
         </van-field>
       </van-cell-group>
 
-      <!-- 选择套餐 -->
-      <van-cell-group inset title="选择套餐">
-        <van-checkbox-group v-model="formData.packages">
-          <van-cell
-            v-for="pkg in packageOptions"
-            :key="pkg.id"
-          >
-            <template #title>
-              <van-checkbox :name="pkg.id">
-                {{ pkg.name }}
-              </van-checkbox>
-            </template>
-            <template #right-icon>
-              <span class="package-price">{{ pkg.price }}元/月</span>
-            </template>
-          </van-cell>
-        </van-checkbox-group>
+      <!-- 护理等级选择 -->
+      <van-cell-group inset title="护理等级">
+        <van-field
+          v-model="careLevelText"
+          label="护理等级"
+          readonly
+          required
+          @click="showCareLevelPicker = true"
+          placeholder="请选择护理等级"
+        >
+          <template #button>
+            <van-icon name="arrow-down" />
+          </template>
+        </van-field>
       </van-cell-group>
 
       <!-- 费用明细 -->
       <van-cell-group inset title="费用明细">
         <van-cell title="床位费" :value="`${bedFee}元/月`" />
-        <van-cell title="护理费" :value="`${nursingFee}元/月`" />
-        <van-cell title="餐费" :value="`${mealFee}元/月`" />
-        <van-cell title="其他费用" :value="`${otherFee}元/月`" />
-        <van-cell title="月服务费合计" :value="`${monthlyPrice}元/月`" class="bold-text" />
+        <van-cell title="护理费" :value="`${careFee}元/月`" />
+        <van-cell title="服务费合计" :value="`${monthlyPrice}元/月`" class="bold-text" />
         <van-cell title="缴纳月数">
           <template #right-icon>
             <div class="month-control">
@@ -86,8 +81,8 @@
             </div>
           </template>
         </van-cell>
-        <van-cell title="押金（一次性缴纳）" :value="`${depositAmount}元`" />
-        <van-cell title="会员费（一次性缴纳）" :value="`${memberFee}元`" />
+        <van-cell title="押金（一次性）" :value="`${depositAmount}元`" />
+        <van-cell title="会员费（一次性）" :value="`${memberFee}元`" />
         <van-cell title="总金额" class="total-cell">
           <template #right-icon>
             <span class="total-price">{{ totalAmount }}元</span>
@@ -141,6 +136,15 @@
         @cancel="showRoomPicker = false"
       />
     </van-popup>
+
+    <!-- 护理等级选择器 -->
+    <van-popup v-model:show="showCareLevelPicker" position="bottom">
+      <van-picker
+        :columns="careLevelOptions"
+        @confirm="onCareLevelConfirm"
+        @cancel="showCareLevelPicker = false"
+      />
+    </van-popup>
   </div>
 </template>
 
@@ -150,17 +154,18 @@ import { useRouter, useRoute } from 'vue-router'
 import { showToast, showLoadingToast } from 'vant'
 import dayjs from 'dayjs'
 import { getInstitutionDetail } from '@/api/institution'
-import { submitOrder as submitOrderApi, getBedPrice as getBedPriceApi } from '@/api/order'
+import { submitOrder as submitOrderApi, getBedPrice as getBedPriceApi, getElderList } from '@/api/order'
 
 const router = useRouter()
 const route = useRoute()
 
 // 表单数据
 const formData = ref({
+  elderId: null,
   elderName: '',
   abilityLevel: '自理',
   roomType: '单人间',
-  packages: ['meal_normal', 'nursing_self', 'other'],
+  careLevel: '自理',
   months: 1,
   remark: ''
 })
@@ -169,24 +174,44 @@ const formData = ref({
 const showElderPicker = ref(false)
 const showAbilityPicker = ref(false)
 const showRoomPicker = ref(false)
+const showCareLevelPicker = ref(false)
 
-// 床位价格
-const bedPrice = ref(500)
+// 床位信息
+const bedInfo = ref({
+  bedFee: 500,
+  selfCarePrice: 500,
+  halfCarePrice: 800,
+  fullCarePrice: 1200,
+  memberFee: 5000,
+  depositFee: 10000
+})
 
-// 选项数据
+// 护理等级显示文本
+const careLevelText = computed(() => {
+  const option = careLevelOptions.find(item => item.value === formData.value.careLevel)
+  return option ? option.text : '请选择护理等级'
+})
+
+// 老人选项数据（从API获取）
 const elderOptions = ref([
-  { text: '请选择老人', value: '' },
-  { text: '张伟', value: '张伟' },
-  { text: '李明', value: '李明' },
-  { text: '王芳', value: '王芳' },
-  { text: '赵强', value: '赵强' }
+  { text: '请选择老人', value: null, elderId: null }
 ])
+
+// 老人列表数据
+const elderList = ref([])
 
 const abilityOptions = [
   { text: '自理（300元/月）', value: '自理', price: 300 },
   { text: '半自理（800元/月）', value: '半自理', price: 800 },
   { text: '不能自理（1500元/月）', value: '不能自理', price: 1500 },
   { text: '特护（2500元/月）', value: '特护', price: 2500 }
+]
+
+// 护理等级选项（用于费用计算）
+const careLevelOptions = [
+  { text: '自理', value: '自理' },
+  { text: '半护理', value: '半护理' },
+  { text: '全护理', value: '全护理' }
 ]
 
 const roomOptions = [
@@ -196,47 +221,38 @@ const roomOptions = [
   { text: 'VIP房间（豪华床位）', value: 'VIP房间' }
 ]
 
-// 套餐选项
-const packageOptions = [
-  { id: 'meal_normal', name: '餐费（普通餐）', price: 900, category: 'meal' },
-  { id: 'meal_custom', name: '餐费（定制餐）', price: 1500, category: 'meal' },
-  { id: 'other', name: '其他费用（空调费、水电费）', price: 100, category: 'other' }
-]
-
-// 押金金额
-const depositAmount = ref(10000)
-
-// 会员费
-const memberFee = ref(5000)
-
-// 获取护理费用
-const nursingFee = computed(() => {
-  const ability = abilityOptions.find(item => item.value === formData.value.abilityLevel)
-  return ability ? ability.price : 0
-})
-
 // 获取床位费用
 const bedFee = computed(() => {
-  return bedPrice.value
+  return bedInfo.value.bedFee
 })
 
-// 获取餐费
-const mealFee = computed(() => {
-  return packageOptions
-    .filter(pkg => formData.value.packages.includes(pkg.id) && pkg.category === 'meal')
-    .reduce((sum, pkg) => sum + pkg.price, 0)
+// 获取护理费用
+const careFee = computed(() => {
+  switch (formData.value.careLevel) {
+    case '自理':
+      return bedInfo.value.selfCarePrice
+    case '半护理':
+      return bedInfo.value.halfCarePrice
+    case '全护理':
+      return bedInfo.value.fullCarePrice
+    default:
+      return bedInfo.value.selfCarePrice
+  }
 })
 
-// 获取其他费用
-const otherFee = computed(() => {
-  return packageOptions
-    .filter(pkg => formData.value.packages.includes(pkg.id) && pkg.category === 'other')
-    .reduce((sum, pkg) => sum + pkg.price, 0)
+// 押金金额
+const depositAmount = computed(() => {
+  return bedInfo.value.depositFee
 })
 
-// 计算月服务费
+// 会员费
+const memberFee = computed(() => {
+  return bedInfo.value.memberFee
+})
+
+// 计算月服务费（床位费 + 护理费）
 const monthlyPrice = computed(() => {
-  return bedFee.value + nursingFee.value + mealFee.value + otherFee.value
+  return bedFee.value + careFee.value
 })
 
 // 计算总金额
@@ -244,30 +260,90 @@ const totalAmount = computed(() => {
   return depositAmount.value + memberFee.value + monthlyPrice.value * formData.value.months
 })
 
+// 获取老人列表
+const fetchElderList = async () => {
+  try {
+    const response = await getElderList()
+    if (response.code === 200 && response.data) {
+      elderList.value = response.data
+
+      // 更新选择器选项
+      elderOptions.value = [
+        { text: '请选择老人', value: null, elderId: null },
+        ...response.data.map(elder => ({
+          text: `${elder.elderName} (${elder.genderText} ${elder.age}岁 ${elder.careLevelText})`,
+          value: elder.elderName,
+          elderId: elder.elderId,
+          careLevel: elder.careLevel,
+          abilityLevel: elder.careLevelText
+        }))
+      ]
+    }
+  } catch (error) {
+    console.error('获取老人列表失败:', error)
+    showToast('获取老人列表失败')
+  }
+}
+
 // 获取床位价格
 const getBedPrice = async () => {
   if (!route.params.institutionId || !formData.value.roomType) return
 
   try {
-    // 调用真实的API获取床位价格
+    // 调用真实的API获取床位价格信息
     const response = await getBedPriceApi(route.params.institutionId, formData.value.roomType)
-    bedPrice.value = response.data || 500
+    if (response.code === 200 && response.data) {
+      // 更新床位信息
+      bedInfo.value = {
+        bedFee: response.data.bedFee || 500,
+        selfCarePrice: response.data.selfCarePrice || 500,
+        halfCarePrice: response.data.halfCarePrice || 800,
+        fullCarePrice: response.data.fullCarePrice || 1200,
+        memberFee: response.data.memberFee || 5000,
+        depositFee: response.data.depositFee || 10000
+      }
+    }
   } catch (error) {
     console.error('获取床位价格失败:', error)
-    // 使用模拟数据作为备用
+    // 使用默认数据作为备用
     const priceMap = {
-      '单人间': 500,
-      '双人间': 350,
-      '三人间': 280,
-      'VIP房间': 1200
+      '单人间': { bedFee: 500, memberFee: 5000, depositFee: 10000 },
+      '双人间': { bedFee: 350, memberFee: 3000, depositFee: 8000 },
+      '三人间': { bedFee: 280, memberFee: 2000, depositFee: 6000 },
+      'VIP房间': { bedFee: 1200, memberFee: 10000, depositFee: 15000 }
     }
-    bedPrice.value = priceMap[formData.value.roomType] || 500
+    const defaultPrices = priceMap[formData.value.roomType] || priceMap['单人间']
+    bedInfo.value = {
+      bedFee: defaultPrices.bedFee,
+      selfCarePrice: 500,
+      halfCarePrice: 800,
+      fullCarePrice: 1200,
+      memberFee: defaultPrices.memberFee,
+      depositFee: defaultPrices.depositFee
+    }
   }
 }
 
 // 老人选择确认
 const onElderConfirm = (value) => {
-  formData.value.elderName = value.selectedOptions[0].value
+  const selected = value.selectedOptions[0]
+  formData.value.elderName = selected.value
+  formData.value.elderId = selected.elderId
+
+  // 根据老人信息设置能力等级和护理等级
+  if (selected.abilityLevel) {
+    formData.value.abilityLevel = selected.abilityLevel
+  }
+  if (selected.careLevel) {
+    // 将数据库的护理等级代码映射到文字
+    const careLevelMap = {
+      '1': '自理',
+      '2': '半护理',
+      '3': '全护理'
+    }
+    formData.value.careLevel = careLevelMap[selected.careLevel] || '自理'
+  }
+
   showElderPicker.value = false
 }
 
@@ -283,6 +359,12 @@ const onRoomConfirm = (value) => {
   showRoomPicker.value = false
   // 获取床位价格
   getBedPrice()
+}
+
+// 护理等级确认
+const onCareLevelConfirm = (value) => {
+  formData.value.careLevel = value.selectedOptions[0].value
+  showCareLevelPicker.value = false
 }
 
 // 增加月数
@@ -314,8 +396,8 @@ const submitOrder = async () => {
     showToast('请选择房间类型')
     return
   }
-  if (formData.value.packages.length === 0) {
-    showToast('请至少选择一项套餐')
+  if (!formData.value.careLevel) {
+    showToast('请选择护理等级')
     return
   }
 
@@ -328,23 +410,13 @@ const submitOrder = async () => {
     // 准备订单数据
     const orderData = {
       institutionId: route.params.institutionId,
+      elderId: formData.value.elderId, // 使用真实的老人ID
       elderName: formData.value.elderName,
       abilityLevel: formData.value.abilityLevel,
+      careLevel: formData.value.careLevel, // 护理等级
       roomType: formData.value.roomType,
-      packages: formData.value.packages,
       months: formData.value.months,
-      remark: formData.value.remark,
-      // 费用明细
-      costDetails: {
-        bedFee: bedFee.value,
-        nursingFee: nursingFee.value,
-        mealFee: mealFee.value,
-        otherFee: otherFee.value,
-        monthlyFee: monthlyPrice.value,
-        deposit: depositAmount.value,
-        memberFee: memberFee.value,
-        totalAmount: totalAmount.value
-      }
+      remark: formData.value.remark
     }
 
     // 调用真实的订单提交API
@@ -372,8 +444,12 @@ const submitOrder = async () => {
   }
 }
 
-// 页面加载时获取初始床位价格
-onMounted(() => {
+// 页面加载时获取初始数据
+onMounted(async () => {
+  // 获取老人列表
+  await fetchElderList()
+
+  // 获取床位价格
   if (formData.value.roomType) {
     getBedPrice()
   }

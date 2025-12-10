@@ -86,6 +86,16 @@ export function deleteOrder(orderId) {
 }
 
 /**
+ * 获取老人列表
+ */
+export function getElderList() {
+  return request({
+    url: '/h5/elder/list',
+    method: 'get'
+  })
+}
+
+/**
  * 获取订单统计
  * @param {Number} elderId - 老人ID
  */

@@ -122,9 +122,26 @@
           <dict-tag :options="dict.type.bed_status" :value="scope.row.bedStatus"/>
         </template>
       </el-table-column>
-      <el-table-column label="价格" align="center" prop="price">
+      <el-table-column label="床位费" align="center" prop="price">
         <template slot-scope="scope">
-          <span>￥{{ scope.row.price }}</span>
+          <span>￥{{ scope.row.price }}/月</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="护理价格" align="center">
+        <template slot-scope="scope">
+          <div style="font-size: 12px;">
+            <div>自理: ￥{{ scope.row.selfCarePrice || 0 }}/月</div>
+            <div>半护理: ￥{{ scope.row.halfCarePrice || 0 }}/月</div>
+            <div>全护理: ￥{{ scope.row.fullCarePrice || 0 }}/月</div>
+          </div>
+        </template>
+      </el-table-column>
+      <el-table-column label="一次性费用" align="center">
+        <template slot-scope="scope">
+          <div style="font-size: 12px;">
+            <div>会员费: ￥{{ scope.row.memberFee || 0 }}</div>
+            <div>押金: ￥{{ scope.row.depositFee || 0 }}</div>
+          </div>
         </template>
       </el-table-column>
       <el-table-column label="楼层" align="center" prop="floorNumber" />
@@ -146,6 +163,13 @@
       <el-table-column label="设施配置" align="center" prop="facilities" show-overflow-tooltip />
       <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
         <template slot-scope="scope">
+          <el-button
+            size="mini"
+            type="text"
+            icon="el-icon-view"
+            @click="handleDetail(scope.row)"
+            v-hasPermi="['elder:bed:query']"
+          >详情</el-button>
           <el-button
             size="mini"
             type="text"
@@ -173,8 +197,8 @@
     />
 
     <!-- 添加或修改床位信息对话框 -->
-    <el-dialog :title="title" :visible.sync="open" width="600px" append-to-body>
-      <el-form ref="form" :model="form" :rules="rules" label-width="80px">
+    <el-dialog :title="title" :visible.sync="open" width="900px" append-to-body>
+      <el-form ref="form" :model="form" :rules="rules" label-width="100px">
         <el-row>
           <el-col :span="12">
             <el-form-item label="选择机构" prop="institutionId">
@@ -227,11 +251,54 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="价格" prop="price">
-              <el-input v-model="form.price" placeholder="请输入价格" />
+            <el-form-item label="床位费" prop="price">
+              <el-input v-model="form.price" placeholder="请输入床位费" type="number">
+                <template slot="append">元/月</template>
+              </el-input>
             </el-form-item>
           </el-col>
         </el-row>
+        <el-divider content-position="left">护理等级价格设置</el-divider>
+        <el-row>
+          <el-col :span="8">
+            <el-form-item label="自理护理价" prop="selfCarePrice">
+              <el-input v-model="form.selfCarePrice" placeholder="自理护理价" type="number" size="small">
+                <template slot="append">元/月</template>
+              </el-input>
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="半护理价" prop="halfCarePrice">
+              <el-input v-model="form.halfCarePrice" placeholder="半护理价" type="number" size="small">
+                <template slot="append">元/月</template>
+              </el-input>
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="全护理价" prop="fullCarePrice">
+              <el-input v-model="form.fullCarePrice" placeholder="全护理价" type="number" size="small">
+                <template slot="append">元/月</template>
+              </el-input>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="会员费" prop="memberFee">
+              <el-input v-model="form.memberFee" placeholder="会员费" type="number" size="small">
+                <template slot="append">元(一次性)</template>
+              </el-input>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="押金" prop="depositFee">
+              <el-input v-model="form.depositFee" placeholder="押金" type="number" size="small">
+                <template slot="append">元(一次性)</template>
+              </el-input>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-divider content-position="left">床位信息</el-divider>
         <el-row>
           <el-col :span="12">
             <el-form-item label="楼层" prop="floorNumber">
@@ -240,7 +307,9 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="房间面积" prop="roomArea">
-              <el-input v-model="form.roomArea" placeholder="请输入房间面积" />
+              <el-input v-model="form.roomArea" placeholder="请输入房间面积" type="number">
+                <template slot="append">㎡</template>
+              </el-input>
             </el-form-item>
           </el-col>
         </el-row>
@@ -280,6 +349,44 @@
       <div slot="footer" class="dialog-footer">
         <el-button type="primary" @click="submitForm">确 定</el-button>
         <el-button @click="cancel">取 消</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 床位详情对话框 -->
+    <el-dialog title="床位详情" :visible.sync="detailOpen" width="800px" append-to-body>
+      <el-descriptions :column="2" border>
+        <el-descriptions-item label="房间号">{{ detailForm.roomNumber }}</el-descriptions-item>
+        <el-descriptions-item label="床位号">{{ detailForm.bedNumber }}</el-descriptions-item>
+        <el-descriptions-item label="床位类型">
+          <dict-tag :options="dict.type.bed_type" :value="detailForm.bedType"/>
+        </el-descriptions-item>
+        <el-descriptions-item label="床位状态">
+          <dict-tag :options="dict.type.bed_status" :value="detailForm.bedStatus"/>
+        </el-descriptions-item>
+        <el-descriptions-item label="床位费">{{ detailForm.price }}元/月</el-descriptions-item>
+        <el-descriptions-item label="楼层">{{ detailForm.floorNumber }}</el-descriptions-item>
+        <el-descriptions-item label="房间面积">{{ detailForm.roomArea }}㎡</el-descriptions-item>
+        <el-descriptions-item label="独立卫浴">
+          <dict-tag :options="dict.type.sys_yes_no" :value="detailForm.hasBathroom"/>
+        </el-descriptions-item>
+        <el-descriptions-item label="阳台">
+          <dict-tag :options="dict.type.sys_yes_no" :value="detailForm.hasBalcony"/>
+        </el-descriptions-item>
+        <el-descriptions-item label="设施配置" :span="2">{{ detailForm.facilities }}</el-descriptions-item>
+      </el-descriptions>
+
+      <el-divider content-position="left">费用明细</el-divider>
+      <el-descriptions :column="2" border>
+        <el-descriptions-item label="自理护理价">{{ detailForm.selfCarePrice }}元/月</el-descriptions-item>
+        <el-descriptions-item label="半护理价格">{{ detailForm.halfCarePrice }}元/月</el-descriptions-item>
+        <el-descriptions-item label="全护理价格">{{ detailForm.fullCarePrice }}元/月</el-descriptions-item>
+        <el-descriptions-item label="会员费">{{ detailForm.memberFee }}元(一次性)</el-descriptions-item>
+        <el-descriptions-item label="押金">{{ detailForm.depositFee }}元(一次性)</el-descriptions-item>
+        <el-descriptions-item label="创建时间">{{ detailForm.createTime }}</el-descriptions-item>
+      </el-descriptions>
+
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="cancelDetail">关 闭</el-button>
       </div>
     </el-dialog>
 
@@ -357,6 +464,10 @@ export default {
       title: "",
       // 是否显示弹出层
       open: false,
+      // 是否显示详情弹出层
+      detailOpen: false,
+      // 床位详情数据
+      detailForm: {},
       // 床位导入参数
       upload: {
         // 是否显示弹出层(床位导入)
@@ -445,6 +556,11 @@ export default {
         bedType: null,
         bedStatus: "0",
         price: null,
+        selfCarePrice: null,
+        halfCarePrice: null,
+        fullCarePrice: null,
+        memberFee: null,
+        depositFee: null,
         floorNumber: null,
         roomArea: null,
         hasBathroom: "0",
@@ -479,6 +595,19 @@ export default {
       this.reset();
       this.open = true;
       this.title = "添加床位信息";
+    },
+    /** 详情按钮操作 */
+    handleDetail(row) {
+      const bedId = row.bedId;
+      getBed(bedId).then(response => {
+        this.detailForm = response.data;
+        this.detailOpen = true;
+      });
+    },
+    /** 取消详情弹窗 */
+    cancelDetail() {
+      this.detailOpen = false;
+      this.detailForm = {};
     },
     /** 修改按钮操作 */
     handleUpdate(row) {

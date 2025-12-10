@@ -284,8 +284,38 @@ npm run build
 - **密码**: 123456
 - **字符集**: utf8mb4
 
-### 数据库管理
-- **连接数据库**: `mysql -h localhost -u root -p newzijin`
+### 数据库操作规范
+**重要原则**: 执行任何数据库操作前，优先使用MCP工具连接数据库
+
+#### MCP工具使用规范
+1. **查询操作**：
+   - 使用 `mcp__mysql__query` 工具执行所有SELECT查询
+   - 支持复杂查询、JOIN、聚合函数等
+   - 示例：查看数据、分析问题、验证结果
+
+2. **MCP限制说明**：
+   - MCP的 `mcp__mysql__query` 工具只能执行SELECT查询
+   - 不能执行INSERT、UPDATE、DELETE、ALTER等修改数据的语句
+   - 这是出于安全考虑的设计限制
+
+#### 命令行工具使用时机
+当MCP无法实现时，使用以下命令行方式：
+
+```bash
+# 连接数据库
+mysql -u root -p123456 -e "USE newzijin; [SQL语句]"
+
+# 或交互式执行
+mysql -u root -p123456 newzijin
+```
+
+3. **适用场景**：
+   - 数据初始化（INSERT批量数据）
+   - 表结构修改（ALTER TABLE）
+   - 执行SQL脚本文件（mysql < file.sql）
+   - 批量更新或删除操作
+
+### 常用数据库命令
 - **查看表结构**: `DESC table_name;`
 - **查看数据**: `SELECT * FROM table_name LIMIT 10;`
 - **表结构说明**: elder_info表已添加password字段用于老人登录密码
@@ -295,7 +325,7 @@ npm run build
 - **用户名**: yl
 - **密码**: 123456
 
-**注意**: 所有数据库相关的查询和操作都应该使用上述配置信息进行连接。
+**注意**: 所有数据库相关的操作都应遵循上述规范，优先使用MCP工具。
 
 ## 常见问题
 - 确保MySQL和Redis服务已启动

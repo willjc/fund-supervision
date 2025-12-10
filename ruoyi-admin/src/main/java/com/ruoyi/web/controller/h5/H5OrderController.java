@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.utils.DateUtils;
+import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.domain.BedInfo;
 import com.ruoyi.domain.ElderInfo;
 import com.ruoyi.domain.PensionCheckinDTO;
@@ -43,7 +44,65 @@ public class H5OrderController extends BaseController
     @Autowired
     private IPensionCheckinService pensionCheckinService;
 
-  
+    /**
+     * 获取老人列表
+     * 查询当前用户关联的老人信息
+     */
+    @GetMapping("/elder/list")
+    public AjaxResult getElderList()
+    {
+        try {
+            // 构建查询条件
+            ElderInfo query = new ElderInfo();
+
+            // 查询所有可用的老人（状态为未入住的）
+            // TODO: 后续可以根据登录用户ID查询关联的老人
+            List<ElderInfo> elderList = elderInfoService.selectElderInfoList(query);
+
+            // 过滤掉已入住的老人（status != '1'）
+            elderList = elderList.stream()
+                .filter(elder -> !"1".equals(elder.getStatus()))
+                .collect(java.util.stream.Collectors.toList());
+
+            java.util.List<Map<String, Object>> result = new java.util.ArrayList<>();
+
+            for (ElderInfo elder : elderList) {
+                Map<String, Object> item = new java.util.HashMap<>();
+                item.put("elderId", elder.getElderId());
+                item.put("elderName", elder.getElderName());
+                item.put("gender", elder.getGender());
+                item.put("genderText", "1".equals(elder.getGender()) ? "男" : "女");
+                item.put("age", elder.getAge());
+                item.put("careLevel", elder.getCareLevel());
+                item.put("careLevelText", getCareLevelText(elder.getCareLevel()));
+                item.put("healthStatus", elder.getHealthStatus());
+                item.put("phone", elder.getPhone());
+                result.add(item);
+            }
+
+            return success(result);
+        } catch (Exception e) {
+            logger.error("获取老人列表失败", e);
+            return error("获取老人列表失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 将护理等级代码转换为文字
+     */
+    private String getCareLevelText(String careLevel) {
+        switch (careLevel) {
+            case "1":
+                return "自理";
+            case "2":
+                return "半护理";
+            case "3":
+                return "全护理";
+            default:
+                return "自理";
+        }
+    }
+
     /**
      * 查询最优价格床位
      * 根据房间类型查询该类型下价格最低的可用床位
@@ -88,14 +147,19 @@ public class H5OrderController extends BaseController
             return error("未找到合适的床位");
         }
 
-        // 构建返回数据
+        // 构建返回数据，包含护理等级价格信息
         Map<String, Object> result = new HashMap<>();
         result.put("bedId", optimalBed.getBedId());
         result.put("roomNumber", optimalBed.getRoomNumber());
         result.put("bedNumber", optimalBed.getBedNumber());
         result.put("bedType", optimalBed.getBedType());
         result.put("bedTypeName", getBedTypeName(optimalBed.getBedType()));
-        result.put("price", optimalBed.getPrice());
+        result.put("bedFee", optimalBed.getPrice());
+        result.put("selfCarePrice", optimalBed.getSelfCarePrice() != null ? optimalBed.getSelfCarePrice() : new BigDecimal("500"));
+        result.put("halfCarePrice", optimalBed.getHalfCarePrice() != null ? optimalBed.getHalfCarePrice() : new BigDecimal("800"));
+        result.put("fullCarePrice", optimalBed.getFullCarePrice() != null ? optimalBed.getFullCarePrice() : new BigDecimal("1200"));
+        result.put("memberFee", optimalBed.getMemberFee() != null ? optimalBed.getMemberFee() : new BigDecimal("5000"));
+        result.put("depositFee", optimalBed.getDepositFee() != null ? optimalBed.getDepositFee() : new BigDecimal("10000"));
         result.put("floorNumber", optimalBed.getFloorNumber());
         result.put("roomArea", optimalBed.getRoomArea());
         result.put("hasBathroom", optimalBed.getHasBathroom());
@@ -117,9 +181,8 @@ public class H5OrderController extends BaseController
             Long elderId = Long.valueOf(orderData.get("elderId").toString());
             Long institutionId = Long.valueOf(orderData.get("institutionId").toString());
             String roomType = orderData.get("roomType").toString();
-            String careLevel = orderData.get("careLevel").toString();
+            String careLevel = orderData.get("careLevel").toString(); // 自理/半护理/全护理
             Integer monthCount = Integer.valueOf(orderData.get("monthCount").toString());
-            String packageType = orderData.get("packageType") != null ? orderData.get("packageType").toString() : "standard";
 
             // 验证老人信息
             ElderInfo elder = elderInfoService.selectElderInfoByElderId(elderId);
@@ -172,11 +235,12 @@ public class H5OrderController extends BaseController
             checkinDTO.setBedId(selectedBed.getBedId());
             checkinDTO.setCheckInDate(new Date()); // 默认今天入住
 
-            // 费用计算
-            BigDecimal bedPrice = selectedBed.getPrice();
-            BigDecimal monthlyFee = calculateMonthlyFee(bedPrice, careLevel, packageType);
-            BigDecimal depositAmount = calculateDepositAmount(monthlyFee);
-            BigDecimal memberFee = calculateMemberFee(packageType);
+            // 费用计算（根据新的定价模式：服务费 = 床位费 + 护理费）
+            BigDecimal bedFee = selectedBed.getPrice(); // 床位费
+            BigDecimal careFee = getCareFeeByLevel(selectedBed, careLevel); // 护理费
+            BigDecimal monthlyFee = bedFee.add(careFee); // 月服务费 = 床位费 + 护理费
+            BigDecimal depositAmount = selectedBed.getDepositFee() != null ? selectedBed.getDepositFee() : new BigDecimal("10000");
+            BigDecimal memberFee = selectedBed.getMemberFee() != null ? selectedBed.getMemberFee() : new BigDecimal("5000");
             BigDecimal finalAmount = monthlyFee.multiply(new BigDecimal(monthCount))
                                           .add(depositAmount)
                                           .add(memberFee);
@@ -186,7 +250,7 @@ public class H5OrderController extends BaseController
             checkinDTO.setDepositAmount(depositAmount);
             checkinDTO.setMemberFee(memberFee);
             checkinDTO.setFinalAmount(finalAmount);
-            checkinDTO.setFeeDescription(buildFeeDescription(bedPrice, monthlyFee, depositAmount, memberFee, monthCount));
+            checkinDTO.setFeeDescription(buildFeeDescription(bedFee, careFee, monthlyFee, depositAmount, memberFee, monthCount));
 
             // 支付方式（默认稍后支付）
             checkinDTO.setPaymentMethod("later");
@@ -240,6 +304,25 @@ public class H5OrderController extends BaseController
                 return "3"; // 医疗床位
             default:
                 return null;
+        }
+    }
+
+    /**
+     * 根据护理等级获取护理费
+     * @param bed 床位信息
+     * @param careLevel 护理等级（自理/半护理/全护理）
+     * @return 护理费
+     */
+    private BigDecimal getCareFeeByLevel(BedInfo bed, String careLevel) {
+        switch (careLevel) {
+            case "自理":
+                return bed.getSelfCarePrice() != null ? bed.getSelfCarePrice() : new BigDecimal("500");
+            case "半护理":
+                return bed.getHalfCarePrice() != null ? bed.getHalfCarePrice() : new BigDecimal("800");
+            case "全护理":
+                return bed.getFullCarePrice() != null ? bed.getFullCarePrice() : new BigDecimal("1200");
+            default:
+                return new BigDecimal("500"); // 默认自理价格
         }
     }
 
@@ -322,12 +405,13 @@ public class H5OrderController extends BaseController
     /**
      * 构建费用说明
      */
-    private String buildFeeDescription(BigDecimal bedPrice, BigDecimal monthlyFee,
+    private String buildFeeDescription(BigDecimal bedFee, BigDecimal careFee, BigDecimal monthlyFee,
                                      BigDecimal depositAmount, BigDecimal memberFee,
                                      Integer monthCount) {
         StringBuilder sb = new StringBuilder();
-        sb.append("床位费：").append(bedPrice).append("元/月\n");
-        sb.append("月服务费：").append(monthlyFee).append("元/月\n");
+        sb.append("床位费：").append(bedFee).append("元/月\n");
+        sb.append("护理费：").append(careFee).append("元/月\n");
+        sb.append("服务费合计：").append(monthlyFee).append("元/月\n");
         sb.append("缴费月数：").append(monthCount).append("个月\n");
         sb.append("押金：").append(depositAmount).append("元\n");
         if (memberFee.compareTo(BigDecimal.ZERO) > 0) {
