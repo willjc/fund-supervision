@@ -6,6 +6,137 @@
 
 ## 2025-01-11
 
+### H5订单提交完整修复
+**问题**: H5端提交订单失败，提示"提交订单失败，请重试"
+
+**根本原因分析**:
+1. **前端参数问题**: H5发送`months`，后端期望`monthCount`
+2. **H5端未登录用户问题**: SecurityUtils.getUsername()在H5端无登录用户时抛出异常
+3. **缺少老人账户创建逻辑**: 入住流程需要创建老人账户但代码中没有实现
+
+**修复的文件**:
+
+#### 1. `ruoyi-h5/src/views/order/confirm.vue`
+
+**修复内容**:
+- 修改参数名：`months: formData.value.months` → `monthCount: formData.value.months`
+- 确保institutionId格式：`institutionId: parseInt(route.params.institutionId)`
+- 修复文字乱码：`'提交订单失��，请重试'` → `'提交订单失败，请重试'`
+
+#### 2. `ruoyi-admin/src/main/java/com/ruoyi/service/impl/PensionCheckinServiceImpl.java`
+**修复内容**:
+- **添加账户创建逻辑**: 在入住申请中添加老人账户创建步骤
+- **处理H5未登录用户**: 创建`getUsernameSafely()`方法安全获取用户名
+- **替换所有SecurityUtils.getUsername()调用**: 避免H5端无登录用户时异常
+
+**代码变更**:
+```java
+// 添加账户服务注入
+@Autowired
+private IAccountInfoService accountInfoService;
+
+// 安全获取用户名方法
+private String getUsernameSafely() {
+    try {
+        return SecurityUtils.getUsername();
+    } catch (Exception e) {
+        return "H5用户";
+    }
+}
+
+// 添加账户创建逻辑
+AccountInfo existingAccount = accountInfoService.selectAccountInfoByElderId(elderId);
+if (existingAccount == null) {
+    accountInfoService.createAccountInfo(elderId, institutionId, BigDecimal.ZERO);
+}
+```
+
+**测试结果**:
+- ✅ H5订单提交成功，返回正确数据
+- ✅ 自动创建老人账户（账户号：ACC1765388752963007）
+- ✅ 老人状态更新为已入住（status: "1"）
+- ✅ 生成订单记录（订单号：ORD1765388752969，金额：19500.00）
+- ✅ 可在入住人列表和订单管理中查看新记录
+
+### H5老人列表和床位资源问题修复
+**问题**: H5端老人列表显示异常，订单提交失败
+
+**根本原因分析**:
+1. **床位资源耗尽**: 测试过程中所有床位状态变为"已占用"(`bed_status = '1'`)
+2. **老人状态变化**: 已提交订单的老人状态变为"已入住"，不再出现在H5老人列表中
+3. **错误提示不够友好**: 用户无法了解具体失败原因
+
+**修复的文件**:
+
+#### 1. 数据库资源释放
+**修复内容**:
+- 重置测试床位状态：`UPDATE bed_info SET bed_status = '0' WHERE bed_id IN (29, 30, 31)`
+- 释放3个普通床位供H5用户使用（303-2, 304-1, 304-2）
+
+#### 2. `ruoyi-admin/src/main/java/com/ruoyi/web/controller/h5/H5OrderController.java`
+**修复内容**:
+- 改进错误提示信息，使其更加友好和具体
+- 床位不足提示：`"该类型下暂无可用床位"` → `"抱歉，该类型床位暂时已分配完毕。请选择其他房间类型或稍后再试。"`
+- 老人信息不存在：`"老人信息不存在"` → `"抱歉，未找到该老人信息。请重新选择或联系客服。"`
+- 床位选择失败：`"未找到合适的床位"` → `"抱歉，暂时没有找到合适的床位。请联系机构客服咨询床位情况。"`
+
+#### 3. `ruoyi-h5/src/views/order/confirm.vue`
+**修复内容**:
+- 增强前端错误处理，显示后端返回的具体错误信息
+- 订单提交错误处理：显示API返回的具体错误消息
+- 床位价格获取错误处理：显示用户友好的错误提示
+
+**代码变更**:
+```javascript
+// 修复前
+} catch (error) {
+  showToast('提交订单失败，请重试')
+}
+
+// 修复后
+} catch (error) {
+  let errorMessage = '提交订单失败，请重试'
+  if (error.response && error.response.data && error.response.data.msg) {
+    errorMessage = error.response.data.msg
+  }
+  showToast(errorMessage)
+}
+```
+
+**测试结果**:
+- ✅ 正常订单提交成功（elder_id: 23，金额：18000.00）
+- ✅ 错误提示友好：老人不存在、床位耗尽等场景都有明确提示
+- ✅ H5老人列表正常显示未入住老人
+- ✅ 床位价格查询正常工作
+- ✅ 资源管理：可手动控制床位可用状态
+
+**代码变更**:
+```javascript
+// 修复前
+const orderData = {
+  institutionId: route.params.institutionId,
+  elderId: formData.value.elderId,
+  elderName: formData.value.elderName,
+  abilityLevel: formData.value.abilityLevel,
+  careLevel: formData.value.careLevel,
+  roomType: formData.value.roomType,
+  months: formData.value.months,  // 参数名不匹配
+  remark: formData.value.remark
+}
+
+// 修复后
+const orderData = {
+  institutionId: parseInt(route.params.institutionId),  // 确保数字格式
+  elderId: formData.value.elderId,
+  elderName: formData.value.elderName,
+  abilityLevel: formData.value.abilityLevel,
+  careLevel: formData.value.careLevel,
+  roomType: formData.value.roomType,
+  monthCount: formData.value.months,  // 后端期望的参数名
+  remark: formData.value.remark
+}
+```
+
 ### 入住人列表详情页费用信息显示更新
 
 **文件**: `ruoyi-ui/src/views/pension/elder/list.vue`
@@ -1063,3 +1194,38 @@ VIP房间     → 豪华床位 (bed_type=2)
 3. 添加"旧格式"标识提示，让用户知道是估算值
 4. 新增`isLegacyFormat()`方法判断订单格式
 
+
+## 2025-01-11
+
+### 新增老人测试数据和家属信息
+**任务**: 为H5订单系统新增老人测试数据和家属信息，用于系统测试
+
+**新增数据统计**:
+- 新增老���信息: 10条 (elder_id: 26-35)
+- 新增家属关系: 19条 (为9位原有老人+10位新增老人添加家属)
+- 老人总数: 从18人增加到28���
+- 家属关系总数: 从12条增加到31条
+
+**新增老人详情**:
+1. ���秀英 (女, 75岁, 全护理) - son: 张明 (13901234567)
+2. 李建国 (男, 80岁, 半护理) - daughter: 李小红 (13901234568)
+3. 王淑芬 (女, 73岁, 自理) - son: 王强 (13901234569)
+4. 赵志华 (男, 87岁, 全护理) - daughter: 赵婷婷 (13901234570)
+5. 刘美玲 (女, 69岁, 半护理) - son: 刘军 (13901234571)
+6. 陈大明 (男, 77岁, 半护理) - daughter: 陈丽 (13901234572)
+7. 孙桂芳 (女, 74岁, 自理) - son: 孙伟 (13901234573)
+8. 周永福 (男, 85岁, 全护理) - spouse: 周秀梅 (13901234574)
+9. 吴秀兰 (女, 69岁, 自理) - son: 吴浩 (13901234575)
+10. 郑国强 (男, 82岁, 半护理) - son: 郑小华 (13901234576)
+
+**数据特点**:
+- 年龄覆盖：69-87岁，覆盖不同年龄段老年人
+- 护理等级分布：自理(3人)、半护理(4人)、全护理(3人)
+- 性别比例：女性6人，男性4人
+- 家属类型：儿子、女儿、配偶等多种关系类型
+- 所有新增老人状态为'0'(未入住)，可用于H5订单测试
+
+**数据库操作**:
+- 插入elder_info表10条记录
+- 插入elder_family表19条记录（含9位原有老人的家属补充）
+- 家属信息使用user_id=106关联，确保权限一致性

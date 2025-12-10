@@ -16,12 +16,14 @@ import com.ruoyi.domain.BedAllocation;
 import com.ruoyi.domain.OrderInfo;
 import com.ruoyi.domain.OrderItem;
 import com.ruoyi.domain.PaymentRecord;
+import com.ruoyi.domain.pension.AccountInfo;
 import com.ruoyi.mapper.ElderInfoMapper;
 import com.ruoyi.mapper.BedAllocationMapper;
 import com.ruoyi.mapper.BedInfoMapper;
 import com.ruoyi.mapper.OrderInfoMapper;
 import com.ruoyi.mapper.OrderItemMapper;
 import com.ruoyi.mapper.PaymentRecordMapper;
+import com.ruoyi.service.pension.IAccountInfoService;
 
 /**
  * 养老机构入驻Service业务层处理
@@ -49,6 +51,20 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
 
     @Autowired
     private PaymentRecordMapper paymentRecordMapper;
+
+    @Autowired
+    private IAccountInfoService accountInfoService;
+
+    /**
+     * 安全获取用户名（处理H5端未登录情况）
+     */
+    private String getUsernameSafely() {
+        try {
+            return SecurityUtils.getUsername();
+        } catch (Exception e) {
+            return "H5用户";
+        }
+    }
 
     /**
      * 创建入驻申请
@@ -89,7 +105,7 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
             elderId = existingElder.getElderId();
             existingElder.setStatus("1"); // 更新为已入住
             existingElder.setUpdateTime(DateUtils.getNowDate());
-            existingElder.setUpdateBy(SecurityUtils.getUsername());
+            existingElder.setUpdateBy(getUsernameSafely());
             elderInfoMapper.updateElderInfo(existingElder);
         } else {
             // 身份证号不存在,创建新老人记录
@@ -109,13 +125,25 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
             // 根据支付方式设置状态: 已支付->已入住, 未支付->待入住
             elderInfo.setStatus("later".equals(dto.getPaymentMethod()) ? "0" : "1");
             elderInfo.setCreateTime(DateUtils.getNowDate());
-            elderInfo.setCreateBy(SecurityUtils.getUsername());
+            elderInfo.setCreateBy(getUsernameSafely());
 
             elderInfoMapper.insertElderInfo(elderInfo);
             elderId = elderInfo.getElderId();
         }
 
-        // ========== 2. 计算服务日期(需要在创建床位分配前计算) ==========
+        // ========== 2. 检查并创建老人账户信息 ==========
+        AccountInfo existingAccount = accountInfoService.selectAccountInfoByElderId(elderId);
+        if (existingAccount == null) {
+            // 账户不存在，创建新账户
+            try {
+                accountInfoService.createAccountInfo(elderId, institutionId, BigDecimal.ZERO);
+            } catch (Exception e) {
+                throw new ServiceException("创建老人账户失败：" + e.getMessage());
+            }
+        }
+        // 如果账户已存在，复用现有账户
+
+        // ========== 3. 计算服务日期(需要在创建床位分配前计算) ==========
         // 计算服务费小计 = 月服务费 × 入驻月数
         Integer monthCount = dto.getMonthCount() != null ? dto.getMonthCount() : 1;
 
@@ -131,7 +159,7 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
         calendar.add(Calendar.MONTH, monthCount);
         Date serviceEndDate = calendar.getTime();
 
-        // ========== 3. 创建床位分配记录 ==========
+        // ========== 4. 创建床位分配记录 ==========
         BedAllocation allocation = new BedAllocation();
         allocation.setElderId(elderId);
         allocation.setBedId(bedId);
@@ -151,12 +179,12 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
         }
 
         allocation.setCreateTime(DateUtils.getNowDate());
-        allocation.setCreateBy(SecurityUtils.getUsername());
+        allocation.setCreateBy(getUsernameSafely());
         allocation.setRemark(dto.getRemark());
 
         bedAllocationMapper.insertBedAllocation(allocation);
 
-        // ========== 4. 生成订单编号并创建订单记录 ==========
+        // ========== 5. 生成订单编号并创建订单记录 ==========
         String orderNo = "ORD" + System.currentTimeMillis();
 
         BigDecimal serviceFeeTotal = dto.getMonthlyFee().multiply(new BigDecimal(monthCount));
@@ -208,7 +236,7 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
         orderInfo.setBedNumber(bedInfo.getBedNumber());
 
         orderInfo.setCreateTime(DateUtils.getNowDate());
-        orderInfo.setCreateBy(SecurityUtils.getUsername());
+        orderInfo.setCreateBy(getUsernameSafely());
 
         orderInfoMapper.insertOrderInfo(orderInfo);
         Long orderId = orderInfo.getOrderId();
@@ -228,7 +256,7 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
             bedItem.setTotalAmount(bedFee.multiply(new BigDecimal(monthCount)));  // 小计=床位费×月数
             bedItem.setServicePeriod("月度");
             bedItem.setCreateTime(DateUtils.getNowDate());
-            bedItem.setCreateBy(SecurityUtils.getUsername());
+            bedItem.setCreateBy(getUsernameSafely());
             orderItemMapper.insertOrderItem(bedItem);
         }
 
@@ -247,7 +275,7 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
             careItem.setTotalAmount(careFee.multiply(new BigDecimal(monthCount)));  // 小计=护理费×月数
             careItem.setServicePeriod("月度");
             careItem.setCreateTime(DateUtils.getNowDate());
-            careItem.setCreateBy(SecurityUtils.getUsername());
+            careItem.setCreateBy(getUsernameSafely());
             orderItemMapper.insertOrderItem(careItem);
         }
 
@@ -263,7 +291,7 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
             depositItem.setQuantity(1L);
             depositItem.setTotalAmount(dto.getDepositAmount());
             depositItem.setCreateTime(DateUtils.getNowDate());
-            depositItem.setCreateBy(SecurityUtils.getUsername());
+            depositItem.setCreateBy(getUsernameSafely());
             orderItemMapper.insertOrderItem(depositItem);
         }
 
@@ -279,7 +307,7 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
             memberItem.setQuantity(1L);
             memberItem.setTotalAmount(dto.getMemberFee());
             memberItem.setCreateTime(DateUtils.getNowDate());
-            memberItem.setCreateBy(SecurityUtils.getUsername());
+            memberItem.setCreateBy(getUsernameSafely());
             orderItemMapper.insertOrderItem(memberItem);
         }
 
@@ -294,10 +322,10 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
             paymentRecord.setPaymentMethod(dto.getPaymentMethod()); // 支付方式
             paymentRecord.setPaymentStatus("1"); // 支付状态:1-成功
             paymentRecord.setPaymentTime(DateUtils.getNowDate()); // 支付时间
-            paymentRecord.setOperator(SecurityUtils.getUsername()); // 操作人
+            paymentRecord.setOperator(getUsernameSafely()); // 操作人
             paymentRecord.setRemark("入住支付");
             paymentRecord.setCreateTime(DateUtils.getNowDate());
-            paymentRecord.setCreateBy(SecurityUtils.getUsername());
+            paymentRecord.setCreateBy(getUsernameSafely());
             paymentRecordMapper.insertPaymentRecord(paymentRecord);
         }
 

@@ -318,6 +318,14 @@ const getBedPrice = async () => {
     }
   } catch (error) {
     console.error('获取床位价格失败:', error)
+
+    // 显示更友好的错误提示
+    let errorMessage = '获取床位价格信息失败'
+    if (error.response && error.response.data && error.response.data.msg) {
+      errorMessage = error.response.data.msg
+    }
+    showToast(errorMessage)
+
     // 使用默认数据作为备用
     const priceMap = {
       '1': { bedFee: 350, memberFee: 3000, depositFee: 8000 },
@@ -421,13 +429,13 @@ const submitOrder = async () => {
   try {
     // 准备订单数据
     const orderData = {
-      institutionId: route.params.institutionId,
+      institutionId: parseInt(route.params.institutionId),
       elderId: formData.value.elderId, // 使用真实的老人ID
       elderName: formData.value.elderName,
       abilityLevel: formData.value.abilityLevel,
       careLevel: formData.value.careLevel, // 护理等级
       roomType: formData.value.roomType,
-      months: formData.value.months,
+      monthCount: formData.value.months, // 后端期望的参数名是monthCount
       remark: formData.value.remark
     }
 
@@ -452,7 +460,14 @@ const submitOrder = async () => {
     })
   } catch (error) {
     console.error('提交订单失败:', error)
-    showToast('提交订单失��，请重试')
+
+    // 显示更详细的错误信息
+    let errorMessage = '提交订单失败，请重试'
+    if (error.response && error.response.data && error.response.data.msg) {
+      errorMessage = error.response.data.msg
+    }
+
+    showToast(errorMessage)
   }
 }
 

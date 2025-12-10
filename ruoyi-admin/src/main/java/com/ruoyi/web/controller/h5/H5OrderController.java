@@ -129,7 +129,7 @@ public class H5OrderController extends BaseController
         List<BedInfo> availableBeds = bedInfoService.selectBedInfoList(query);
 
         if (availableBeds == null || availableBeds.isEmpty()) {
-            return error("该类型下暂无可用床位");
+            return error("抱歉，该类型床位暂时已分配完毕。请选择其他房间类型或稍后再试。");
         }
 
         // 找出价格最低的床位
@@ -138,7 +138,7 @@ public class H5OrderController extends BaseController
             .orElse(null);
 
         if (optimalBed == null) {
-            return error("未找到合适的床位");
+            return error("抱歉，暂时没有找到合适的床位。请联系机构客服咨询床位情况。");
         }
 
         // 构建返回数据，包含护理等级价格信息
@@ -181,7 +181,7 @@ public class H5OrderController extends BaseController
             // 验证老人信息
             ElderInfo elder = elderInfoService.selectElderInfoByElderId(elderId);
             if (elder == null) {
-                return error("老人信息不存在");
+                return error("抱歉，未找到该老人信息。请重新选择或联系客服。");
             }
 
             // 查找最优价格床位
@@ -192,7 +192,7 @@ public class H5OrderController extends BaseController
             List<BedInfo> availableBeds = bedInfoService.selectBedInfoList(query);
 
             if (availableBeds == null || availableBeds.isEmpty()) {
-                return error("该类型下暂无可用床位");
+                return error("抱歉，该类型床位暂时已分配完毕。请选择其他房间类型或稍后再试。");
             }
 
             BedInfo selectedBed = availableBeds.stream()
@@ -200,7 +200,7 @@ public class H5OrderController extends BaseController
                 .orElse(null);
 
             if (selectedBed == null) {
-                return error("未找到合适的床位");
+                return error("抱歉，暂时没有找到合适的床位。请联系机构客服咨询床位情况。");
             }
 
             // 创建入住申请DTO
