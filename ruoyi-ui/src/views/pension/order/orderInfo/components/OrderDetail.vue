@@ -35,6 +35,23 @@
         <el-descriptions-item label="费用说明" :span="2">{{ orderInfo.remark || '无' }}</el-descriptions-item>
       </el-descriptions>
 
+      <!-- 费用汇总 -->
+      <el-divider content-position="left">费用汇总</el-divider>
+      <el-descriptions :column="3" border class="fee-summary">
+        <el-descriptions-item label="床位费小计">
+          <span style="color: #409EFF; font-weight: bold">¥{{ getBedFeeTotal() }}</span>
+          <div v-if="isLegacyFormat()" style="font-size: 12px; color: #909399;">*估算值</div>
+        </el-descriptions-item>
+        <el-descriptions-item label="护理费小计">
+          <span style="color: #67C23A; font-weight: bold">¥{{ getCareFeeTotal() }}</span>
+          <div v-if="isLegacyFormat()" style="font-size: 12px; color: #909399;">*估算值</div>
+        </el-descriptions-item>
+        <el-descriptions-item label="服务费小计">
+          <span style="color: #E6A23C; font-weight: bold">¥{{ getServiceFeeTotal() }}</span>
+          <div v-if="isLegacyFormat()" style="font-size: 12px; color: #E6A23C;">*包含床位费+护理费</div>
+        </el-descriptions-item>
+      </el-descriptions>
+
       <el-divider content-position="left">订单明细</el-divider>
       <el-table :data="orderItems" style="width: 100%">
         <el-table-column prop="itemName" label="项目名称" width="200"/>
@@ -136,7 +153,65 @@ export default {
       return listPayment({ orderId: orderId }).then(response => {
         this.paymentRecords = response.rows;
       });
+    },
+    // 计算床位费小计
+    getBedFeeTotal() {
+      const bedItem = this.orderItems.find(item => item.itemType === 'bed_fee');
+      if (bedItem) {
+        return bedItem.totalAmount;
+      }
+
+      // 兼容旧格式：如果没有找到床位费，从月服务费中推算
+      const serviceItem = this.orderItems.find(item => item.itemType === 'service_fee');
+      if (serviceItem) {
+        // 假设旧格式中床位费占月服务费的70%（这是估算值，实际应该从床位费中获取）
+        const serviceTotal = parseFloat(serviceItem.totalAmount) || 0;
+        const bedTotal = serviceTotal * 0.7;
+        return bedTotal.toFixed(2);
+      }
+
+      return '0.00';
+    },
+    // 计算护理费小计
+    getCareFeeTotal() {
+      const careItem = this.orderItems.find(item => item.itemType === 'care_fee');
+      if (careItem) {
+        return careItem.totalAmount;
+      }
+
+      // 兼容旧格式：如果没有找到护理费，从月服务费中推算
+      const serviceItem = this.orderItems.find(item => item.itemType === 'service_fee');
+      if (serviceItem) {
+        // 假设旧格式中护理费占月服务费的30%（这是估算值）
+        const serviceTotal = parseFloat(serviceItem.totalAmount) || 0;
+        const careTotal = serviceTotal * 0.3;
+        return careTotal.toFixed(2);
+      }
+
+      return '0.00';
+    },
+    // 计算服务费小计（床位费 + 护理费）
+    getServiceFeeTotal() {
+      const bedTotal = parseFloat(this.getBedFeeTotal()) || 0;
+      const careTotal = parseFloat(this.getCareFeeTotal()) || 0;
+      return (bedTotal + careTotal).toFixed(2);
+    },
+    // 判断是否是旧格式的订单
+    isLegacyFormat() {
+      return this.orderItems.some(item => item.itemType === 'service_fee') &&
+             !this.orderItems.some(item => item.itemType === 'bed_fee');
     }
   }
 };
 </script>
+
+<style scoped>
+.fee-summary >>> .el-descriptions__body .el-descriptions__item.is-bordered .el-descriptions__cell {
+  padding: 12px 16px;
+}
+
+.fee-summary >>> .el-descriptions__body .el-descriptions__item.is-bordered .el-descriptions__cell.is-label {
+  font-weight: bold;
+  background-color: #f5f7fa;
+}
+</style>

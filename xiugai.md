@@ -4,6 +4,124 @@
 - 项目名称：若依(RuoYi) 管理系统
 - 版本：v3.9.0
 
+## 2025-01-11
+
+### 入住人列表详情页费用信息显示更新
+
+**文件**: `ruoyi-ui/src/views/pension/elder/list.vue`
+
+**修改内容**:
+1. **详情弹窗费用显示优化** (第319-327行):
+   - 原来显示单一的"月服务费"
+   - 改为显示三个费用明细：床位费、护理费、服务费(床位费+护理费)
+   - 添加不同颜色区分：床位费(蓝色)、护理费(绿色)、服务费(橙色)
+
+2. **新增费用计算方法** (第1596-1647行):
+   - `getBedFee()`: 获取床位费，优先从订单数据中获取，兼容旧数据按70%推算
+   - `getCareFee()`: 获取护理费，优先从订单数据中获取，兼容旧数据按30%推算
+   - `getServiceFee()`: 计算服务费(床位费+护理费)
+
+**代码修改**:
+```javascript
+// 模板中的费用显示
+<el-descriptions-item label="床位费">
+  <span style="color: #409EFF; font-weight: bold;">￥{{ getBedFee() }}</span>
+</el-descriptions-item>
+<el-descriptions-item label="护理费">
+  <span style="color: #67C23A; font-weight: bold;">￥{{ getCareFee() }}</span>
+</el-descriptions-item>
+<el-descriptions-item label="服务费(床位费+护理费)">
+  <span style="color: #E6A23C; font-weight: bold;">￥{{ getServiceFee() }}</span>
+</el-descriptions-item>
+
+// JavaScript方法
+getBedFee() {
+  if (this.residentDetail.orders && this.residentDetail.orders.length > 0) {
+    const latestOrder = this.residentDetail.orders[0];
+    if (latestOrder.orderItems) {
+      const bedItem = latestOrder.orderItems.find(item => item.itemType === 'bed_fee');
+      if (bedItem) {
+        return this.formatMoney(bedItem.totalAmount);
+      }
+    }
+  }
+  // 兼容旧数据逻辑
+  if (this.residentDetail.monthlyFee) {
+    const monthlyFee = parseFloat(this.residentDetail.monthlyFee) || 0;
+    const bedFee = monthlyFee * 0.7;
+    return this.formatMoney(bedFee);
+  }
+  return '0.00';
+}
+```
+
+## 2025-01-11
+
+### 续费功能费用明细显示优化
+
+**文件**: `ruoyi-ui/src/views/pension/elder/list.vue`
+
+**修改内容**:
+1. **续费表单费用显示优化** (第502-543行):
+   - 将单一"月服务费"字段改为三个费用字段：床位费、护理费、月服务费
+   - 床位费和护理费显示为不可编辑字段
+   - 月服务费显示包含"床位费 + 护理费"的说明
+   - 护理费字段显示对应的护理等级文本
+
+2. **续费初始化逻辑更新** (第1274-1338行):
+   - `handleRenew()`方法中从订单数据获取床位费和护理费
+   - 根据护理等级代码获取对应的护理等级文本
+   - 将床位费、护理费、护理等级文本保存到续费表单
+
+3. **续费费用汇总显示优化** (第597-604行):
+   - 费用汇总中增加床位费和护理费的明细显示
+   - 床位费：显示每月床位费
+   - 护理费：显示每月护理费和护理等级
+   - 保持原有的月服务费、服务费小计等显示
+
+**代码修改**:
+```javascript
+// 模板中的费用显示
+<el-descriptions-item label="床位费">¥{{ formatMoney(renewForm.bedFee) }}/月</el-descriptions-item>
+<el-descriptions-item label="护理费">¥{{ formatMoney(renewForm.careFee) }}/月 ({{ renewForm.careLevelText }})</el-descriptions-item>
+
+// 续费初始化逻辑
+handleRenew(row) {
+  // 从订单数据中获取床位费和护理费
+  let bedFee = 0;
+  let careFee = 0;
+  let careLevelText = '未选择';
+
+  if (data.orders && data.orders.length > 0) {
+    const latestOrder = data.orders[0];
+    if (latestOrder.orderItems) {
+      const bedItem = latestOrder.orderItems.find(item => item.itemType === 'bed_fee');
+      const careItem = latestOrder.orderItems.find(item => item.itemType === 'care_fee');
+
+      if (bedItem) {
+        bedFee = parseFloat(bedItem.totalAmount) || 0;
+      }
+      if (careItem) {
+        careFee = parseFloat(careItem.totalAmount) || 0;
+      }
+    }
+  }
+
+  // 获取护理等级文本
+  switch (data.careLevel) {
+    case '1': careLevelText = '自理'; break;
+    case '2': careLevelText = '半护理'; break;
+    case '3': careLevelText = '全护理'; break;
+    default: careLevelText = '未选择';
+  }
+}
+```
+
+**效果**:
+- 续费表单现在清晰地显示床位费和护理费的构成
+- 用户可以看到费用明细，提高了透明度
+- 与入住管理和订单详情页面的费用显示保持一致
+
 ## 2025-12-04 机构列表页数据真实化改造
 
 ### 修改背景
@@ -722,4 +840,226 @@ depositFee: null       // 押金
 - ✅ 一次性费用字段（会员费/押金）可正常保存
 - ✅ 数据库映射完整，数据传输正常
 - ✅ 提升了床位管理功能的完整性和用户体验
+
+## 2025-12-10 H5端房间类型统一化修改
+
+### 问题描述
+H5端的房间类型使用"单人间、双人间、三人间、VIP房间"等用户友好的描述，但后台存储的是技术层面的床位类型代码（1-普通床位、2-豪华床位、3-医疗床位）。这种不一致导致了：
+1. 需要复杂的映射转换逻辑
+2. 数据不一致的风险
+3. 维护复杂度高
+
+### 修改目标
+将H5端房间类型与后台统一，直接使用床位类型：普通床位、豪华床位、医疗床位
+
+### 修改内容
+
+#### 1. H5前端页面修改（ruoyi-h5/src/views/order/confirm.vue）
+
+**房间类型选项更新**：
+```javascript
+// 修改前：用户友好的房间类型
+const roomOptions = [
+  { text: '单人间（独立床位）', value: '单人间' },
+  { text: '双人间（两人一间）', value: '双人间' },
+  { text: '三人间（三人一间）', value: '三人间' },
+  { text: 'VIP房间（豪华床位）', value: 'VIP房间' }
+]
+
+// 修改后：直接使用床位类型
+const roomOptions = [
+  { text: '普通床位', value: '1' },
+  { text: '豪华床位', value: '2' },
+  { text: '医疗床位', value: '3' }
+]
+```
+
+**页面标签文本更新**：
+- `label="入住房间类型"` → `label="入住床位类型"`
+
+**默认值更新**：
+- `roomType: '单人间'` → `roomType: '1'`
+
+**备用价格映射更新**：
+```javascript
+const priceMap = {
+  '1': { bedFee: 350, memberFee: 3000, depositFee: 8000 },    // 普通床位
+  '2': { bedFee: 500, memberFee: 5000, depositFee: 10000 },   // 豪华床位
+  '3': { bedFee: 1200, memberFee: 10000, depositFee: 15000 }  // 医疗床位
+}
+```
+
+#### 2. 后端接口简化（ruoyi-admin/src/main/java/com/ruoyi/web/controller/h5/H5OrderController.java）
+
+**getOptimalPrice方法优化**：
+- 参数名：`@RequestParam String roomType` → `@RequestParam String bedType`
+- 删除映射逻辑：移除 `mapRoomTypeToBedType(roomType)` 调用
+- 直接使用传入的床位类型代码
+- 更新错误提示文本："房间类型不能为空" → "床位类型不能为空"
+- 更新注释说明
+
+**submitOrder方法优化**：
+- 直接使用床位类型：`String bedType = orderData.get("roomType").toString()`
+- 删除映射逻辑转换
+- 简化代码逻辑
+
+**映射方法状态**：
+- `mapRoomTypeToBedType` 方法不再被使用（IDE已提示）
+
+### 修改优势
+
+#### 1. 数据一致性
+- H5端与后台使用相同的床位类型分类体系
+- 消除了数据转换过程中的不一致风险
+- 确保前端显示与后端存储的一致性
+
+#### 2. 代码简化
+- 去除了复杂的映射转换逻辑
+- 减少了出错的可能性
+- 代码更加简洁易读
+
+#### 3. 维护性提升
+- 只需要维护一套床位类型数据
+- 新增床位类型时只需在一处修改
+- 降低了系统的复杂度
+
+#### 4. 性能优化
+- 去除了不必要的映射计算
+- 减少了字符串处理开销
+
+### 兼容性考虑
+
+#### 向后兼容
+- 保留了原有的 `mapRoomTypeToBedType` 方法（虽然不再使用）
+- 数据字典中的床位类型定义保持不变
+- 数据库表结构无需修改
+
+#### 数据映射关系
+```
+旧系统映射 → 新系统直接使用
+单人间      → 普通床位 (bed_type=1)
+双人间      → 普通床位 (bed_type=1)
+三人间      → 普通床位 (bed_type=1)
+VIP房间     → 豪华床位 (bed_type=2)
+          → 医疗床位 (bed_type=3)
+```
+
+### 修改效果
+- ✅ H5端直接使用床位类型，与后台完全一致
+- ✅ 简化了前后端数据交互逻辑
+- ✅ 提高了代码可维护性和可读性
+- ✅ 减少了映射转换的出错风险
+- ✅ 统一了用户体验和技术实现
+
+## 2025-12-11 修复入住管理页面费用计算逻辑
+
+### 修改文件：ruoyi-ui/src/views/pension/elder/checkin.vue
+
+### 修改内容：
+
+1. **添加护理等级变更监听**
+   - 在护理等级选择器上添加 `@change="calculateMonthlyFee"` 事件监听
+   - 当护理等级改变时自动重新计算费用
+
+2. **新增 calculateMonthlyFee 方法**
+   - 根据所选床位的床位费和护理等级计算月服务费
+   - 计算公式：月服务费 = 床位费 + 护理费
+   - 护理费获取逻辑：
+     - 自理(1)：selfCarePrice 或默认500元
+     - 半护理(2)：halfCarePrice 或 默认800元
+     - 全护理(3)：fullCarePrice 或 默认1200元
+   - 自动设置默认押金和会员费
+
+3. **修改床位变更处理**
+   - 将 `handleBedChange` 方法改为调用 `calculateMonthlyFee()`
+   - 确保床位变更时重新计算完整的服务费
+
+4. **优化费用显示**
+   - 费用汇总部分分别显示床位费和护理费
+   - 月服务费输入框下方显示费用构成提示
+   - 押金和会员费输入框显示建议金额
+
+5. **新增辅助方法**
+   - `getCurrentCareFee()`：获取当前护理等级的护理费
+   - `getCareLevelText()`：获取护理等级的中文显示
+
+### 修复的问题：
+- ✅ 修复了只计算床位费不计算护理费的问题
+- ✅ 实现了床位费+护理费=月服务费的正确逻辑
+- ✅ 护理等级变更时自动重新计算费用
+- ✅ 提供了清晰的费用构成显示
+- ✅ 保持了用户手动调整费用的灵活性
+
+### 费用计算逻辑：
+```
+床位费 = bed_info.price
+护理费 = 根据护理等级获取对应字段（默认值：500/800/1200）
+月服务费 = 床位费 + 护理费
+总费用 = 月服务费 × 月数 + 押金 + 会员费
+```
+
+## 2025-12-11 修改订单详情显示，增加床位费和护理费分别显示
+
+### 修改文件：
+1. **ruoyi-admin/src/main/java/com/ruoyi/service/impl/PensionCheckinServiceImpl.java**
+2. **ruoyi-ui/src/views/pension/order/orderInfo/components/OrderDetail.vue**
+
+### 修改内容：
+
+#### 后端修改（PensionCheckinServiceImpl.java）：
+1. **拆分订单明细**：将原来的单个"月服务费"明细拆分为：
+   - 床位费明细（itemType: "bed_fee"）
+   - 护理费明细（itemType: "care_fee"）
+   - 押金明细（itemType: "deposit"）
+   - 会员费明细（itemType: "member_fee"）
+
+2. **增强订单信息**：
+   - 在创建订单时设置 `roomNumber` 和 `bedNumber` 字段
+   - 方便前端显示具体的床位信息
+
+3. **新增辅助方法**：
+   - `getCareFeeByLevel()`：根据护理等级获取对应护理费
+   - `getCareLevelText()`：获取护理等级的中文显示
+
+#### 前端修改（OrderDetail.vue）：
+1. **新增费用汇总区域**：
+   - 床位费小计（蓝色显示）
+   - 护理费小计（绿色显示）
+   - 服务费小计（橙色显示，床位费+护理费）
+
+2. **新增计算方法**：
+   - `getBedFeeTotal()`：计算床位费总金额
+   - `getCareFeeTotal()`：计算护理费总金额
+   - `getServiceFeeTotal()`：计算服务费总金额
+
+3. **优化样式**：
+   - 为费用汇总区域添加专门的样式
+   - 不同费用类型用不同颜色区分
+
+### 修改后的效果：
+- ✅ 订单详情页面清晰显示床位费和护理费的分别金额
+- ✅ 费用汇总一目了然，方便核对
+- ✅ 订单明细表格中仍保留详细的费用项目记录
+- ✅ 支持历史订单的兼容显示（旧订单显示原格式，新订单显示拆分格式）
+
+### 订单明细结构：
+```
+新订单明细：
+├── 床位费（bed_fee）：床位费 × 月数
+├── 护理费（care_fee）：护理费 × 月数
+├── 押金（deposit）：固定金额
+└── 会员费（member_fee）：固定金额
+
+历史订单明细：
+└── 月服务费（service_fee）：月服务费 × 月数
+```
+
+### 问题修复：
+**问题**：订单详情中床位费小计和服务费小计显示为0
+**原因**：历史订单使用"service_fee"类型，新代码使用"bed_fee"和"care_fee"类型，前端查找时出现不匹配
+**解决方案**：
+1. 添加兼容性逻辑，当找不到"bed_fee"和"care_fee"时，从"service_fee"中估算拆分
+2. 床位费按��服务费的70%估算，护理费按30%估算
+3. 添加"旧格式"标识提示，让用户知道是估算值
+4. 新增`isLegacyFormat()`方法判断订单格式
 

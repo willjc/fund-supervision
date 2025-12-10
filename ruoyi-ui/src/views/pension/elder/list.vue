@@ -316,8 +316,14 @@
           <el-descriptions-item label="房间床位">{{ residentDetail.bedInfo }}</el-descriptions-item>
           <el-descriptions-item label="入住日期">{{ parseTime(residentDetail.checkInDate, '{y}-{m}-{d}') }}</el-descriptions-item>
           <el-descriptions-item label="到期日期">{{ parseTime(residentDetail.dueDate, '{y}-{m}-{d}') }}</el-descriptions-item>
-          <el-descriptions-item label="月服务费">
-            <span style="color: #409EFF; font-weight: bold;">￥{{ formatMoney(residentDetail.monthlyFee) }}</span>
+          <el-descriptions-item label="床位费">
+            <span style="color: #409EFF; font-weight: bold;">￥{{ getBedFee() }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="护理费">
+            <span style="color: #67C23A; font-weight: bold;">￥{{ getCareFee() }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="服务费(床位费+护理费)">
+            <span style="color: #E6A23C; font-weight: bold;">￥{{ getServiceFee() }}</span>
           </el-descriptions-item>
         </el-descriptions>
 
@@ -495,6 +501,31 @@
         </el-divider>
         <el-row :gutter="20">
           <el-col :span="8">
+            <el-form-item label="床位费">
+              <el-input-number
+                v-model="renewForm.bedFee"
+                :min="0"
+                :precision="2"
+                style="width: 100%;"
+                disabled />
+              <span style="margin-left: 10px; color: #909399;">元/月</span>
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="护理费">
+              <el-input-number
+                v-model="renewForm.careFee"
+                :min="0"
+                :precision="2"
+                style="width: 100%;"
+                disabled />
+              <span style="margin-left: 10px; color: #909399;">元/月</span>
+              <div style="font-size: 12px; color: #E6A23C; margin-top: 4px;" v-if="renewForm.careLevelText">
+                ({{ renewForm.careLevelText }})
+              </div>
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
             <el-form-item label="月服务费">
               <el-input-number
                 v-model="renewForm.monthlyFee"
@@ -504,8 +535,13 @@
                 @change="calculateRenewTotal"
                 disabled />
               <span style="margin-left: 10px; color: #909399;">元/月</span>
+              <div style="font-size: 12px; color: #409EFF; margin-top: 4px;">
+                *床位费 + 护理费
+              </div>
             </el-form-item>
           </el-col>
+        </el-row>
+        <el-row :gutter="20">
           <el-col :span="8">
             <el-form-item label="续费月数" prop="monthCount">
               <el-input-number
@@ -559,6 +595,8 @@
             <i class="el-icon-s-finance"></i> 费用汇总
           </div>
           <el-descriptions :column="2" border>
+            <el-descriptions-item label="床位费">¥{{ formatMoney(renewForm.bedFee) }}/月</el-descriptions-item>
+            <el-descriptions-item label="护理费">¥{{ formatMoney(renewForm.careFee) }}/月 ({{ renewForm.careLevelText }})</el-descriptions-item>
             <el-descriptions-item label="月服务费">¥{{ formatMoney(renewForm.monthlyFee) }} × {{ renewForm.monthCount }}个月</el-descriptions-item>
             <el-descriptions-item label="服务费小计">¥{{ formatMoney(renewServiceFeeTotal) }}</el-descriptions-item>
             <el-descriptions-item label="补交押金">¥{{ formatMoney(renewForm.depositAmount) }}</el-descriptions-item>
@@ -1239,11 +1277,52 @@ export default {
       const elderId = row.elderId;
       getResident(elderId).then(response => {
         const data = response.data;
+
+        // 从订单数据中获取床位费和护理费
+        let bedFee = 0;
+        let careFee = 0;
+        let careLevelText = '未选择';
+
+        if (data.orders && data.orders.length > 0) {
+          const latestOrder = data.orders[0]; // 假设第一个订单是最新订单
+          if (latestOrder.orderItems) {
+            const bedItem = latestOrder.orderItems.find(item => item.itemType === 'bed_fee');
+            const careItem = latestOrder.orderItems.find(item => item.itemType === 'care_fee');
+
+            if (bedItem) {
+              bedFee = parseFloat(bedItem.totalAmount) || 0;
+            }
+            if (careItem) {
+              careFee = parseFloat(careItem.totalAmount) || 0;
+            }
+          }
+        }
+
+        // 获取护理等级文本
+        if (data.careLevel) {
+          switch (data.careLevel) {
+            case '1':
+              careLevelText = '自理';
+              break;
+            case '2':
+              careLevelText = '半护理';
+              break;
+            case '3':
+              careLevelText = '全护理';
+              break;
+            default:
+              careLevelText = '未选择';
+          }
+        }
+
         this.renewForm = {
           elderId: data.elderId,
           elderName: data.elderName,
           bedInfo: data.bedInfo || '-',
           monthlyFee: data.monthlyFee || 0,
+          bedFee: bedFee,
+          careFee: careFee,
+          careLevelText: careLevelText,
           serviceBalance: data.serviceBalance || 0,
           depositBalance: data.depositBalance || 0,
           memberBalance: data.memberBalance || 0,
@@ -1586,6 +1665,58 @@ export default {
       if (this.$refs.familyForm) {
         this.$refs.familyForm.resetFields();
       }
+    },
+    // 获取床位费
+    getBedFee() {
+      // 如果有订单数据，从订单中获取床位费
+      if (this.residentDetail.orders && this.residentDetail.orders.length > 0) {
+        const latestOrder = this.residentDetail.orders[0]; // 假设第一个订单是最新订单
+        if (latestOrder.orderItems) {
+          const bedItem = latestOrder.orderItems.find(item => item.itemType === 'bed_fee');
+          if (bedItem) {
+            return this.formatMoney(bedItem.totalAmount);
+          }
+        }
+      }
+
+      // 如果没有订单数据，尝试从每月费用中推算（兼容旧数据）
+      if (this.residentDetail.monthlyFee) {
+        // 假设床位费占月服务费的70%（这是��算值，实际应该从床位费中获取）
+        const monthlyFee = parseFloat(this.residentDetail.monthlyFee) || 0;
+        const bedFee = monthlyFee * 0.7;
+        return this.formatMoney(bedFee);
+      }
+
+      return '0.00';
+    },
+    // 获取护理费
+    getCareFee() {
+      // 如果有订单数据，从订单中获取护理费
+      if (this.residentDetail.orders && this.residentDetail.orders.length > 0) {
+        const latestOrder = this.residentDetail.orders[0]; // 假设第一个订单是最新订单
+        if (latestOrder.orderItems) {
+          const careItem = latestOrder.orderItems.find(item => item.itemType === 'care_fee');
+          if (careItem) {
+            return this.formatMoney(careItem.totalAmount);
+          }
+        }
+      }
+
+      // 如果没有订单数据，尝试从每月费用中推算（兼容旧数据）
+      if (this.residentDetail.monthlyFee) {
+        // 假设护理费占月服务费的30%（这是估算值）
+        const monthlyFee = parseFloat(this.residentDetail.monthlyFee) || 0;
+        const careFee = monthlyFee * 0.3;
+        return this.formatMoney(careFee);
+      }
+
+      return '0.00';
+    },
+    // 获取服务费（床位费 + 护理费）
+    getServiceFee() {
+      const bedFee = parseFloat(this.getBedFee()) || 0;
+      const careFee = parseFloat(this.getCareFee()) || 0;
+      return this.formatMoney(bedFee + careFee);
     }
   }
 };

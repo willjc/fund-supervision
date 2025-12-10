@@ -202,31 +202,56 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
         orderInfo.setPaymentMethod(dto.getPaymentMethod());
         orderInfo.setOrderDate(new Date());
         orderInfo.setRemark(dto.getFeeDescription());
+
+        // 设置床位信息，方便前端显示
+        orderInfo.setRoomNumber(bedInfo.getRoomNumber());
+        orderInfo.setBedNumber(bedInfo.getBedNumber());
+
         orderInfo.setCreateTime(DateUtils.getNowDate());
         orderInfo.setCreateBy(SecurityUtils.getUsername());
 
         orderInfoMapper.insertOrderInfo(orderInfo);
         Long orderId = orderInfo.getOrderId();
 
-        // ========== 4. 创建订单明细记录(服务费、押金、会员费) ==========
-        // 4.1 服务费明细
-        if (dto.getMonthlyFee() != null && dto.getMonthlyFee().compareTo(BigDecimal.ZERO) > 0) {
-            OrderItem serviceItem = new OrderItem();
-            serviceItem.setOrderId(orderId);
-            serviceItem.setOrderNo(orderNo);
-            serviceItem.setItemName("月服务费");
-            serviceItem.setItemType("service_fee");
-            serviceItem.setItemDescription(monthCount + "个月服务费");
-            serviceItem.setUnitPrice(dto.getMonthlyFee());
-            serviceItem.setQuantity(monthCount.longValue());  // 数量=入驻月数
-            serviceItem.setTotalAmount(serviceFeeTotal);  // 小计=月服务费×月数
-            serviceItem.setServicePeriod("月度");
-            serviceItem.setCreateTime(DateUtils.getNowDate());
-            serviceItem.setCreateBy(SecurityUtils.getUsername());
-            orderItemMapper.insertOrderItem(serviceItem);
+        // ========== 4. 创建订单明细记录(床位费、护理费、押金、会员费) ==========
+        // 4.1 床位费明细
+        BigDecimal bedFee = bedInfo.getPrice(); // 床位费
+        if (bedFee != null && bedFee.compareTo(BigDecimal.ZERO) > 0) {
+            OrderItem bedItem = new OrderItem();
+            bedItem.setOrderId(orderId);
+            bedItem.setOrderNo(orderNo);
+            bedItem.setItemName("床位费");
+            bedItem.setItemType("bed_fee");
+            bedItem.setItemDescription(bedInfo.getRoomNumber() + "-" + bedInfo.getBedNumber() + "床位费");
+            bedItem.setUnitPrice(bedFee);
+            bedItem.setQuantity(monthCount.longValue());  // 数量=入驻月数
+            bedItem.setTotalAmount(bedFee.multiply(new BigDecimal(monthCount)));  // 小计=床位费×月数
+            bedItem.setServicePeriod("月度");
+            bedItem.setCreateTime(DateUtils.getNowDate());
+            bedItem.setCreateBy(SecurityUtils.getUsername());
+            orderItemMapper.insertOrderItem(bedItem);
         }
 
-        // 4.2 押金明细
+        // 4.2 护理费明细
+        BigDecimal careFee = getCareFeeByLevel(bedInfo, dto.getCareLevel()); // 护理费
+        if (careFee != null && careFee.compareTo(BigDecimal.ZERO) > 0) {
+            OrderItem careItem = new OrderItem();
+            careItem.setOrderId(orderId);
+            careItem.setOrderNo(orderNo);
+            careItem.setItemName("护理费");
+            careItem.setItemType("care_fee");
+            String careLevelText = getCareLevelText(dto.getCareLevel());
+            careItem.setItemDescription(careLevelText + "护理费");
+            careItem.setUnitPrice(careFee);
+            careItem.setQuantity(monthCount.longValue());  // 数量=入驻月数
+            careItem.setTotalAmount(careFee.multiply(new BigDecimal(monthCount)));  // 小计=护理费×月数
+            careItem.setServicePeriod("月度");
+            careItem.setCreateTime(DateUtils.getNowDate());
+            careItem.setCreateBy(SecurityUtils.getUsername());
+            orderItemMapper.insertOrderItem(careItem);
+        }
+
+        // 4.3 押金明细
         if (dto.getDepositAmount() != null && dto.getDepositAmount().compareTo(BigDecimal.ZERO) > 0) {
             OrderItem depositItem = new OrderItem();
             depositItem.setOrderId(orderId);
@@ -242,7 +267,7 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
             orderItemMapper.insertOrderItem(depositItem);
         }
 
-        // 4.3 会员费明细
+        // 4.4 会员费明细
         if (dto.getMemberFee() != null && dto.getMemberFee().compareTo(BigDecimal.ZERO) > 0) {
             OrderItem memberItem = new OrderItem();
             memberItem.setOrderId(orderId);
@@ -280,5 +305,42 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
         bedInfoMapper.updateBedStatus(bedId, "1"); // 1-占用
 
         return 1;
+    }
+
+    /**
+     * 根据护理等级获取护理费
+     * @param bed 床位信息
+     * @param careLevel 护理等级（1自理 2半护理 3全护理）
+     * @return 护理费
+     */
+    private BigDecimal getCareFeeByLevel(com.ruoyi.domain.BedInfo bed, String careLevel) {
+        switch (careLevel) {
+            case "1": // 自理
+                return bed.getSelfCarePrice() != null ? bed.getSelfCarePrice() : new BigDecimal("500");
+            case "2": // 半护理
+                return bed.getHalfCarePrice() != null ? bed.getHalfCarePrice() : new BigDecimal("800");
+            case "3": // 全护理
+                return bed.getFullCarePrice() != null ? bed.getFullCarePrice() : new BigDecimal("1200");
+            default:
+                return new BigDecimal("500"); // 默认自理价格
+        }
+    }
+
+    /**
+     * 获取护理等级文本
+     * @param careLevel 护理等级（1自理 2半护理 3全护理）
+     * @return 护理等级文本
+     */
+    private String getCareLevelText(String careLevel) {
+        switch (careLevel) {
+            case "1":
+                return "自理";
+            case "2":
+                return "半护理";
+            case "3":
+                return "全护理";
+            default:
+                return "自理";
+        }
     }
 }

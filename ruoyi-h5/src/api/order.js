@@ -50,15 +50,15 @@ export function submitOrder(data) {
 /**
  * 获取床位价格
  * @param {Number} institutionId - 机构ID
- * @param {String} roomType - 房间类型
+ * @param {String} bedType - 床位类型
  */
-export function getBedPrice(institutionId, roomType) {
+export function getBedPrice(institutionId, bedType) {
   return request({
     url: '/h5/bed/optimal-price',
     method: 'get',
     params: {
       institutionId,
-      roomType
+      bedType
     }
   })
 }

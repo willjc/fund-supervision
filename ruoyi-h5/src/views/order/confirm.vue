@@ -30,8 +30,8 @@
         </van-field>
 
         <van-field
-          v-model="formData.roomType"
-          label="入住房间类型"
+          :model-value="bedTypeText"
+          label="入住床位类型"
           readonly
           required
           @click="showRoomPicker = true"
@@ -164,7 +164,7 @@ const formData = ref({
   elderId: null,
   elderName: '',
   abilityLevel: '自理',
-  roomType: '单人间',
+  roomType: '1',
   careLevel: '自理',
   months: 1,
   remark: ''
@@ -215,15 +215,28 @@ const careLevelOptions = [
 ]
 
 const roomOptions = [
-  { text: '单人间（独立床位）', value: '单人间' },
-  { text: '双人间（两人一间）', value: '双人间' },
-  { text: '三人间（三人一间）', value: '三人间' },
-  { text: 'VIP房间（豪华床位）', value: 'VIP房间' }
+  { text: '普通床位', value: '1' },
+  { text: '豪华床位', value: '2' },
+  { text: '医疗床位', value: '3' }
 ]
 
 // 获取床位费用
 const bedFee = computed(() => {
   return bedInfo.value.bedFee
+})
+
+// 获取床位类型显示文字
+const bedTypeText = computed(() => {
+  switch (formData.value.roomType) {
+    case '1':
+      return '普通床位'
+    case '2':
+      return '豪华床位'
+    case '3':
+      return '医疗床位'
+    default:
+      return '普通床位'
+  }
 })
 
 // 获取护理费用
@@ -307,12 +320,11 @@ const getBedPrice = async () => {
     console.error('获取床位价格失败:', error)
     // 使用默认数据作为备用
     const priceMap = {
-      '单人间': { bedFee: 500, memberFee: 5000, depositFee: 10000 },
-      '双人间': { bedFee: 350, memberFee: 3000, depositFee: 8000 },
-      '三人间': { bedFee: 280, memberFee: 2000, depositFee: 6000 },
-      'VIP房间': { bedFee: 1200, memberFee: 10000, depositFee: 15000 }
+      '1': { bedFee: 350, memberFee: 3000, depositFee: 8000 },
+      '2': { bedFee: 500, memberFee: 5000, depositFee: 10000 },
+      '3': { bedFee: 1200, memberFee: 10000, depositFee: 15000 }
     }
-    const defaultPrices = priceMap[formData.value.roomType] || priceMap['单人间']
+    const defaultPrices = priceMap[formData.value.roomType] || priceMap['1']
     bedInfo.value = {
       bedFee: defaultPrices.bedFee,
       selfCarePrice: 500,

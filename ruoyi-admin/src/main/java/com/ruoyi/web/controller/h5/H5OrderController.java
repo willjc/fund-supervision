@@ -105,24 +105,18 @@ public class H5OrderController extends BaseController
 
     /**
      * 查询最优价格床位
-     * 根据房间类型查询该类型下价格最低的可用床位
+     * 根据床位类型查询该类型下价格最低的可用床位
      */
     @GetMapping("/bed/optimal-price")
     public AjaxResult getOptimalPrice(@RequestParam Long institutionId,
-                                     @RequestParam String roomType)
+                                     @RequestParam String bedType)
     {
         // 参数验证
         if (institutionId == null) {
             return error("机构ID不能为空");
         }
-        if (!StringUtils.hasText(roomType)) {
-            return error("房间类型不能为空");
-        }
-
-        // 房间类型映射到床位类型
-        String bedType = mapRoomTypeToBedType(roomType);
-        if (bedType == null) {
-            return error("无效的房间类型");
+        if (!StringUtils.hasText(bedType)) {
+            return error("床位类型不能为空");
         }
 
         // 构建查询条件
@@ -180,7 +174,7 @@ public class H5OrderController extends BaseController
             // 解析订单数据
             Long elderId = Long.valueOf(orderData.get("elderId").toString());
             Long institutionId = Long.valueOf(orderData.get("institutionId").toString());
-            String roomType = orderData.get("roomType").toString();
+            String bedType = orderData.get("roomType").toString(); // 直接使用床位类型代码
             String careLevel = orderData.get("careLevel").toString(); // 自理/半护理/全护理
             Integer monthCount = Integer.valueOf(orderData.get("monthCount").toString());
 
@@ -188,12 +182,6 @@ public class H5OrderController extends BaseController
             ElderInfo elder = elderInfoService.selectElderInfoByElderId(elderId);
             if (elder == null) {
                 return error("老人信息不存在");
-            }
-
-            // 房间类型映射到床位类型
-            String bedType = mapRoomTypeToBedType(roomType);
-            if (bedType == null) {
-                return error("无效的房间类型");
             }
 
             // 查找最优价格床位
