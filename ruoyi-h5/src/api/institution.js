@@ -65,7 +65,7 @@ export function applyEnter(data) {
  */
 export function favoriteInstitution(institutionId) {
   return request({
-    url: `/h5/institution/${institutionId}/favorite`,
+    url: `/h5/favorite/add/${institutionId}`,
     method: 'post'
   })
 }
@@ -76,8 +76,31 @@ export function favoriteInstitution(institutionId) {
  */
 export function unfavoriteInstitution(institutionId) {
   return request({
-    url: `/h5/institution/${institutionId}/unfavorite`,
-    method: 'post'
+    url: `/h5/favorite/remove/${institutionId}`,
+    method: 'delete'
+  })
+}
+
+/**
+ * 检查用户是否已收藏机构
+ * @param {Number} institutionId 机构ID
+ */
+export function checkFavorite(institutionId) {
+  return request({
+    url: `/h5/favorite/check/${institutionId}`,
+    method: 'get'
+  })
+}
+
+/**
+ * 获取用户收藏列表
+ * @param {Object} params 查询参数
+ */
+export function getUserFavoriteList(params) {
+  return request({
+    url: '/h5/favorite/list',
+    method: 'get',
+    params
   })
 }
 

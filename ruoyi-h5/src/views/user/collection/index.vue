@@ -28,10 +28,13 @@
 
       <!-- 收藏列表 -->
       <div class="collection-list">
+        <van-loading v-if="loading" size="24px" style="text-align: center; padding: 20px;">加载中...</van-loading>
+
         <div
           v-for="item in filteredList"
           :key="item.id"
           class="collection-item"
+          v-show="!loading"
         >
           <van-checkbox
             v-model="item.checked"
@@ -79,9 +82,10 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast, showConfirmDialog } from 'vant'
+import { getUserFavoriteList, unfavoriteInstitution } from '@/api/institution'
 
 const router = useRouter()
 
@@ -92,35 +96,39 @@ const searchKeyword = ref('')
 const checkAll = ref(false)
 
 // 收藏列表
-const collectionList = ref([
-  {
-    id: 1,
-    name: '郑州市金水区花园口社区养老服务中心',
-    coverImage: 'https://via.placeholder.com/200x160',
-    address: '郑州市金水区花园口镇花园路123号',
-    level: '三级养老机构',
-    price: 2800,
-    checked: false
-  },
-  {
-    id: 2,
-    name: '郑州市二七区福寿园养老院',
-    coverImage: 'https://via.placeholder.com/200x160',
-    address: '郑州市二七区建设路456号',
-    level: '二级养老机构',
-    price: 3200,
-    checked: false
-  },
-  {
-    id: 3,
-    name: '郑州市中原区康乐养老中心',
-    coverImage: 'https://via.placeholder.com/200x160',
-    address: '郑州市中原区桐柏路789号',
-    level: '三级养老机构',
-    price: 2500,
-    checked: false
+const collectionList = ref([])
+const loading = ref(false)
+
+// 加载收藏列表
+const loadFavoriteList = async () => {
+  try {
+    loading.value = true
+    const response = await getUserFavoriteList({ pageSize: 100 }) // 加载所有收藏
+
+    if (response.code === 200 && response.rows) {
+      // 转换数据格式 - 后端现在返回完整的机构信息
+      collectionList.value = response.rows.map(item => ({
+        id: item.institutionId,
+        favoriteId: item.favoriteId,
+        name: item.institutionName || '机构名称',
+        coverImage: item.coverImage || 'https://via.placeholder.com/200x160',
+        address: item.address || '地址信息完善中',
+        level: item.institutionType || '养老机构',
+        price: item.price || 2000,
+        checked: false
+      }))
+    } else {
+      showToast(response.msg || '获取收藏列表失败')
+    }
+  } catch (error) {
+    console.error('加载收藏列表失败:', error)
+    showToast('加载失败')
+    collectionList.value = []
+  } finally {
+    loading.value = false
   }
-])
+}
+
 
 // 过滤后的列表
 const filteredList = computed(() => {
@@ -163,8 +171,8 @@ const handleDelete = async (item) => {
       message: `确定要取消收藏 ${item.name} 吗?`
     })
 
-    // 模拟删除
-    await new Promise(resolve => setTimeout(resolve, 300))
+    // 调用真实的取消收藏API
+    await unfavoriteInstitution(item.id)
 
     const index = collectionList.value.findIndex(i => i.id === item.id)
     if (index > -1) {
@@ -173,7 +181,8 @@ const handleDelete = async (item) => {
     }
   } catch (error) {
     if (error !== 'cancel') {
-      showToast('删除失败')
+      console.error('取消收藏失败:', error)
+      showToast(error.response?.data?.msg || '删除失败')
     }
   }
 }
@@ -186,14 +195,18 @@ const batchDelete = async () => {
       message: `确定要批量删除 ${selectedIds.value.length} 项收藏吗?`
     })
 
-    // 模拟删除
-    await new Promise(resolve => setTimeout(resolve, 300))
+    // 批量调用取消收藏API
+    const selectedItems = collectionList.value.filter(item => item.checked)
+    const deletePromises = selectedItems.map(item => unfavoriteInstitution(item.id))
+
+    await Promise.all(deletePromises)
 
     collectionList.value = collectionList.value.filter(item => !item.checked)
     checkAll.value = false
     showToast('删除成功')
   } catch (error) {
     if (error !== 'cancel') {
+      console.error('批量删除失败:', error)
       showToast('删除失败')
     }
   }
@@ -202,10 +215,15 @@ const batchDelete = async () => {
 // 跳转到详情
 const goToDetail = (item) => {
   router.push({
-    path: '/institution/detail',
-    query: { id: item.id }
+    name: 'InstitutionDetail',
+    params: { id: item.id }
   })
 }
+
+// 页面加载时获取收藏列表
+onMounted(() => {
+  loadFavoriteList()
+})
 </script>
 
 <style scoped>

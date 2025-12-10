@@ -278,7 +278,7 @@
           {{ detail.isFavorite ? '已收藏' : '收藏' }}
         </van-button>
         <van-button round plain icon="phone-o" @click="makeCall">
-          电话咨询
+          电话
         </van-button>
         <van-button round type="primary" @click="applyEnter">
           申请入住
@@ -292,7 +292,9 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showToast, showDialog, showImagePreview } from 'vant'
-import { getInstitutionDetail } from '@/api/institution'
+import { getInstitutionDetail, favoriteInstitution, unfavoriteInstitution, checkFavorite } from '@/api/institution'
+import { useUserStore } from '@/store/modules/user'
+import { getToken } from '@/utils/auth'
 
 const route = useRoute()
 const router = useRouter()
@@ -439,19 +441,79 @@ const detail = ref({})
 // 收藏切换
 const toggleFavorite = async () => {
   try {
+    // 检查是否已登录
+    const token = getToken()
+    if (!token) {
+      await showDialog({
+        title: '登录提示',
+        message: '请先登录后再进行收藏操作',
+        confirmButtonText: '去登录',
+        cancelButtonText: '取消'
+      }).then(() => {
+        // 跳转到登录页
+        router.push({
+          path: '/login',
+          query: { redirect: route.fullPath }
+        })
+      }).catch(() => {
+        // 用户取消
+      })
+      return
+    }
+
     if (detail.value.isFavorite) {
-      // TODO: 调用取消收藏API
-      // await unfavoriteInstitution(detail.value.institutionId)
+      // 已收藏，询问是否取消收藏
+      await showDialog({
+        title: '取消收藏',
+        message: `确定要取消收藏「${detail.value.name}」吗？`,
+        confirmButtonText: '确定',
+        cancelButtonText: '取消'
+      })
+
+      // 调用取消收藏API
+      await unfavoriteInstitution(detail.value.institutionId)
       detail.value.isFavorite = false
       showToast('已取消收藏')
     } else {
-      // TODO: 调用收藏API
-      // await favoriteInstitution(detail.value.institutionId)
+      // 未收藏，直接收藏
+      await favoriteInstitution(detail.value.institutionId)
       detail.value.isFavorite = true
       showToast('收藏成功')
     }
   } catch (error) {
-    showToast('操作失败')
+    if (error.message && error.message.includes('cancel')) {
+      // 用户取消了对话框操作，不显示错误
+      return
+    }
+    console.error('收藏操作失败:', error)
+
+    // 处理特定的错误信息
+    const errorMsg = error.response?.data?.msg || error.message || '操作失败'
+
+    if (errorMsg.includes('已经收藏过') || errorMsg.includes('已收藏')) {
+      showToast('您已经收藏过该机构了')
+      // 同步收藏状态
+      detail.value.isFavorite = true
+    } else {
+      showToast(errorMsg)
+    }
+  }
+}
+
+// 检查收藏状态
+const checkFavoriteStatus = async () => {
+  try {
+    console.log('检查收藏状态, institutionId:', detail.value.institutionId)
+    const response = await checkFavorite(detail.value.institutionId)
+    console.log('收藏状态检查结果:', response)
+    if (response.code === 200) {
+      detail.value.isFavorite = response.data.isFavorited
+      console.log('设置收藏状态为:', detail.value.isFavorite)
+    }
+  } catch (error) {
+    console.error('检查收藏状态失败:', error)
+    // 默认未收藏
+    detail.value.isFavorite = false
   }
 }
 
@@ -519,6 +581,8 @@ const loadDetail = async () => {
     // 确保必要字段有默认值
     detail.value = {
       ...response.data,
+      // 确保机构ID字段存在
+      institutionId: response.data.institutionId || response.data.id || route.params.id,
       isFavorite: false, // 默认未收藏
       rating: response.data.rating || 4.5, // 默认评分
       reviews: response.data.reviews || [], // 默认空评价列表
@@ -530,6 +594,9 @@ const loadDetail = async () => {
       medicalFacilities: response.data.medicalFacilities || [],
       dailyServices: response.data.dailyServices || []
     }
+
+    // 加载详情后检查收藏状态
+    await checkFavoriteStatus()
   } catch (error) {
     console.error('加载机构详情失败:', error)
     showToast('加载失败')

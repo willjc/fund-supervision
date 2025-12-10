@@ -28,6 +28,42 @@ export function getOrderDetail(orderId) {
 }
 
 /**
+ * 提交订单
+ * @param {Object} data - 订单数据
+ * @param {Number} data.institutionId - 机构ID
+ * @param {String} data.elderName - 老人姓名
+ * @param {String} data.abilityLevel - 护理等级
+ * @param {String} data.roomType - 房间类型
+ * @param {Array} data.packages - 套餐列表
+ * @param {Number} data.months - 缴纳月数
+ * @param {String} data.remark - 备注
+ * @param {Object} data.costDetails - 费用明细
+ */
+export function submitOrder(data) {
+  return request({
+    url: '/h5/order/submit',
+    method: 'post',
+    data
+  })
+}
+
+/**
+ * 获取床位价格
+ * @param {Number} institutionId - 机构ID
+ * @param {String} roomType - 房间类型
+ */
+export function getBedPrice(institutionId, roomType) {
+  return request({
+    url: '/h5/bed/optimal-price',
+    method: 'get',
+    params: {
+      institutionId,
+      roomType
+    }
+  })
+}
+
+/**
  * 取消订单
  * @param {Number} orderId - 订单ID
  */

@@ -544,6 +544,7 @@ public class H5InstitutionController extends BaseController
         Map<String, Object> result = new HashMap<>();
 
         // 基础信息
+        result.put("id", institution.getInstitutionId()); // 添加id字段供前端使用
         result.put("institutionId", institution.getInstitutionId());
         result.put("name", institution.getInstitutionName());
         result.put("description", publicity != null ? publicity.getInstitutionIntro() : "");
