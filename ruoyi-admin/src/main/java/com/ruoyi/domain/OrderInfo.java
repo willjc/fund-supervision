@@ -33,6 +33,10 @@ public class OrderInfo extends BaseEntity
     @Excel(name = "老人ID")
     private Long elderId;
 
+    /** 下单人ID */
+    @Excel(name = "下单人ID")
+    private Long creatorUserId;
+
     /** 机构ID */
     @Excel(name = "机构ID")
     private Long institutionId;
@@ -163,6 +167,15 @@ public class OrderInfo extends BaseEntity
     public Long getElderId()
     {
         return elderId;
+    }
+    public void setCreatorUserId(Long creatorUserId)
+    {
+        this.creatorUserId = creatorUserId;
+    }
+
+    public Long getCreatorUserId()
+    {
+        return creatorUserId;
     }
     public void setInstitutionId(Long institutionId)
     {

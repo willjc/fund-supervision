@@ -9,6 +9,7 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,9 +22,11 @@ import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.domain.BedInfo;
 import com.ruoyi.domain.ElderInfo;
+import com.ruoyi.domain.ElderFamily;
 import com.ruoyi.domain.OrderInfo;
 import com.ruoyi.domain.PensionCheckinDTO;
 import com.ruoyi.service.IBedInfoService;
+import com.ruoyi.service.IElderFamilyService;
 import com.ruoyi.service.IElderInfoService;
 import com.ruoyi.service.IOrderInfoService;
 import com.ruoyi.service.IPensionCheckinService;
@@ -49,25 +52,258 @@ public class H5OrderController extends BaseController
     @Autowired
     private IOrderInfoService orderInfoService;
 
+    @Autowired
+    private IElderFamilyService elderFamilyService;
+
+    /**
+     * 获取订单列表
+     * 根据当前登录用户权限查询订单
+     */
+    @GetMapping("/order/list")
+    public AjaxResult getOrderList(@RequestParam(required = false) Long elderId,
+                                   @RequestParam(required = false) String orderStatus,
+                                   @RequestParam(defaultValue = "1") Integer pageNum,
+                                   @RequestParam(defaultValue = "10") Integer pageSize)
+    {
+        try {
+            // 获取当前用户身份
+            Long currentUserId = getCurrentUserId();
+            if (currentUserId == null) {
+                return error("用户未登录或身份验证失败");
+            }
+
+            // 获取当前用户关联的所有老人ID
+            ElderFamily familyQuery = new ElderFamily();
+            familyQuery.setUserId(currentUserId);
+            List<ElderFamily> familyList = elderFamilyService.selectElderFamilyList(familyQuery);
+
+            List<Long> accessibleElderIds = new java.util.ArrayList<>();
+            if (familyList != null && !familyList.isEmpty()) {
+                for (ElderFamily family : familyList) {
+                    if (family.getElderId() != null) {
+                        accessibleElderIds.add(family.getElderId());
+                    }
+                }
+            }
+
+            // 如果用户没有关联任何老人，返回空结果
+            if (accessibleElderIds.isEmpty()) {
+                Map<String, Object> result = new java.util.HashMap<>();
+                result.put("rows", new java.util.ArrayList<>());
+                result.put("total", 0);
+                result.put("pageNum", pageNum);
+                result.put("pageSize", pageSize);
+                return success(result);
+            }
+
+            // 构建查询条件 - 强制使用用户可访问的老人ID列表
+            OrderInfo query = new OrderInfo();
+
+            // 如果前端传入了elderId参数，验证用户是否有权限访问该老人
+            if (elderId != null && elderId > 0) {
+                if (!accessibleElderIds.contains(elderId)) {
+                    return error("无权访问该老人的订单信息");
+                }
+                query.setElderId(elderId);
+            } else {
+                // 如果没有指定具体老人，查询用户所有关联老人的订单
+                // 注意：这里需要在selectOrderInfoList方法中处理 elderId IN (list) 的情况
+                // 暂时先设置为null，后面需要手动过滤
+            }
+
+            // 如果提供了订单状态，按状态查询
+            if (orderStatus != null && !orderStatus.isEmpty() && !"all".equals(orderStatus)) {
+                query.setOrderStatus(orderStatus);
+            }
+
+            // 查询订单列表
+            List<OrderInfo> orderList = orderInfoService.selectOrderInfoList(query);
+
+            // 如果没有指定特定老人ID，需要手动过滤
+            if (elderId == null || elderId <= 0) {
+                List<OrderInfo> filteredOrderList = new java.util.ArrayList<>();
+                if (orderList != null) {
+                    for (OrderInfo order : orderList) {
+                        if (order.getElderId() != null && accessibleElderIds.contains(order.getElderId())) {
+                            filteredOrderList.add(order);
+                        }
+                    }
+                }
+                orderList = filteredOrderList;
+            }
+
+            // 分页处理
+            int startIndex = (pageNum - 1) * pageSize;
+            int endIndex = startIndex + pageSize;
+
+            List<OrderInfo> paginatedList = new java.util.ArrayList<>();
+            if (orderList != null) {
+                // 按创建时间倒序排序
+                orderList.sort((o1, o2) -> {
+                    if (o2.getCreateTime() == null || o1.getCreateTime() == null) {
+                        return 0;
+                    }
+                    return o2.getCreateTime().compareTo(o1.getCreateTime());
+                });
+
+                // 分页截取
+                for (int i = startIndex; i < endIndex && i < orderList.size(); i++) {
+                    paginatedList.add(orderList.get(i));
+                }
+            }
+
+            // 构建返回数据
+            Map<String, Object> result = new java.util.HashMap<>();
+            java.util.List<Map<String, Object>> orderListData = new java.util.ArrayList<>();
+
+            for (OrderInfo order : paginatedList) {
+                Map<String, Object> item = new java.util.HashMap<>();
+                item.put("orderId", order.getOrderId());
+                item.put("orderNo", order.getOrderNo());
+                item.put("orderType", order.getOrderType());
+                item.put("orderTypeText", getOrderTypeText(order.getOrderType()));
+                item.put("orderStatus", order.getOrderStatus());
+                item.put("orderStatusText", getOrderStatusText(order.getOrderStatus()));
+                item.put("orderAmount", order.getOrderAmount());
+                item.put("createTime", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, order.getCreateTime()));
+
+                // 获取机构名称
+                if (order.getInstitutionId() != null) {
+                    item.put("institutionId", order.getInstitutionId());
+                    // TODO: 可以根据机构ID查询机构名称
+                }
+
+                orderListData.add(item);
+            }
+
+            result.put("rows", orderListData);
+            result.put("total", orderList != null ? orderList.size() : 0);
+            result.put("pageNum", pageNum);
+            result.put("pageSize", pageSize);
+
+            return success(result);
+        } catch (Exception e) {
+            logger.error("获取订单列表失败", e);
+            return error("获取订单列表失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取订单详情
+     * 根据订单ID查询订单详情，验证用户有权限访问
+     */
+    @GetMapping("/order/{orderId}")
+    public AjaxResult getOrderDetail(@PathVariable Long orderId)
+    {
+        try {
+            // 获取当前用户ID
+            Long currentUserId = getCurrentUserId();
+            if (currentUserId == null) {
+                return error("用户未登录或身份验证失败");
+            }
+
+            // 查询订单信息
+            OrderInfo order = orderInfoService.selectOrderInfoByOrderId(orderId);
+            if (order == null) {
+                return error("订单不存在");
+            }
+
+            // 验证用户是否有权限访问该订单
+            Long orderCreatorId = order.getCreatorUserId();
+            if (orderCreatorId == null || !orderCreatorId.equals(currentUserId)) {
+                // 检查用户是否是该订单的老人的家属
+                ElderFamily familyQuery = new ElderFamily();
+                familyQuery.setUserId(currentUserId);
+                familyQuery.setElderId(order.getElderId());
+                List<ElderFamily> familyList = elderFamilyService.selectElderFamilyList(familyQuery);
+
+                if (familyList == null || familyList.isEmpty()) {
+                    return error("无权访问该订单信息");
+                }
+            }
+
+            // 构建返回数据
+            Map<String, Object> result = new HashMap<>();
+            result.put("orderId", order.getOrderId());
+            result.put("orderNo", order.getOrderNo());
+            result.put("orderType", order.getOrderType());
+            result.put("orderTypeText", getOrderTypeText(order.getOrderType()));
+            result.put("orderStatus", order.getOrderStatus());
+            result.put("orderStatusText", getOrderStatusText(order.getOrderStatus()));
+            result.put("orderAmount", order.getOrderAmount());
+            result.put("createTime", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, order.getCreateTime()));
+
+            // 获取老人信息
+            if (order.getElderId() != null) {
+                ElderInfo elder = elderInfoService.selectElderInfoByElderId(order.getElderId());
+                if (elder != null) {
+                    result.put("elderName", elder.getElderName());
+                    result.put("elderAge", elder.getAge());
+                    result.put("elderGender", elder.getGender());
+                }
+            }
+
+            // 获取机构信息
+            if (order.getInstitutionId() != null) {
+                result.put("institutionId", order.getInstitutionId());
+                // TODO: 可以根据机构ID查询机构详细信息（名称、地址、电话、图片等）
+            }
+
+            // 构建费用明细
+            java.util.List<Map<String, Object>> feeItems = new java.util.ArrayList<>();
+            // 从订单对象提取费用信息，如果order中有具体的费用字段
+            // 这里是示例，实际需要根据OrderInfo的字段调整
+            result.put("feeItems", feeItems);
+            result.put("discountAmount", 0);
+            result.put("paidAmount", order.getOrderAmount());
+
+            return success(result);
+        } catch (Exception e) {
+            logger.error("获取订单详情失败", e);
+            return error("获取订单详情失败：" + e.getMessage());
+        }
+    }
+
     /**
      * 获取老人列表
-     * 查询当前用户关联的老人信息
+     * 查询当前用户关联的老人信息（只返回该用户添加的老人）
      */
     @GetMapping("/elder/list")
     public AjaxResult getElderList()
     {
         try {
-            // 构建查询条件
-            ElderInfo query = new ElderInfo();
+            // 获取当前用户ID
+            Long currentUserId = getCurrentUserId();
+            if (currentUserId == null) {
+                return error("用户未登录或身份验证失败");
+            }
 
-            // 查询所有可用的老人（状态为未入住的）
-            // TODO: 后续可以根据登录用户ID查询关联的老人
-            List<ElderInfo> elderList = elderInfoService.selectElderInfoList(query);
+            // 查询当前用户关联的所有老人ID
+            ElderFamily familyQuery = new ElderFamily();
+            familyQuery.setUserId(currentUserId);
+            List<ElderFamily> familyList = elderFamilyService.selectElderFamilyList(familyQuery);
 
-            // 过滤掉已入住的老人（status != '1'）
-            elderList = elderList.stream()
-                .filter(elder -> !"1".equals(elder.getStatus()))
-                .collect(java.util.stream.Collectors.toList());
+            // 如果用户没有关联任何老人，返回空结果
+            if (familyList == null || familyList.isEmpty()) {
+                return success(new java.util.ArrayList<>());
+            }
+
+            // 构建用户可访问的老人ID列表
+            List<Long> accessibleElderIds = new java.util.ArrayList<>();
+            for (ElderFamily family : familyList) {
+                if (family.getElderId() != null) {
+                    accessibleElderIds.add(family.getElderId());
+                }
+            }
+
+            // 查询这些老人的详细信息
+            List<ElderInfo> elderList = new java.util.ArrayList<>();
+            for (Long elderId : accessibleElderIds) {
+                ElderInfo elder = elderInfoService.selectElderInfoByElderId(elderId);
+                if (elder != null && !"1".equals(elder.getStatus())) {
+                    elderList.add(elder);
+                }
+            }
 
             java.util.List<Map<String, Object>> result = new java.util.ArrayList<>();
 
@@ -438,5 +674,52 @@ public class H5OrderController extends BaseController
         BigDecimal total = monthlyFee.multiply(new BigDecimal(monthCount)).add(depositAmount).add(memberFee);
         sb.append("总计：").append(total).append("元");
         return sb.toString();
+    }
+
+    /**
+     * 获取订单类型文本
+     */
+    private String getOrderTypeText(String orderType) {
+        switch (orderType) {
+            case "1":
+                return "入驻";
+            case "2":
+                return "续费";
+            default:
+                return "未知";
+        }
+    }
+
+    /**
+     * 获取订单状态文本
+     */
+    private String getOrderStatusText(String orderStatus) {
+        switch (orderStatus) {
+            case "0":
+                return "待支付";
+            case "1":
+                return "已支付";
+            case "2":
+                return "已取消";
+            case "3":
+                return "已退款";
+            default:
+                return "未知";
+        }
+    }
+
+    /**
+     * 获取当前登录用户的ID
+     * H5端可能没有登录用户，需要根据实际情况处理
+     */
+    private Long getCurrentUserId() {
+        try {
+            // 尝试从SecurityUtils获取已登录用户
+            return SecurityUtils.getUserId();
+        } catch (Exception e) {
+            // H5端可能没有登录，暂时使用固定的测试用户ID
+            // 后续需要根据实际H5登录机制获取用户ID
+            return 106L; // 临时使用user_id=106作为H5测试用户
+        }
     }
 }

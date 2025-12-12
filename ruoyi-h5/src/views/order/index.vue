@@ -112,7 +112,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast, showConfirmDialog } from 'vant'
 import { useUserStore } from '@/store/modules/user'
-// import { getOrderList, cancelOrder } from '@/api/order' // 暂时使用模拟数据
+import { getOrderList, cancelOrder } from '@/api/order'
 import dayjs from 'dayjs'
 
 const router = useRouter()
@@ -136,7 +136,10 @@ const orderList = ref([])
 const pageNum = ref(1)
 const pageSize = ref(10)
 
-// 模拟订单数据
+// 老人ID（后续需要从登录信息或路由参数中获取）
+const elderId = ref(null)
+
+// 模拟订单数据（备用）
 const mockOrders = [
   {
     orderId: 1,
@@ -256,48 +259,75 @@ const onRefresh = () => {
   refreshing.value = false
 }
 
-// 加载订单列表 (使用模拟数据)
+// 加载订单列表 (使用真实API，强制使用当前用户身份)
 const onLoad = async () => {
   try {
     loading.value = true
 
-    // 模拟网络延迟
-    await new Promise(resolve => setTimeout(resolve, 500))
+    // 获取当前用户的老人信息
+    const currentElder = userStore.currentElder
+    const userElders = userStore.elders || []
 
-    // 筛选数据
-    let filteredOrders = [...mockOrders]
-
-    // 按状态筛选
-    if (activeTab.value !== 'all') {
-      filteredOrders = filteredOrders.filter(order => order.orderStatus === activeTab.value)
-    }
-
-    // 按订单号搜索
-    if (searchValue.value) {
-      filteredOrders = filteredOrders.filter(order =>
-        order.orderNo.toLowerCase().includes(searchValue.value.toLowerCase())
-      )
-    }
-
-    // 分页处理
-    const startIndex = (pageNum.value - 1) * pageSize.value
-    const endIndex = startIndex + pageSize.value
-    const list = filteredOrders.slice(startIndex, endIndex)
-
-    if (list.length === 0) {
+    if (!currentElder && userElders.length === 0) {
+      showToast('请先关联老人信息')
       finished.value = true
-    } else {
-      orderList.value = [...orderList.value, ...list]
-      pageNum.value++
+      return
+    }
 
-      // 如果返回数据少于pageSize或已到达最后,说明没有更多了
-      if (list.length < pageSize.value || endIndex >= filteredOrders.length) {
+    // 构建请求参数 - 强制使用当前用户的老人信息
+    const params = {
+      pageNum: pageNum.value,
+      pageSize: pageSize.value
+    }
+
+    // 使用userStore中的当前老人ID，忽略前端可能修改的参数
+    if (currentElder && currentElder.elderId) {
+      params.elderId = currentElder.elderId
+      elderId.value = currentElder.elderId
+    }
+
+    // 如果选择了订单状态（非"全部"），添加到参数中
+    if (activeTab.value !== 'all') {
+      params.orderStatus = activeTab.value
+    }
+
+    // 调用真实API获取订单列表
+    const response = await getOrderList(params)
+
+    if (response.code === 200 && response.data) {
+      const { rows = [], total = 0 } = response.data
+
+      if (rows.length === 0) {
         finished.value = true
+      } else {
+        // 映射API返回的字段到前端所需的字段
+        const mappedOrders = rows.map(order => ({
+          orderId: order.orderId,
+          orderNo: order.orderNo,
+          orderType: order.orderType,
+          orderTypeText: order.orderTypeText || getOrderTypeText(order.orderType),
+          orderStatus: order.orderStatus,
+          orderStatusText: order.orderStatusText || getStatusText(order.orderStatus),
+          orderAmount: order.orderAmount,
+          createTime: order.createTime,
+          institutionName: order.institutionName || '养老机构'
+        }))
+
+        orderList.value = [...orderList.value, ...mappedOrders]
+        pageNum.value++
+
+        // 判断是否还有更多数据
+        if (rows.length < pageSize.value) {
+          finished.value = true
+        }
       }
+    } else {
+      showToast(response.msg || '获取订单列表失败')
+      finished.value = true
     }
   } catch (error) {
     console.error('获取订单列表失败:', error)
-    showToast('获取订单列表失败')
+    showToast('获取订单列表失败，请稍后重试')
     finished.value = true
   } finally {
     loading.value = false
@@ -392,14 +422,30 @@ const handleBack = () => {
 }
 
 // 页面加载时获取订单列表
-onMounted(() => {
-  // 使用模拟数据时不需要登录检查
-  // if (!userStore.isLoggedIn) {
-  //   router.replace({
-  //     path: '/login',
-  //     query: { redirect: '/order' }
-  //   })
-  // }
+onMounted(async () => {
+  // 检查用户登录状态
+  if (!userStore.isLoggedIn) {
+    showToast('请��登录')
+    return
+  }
+
+  // 如果userStore中没有老人信息，尝试获取
+  if (!userStore.currentElder && userStore.elders.length === 0) {
+    try {
+      await userStore.fetchElders()
+    } catch (error) {
+      console.error('获取老人列表失败:', error)
+    }
+  }
+
+  // 使用userStore中的老人信息，而不是路由参数
+  const currentElder = userStore.currentElder
+  if (currentElder && currentElder.elderId) {
+    elderId.value = currentElder.elderId
+  }
+
+  // 加载订单列表
+  await onLoad()
 })
 </script>
 

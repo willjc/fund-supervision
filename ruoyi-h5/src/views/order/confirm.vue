@@ -300,12 +300,24 @@ const fetchElderList = async () => {
 
 // 获取床位价格
 const getBedPrice = async () => {
-  if (!route.params.institutionId || !formData.value.roomType) return
+  if (!route.params.institutionId || !formData.value.roomType) {
+    console.warn('缺少必要参数: institutionId 或 roomType')
+    return
+  }
 
   try {
+    // 确保 institutionId 是数字类型
+    const institutionId = parseInt(route.params.institutionId)
+
+    if (isNaN(institutionId)) {
+      console.error('无效的机构ID:', route.params.institutionId)
+      showToast('机构信息不正确，请返回重新选择')
+      return
+    }
+
     // 调用真实的API获取床位价格信息
-    const response = await getBedPriceApi(route.params.institutionId, formData.value.roomType)
-    if (response.code === 200 && response.data) {
+    const response = await getBedPriceApi(institutionId, formData.value.roomType)
+    if (response && response.code === 200 && response.data) {
       // 更新床位信息
       bedInfo.value = {
         bedFee: response.data.bedFee || 500,
@@ -315,6 +327,12 @@ const getBedPrice = async () => {
         memberFee: response.data.memberFee || 5000,
         depositFee: response.data.depositFee || 10000
       }
+    } else {
+      // API返回错误
+      const errorMsg = response?.msg || '获取床位价格信息失败'
+      console.warn('API返回错误:', errorMsg)
+      showToast(errorMsg)
+      useFallbackPrices()
     }
   } catch (error) {
     console.error('获取床位价格失败:', error)
@@ -323,24 +341,29 @@ const getBedPrice = async () => {
     let errorMessage = '获取床位价格信息失败'
     if (error.response && error.response.data && error.response.data.msg) {
       errorMessage = error.response.data.msg
+    } else if (error.message) {
+      errorMessage = error.message
     }
     showToast(errorMessage)
+    useFallbackPrices()
+  }
+}
 
-    // 使用默认数据作为备用
-    const priceMap = {
-      '1': { bedFee: 350, memberFee: 3000, depositFee: 8000 },
-      '2': { bedFee: 500, memberFee: 5000, depositFee: 10000 },
-      '3': { bedFee: 1200, memberFee: 10000, depositFee: 15000 }
-    }
-    const defaultPrices = priceMap[formData.value.roomType] || priceMap['1']
-    bedInfo.value = {
-      bedFee: defaultPrices.bedFee,
-      selfCarePrice: 500,
-      halfCarePrice: 800,
-      fullCarePrice: 1200,
-      memberFee: defaultPrices.memberFee,
-      depositFee: defaultPrices.depositFee
-    }
+// 使用默认价格作为备用
+const useFallbackPrices = () => {
+  const priceMap = {
+    '1': { bedFee: 350, memberFee: 3000, depositFee: 8000 },
+    '2': { bedFee: 500, memberFee: 5000, depositFee: 10000 },
+    '3': { bedFee: 1200, memberFee: 10000, depositFee: 15000 }
+  }
+  const defaultPrices = priceMap[formData.value.roomType] || priceMap['1']
+  bedInfo.value = {
+    bedFee: defaultPrices.bedFee,
+    selfCarePrice: 500,
+    halfCarePrice: 800,
+    fullCarePrice: 1200,
+    memberFee: defaultPrices.memberFee,
+    depositFee: defaultPrices.depositFee
   }
 }
 

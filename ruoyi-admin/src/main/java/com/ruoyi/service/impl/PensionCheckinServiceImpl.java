@@ -207,6 +207,7 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
         orderInfo.setOrderNo(orderNo);
         orderInfo.setOrderType("1"); // 订单类型:1-床位费
         orderInfo.setElderId(elderId);
+        orderInfo.setCreatorUserId(userId); // 设置下单人用户ID
         orderInfo.setInstitutionId(institutionId);
         orderInfo.setBedId(bedId);
         orderInfo.setMonthCount(monthCount);  // 保存入驻月数

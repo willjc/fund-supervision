@@ -116,6 +116,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { showToast, showConfirmDialog } from 'vant'
 import dayjs from 'dayjs'
+import { getOrderDetail as getOrderDetailApi } from '@/api/order'
 
 const router = useRouter()
 const route = useRoute()
@@ -162,26 +163,39 @@ const loadOrderDetail = async () => {
       return
     }
 
-    // 模拟网络延迟
-    await new Promise(resolve => setTimeout(resolve, 500))
+    // 调用真实API获取订单详情
+    const response = await getOrderDetailApi(orderId)
 
-    // 使用模拟数据
-    order.value = mockOrderDetail
+    if (response && response.code === 200 && response.data) {
+      order.value = response.data
 
-    // 如果是待支付状态,计算倒计时(15分钟)
-    if (order.value.orderStatus === '0') {
-      const createTime = dayjs(order.value.createTime)
-      const expireTime = createTime.add(15, 'minute')
-      const now = dayjs()
-      const diff = expireTime.diff(now)
+      // 如果是待支付状态,计算倒计时(15分钟)
+      if (order.value.orderStatus === '0') {
+        const createTime = dayjs(order.value.createTime)
+        const expireTime = createTime.add(15, 'minute')
+        const now = dayjs()
+        const diff = expireTime.diff(now)
 
-      if (diff > 0) {
-        countdown.value = diff
+        if (diff > 0) {
+          countdown.value = diff
+        }
       }
+    } else {
+      const errorMsg = response?.msg || '获取订单详情失败'
+      showToast(errorMsg)
+      setTimeout(() => {
+        router.back()
+      }, 1500)
     }
   } catch (error) {
     console.error('获取订单详情失败:', error)
-    showToast('获取订单详情失败')
+    let errorMsg = '获取订单详情失败'
+    if (error.response && error.response.data && error.response.data.msg) {
+      errorMsg = error.response.data.msg
+    } else if (error.message) {
+      errorMsg = error.message
+    }
+    showToast(errorMsg)
     setTimeout(() => {
       router.back()
     }, 1500)

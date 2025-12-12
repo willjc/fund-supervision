@@ -1243,3 +1243,27 @@ VIP房间     → 豪华床位 (bed_type=2)
 - 在创建入住申请成功后，查询最新创建的订单记录
 - 返回前端期望的orderId和orderNo字段
 - 添加备用方案：如果查询不到订单信息，使用时间戳生成orderId和orderNo
+
+### 实现H5订单列表页面真实数据显示功能
+**问题**: H5\u7684'我的订单待付款'页面显示的是硬编码的模拟数据，看不到真实提交的订单
+
+**根本原因分析**: 涉及前后端的多个问题
+1. 前端问题：H5订单列表页面(index.vue:115)的API导入被注释，使用硬编码的mockOrders数据
+2. 后端问题：H5OrderController中缺少/h5/order/list接口实现，无法查询真实订单数据
+3. 架构问题：H5端无法识别当前用户身份，无法按用户过滤订单
+
+**修复的文件**:
+
+#### 1. 后端: ruoyi-admin/src/main/java/com/ruoyi/web/controller/h5/H5OrderController.java
+
+**修复内容**:
+- 新增`@GetMapping("/order/list")`接口，支持查询订单列表
+- 支持参数：elderId(老人ID)、orderStatus(订单状态)、pageNum(页码)、pageSize(每页数量)
+- 返回订单列表，包含orderTypeText(订单类型文本)和orderStatusText(订单状态文本)
+- 新增两个辅助方法：getOrderTypeText()(获取订单类型文本)和getOrderStatusText()(获取订单状态文本)
+
+#### 2. 前端: ruoyi-h5/src/views/order/index.vue
+
+**修复内容**:
+- 取消注释API导入：import getOrderList和cancelOrder
+- 添加elderId变量，用于存储老人ID参数
