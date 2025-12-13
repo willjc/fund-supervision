@@ -44,7 +44,8 @@
       "Bash(mvn:*)",
       "Bash(ls:*)",
       "Bash(move /Y temp_H5InstitutionController.java \"d:\\lasthm\\zijin\\fund-supervision\\ruoyi-admin\\src\\main\\java\\com\\ruoyi\\web\\controller\\h5\\H5InstitutionController.java\")",
-      "Bash(xcopy:*)"
+      "Bash(xcopy:*)",
+      "Bash(del \"d:\\lasthm\\zijin\\fund-supervision\\temp_update.txt\")"
     ],
     "deny": [],
     "ask": []

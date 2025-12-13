@@ -1267,3 +1267,228 @@ VIP房间     → 豪华床位 (bed_type=2)
 **修复内容**:
 - 取消注释API导入：import getOrderList和cancelOrder
 - 添加elderId变量，用于存储老人ID参数
+
+## 2025-12-13 H5订单详情页支付跳转功能实现
+
+**功能需求**:
+- H5端"我的订单"中待付款订单点击"立即付款"时跳转到支付收银台页面
+
+**修改文件**:
+
+### ruoyi-h5/src/views/order/detail.vue
+
+**修改位置**: 第239-242行 handlePay函数
+
+**修改前**:
+```javascript
+// 支付订单
+const handlePay = () => {
+  showToast('支付功能开发中')
+  // TODO: 跳转到支付页面
+}
+```
+
+**修改后**:
+```javascript
+// 支付订单
+const handlePay = () => {
+  if (!order.value) {
+    showToast('订单信息不存在')
+    return
+  }
+
+  // 跳转到支付收银台页面
+  router.push({
+    path: `/payment/cashier/${order.value.orderId}`,
+    query: {
+      orderNo: order.value.orderNo,
+      amount: order.value.paidAmount || order.value.orderAmount,
+      elderName: order.value.elderName,
+      institutionId: order.value.institutionId
+    }
+  })
+}
+```
+
+**说明**:
+- 添加订单数据验证，确保order.value存在后再跳转
+- 跳转路径格式：`/payment/cashier/{orderId}`
+- 传递的query参数：orderNo(订单号)、amount(支付金额)、elderName(老人姓名)、institutionId(机构ID)
+- 支付金额优先使用paidAmount(实付金额)，如果不存在则使用orderAmount(订单金额)
+
+## 2025-12-13 H5订单详情页支付跳转功能实现
+
+**功能需求**:
+- H5端"我的订单"中待付款订单点击"立即付款"时跳转到支付收银台页面
+
+**修改文件**:
+
+### ruoyi-h5/src/views/order/detail.vue
+
+**修改位置**: 第239-242行 handlePay函数
+
+**修改前**:
+```javascript
+// 支付订单
+const handlePay = () => {
+  showToast('支付功能开发中')
+  // TODO: 跳转到支付页面
+}
+```
+
+**修改后**:
+```javascript
+// 支付订单
+const handlePay = () => {
+  if (!order.value) {
+    showToast('订单信息不存在')
+    return
+  }
+
+  // 跳转到支付收银台页面
+  router.push({
+    path: `/payment/cashier/${order.value.orderId}`,
+    query: {
+      orderNo: order.value.orderNo,
+      amount: order.value.paidAmount || order.value.orderAmount,
+      elderName: order.value.elderName,
+      institutionId: order.value.institutionId
+    }
+  })
+}
+```
+
+**说明**:
+- 添加订单数据验证，确保order.value存在后再跳转
+- 跳转路径格式：`/payment/cashier/{orderId}`
+- 传递的query参数：orderNo(订单号)、amount(支付金额)、elderName(老人姓名)、institutionId(机构ID)
+- 支付金额优先使用paidAmount(实付金额)，如果不存在则使用orderAmount(订单金额)
+
+## 2025-12-13 修复订单列表显示逻辑
+
+**问题描述**:
+- 订单页面应该显示当前登录用户下单的所有订单，而不需要关联老人信息
+- 之前的逻辑中包含了不必要的老人信息检查，可能导致用户误解
+
+**修改文件**:
+
+### 1. ruoyi-h5/src/views/order/index.vue
+
+**修改位置**: 第429-442行 onMounted函数中的老人信息获取逻辑
+
+**修改前**:
+```javascript
+  // 如果userStore中没有老人信息，尝试获取
+  if (!userStore.currentElder && userStore.elders.length === 0) {
+    try {
+      await userStore.fetchElders()
+    } catch (error) {
+      console.error('获取老人列表失败:', error)
+    }
+  }
+
+  // 使用userStore中的老人信息，而不是路由参数
+  const currentElder = userStore.currentElder
+  if (currentElder && currentElder.elderId) {
+    elderId.value = currentElder.elderId
+  }
+
+  // 加载订单列表
+```
+
+**修改后**:
+```javascript
+  // 直接加载订单列表 - 根据当前登录用户查询订单，不需要关联老人信息
+```
+
+**说明**:
+- 移除了不必要的老人信息获取逻辑
+- 订单查询直接根据当前登录用户ID进行，elderId参数是可选的
+- 简化了代码逻辑，提高了可读性
+
+### 2. ruoyi-admin/src/main/java/com/ruoyi/web/controller/h5/H5OrderController.java
+
+**修改位置**: 第766-775行 getCurrentUserId方法
+
+**修改前**:
+```java
+    private Long getCurrentUserId() {
+        try {
+            // 尝试从SecurityUtils获取已登录用户
+            return SecurityUtils.getUserId();
+        } catch (Exception e) {
+            // H5端可能没有登录，暂时使用固定的测试用户ID
+            // 后续需要根据实际H5登录机制获取用户ID
+            return 106L; // 临时使用user_id=106作为H5测试用户
+        }
+    }
+```
+
+**修改后**:
+```java
+    private Long getCurrentUserId() {
+        try {
+            // 从SecurityUtils获取已登录用户
+            return SecurityUtils.getUserId();
+        } catch (Exception e) {
+            // 用户未登录，返回null
+            logger.warn("获取当前用户ID失败，用户可能未登录", e);
+            return null;
+        }
+    }
+```
+
+**说明**:
+- 移除了固定测试用户ID 106的返回值
+- 用户未登录时返回null，由getOrderList方法统一处理
+- 避免了未登录用户看到测试用户订单的问题
+- 提高了安全性和数据隔离性
+
+**核心逻辑确认**:
+- 后端getOrderList方法（第87行）：`query.setCreatorUserId(currentUserId)` - 根据当前登录用户ID查询订单
+- elderId参数是可选的（第89-92行），可以用于进一步筛选订单
+- 前端onLoad方法（第263-324行）：构建请求参数时不强制要求elderId
+- 订单列表显示的是"当前登录用户创建的所有订单"，而不是"某个老人的订单"
+
+## 2025-12-13 修复订单列表机构名称显示问题
+
+**问题描述**:
+- H5端"我的订单"列表中显示的是"养老机构"四个字，而不是实际下单的机构名称
+- 后端接口只返回了institutionId，没有查询并返回机构名称
+
+**修改文件**:
+
+### ruoyi-admin/src/main/java/com/ruoyi/web/controller/h5/H5OrderController.java
+
+**修改位置**: 第137-145行 getOrderList方法中的机构信息处理逻辑
+
+**修改前**:
+```java
+                // 获取机构名称
+                if (order.getInstitutionId() != null) {
+                    item.put("institutionId", order.getInstitutionId());
+                    // TODO: 可以根据机构ID查询机构名称
+                }
+```
+
+**修改后**:
+```java
+                // 获取机构信息
+                if (order.getInstitutionId() != null) {
+                    item.put("institutionId", order.getInstitutionId());
+                    // 根据机构ID查询机构名称
+                    PensionInstitution institution = institutionService.selectPensionInstitutionByInstitutionId(order.getInstitutionId());
+                    if (institution != null) {
+                        item.put("institutionName", institution.getInstitutionName());
+                    }
+                }
+```
+
+**说明**:
+- 实现了TODO中的逻辑，根据机构ID查询机构信息
+- 将机构名称添加到返回数据中（institutionName字段）
+- 前端订单列表会正确显示机构名称：`{{ order.institutionName || '郑州XXXXX养老院' }}`
+- 使用已注入的institutionService服务（第63行）进行查询
+
+**效果**:
+- 订单列表中的"养老机构"文字会被替换为实际的机构名称，如"郑州市金水区花园口社区养老服务中心"

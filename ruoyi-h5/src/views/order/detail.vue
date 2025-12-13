@@ -67,6 +67,10 @@
             <span class="fee-name">{{ item.name }}</span>
             <span class="fee-value">¥{{ formatAmount(item.amount) }}</span>
           </div>
+          <div v-if="order.monthCount" class="fee-row month-info">
+            <span class="fee-name">缴费月数</span>
+            <span class="fee-value">{{ order.monthCount }}个月</span>
+          </div>
           <div class="fee-row total">
             <span class="fee-name">订单总额</span>
             <span class="fee-value">¥{{ formatAmount(order.orderAmount) }}</span>
@@ -233,8 +237,21 @@ const handleCancel = async () => {
 
 // 支付订单
 const handlePay = () => {
-  showToast('支付功能开发中')
-  // TODO: 跳转到支付页面
+  if (!order.value) {
+    showToast('订单信息不存在')
+    return
+  }
+
+  // 跳转到支付收银台页面
+  router.push({
+    path: `/payment/cashier/${order.value.orderId}`,
+    query: {
+      orderNo: order.value.orderNo,
+      amount: order.value.paidAmount || order.value.orderAmount,
+      elderName: order.value.elderName,
+      institutionId: order.value.institutionId
+    }
+  })
 }
 
 // 联系客服
@@ -411,6 +428,19 @@ onMounted(() => {
 
 .fee-row:last-child {
   border-bottom: none;
+}
+
+.fee-row.month-info {
+  padding-top: 8px;
+  font-size: 13px;
+}
+
+.fee-row.month-info .fee-name {
+  color: #999;
+}
+
+.fee-row.month-info .fee-value {
+  color: #666;
 }
 
 .fee-row.total {

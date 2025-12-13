@@ -259,36 +259,25 @@ const onRefresh = () => {
   refreshing.value = false
 }
 
-// 加载订单列表 (使用真实API，强制使用当前用户身份)
+// 加载订单列表 (根据当前登录用户查询订单)
 const onLoad = async () => {
   try {
     loading.value = true
 
-    // 获取当前用户的老人信息
-    const currentElder = userStore.currentElder
-    const userElders = userStore.elders || []
-
-    if (!currentElder && userElders.length === 0) {
-      showToast('请先关联老人信息')
-      finished.value = true
-      return
-    }
-
-    // 构建请求参数 - 强制使用当前用户的老人信息
+    // 构建请求参数 - 根据当前登录用户查询
     const params = {
       pageNum: pageNum.value,
       pageSize: pageSize.value
     }
 
-    // 使用userStore中的当前老人ID，忽略前端可能修改的参数
-    if (currentElder && currentElder.elderId) {
-      params.elderId = currentElder.elderId
-      elderId.value = currentElder.elderId
-    }
-
     // 如果选择了订单状态（非"全部"），添加到参数中
     if (activeTab.value !== 'all') {
       params.orderStatus = activeTab.value
+    }
+
+    // 如果有搜索关键词，添加到参数中
+    if (searchValue.value) {
+      params.searchValue = searchValue.value
     }
 
     // 调用真实API获取订单列表
@@ -373,12 +362,20 @@ const handleCancel = async (order) => {
 
 // 立即付款
 const handlePay = (order) => {
-  showToast('支付功能开发中')
-  // TODO: 跳转到支付页面
-  // router.push({
-  //   name: 'OrderPay',
-  //   params: { id: order.orderId }
-  // })
+  if (!order || !order.orderId) {
+    showToast('订单信息不存在')
+    return
+  }
+
+  // 跳转到支付收银台页面
+  router.push({
+    path: `/payment/cashier/${order.orderId}`,
+    query: {
+      orderNo: order.orderNo,
+      amount: order.orderAmount,
+      institutionId: order.institutionId
+    }
+  })
 }
 
 // 获取状态文本
@@ -429,22 +426,7 @@ onMounted(async () => {
     return
   }
 
-  // 如果userStore中没有老人信息，尝试获取
-  if (!userStore.currentElder && userStore.elders.length === 0) {
-    try {
-      await userStore.fetchElders()
-    } catch (error) {
-      console.error('获取老人列表失败:', error)
-    }
-  }
-
-  // 使用userStore中的老人信息，而不是路由参数
-  const currentElder = userStore.currentElder
-  if (currentElder && currentElder.elderId) {
-    elderId.value = currentElder.elderId
-  }
-
-  // 加载订单列表
+  // 直接加载订单列表 - 根据当前登录用户查询订单，不需要关联老人信息
   await onLoad()
 })
 </script>

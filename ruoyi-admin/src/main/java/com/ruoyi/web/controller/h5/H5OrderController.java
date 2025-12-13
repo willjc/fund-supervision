@@ -25,11 +25,15 @@ import com.ruoyi.domain.ElderInfo;
 import com.ruoyi.domain.ElderFamily;
 import com.ruoyi.domain.OrderInfo;
 import com.ruoyi.domain.PensionCheckinDTO;
+import com.ruoyi.domain.PensionInstitution;
 import com.ruoyi.service.IBedInfoService;
 import com.ruoyi.service.IElderFamilyService;
 import com.ruoyi.service.IElderInfoService;
 import com.ruoyi.service.IOrderInfoService;
 import com.ruoyi.service.IPensionCheckinService;
+import com.ruoyi.service.IPensionInstitutionService;
+import com.ruoyi.service.IPensionInstitutionPublicService;
+import com.ruoyi.domain.PensionInstitutionPublic;
 
 /**
  * H5订单Controller
@@ -55,9 +59,15 @@ public class H5OrderController extends BaseController
     @Autowired
     private IElderFamilyService elderFamilyService;
 
+    @Autowired
+    private IPensionInstitutionService institutionService;
+
+    @Autowired
+    private IPensionInstitutionPublicService institutionPublicService;
+
     /**
      * 获取订单列表
-     * 根据当前登录用户权限查询订单
+     * 根据当前登录用户查询该用户创建的所有订单
      */
     @GetMapping("/order/list")
     public AjaxResult getOrderList(@RequestParam(required = false) Long elderId,
@@ -72,43 +82,13 @@ public class H5OrderController extends BaseController
                 return error("用户未登录或身份验证失败");
             }
 
-            // 获取当前用户关联的所有老人ID
-            ElderFamily familyQuery = new ElderFamily();
-            familyQuery.setUserId(currentUserId);
-            List<ElderFamily> familyList = elderFamilyService.selectElderFamilyList(familyQuery);
-
-            List<Long> accessibleElderIds = new java.util.ArrayList<>();
-            if (familyList != null && !familyList.isEmpty()) {
-                for (ElderFamily family : familyList) {
-                    if (family.getElderId() != null) {
-                        accessibleElderIds.add(family.getElderId());
-                    }
-                }
-            }
-
-            // 如果用户没有关联任何老人，返回空结果
-            if (accessibleElderIds.isEmpty()) {
-                Map<String, Object> result = new java.util.HashMap<>();
-                result.put("rows", new java.util.ArrayList<>());
-                result.put("total", 0);
-                result.put("pageNum", pageNum);
-                result.put("pageSize", pageSize);
-                return success(result);
-            }
-
-            // 构建查询条件 - 强制使用用户可访问的老人ID列表
+            // 构建查询条件 - 直接根据当前用户ID查询订单
             OrderInfo query = new OrderInfo();
+            query.setCreatorUserId(currentUserId);
 
-            // 如果前端传入了elderId参数，验证用户是否有权限访问该老人
+            // 如果前端传入了elderId参数，同时按老人ID筛选
             if (elderId != null && elderId > 0) {
-                if (!accessibleElderIds.contains(elderId)) {
-                    return error("无权访问该老人的订单信息");
-                }
                 query.setElderId(elderId);
-            } else {
-                // 如果没有指定具体老人，查询用户所有关联老人的订单
-                // 注意：这里需要在selectOrderInfoList方法中处理 elderId IN (list) 的情况
-                // 暂时先设置为null，后面需要手动过滤
             }
 
             // 如果提供了订单状态，按状态查询
@@ -118,19 +98,6 @@ public class H5OrderController extends BaseController
 
             // 查询订单列表
             List<OrderInfo> orderList = orderInfoService.selectOrderInfoList(query);
-
-            // 如果没有指定特定老人ID，需要手动过滤
-            if (elderId == null || elderId <= 0) {
-                List<OrderInfo> filteredOrderList = new java.util.ArrayList<>();
-                if (orderList != null) {
-                    for (OrderInfo order : orderList) {
-                        if (order.getElderId() != null && accessibleElderIds.contains(order.getElderId())) {
-                            filteredOrderList.add(order);
-                        }
-                    }
-                }
-                orderList = filteredOrderList;
-            }
 
             // 分页处理
             int startIndex = (pageNum - 1) * pageSize;
@@ -167,10 +134,14 @@ public class H5OrderController extends BaseController
                 item.put("orderAmount", order.getOrderAmount());
                 item.put("createTime", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, order.getCreateTime()));
 
-                // 获取机构名称
+                // 获取机构信息
                 if (order.getInstitutionId() != null) {
                     item.put("institutionId", order.getInstitutionId());
-                    // TODO: 可以根据机构ID查询机构名称
+                    // 根据机构ID查询机构名称
+                    PensionInstitution institution = institutionService.selectPensionInstitutionByInstitutionId(order.getInstitutionId());
+                    if (institution != null) {
+                        item.put("institutionName", institution.getInstitutionName());
+                    }
                 }
 
                 orderListData.add(item);
@@ -245,17 +216,101 @@ public class H5OrderController extends BaseController
 
             // 获取机构信息
             if (order.getInstitutionId() != null) {
-                result.put("institutionId", order.getInstitutionId());
-                // TODO: 可以根据机构ID查询机构详细信息（名称、地址、电话、图片等）
+                PensionInstitution institution = institutionService.selectPensionInstitutionByInstitutionId(order.getInstitutionId());
+                if (institution != null) {
+                    result.put("institutionId", institution.getInstitutionId());
+                    result.put("institutionName", institution.getInstitutionName());
+                    result.put("institutionAddress", institution.getActualAddress());
+                    result.put("institutionPhone", institution.getContactPhone());
+
+                    // 获取机构公示信息中的主图
+                    PensionInstitutionPublic publicInfo = institutionPublicService.selectPensionInstitutionPublicByInstitutionId(order.getInstitutionId());
+                    if (publicInfo != null && publicInfo.getMainPicture() != null && !publicInfo.getMainPicture().isEmpty()) {
+                        result.put("institutionCover", publicInfo.getMainPicture());
+                    }
+                }
             }
 
-            // 构建费用明细
+            // 构建费用明细 - 从床位和订单信息中提取详细费用
             java.util.List<Map<String, Object>> feeItems = new java.util.ArrayList<>();
-            // 从订单对象提取费用信息，如果order中有具体的费用字段
-            // 这里是示例，实际需要根据OrderInfo的字段调整
+            BigDecimal bedFee = BigDecimal.ZERO;
+            BigDecimal careFee = BigDecimal.ZERO;
+            BigDecimal depositAmount = BigDecimal.ZERO;
+            BigDecimal memberFee = BigDecimal.ZERO;
+            Integer monthCount = order.getMonthCount() != null ? order.getMonthCount() : 1;
+
+            // 优先从remark字段解析所有费用（因为remark包含完整的费用信息）
+            if (order.getRemark() != null) {
+                try {
+                    String remark = order.getRemark();
+                    // 从remark中解析：床位费：XXXX.XXX元/月
+                    if (remark.contains("床位费：")) {
+                        String[] parts = remark.split("床位费：")[1].split("元/月");
+                        bedFee = new BigDecimal(parts[0].trim());
+                    }
+                    // 从remark中解析：护理费：XXXX.XXX元/月
+                    if (remark.contains("护理费：")) {
+                        String[] parts = remark.split("护理费：")[1].split("元/月");
+                        careFee = new BigDecimal(parts[0].trim());
+                    }
+                    // 从remark中解析：押金：XXXX.XXX元
+                    if (remark.contains("押金：")) {
+                        String[] parts = remark.split("押金：")[1].split("元");
+                        depositAmount = new BigDecimal(parts[0].trim());
+                    }
+                    // 从remark中解析：会员费：XXXX.XXX元
+                    if (remark.contains("会员费：")) {
+                        String[] parts = remark.split("会员费：")[1].split("元");
+                        memberFee = new BigDecimal(parts[0].trim());
+                    }
+                } catch (Exception e) {
+                    logger.warn("解析remark字段失败", e);
+                }
+            }
+
+            // 如果从remark解析失败，则从bed_info表查询
+            if (bedFee.compareTo(BigDecimal.ZERO) == 0 && order.getBedId() != null) {
+                BedInfo bed = bedInfoService.selectBedInfoByBedId(order.getBedId());
+                if (bed != null) {
+                    bedFee = bed.getPrice() != null ? bed.getPrice() : BigDecimal.ZERO;
+                    depositAmount = bed.getDepositFee() != null ? bed.getDepositFee() : BigDecimal.ZERO;
+                    memberFee = bed.getMemberFee() != null ? bed.getMemberFee() : BigDecimal.ZERO;
+                }
+            }
+
+            // 构建费用项数组 - 按照确认订单页的顺序
+            if (bedFee.compareTo(BigDecimal.ZERO) > 0) {
+                Map<String, Object> feeItem = new java.util.HashMap<>();
+                feeItem.put("name", "床位费");
+                feeItem.put("amount", bedFee);
+                feeItems.add(feeItem);
+            }
+
+            if (careFee.compareTo(BigDecimal.ZERO) > 0) {
+                Map<String, Object> feeItem = new java.util.HashMap<>();
+                feeItem.put("name", "护理费");
+                feeItem.put("amount", careFee);
+                feeItems.add(feeItem);
+            }
+
+            if (depositAmount.compareTo(BigDecimal.ZERO) > 0) {
+                Map<String, Object> feeItem = new java.util.HashMap<>();
+                feeItem.put("name", "押金");
+                feeItem.put("amount", depositAmount);
+                feeItems.add(feeItem);
+            }
+
+            if (memberFee.compareTo(BigDecimal.ZERO) > 0) {
+                Map<String, Object> feeItem = new java.util.HashMap<>();
+                feeItem.put("name", "会员费");
+                feeItem.put("amount", memberFee);
+                feeItems.add(feeItem);
+            }
+
             result.put("feeItems", feeItems);
-            result.put("discountAmount", 0);
-            result.put("paidAmount", order.getOrderAmount());
+            result.put("monthCount", monthCount);
+            result.put("discountAmount", order.getDiscountAmount() != null ? order.getDiscountAmount() : BigDecimal.ZERO);
+            result.put("paidAmount", order.getPaidAmount() != null ? order.getPaidAmount() : order.getOrderAmount());
 
             return success(result);
         } catch (Exception e) {
@@ -710,16 +765,16 @@ public class H5OrderController extends BaseController
 
     /**
      * 获取当前登录用户的ID
-     * H5端可能没有登录用户，需要根据实际情况处理
+     * H5端必须登录才能查看订单
      */
     private Long getCurrentUserId() {
         try {
-            // 尝试从SecurityUtils获取已登录用户
+            // 从SecurityUtils获取已登录用户
             return SecurityUtils.getUserId();
         } catch (Exception e) {
-            // H5端可能没有登录，暂时使用固定的测试用户ID
-            // 后续需要根据实际H5登录机制获取用户ID
-            return 106L; // 临时使用user_id=106作为H5测试用户
+            // 用户未登录，返回null
+            logger.warn("获取当前用户ID失败，用户可能未登录", e);
+            return null;
         }
     }
 }
