@@ -112,7 +112,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast, showConfirmDialog } from 'vant'
 import { useUserStore } from '@/store/modules/user'
-import { getOrderList, cancelOrder } from '@/api/order'
+import { getOrderList, cancelOrder, processPayment } from '@/api/order'
 import dayjs from 'dayjs'
 
 const router = useRouter()
@@ -373,6 +373,7 @@ const handlePay = (order) => {
     query: {
       orderNo: order.orderNo,
       amount: order.orderAmount,
+      elderName: order.elderName || '',
       institutionId: order.institutionId
     }
   })

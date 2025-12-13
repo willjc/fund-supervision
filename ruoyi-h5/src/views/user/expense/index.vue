@@ -41,37 +41,44 @@
 
         <!-- 费用明细列表 -->
         <div class="expense-list">
-          <div
-            v-for="item in expenseList"
-            :key="item.id"
-            class="expense-item"
+          <van-list
+            v-model:loading="loading"
+            :finished="finished"
+            finished-text="没有更多了"
+            @load="onLoadMore"
           >
-            <div class="expense-main">
-              <div class="expense-info">
-                <div class="expense-title">{{ item.title }}</div>
-                <div class="expense-time">{{ item.time }}</div>
+            <div
+              v-for="item in expenseList"
+              :key="item.id"
+              class="expense-item"
+            >
+              <div class="expense-main">
+                <div class="expense-info">
+                  <div class="expense-title">{{ item.title }}</div>
+                  <div class="expense-time">{{ item.time }}</div>
+                </div>
+                <div class="expense-amount" :class="{ 'income': item.type === 'income' }">
+                  {{ item.type === 'income' ? '+' : '-' }}¥{{ formatAmount(item.amount) }}
+                </div>
               </div>
-              <div class="expense-amount" :class="{ 'income': item.type === 'income' }">
-                {{ item.type === 'income' ? '+' : '-' }}¥{{ formatAmount(item.amount) }}
+              <div class="expense-desc">{{ item.description }}</div>
+
+              <!-- 退款按钮 -->
+              <div v-if="item.canRefund" class="expense-actions">
+                <van-button
+                  plain
+                  size="small"
+                  type="primary"
+                  class="refund-btn"
+                  @click="handleRefund(item)"
+                >
+                  申请退款
+                </van-button>
               </div>
             </div>
-            <div class="expense-desc">{{ item.description }}</div>
+          </van-list>
 
-            <!-- 退款按钮 -->
-            <div v-if="item.canRefund" class="expense-actions">
-              <van-button
-                plain
-                size="small"
-                type="primary"
-                class="refund-btn"
-                @click="handleRefund(item)"
-              >
-                申请退款
-              </van-button>
-            </div>
-          </div>
-
-          <div v-if="expenseList.length === 0" class="empty-list">
+          <div v-if="expenseList.length === 0 && !loading" class="empty-list">
             <van-empty description="暂无费用记录" />
           </div>
         </div>
@@ -94,8 +101,11 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { showToast } from 'vant'
+import { getAccountInfo, getExpenseList, getElderList } from '@/api/expense'
+import dayjs from 'dayjs'
 
 const router = useRouter()
 
@@ -109,72 +119,117 @@ const showElderPicker = ref(false)
 const activeTab = ref('deposit')
 
 // 老人选项
-const elderOptions = [
-  { text: '张伟', value: '1' },
-  { text: '李明', value: '2' },
-  { text: '王芳', value: '3' }
-]
+const elderOptions = ref([])
 
-// 账户余额
-const accountBalance = ref(35800)
-
-// 押金金额
-const depositAmount = ref(10000)
-
-// 预存金额
-const prepaidAmount = ref(25800)
-
-// 模拟费用数据
-const mockExpenseData = {
-  deposit: [
-    {
-      id: 1,
-      title: '押金缴纳',
-      time: '2025-01-10 10:30',
-      amount: 10000,
-      type: 'expense',
-      description: '入住押金',
-      canRefund: true
-    }
-  ],
-  service: [
-    {
-      id: 2,
-      title: '服务费扣款',
-      time: '2025-01-12 09:00',
-      amount: 2800,
-      type: 'expense',
-      description: '2025年1月服务费(餐费+护理费+床位费)',
-      canRefund: true
-    },
-    {
-      id: 3,
-      title: '服务费充值',
-      time: '2025-01-08 14:20',
-      amount: 5600,
-      type: 'income',
-      description: '充值2个月服务费',
-      canRefund: false
-    }
-  ],
-  other: [
-    {
-      id: 4,
-      title: '空调费',
-      time: '2025-01-05 16:00',
-      amount: 100,
-      type: 'expense',
-      description: '2025年1月空调使用费',
-      canRefund: false
-    }
-  ]
-}
+// 账户余额信息
+const accountBalance = ref(0)
+const depositAmount = ref(0)
+const prepaidAmount = ref(0)
 
 // 费用列表
-const expenseList = computed(() => {
-  if (!selectedElder.value.name) return []
-  return mockExpenseData[activeTab.value] || []
-})
+const expenseList = ref([])
+
+// 加载状态
+const loading = ref(false)
+const finished = ref(false)
+
+// 分页参数
+const pageNum = ref(1)
+const pageSize = ref(10)
+
+// 加载老人列表
+const loadElderList = async () => {
+  try {
+    const response = await getElderList()
+    if (response.code === 200 && response.data) {
+      elderOptions.value = response.data.map(elder => ({
+        text: elder.elderName,
+        value: elder.elderId.toString()
+      }))
+    }
+  } catch (error) {
+    console.error('获取老人列表失败:', error)
+    showToast('获取老人列表失败')
+  }
+}
+
+// 加载账户信息
+const loadAccountInfo = async (elderId) => {
+  if (!elderId) return
+
+  try {
+    const response = await getAccountInfo(elderId)
+    if (response.code === 200 && response.data) {
+      const data = response.data
+      accountBalance.value = parseFloat(data.totalBalance || 0)
+      depositAmount.value = parseFloat(data.depositBalance || 0)
+      prepaidAmount.value = parseFloat(data.prepaidAmount || 0)
+
+      // 如果老人没有账户，显示提示信息
+      if (!data.hasAccount) {
+        showToast('该老人暂未创建账户信息，请先办理入住手续')
+      }
+    }
+  } catch (error) {
+    console.error('获取账户信息失败:', error)
+    showToast('获取账户信息失败')
+  }
+}
+
+// 加载费用明细
+const loadExpenseList = async (reset = false) => {
+  if (!selectedElder.value.id) return
+
+  try {
+    loading.value = true
+
+    if (reset) {
+      expenseList.value = []
+      pageNum.value = 1
+      finished.value = false
+    }
+
+    const typeMap = {
+      'deposit': 'deposit',
+      'service': 'service',
+      'other': 'other'
+    }
+
+    const response = await getExpenseList(
+      selectedElder.value.id,
+      typeMap[activeTab.value] || 'all',
+      pageNum.value,
+      pageSize.value
+    )
+
+    if (response.code === 200 && response.data) {
+      const { rows = [], total = 0 } = response.data
+
+      if (reset) {
+        expenseList.value = rows.map(item => ({
+          ...item,
+          time: dayjs(item.time).format('YYYY-MM-DD HH:mm')
+        }))
+      } else {
+        expenseList.value = [...expenseList.value, ...rows.map(item => ({
+          ...item,
+          time: dayjs(item.time).format('YYYY-MM-DD HH:mm')
+        }))]
+      }
+
+      pageNum.value++
+
+      if (rows.length < pageSize.value || expenseList.value.length >= total) {
+        finished.value = true
+      }
+    }
+  } catch (error) {
+    console.error('获取费用明细失败:', error)
+    showToast('获取费用明细失败')
+  } finally {
+    loading.value = false
+  }
+}
 
 // 格式化金额
 const formatAmount = (amount) => {
@@ -188,11 +243,17 @@ const onElderConfirm = (value) => {
     id: value.selectedOptions[0].value
   }
   showElderPicker.value = false
+
+  // 加载选中老人的账户信息和费用明细
+  loadAccountInfo(selectedElder.value.id)
+  loadExpenseList(true)
 }
 
 // Tab切换
 const onTabChange = (name) => {
   activeTab.value = name
+  // 切换Tab时重新加载费用明细
+  loadExpenseList(true)
 }
 
 // 申请退款
@@ -202,10 +263,38 @@ const handleRefund = (item) => {
     query: {
       expenseId: item.id,
       elderName: selectedElder.value.name,
-      elderInfo: JSON.stringify(selectedElder.value)
+      elderId: selectedElder.value.id,
+      amount: item.amount
     }
   })
 }
+
+// 页面加载时获取老人列表
+const initPage = async () => {
+  await loadElderList()
+}
+
+// 添加加载更多功能
+const onLoadMore = () => {
+  if (!finished.value && !loading.value && selectedElder.value.id) {
+    loadExpenseList(false)
+  }
+}
+
+// 监听选中老人变化
+watch(selectedElder, (newVal) => {
+  if (newVal.id) {
+    accountBalance.value = 0
+    depositAmount.value = 0
+    prepaidAmount.value = 0
+    expenseList.value = []
+  }
+}, { deep: true })
+
+// 页面加载时初始化
+onMounted(async () => {
+  await initPage()
+})
 </script>
 
 <style scoped>

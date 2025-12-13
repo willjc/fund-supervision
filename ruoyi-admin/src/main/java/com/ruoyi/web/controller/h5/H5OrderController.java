@@ -34,6 +34,10 @@ import com.ruoyi.service.IPensionCheckinService;
 import com.ruoyi.service.IPensionInstitutionService;
 import com.ruoyi.service.IPensionInstitutionPublicService;
 import com.ruoyi.domain.PensionInstitutionPublic;
+import com.ruoyi.domain.pension.AccountInfo;
+import com.ruoyi.domain.pension.DepositApply;
+import com.ruoyi.service.pension.IAccountInfoService;
+import com.ruoyi.service.pension.IDepositApplyService;
 
 /**
  * H5订单Controller
@@ -64,6 +68,12 @@ public class H5OrderController extends BaseController
 
     @Autowired
     private IPensionInstitutionPublicService institutionPublicService;
+
+    @Autowired
+    private IAccountInfoService accountInfoService;
+
+    @Autowired
+    private IDepositApplyService depositApplyService;
 
     /**
      * 获取订单列表
@@ -355,7 +365,7 @@ public class H5OrderController extends BaseController
             List<ElderInfo> elderList = new java.util.ArrayList<>();
             for (Long elderId : accessibleElderIds) {
                 ElderInfo elder = elderInfoService.selectElderInfoByElderId(elderId);
-                if (elder != null && !"1".equals(elder.getStatus())) {
+                if (elder != null && !"2".equals(elder.getStatus())) {
                     elderList.add(elder);
                 }
             }
@@ -380,6 +390,305 @@ public class H5OrderController extends BaseController
         } catch (Exception e) {
             logger.error("获取老人列表失败", e);
             return error("获取老人列表失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取老人账户余额信息
+     */
+    @GetMapping("/account/{elderId}")
+    public AjaxResult getAccountInfo(@PathVariable Long elderId) {
+        try {
+            // 获取当���用户ID
+            Long currentUserId = getCurrentUserId();
+            if (currentUserId == null) {
+                return error("用户未登录或身份验证失败");
+            }
+
+            // 验证用户是否有权限访问该老人信息
+            ElderFamily familyQuery = new ElderFamily();
+            familyQuery.setUserId(currentUserId);
+            familyQuery.setElderId(elderId);
+            List<ElderFamily> familyList = elderFamilyService.selectElderFamilyList(familyQuery);
+
+            if (familyList == null || familyList.isEmpty()) {
+                return error("无权访问该老人信息");
+            }
+
+            // 查询账户信息
+            AccountInfo account = accountInfoService.selectAccountInfoByElderId(elderId);
+            if (account == null) {
+                // 返回默认值而不是错误，支持没有账户的老人
+                Map<String, Object> defaultAccount = new HashMap<>();
+                defaultAccount.put("accountId", null);
+                defaultAccount.put("accountNo", null);
+                defaultAccount.put("totalBalance", new BigDecimal("0"));
+                defaultAccount.put("serviceBalance", new BigDecimal("0"));
+                defaultAccount.put("depositBalance", new BigDecimal("0"));
+                defaultAccount.put("memberBalance", new BigDecimal("0"));
+                defaultAccount.put("prepaidAmount", new BigDecimal("0"));
+                defaultAccount.put("hasAccount", false);
+                return success(defaultAccount);
+            }
+
+            // 构建返回数据
+            Map<String, Object> result = new HashMap<>();
+            result.put("accountId", account.getAccountId());
+            result.put("accountNo", account.getAccountNo());
+            result.put("totalBalance", account.getTotalBalance() != null ? account.getTotalBalance() : new BigDecimal("0"));
+            result.put("serviceBalance", account.getServiceBalance() != null ? account.getServiceBalance() : new BigDecimal("0"));
+            result.put("depositBalance", account.getDepositBalance() != null ? account.getDepositBalance() : new BigDecimal("0"));
+            result.put("memberBalance", account.getMemberBalance() != null ? account.getMemberBalance() : new BigDecimal("0"));
+
+            // 计算预存金额（总余额 - 押金余额）
+            BigDecimal totalBalance = account.getTotalBalance() != null ? account.getTotalBalance() : new BigDecimal("0");
+            BigDecimal depositBalance = account.getDepositBalance() != null ? account.getDepositBalance() : new BigDecimal("0");
+            BigDecimal prepaidAmount = totalBalance.subtract(depositBalance);
+            result.put("prepaidAmount", prepaidAmount.compareTo(BigDecimal.ZERO) >= 0 ? prepaidAmount : new BigDecimal("0"));
+            result.put("hasAccount", true);
+
+            return success(result);
+        } catch (Exception e) {
+            logger.error("获取账户信息失败", e);
+            return error("获取账户信息失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取老人费用明细记录
+     */
+    @GetMapping("/expense/list")
+    public AjaxResult getExpenseList(@RequestParam Long elderId,
+                                   @RequestParam(required = false, defaultValue = "all") String type,
+                                   @RequestParam(defaultValue = "1") Integer pageNum,
+                                   @RequestParam(defaultValue = "20") Integer pageSize) {
+        try {
+            // 获取当前用户ID
+            Long currentUserId = getCurrentUserId();
+            if (currentUserId == null) {
+                return error("用户未登录或身份验证失败");
+            }
+
+            // 验证用户是否有权限访问该老人信息
+            ElderFamily familyQuery = new ElderFamily();
+            familyQuery.setUserId(currentUserId);
+            familyQuery.setElderId(elderId);
+            List<ElderFamily> familyList = elderFamilyService.selectElderFamilyList(familyQuery);
+
+            if (familyList == null || familyList.isEmpty()) {
+                return error("无权访问该老人信息");
+            }
+
+            List<Map<String, Object>> expenseList = new java.util.ArrayList<>();
+
+            // 1. 查询押金使用记录（已批准的申请）
+            if ("all".equals(type) || "deposit".equals(type)) {
+                DepositApply depositQuery = new DepositApply();
+                depositQuery.setElderId(elderId);
+                List<DepositApply> depositList = depositApplyService.selectDepositApplyList(depositQuery);
+
+                for (DepositApply deposit : depositList) {
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("id", "DEP_" + deposit.getApplyId());
+                    item.put("type", "expense");
+                    item.put("title", "押金使用");
+                    item.put("amount", deposit.getActualAmount() != null ? deposit.getActualAmount() : deposit.getApplyAmount());
+                    item.put("time", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, deposit.getCreateTime()));
+                    item.put("description", deposit.getApplyReason());
+
+                    // 只有已批准且已使用的才能申请退款
+                    boolean canRefund = "approved".equals(deposit.getApplyStatus()) && deposit.getUseTime() != null;
+                    item.put("canRefund", canRefund);
+
+                    expenseList.add(item);
+                }
+            }
+
+            // 2. 查询服务费相关记录（基于订单）
+            if ("all".equals(type) || "service".equals(type)) {
+                OrderInfo orderQuery = new OrderInfo();
+                orderQuery.setElderId(elderId);
+                orderQuery.setOrderStatus("1"); // 已支付订单
+                List<OrderInfo> orderList = orderInfoService.selectOrderInfoList(orderQuery);
+
+                for (OrderInfo order : orderList) {
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("id", "ORDER_" + order.getOrderId());
+                    item.put("type", "expense");
+                    item.put("title", "服务费扣款");
+                    item.put("amount", order.getOrderAmount());
+                    item.put("time", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, order.getCreateTime()));
+                    item.put("description", getOrderTypeText(order.getOrderType()) + "订单支付");
+                    item.put("canRefund", false);
+                    expenseList.add(item);
+                }
+            }
+
+            // 3. 查询其他费用记录（可扩展）
+            if ("all".equals(type) || "other".equals(type)) {
+                // 暂时没有其他费用记录的数据源
+                // TODO: 可以根据业务需要添加其他费用类型
+            }
+
+            // 按时间倒序排序
+            expenseList.sort((a, b) -> {
+                String timeA = (String) a.get("time");
+                String timeB = (String) b.get("time");
+                return timeB.compareTo(timeA);
+            });
+
+            // 分页处理
+            int startIndex = (pageNum - 1) * pageSize;
+            int endIndex = startIndex + pageSize;
+            List<Map<String, Object>> paginatedList = new java.util.ArrayList<>();
+
+            for (int i = startIndex; i < endIndex && i < expenseList.size(); i++) {
+                paginatedList.add(expenseList.get(i));
+            }
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("rows", paginatedList);
+            result.put("total", expenseList.size());
+            result.put("pageNum", pageNum);
+            result.put("pageSize", pageSize);
+
+            return success(result);
+        } catch (Exception e) {
+            logger.error("获取费用明细失败", e);
+            return error("获取费用明细失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 处理支付请求
+     * 模拟支付接口，默认支付成功
+     */
+    @PostMapping("/payment/process/{orderId}")
+    public AjaxResult processPayment(@PathVariable Long orderId) {
+        try {
+            // 获取当前用户ID
+            Long currentUserId = getCurrentUserId();
+            if (currentUserId == null) {
+                return error("用户未登录或身份验证失败");
+            }
+
+            // 查询订单信息
+            OrderInfo order = orderInfoService.selectOrderInfoByOrderId(orderId);
+            if (order == null) {
+                return error("订单不存在");
+            }
+
+            // 验证订单权限 - 只能支付自己创建的订单
+            if (order.getCreatorUserId() == null) {
+                return error("订单数据异常，缺少创建者信息");
+            }
+            if (!currentUserId.equals(order.getCreatorUserId())) {
+                return error("无权操作该订单");
+            }
+
+            // 检查订单状态
+            if ("1".equals(order.getOrderStatus())) {
+                return error("订单已支付");
+            }
+            if ("2".equals(order.getOrderStatus())) {
+                return error("订单已取消");
+            }
+
+            // 模拟支付处理
+            try {
+                // 模拟支付接口调用延迟
+                Thread.sleep(1000);
+
+                // 支付成功，更新订单状态
+                order.setOrderStatus("1"); // 1-已支付
+                order.setPaymentTime(new Date());
+                order.setPaidAmount(order.getOrderAmount());
+                orderInfoService.updateOrderInfo(order);
+
+                // 处理账户信息
+                boolean accountUpdated = false;
+                AccountInfo account = accountInfoService.selectAccountInfoByElderId(order.getElderId());
+
+                if (account == null) {
+                    // 创建新账户
+                    account = accountInfoService.createAccountInfo(
+                        order.getElderId(),
+                        order.getInstitutionId(),
+                        BigDecimal.ZERO
+                    );
+                }
+
+                // 更新账户余额（基于订单金额分配）
+                updateAccountBalanceFromOrder(account, order);
+                accountUpdated = true;
+
+                Map<String, Object> result = new HashMap<>();
+                result.put("success", true);
+                result.put("message", "支付成功");
+                result.put("orderId", orderId);
+                result.put("orderNo", order.getOrderNo());
+                result.put("paymentTime", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, new Date()));
+                result.put("paidAmount", order.getPaidAmount());
+                result.put("accountUpdated", accountUpdated);
+
+                return success(result);
+
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return error("支付处理被中断");
+            }
+
+        } catch (Exception e) {
+            logger.error("处理支付请求失败", e);
+            return error("支付失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 根据订单信息更新账户余额
+     */
+    private void updateAccountBalanceFromOrder(AccountInfo account, OrderInfo order) {
+        try {
+            BigDecimal totalAmount = order.getOrderAmount() != null ? order.getOrderAmount() : BigDecimal.ZERO;
+
+            // 根据订单类型分配金额到不同余额类型
+            BigDecimal serviceAmount = BigDecimal.ZERO;
+            BigDecimal depositAmount = BigDecimal.ZERO;
+            BigDecimal memberAmount = BigDecimal.ZERO;
+
+            String orderType = order.getOrderType();
+            if ("1".equals(orderType)) { // 入驻订单
+                // 入驻订单通常包含：押金 + 会员费 + 服务费
+                depositAmount = totalAmount.multiply(new BigDecimal("0.4")); // 40%押金
+                memberAmount = totalAmount.multiply(new BigDecimal("0.1"));  // 10%会员费
+                serviceAmount = totalAmount.subtract(depositAmount).subtract(memberAmount); // 剩余为服务费
+            } else if ("2".equals(orderType)) { // 续费订单
+                // 续费订单主要是服务费
+                serviceAmount = totalAmount.multiply(new BigDecimal("0.9")); // 90%服务费
+                memberAmount = totalAmount.multiply(new BigDecimal("0.1"));  // 10%其他费用
+            } else { // 其他类型
+                serviceAmount = totalAmount.multiply(new BigDecimal("0.8")); // 80%服务费
+                depositAmount = totalAmount.multiply(new BigDecimal("0.2")); // 20%其他
+            }
+
+            // 更新账户余额
+            BigDecimal currentTotal = account.getTotalBalance() != null ? account.getTotalBalance() : BigDecimal.ZERO;
+            BigDecimal currentService = account.getServiceBalance() != null ? account.getServiceBalance() : BigDecimal.ZERO;
+            BigDecimal currentDeposit = account.getDepositBalance() != null ? account.getDepositBalance() : BigDecimal.ZERO;
+            BigDecimal currentMember = account.getMemberBalance() != null ? account.getMemberBalance() : BigDecimal.ZERO;
+
+            account.setTotalBalance(currentTotal.add(totalAmount));
+            account.setServiceBalance(currentService.add(serviceAmount));
+            account.setDepositBalance(currentDeposit.add(depositAmount));
+            account.setMemberBalance(currentMember.add(memberAmount));
+            account.setUpdateTime(new Date());
+            account.setRemark(account.getRemark() + " | 支付订单" + order.getOrderNo() + "增加余额" + totalAmount + "元");
+
+            accountInfoService.updateAccountInfo(account);
+
+        } catch (Exception e) {
+            logger.error("更新账户余额失败", e);
+            throw new RuntimeException("更新账户余额失败：" + e.getMessage());
         }
     }
 
@@ -540,8 +849,11 @@ public class H5OrderController extends BaseController
             checkinDTO.setPaymentMethod("later");
             checkinDTO.setRemark("H5小程序订单来源");
 
-            // 创建入住申请
-            Long userId = null; // H5端可能没有登录用户，使用null
+            // 创建入住申请 - 使用当前登录用户ID
+            Long userId = getCurrentUserId();
+            if (userId == null) {
+                return error("用户未登录，请先登录后再提交订单");
+            }
             int result = pensionCheckinService.createCheckin(checkinDTO, userId);
 
             if (result > 0) {

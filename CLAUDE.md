@@ -228,12 +228,13 @@ npm run build
 4. **✅ 账户资金管理** - 老人账户管理、资金流水、余额预警
 5. **✅ 押金管理** - 押金申请、审核、使用记录
 6. **✅ 银行接口** - 支付接口、监管银行对接
-7. **✅ H5小程序端** - 机构展示、预约参观、投诉建议等便民服务
+7. **✅ 订单支付功能** - H5端订单支付流程，自动同步账户余额
+8. **✅ H5小程序端** - 完整的用户端功能（详见H5端功能说明）
 
 ### 待完善功能
-1. **订单支付功能** ⭐⭐⭐ - 资金流转关键环节
-2. **预警监控** ⭐⭐ - 风险控制功能
-3. **数据统计分析** ⭐⭐ - 监管决策支持
+1. **预警监控** ⭐⭐ - 风险控制功能
+2. **数据统计分析** ⭐⭐ - 监管决策支持
+3. **真实支付网关对接** ⭐ - 当前使用模拟支付
 
 ### 核心业务表（已实现）
 - `pension_institution` - 养老机构信息表 ✅
@@ -245,6 +246,7 @@ npm run build
 - `account_info` - 老人账户信息表 ✅
 - `deposit_apply` - 押金申请表 ✅
 - `balance_warning` - 余额预警表 ✅
+- `order_info` - 订单信息表 ✅
 
 ## 开发注意事项
 
@@ -334,8 +336,136 @@ mysql -u root -p123456 newzijin
 - 跨域问题由前端 `vue.config.js` 中的代理配置解决
 - 养老机构业务功能需要在系统管理中配置相应的菜单和权限
 
+## H5端功能说明
+
+### H5小程序端架构
+- **技术栈**: Vue 3 + Vite + Vant UI
+- **端口**: 3000
+- **目录**: `ruoyi-h5/`
+- **API接口**: 统一使用 `/h5` 前缀
+
+### 核心功能模块
+
+#### 1. 订单管理 (`/order`)
+**文件位置**:
+- 前端: `ruoyi-h5/src/views/order/index.vue` (订单列表)
+- 前端: `ruoyi-h5/src/views/order/detail.vue` (订单详情)
+- 后端: `H5OrderController.java`
+
+**功能特性**:
+- ✅ 订单列表展示（基于当前登录用户查询，非老人关联）
+- ✅ 订单状态筛选（全部/待付款/已支付/已取消/退款）
+- ✅ 订单详情查看（机构信息、费用明细、服务周期）
+- ✅ 订单支付功能（模拟支付成功，自动同步数据）
+- ✅ 订单取消功能
+
+**关键接口**:
+```
+GET  /h5/order/list         # 获取订单列表
+GET  /h5/order/{orderId}    # 获取订单详情
+POST /h5/payment/process/{orderId}  # 处理支付
+```
+
+**支付流程**:
+1. 用户点击"立即支付"按钮
+2. 显示确认对话框（订单号+金额）
+3. 调用 `/h5/payment/process/{orderId}` 接口
+4. 后端模拟1秒支付延迟
+5. 更新订单状态为"已支付"（orderStatus = "1"）
+6. 检查老人是否有账户，无则自动创建
+7. 根据订单金额更新账户余额：
+   - 入驻订单（type=1）: 40%押金 + 10%会员费 + 50%服务费
+   - 续费订单（type=2）: 90%服务费 + 10%其他
+   - 其他订单: 80%服务费 + 20%其他
+8. 返回支付成功结果，前端刷新订单列表
+
+#### 2. 费用管理 (`/user/expense`)
+**文件位置**:
+- 前端: `ruoyi-h5/src/views/user/expense/index.vue`
+- API: `ruoyi-h5/src/api/expense.js`
+- 后端: `H5OrderController.java`
+
+**功能特性**:
+- ✅ 老人列表选择（仅显示当前用户关联的老人）
+- ✅ 账户余额展示（总余额、押金余额、预存金额）
+- ✅ 费用明细查询（押金使用、服务费扣款、其他费用）
+- ✅ 分类查看（全部/押金/服务费/其他）
+- ✅ 下拉加载更多
+
+**关键接口**:
+```
+GET /h5/elder/list          # 获取老人列表
+GET /h5/account/{elderId}   # 获取账户余额
+GET /h5/expense/list        # 获取费用明细
+```
+
+**数据来源**:
+- 老人列表: `elder_family` 表（关联current user）+ `elder_info` 表
+- 账户余额: `account_info` 表
+- 押金记录: `deposit_apply` 表（已批准的申请）
+- 服务费记录: `order_info` 表（已支付订单）
+
+**特殊处理**:
+- 未创建账户的老人显示默认值（余额为0），提示"请先办理入住手续"
+- 只显示未出院的老人（status != "2"）
+
+#### 3. 机构展示
+- ✅ 机构列表展示
+- ✅ 机构详情查看
+- ✅ 床位价格查询
+- ✅ 在线预约
+
+### 数据权限控制
+
+**用户身份验证**:
+- 所有H5接口都需要用户登录（通过SecurityUtils.getUserId()获取）
+- 未登录用户返回null，提示"用户未登录或身份验证失败"
+
+**数据访问权限**:
+- 订单列表: 只能查看自己创建的订单（creatorUserId = currentUserId）
+- 老人信息: 只能查看elder_family表中关联的老人
+- 账户信息: 验证用户是否为该老人的家属
+- 费用明细: 验证用户是否有权限访问该老人信息
+
+### 技术要点
+
+**前端技术栈**:
+- Vue 3 Composition API (`<script setup>`)
+- Vant UI 组件库（showToast, showConfirmDialog, van-list等）
+- Axios 请求封装
+- Pinia 状态管理（userStore）
+
+**后端技术栈**:
+- Spring Boot REST API
+- MyBatis 数据访问
+- BigDecimal 精确金额计算
+- 分页查询支持
+
+**关键代码位置**:
+```
+ruoyi-h5/
+├── src/
+│   ├── api/
+│   │   ├── order.js        # 订单API
+│   │   └── expense.js      # 费用API
+│   ├── views/
+│   │   ├── order/
+│   │   │   ├── index.vue   # 订单列表
+│   │   │   └── detail.vue  # 订单详情
+│   │   └── user/
+│   │       └── expense/
+│   │           └── index.vue  # 费用管理
+│   └── store/
+│       └── modules/
+│           └── user.js      # 用户状态管理
+
+ruoyi-admin/
+└── src/main/java/com/ruoyi/web/controller/h5/
+    └── H5OrderController.java  # H5端控制器（566-690行：支付功能）
+```
+
 ## 相关文档
 - **功能描述**: `功能描述.md` - 完整的功能需求文档
 - **业务流程**: `业务流程详解.md` - 详细的业务流程说明
 - **开发列表**: `开发列表.md` - 功能开发计划和指导
-- **修改记录**: `xiugai.md` - 项目变更和开发记录
+- **修改记录**: `xiugai.md` - 项目历史变更记录（已停止更新，改为更新CLAUDE.md）

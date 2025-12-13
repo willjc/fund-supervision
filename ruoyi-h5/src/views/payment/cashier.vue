@@ -70,6 +70,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { showToast, showLoadingToast, closeToast } from 'vant'
 import dayjs from 'dayjs'
+import { processPayment } from '@/api/order'
 
 const router = useRouter()
 const route = useRoute()
@@ -121,24 +122,34 @@ const confirmPayment = async () => {
   })
 
   try {
-    // 模拟支付处理
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    // 调用后端支付接口
+    const orderId = route.params.orderId
+    const response = await processPayment(orderId)
 
     closeToast()
 
-    // 跳转到支付成功页面
-    router.push({
-      name: 'PaymentSuccess',
-      query: {
-        orderNo: route.params.orderId,
-        amount: paymentAmount.value,
-        paymentMethod: selectedPaymentMethod.value,
-        elderName: route.query.elderName
-      }
-    })
+    if (response.code === 200 && response.data && response.data.success) {
+      // 支付成功，跳转到支付成功页面
+      router.push({
+        name: 'PaymentSuccess',
+        query: {
+          orderNo: response.data.orderNo || route.query.orderNo,
+          amount: paymentAmount.value,
+          paymentMethod: selectedPaymentMethod.value,
+          elderName: route.query.elderName
+        }
+      })
+    } else {
+      showToast(response.msg || '支付失败，请重试')
+    }
   } catch (error) {
     closeToast()
-    showToast('支付失败,请重试')
+    console.error('支付失败:', error)
+    let errorMessage = '支付失败，请重试'
+    if (error.response && error.response.data && error.response.data.msg) {
+      errorMessage = error.response.data.msg
+    }
+    showToast(errorMessage)
   }
 }
 

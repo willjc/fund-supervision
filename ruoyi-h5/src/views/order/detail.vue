@@ -120,7 +120,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { showToast, showConfirmDialog } from 'vant'
 import dayjs from 'dayjs'
-import { getOrderDetail as getOrderDetailApi } from '@/api/order'
+import { getOrderDetail as getOrderDetailApi, processPayment } from '@/api/order'
 
 const router = useRouter()
 const route = useRoute()

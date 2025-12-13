@@ -106,3 +106,14 @@ export function getOrderStats(elderId) {
     params: { elderId }
   })
 }
+
+/**
+ * 处理支付请求
+ * @param {Number} orderId - 订单ID
+ */
+export function processPayment(orderId) {
+  return request({
+    url: `/h5/payment/process/${orderId}`,
+    method: 'post'
+  })
+}

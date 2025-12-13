@@ -45,7 +45,10 @@
       "Bash(ls:*)",
       "Bash(move /Y temp_H5InstitutionController.java \"d:\\lasthm\\zijin\\fund-supervision\\ruoyi-admin\\src\\main\\java\\com\\ruoyi\\web\\controller\\h5\\H5InstitutionController.java\")",
       "Bash(xcopy:*)",
-      "Bash(del \"d:\\lasthm\\zijin\\fund-supervision\\temp_update.txt\")"
+      "Bash(del \"d:\\lasthm\\zijin\\fund-supervision\\temp_update.txt\")",
+      "mcp__mysql__query",
+      "mcp__mysql__show_statement",
+      "mcp__mysql__describe_table"
     ],
     "deny": [],
     "ask": []
