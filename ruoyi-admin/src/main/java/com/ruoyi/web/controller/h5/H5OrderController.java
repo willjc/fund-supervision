@@ -481,30 +481,7 @@ public class H5OrderController extends BaseController
 
             List<Map<String, Object>> expenseList = new java.util.ArrayList<>();
 
-            // 1. 查询押金使用记录（已批准的申请）
-            if ("all".equals(type) || "deposit".equals(type)) {
-                DepositApply depositQuery = new DepositApply();
-                depositQuery.setElderId(elderId);
-                List<DepositApply> depositList = depositApplyService.selectDepositApplyList(depositQuery);
-
-                for (DepositApply deposit : depositList) {
-                    Map<String, Object> item = new HashMap<>();
-                    item.put("id", "DEP_" + deposit.getApplyId());
-                    item.put("type", "expense");
-                    item.put("title", "押金使用");
-                    item.put("amount", deposit.getActualAmount() != null ? deposit.getActualAmount() : deposit.getApplyAmount());
-                    item.put("time", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, deposit.getCreateTime()));
-                    item.put("description", deposit.getApplyReason());
-
-                    // 只有已批准且已使用的才能申请退款
-                    boolean canRefund = "approved".equals(deposit.getApplyStatus()) && deposit.getUseTime() != null;
-                    item.put("canRefund", canRefund);
-
-                    expenseList.add(item);
-                }
-            }
-
-            // 2. 查询服务费相关记录（基于订单）
+            // 1. 查询服务费相关记录
             if ("all".equals(type) || "service".equals(type)) {
                 OrderInfo orderQuery = new OrderInfo();
                 orderQuery.setElderId(elderId);
@@ -512,19 +489,78 @@ public class H5OrderController extends BaseController
                 List<OrderInfo> orderList = orderInfoService.selectOrderInfoList(orderQuery);
 
                 for (OrderInfo order : orderList) {
-                    Map<String, Object> item = new HashMap<>();
-                    item.put("id", "ORDER_" + order.getOrderId());
-                    item.put("type", "expense");
-                    item.put("title", "服务费扣款");
-                    item.put("amount", order.getOrderAmount());
-                    item.put("time", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, order.getCreateTime()));
-                    item.put("description", getOrderTypeText(order.getOrderType()) + "订单支付");
-                    item.put("canRefund", false);
-                    expenseList.add(item);
+                    // 服务费预存记录（收入）
+                    Map<String, Object> incomeItem = new HashMap<>();
+                    incomeItem.put("id", "SERVICE_PREPAID_" + order.getOrderId());
+                    incomeItem.put("type", "income");
+                    incomeItem.put("title", "服务费预存");
+                    incomeItem.put("amount", order.getOrderAmount());
+                    incomeItem.put("time", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, order.getCreateTime()));
+                    incomeItem.put("description", "预存" + (order.getMonthCount() != null ? order.getMonthCount() : 0) + "个月服务费");
+                    incomeItem.put("canRefund", false);
+                    incomeItem.put("monthCount", order.getMonthCount() != null ? order.getMonthCount() : 0);
+                    expenseList.add(incomeItem);
+
+                    // TODO: 后续可以添加月扣记录
+                    // 这里暂时只显示预存记录
                 }
             }
 
-            // 3. 查询其他费用记录（可扩展）
+            // 2. 查询押金相关记录
+            if ("all".equals(type) || "deposit".equals(type)) {
+                // 查询账户信息获取押金
+                AccountInfo account = accountInfoService.selectAccountInfoByElderId(elderId);
+                if (account != null && account.getDepositBalance() != null && account.getDepositBalance().compareTo(BigDecimal.ZERO) > 0) {
+                    // 押金缴纳记录（收入）
+                    Map<String, Object> incomeItem = new HashMap<>();
+                    incomeItem.put("id", "DEPOSIT_PAID_" + account.getAccountId());
+                    incomeItem.put("type", "income");
+                    incomeItem.put("title", "押金缴纳");
+                    incomeItem.put("amount", account.getDepositBalance());
+                    incomeItem.put("time", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, account.getCreateTime()));
+                    incomeItem.put("description", "入住押金");
+                    incomeItem.put("canRefund", false);
+                    expenseList.add(incomeItem);
+                }
+
+                // 查询押金使用记录（支出）
+                DepositApply depositQuery = new DepositApply();
+                depositQuery.setElderId(elderId);
+                List<DepositApply> depositList = depositApplyService.selectDepositApplyList(depositQuery);
+
+                for (DepositApply deposit : depositList) {
+                    Map<String, Object> expenseItem = new HashMap<>();
+                    expenseItem.put("id", "DEP_USED_" + deposit.getApplyId());
+                    expenseItem.put("type", "expense");
+                    expenseItem.put("title", "押金使用");
+                    expenseItem.put("amount", deposit.getActualAmount() != null ? deposit.getActualAmount() : deposit.getApplyAmount());
+                    expenseItem.put("time", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, deposit.getCreateTime()));
+                    expenseItem.put("description", deposit.getApplyReason());
+                    expenseItem.put("canRefund", false); // 押金使用后不能退款
+
+                    expenseList.add(expenseItem);
+                }
+            }
+
+            // 3. 查询会员费相关记录
+            if ("all".equals(type) || "member".equals(type)) {
+                // 查询账户信息获取会员费
+                AccountInfo account = accountInfoService.selectAccountInfoByElderId(elderId);
+                if (account != null && account.getMemberBalance() != null && account.getMemberBalance().compareTo(BigDecimal.ZERO) > 0) {
+                    // 会员费缴纳记录（收入）
+                    Map<String, Object> incomeItem = new HashMap<>();
+                    incomeItem.put("id", "MEMBER_PAID_" + account.getAccountId());
+                    incomeItem.put("type", "income");
+                    incomeItem.put("title", "会员费缴纳");
+                    incomeItem.put("amount", account.getMemberBalance());
+                    incomeItem.put("time", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, account.getCreateTime()));
+                    incomeItem.put("description", "一次性会员费");
+                    incomeItem.put("canRefund", false);
+                    expenseList.add(incomeItem);
+                }
+            }
+
+            // 4. 查询其他费用记录（可扩展）
             if ("all".equals(type) || "other".equals(type)) {
                 // 暂时没有其他费用记录的数据源
                 // TODO: 可以根据业务需要添加其他费用类型

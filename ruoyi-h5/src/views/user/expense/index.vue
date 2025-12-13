@@ -34,9 +34,9 @@
           class="expense-tabs"
           color="#667eea"
         >
-          <van-tab title="押金" name="deposit"></van-tab>
           <van-tab title="服务费" name="service"></van-tab>
-          <van-tab title="其他" name="other"></van-tab>
+          <van-tab title="押金" name="deposit"></van-tab>
+          <van-tab title="会员费" name="member"></van-tab>
         </van-tabs>
 
         <!-- 费用明细列表 -->
@@ -116,7 +116,7 @@ const selectedElder = ref({})
 const showElderPicker = ref(false)
 
 // 活动Tab
-const activeTab = ref('deposit')
+const activeTab = ref('service')
 
 // 老人选项
 const elderOptions = ref([])
@@ -190,8 +190,9 @@ const loadExpenseList = async (reset = false) => {
     }
 
     const typeMap = {
-      'deposit': 'deposit',
       'service': 'service',
+      'deposit': 'deposit',
+      'member': 'member',
       'other': 'other'
     }
 
