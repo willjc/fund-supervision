@@ -9,6 +9,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="orderNo"    column="order_no"    />
         <result property="orderType"    column="order_type"    />
         <result property="elderId"     column="elder_id"     />
+        <result property="creatorUserId"    column="creator_user_id"    />
         <result property="institutionId"    column="institution_id"    />
         <result property="checkInId"    column="check_in_id"    />
         <result property="bedId"       column="bed_id"       />
@@ -37,7 +38,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectOrderInfoVo">
-        select o.order_id, o.order_no, o.order_type, o.elder_id, o.institution_id, o.check_in_id,
+        select o.order_id, o.order_no, o.order_type, o.elder_id, o.creator_user_id, o.institution_id, o.check_in_id,
                o.bed_id, o.order_amount, o.paid_amount, o.order_status, o.payment_method,
                o.payment_time, o.order_date, o.service_start_date, o.service_end_date,
                o.billing_cycle, o.month_count, o.original_amount, o.discount_amount,
