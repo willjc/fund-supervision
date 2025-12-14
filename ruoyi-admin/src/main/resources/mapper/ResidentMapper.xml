@@ -167,6 +167,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         FROM elder_info ei
         LEFT JOIN bed_allocation ba ON ei.elder_id = ba.elder_id
             AND (ba.allocation_status = '1' OR ba.allocation_status = '0')
+            AND ba.allocation_id = (
+                SELECT allocation_id FROM bed_allocation
+                WHERE elder_id = ei.elder_id
+                  AND (allocation_status = '1' OR allocation_status = '0')
+                ORDER BY check_in_date DESC, allocation_id DESC
+                LIMIT 1
+            )
         LEFT JOIN bed_info bi ON ba.bed_id = bi.bed_id
         LEFT JOIN pension_institution pi ON bi.institution_id = pi.institution_id
         WHERE ei.elder_id = #{elderId}

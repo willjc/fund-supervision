@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.domain.BedAllocation;
+import com.ruoyi.domain.ElderAttachment;
 import com.ruoyi.domain.ElderInfo;
 import com.ruoyi.domain.OrderInfo;
 import com.ruoyi.domain.OrderItem;
@@ -18,6 +19,7 @@ import com.ruoyi.domain.PaymentRecord;
 import com.ruoyi.domain.RenewDTO;
 import com.ruoyi.domain.vo.ResidentVO;
 import com.ruoyi.mapper.BedAllocationMapper;
+import com.ruoyi.mapper.ElderAttachmentMapper;
 import com.ruoyi.mapper.ElderInfoMapper;
 import com.ruoyi.mapper.OrderInfoMapper;
 import com.ruoyi.mapper.OrderItemMapper;
@@ -52,6 +54,9 @@ public class ResidentServiceImpl implements IResidentService
     @Autowired
     private PaymentRecordMapper paymentRecordMapper;
 
+    @Autowired
+    private ElderAttachmentMapper elderAttachmentMapper;
+
     /**
      * 查询入住人列表
      *
@@ -77,6 +82,25 @@ public class ResidentServiceImpl implements IResidentService
         if (residentVO != null) {
             // 查询订单列表
             residentVO.setOrders(residentMapper.selectOrdersByElderId(elderId));
+
+            // 查询老人照片（从elder_info表）
+            ElderInfo elderInfo = elderInfoMapper.selectElderInfoByElderId(elderId);
+            if (elderInfo != null && elderInfo.getPhotoPath() != null) {
+                residentVO.setPhotoPath(elderInfo.getPhotoPath());
+            }
+
+            // 查询身份证照片（从elder_attachment表）
+            // 查询身份证正面（attachment_type = '1'）
+            ElderAttachment frontAttachment = elderAttachmentMapper.selectAttachmentByElderIdAndType(elderId, "1");
+            if (frontAttachment != null && frontAttachment.getFilePath() != null) {
+                residentVO.setIdCardFrontPath(frontAttachment.getFilePath());
+            }
+
+            // 查询身份证反面（attachment_type = '2'）
+            ElderAttachment backAttachment = elderAttachmentMapper.selectAttachmentByElderIdAndType(elderId, "2");
+            if (backAttachment != null && backAttachment.getFilePath() != null) {
+                residentVO.setIdCardBackPath(backAttachment.getFilePath());
+            }
         }
         return residentVO;
     }

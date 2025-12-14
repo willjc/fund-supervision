@@ -72,6 +72,12 @@ public class ElderInfo extends BaseEntity
     /** 照片路径 */
     private String photoPath;
 
+    /** 身份证正面照片路径 */
+    private String idCardFrontPath;
+
+    /** 身份证反面照片路径 */
+    private String idCardBackPath;
+
     /** 登录密码(MD5加密) */
     private String password;
 
@@ -206,6 +212,26 @@ public class ElderInfo extends BaseEntity
         return photoPath;
     }
 
+    public void setIdCardFrontPath(String idCardFrontPath)
+    {
+        this.idCardFrontPath = idCardFrontPath;
+    }
+
+    public String getIdCardFrontPath()
+    {
+        return idCardFrontPath;
+    }
+
+    public void setIdCardBackPath(String idCardBackPath)
+    {
+        this.idCardBackPath = idCardBackPath;
+    }
+
+    public String getIdCardBackPath()
+    {
+        return idCardBackPath;
+    }
+
   public void setPassword(String password)
     {
         this.password = password;
@@ -243,6 +269,8 @@ public class ElderInfo extends BaseEntity
             .append("careLevel", getCareLevel())
             .append("specialNeeds", getSpecialNeeds())
             .append("photoPath", getPhotoPath())
+            .append("idCardFrontPath", getIdCardFrontPath())
+            .append("idCardBackPath", getIdCardBackPath())
             .append("password", getPassword())
             .append("status", getStatus())
             .append("createBy", getCreateBy())

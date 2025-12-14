@@ -5,7 +5,9 @@ import com.ruoyi.common.utils.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.ruoyi.mapper.ElderInfoMapper;
+import com.ruoyi.mapper.ElderAttachmentMapper;
 import com.ruoyi.domain.ElderInfo;
+import com.ruoyi.domain.ElderAttachment;
 import com.ruoyi.service.IElderInfoService;
 
 /**
@@ -20,6 +22,9 @@ public class ElderInfoServiceImpl implements IElderInfoService
     @Autowired
     private ElderInfoMapper elderInfoMapper;
 
+    @Autowired
+    private ElderAttachmentMapper elderAttachmentMapper;
+
     /**
      * 查询老人基础信息
      *
@@ -29,7 +34,21 @@ public class ElderInfoServiceImpl implements IElderInfoService
     @Override
     public ElderInfo selectElderInfoByElderId(Long elderId)
     {
-        return elderInfoMapper.selectElderInfoByElderId(elderId);
+        ElderInfo elderInfo = elderInfoMapper.selectElderInfoByElderId(elderId);
+        if (elderInfo != null) {
+            // 查询身份证正面照片（attachment_type = '1'）
+            ElderAttachment frontAttachment = elderAttachmentMapper.selectAttachmentByElderIdAndType(elderId, "1");
+            if (frontAttachment != null && frontAttachment.getFilePath() != null) {
+                elderInfo.setIdCardFrontPath(frontAttachment.getFilePath());
+            }
+
+            // 查询身份证反面照片（attachment_type = '2'）
+            ElderAttachment backAttachment = elderAttachmentMapper.selectAttachmentByElderIdAndType(elderId, "2");
+            if (backAttachment != null && backAttachment.getFilePath() != null) {
+                elderInfo.setIdCardBackPath(backAttachment.getFilePath());
+            }
+        }
+        return elderInfo;
     }
 
     /**

@@ -290,6 +290,60 @@
     <!-- 入住人详情对话框 -->
     <el-dialog title="入住人详情" :visible.sync="detailOpen" width="1200px" append-to-body>
       <div class="resident-detail">
+        <!-- 照片信息 -->
+        <div v-if="residentDetail.photoPath || residentDetail.idCardFrontPath || residentDetail.idCardBackPath" style="margin-bottom: 20px;">
+          <h4 style="margin-bottom: 10px; color: #303133;">
+            <i class="el-icon-picture-outline"></i> 照片信息
+          </h4>
+          <el-row :gutter="20">
+            <el-col :span="8" v-if="residentDetail.photoPath">
+              <div class="photo-item">
+                <div class="photo-label">老人照片</div>
+                <el-image
+                  :src="residentDetail.photoPath"
+                  :preview-src-list="[residentDetail.photoPath]"
+                  fit="cover"
+                  style="width: 200px; height: 200px; border-radius: 4px; cursor: pointer;"
+                >
+                  <div slot="error" class="image-slot">
+                    <i class="el-icon-picture-outline" style="font-size: 50px; color: #C0C4CC;"></i>
+                  </div>
+                </el-image>
+              </div>
+            </el-col>
+            <el-col :span="8" v-if="residentDetail.idCardFrontPath">
+              <div class="photo-item">
+                <div class="photo-label">身份证正面</div>
+                <el-image
+                  :src="residentDetail.idCardFrontPath"
+                  :preview-src-list="[residentDetail.idCardFrontPath]"
+                  fit="cover"
+                  style="width: 200px; height: 200px; border-radius: 4px; cursor: pointer;"
+                >
+                  <div slot="error" class="image-slot">
+                    <i class="el-icon-picture-outline" style="font-size: 50px; color: #C0C4CC;"></i>
+                  </div>
+                </el-image>
+              </div>
+            </el-col>
+            <el-col :span="8" v-if="residentDetail.idCardBackPath">
+              <div class="photo-item">
+                <div class="photo-label">身份证反面</div>
+                <el-image
+                  :src="residentDetail.idCardBackPath"
+                  :preview-src-list="[residentDetail.idCardBackPath]"
+                  fit="cover"
+                  style="width: 200px; height: 200px; border-radius: 4px; cursor: pointer;"
+                >
+                  <div slot="error" class="image-slot">
+                    <i class="el-icon-picture-outline" style="font-size: 50px; color: #C0C4CC;"></i>
+                  </div>
+                </el-image>
+              </div>
+            </el-col>
+          </el-row>
+        </div>
+
         <!-- 基本信息 -->
         <el-descriptions title="基本信息" :column="3" border>
           <el-descriptions-item label="姓名">{{ residentDetail.elderName }}</el-descriptions-item>
@@ -1797,5 +1851,25 @@ export default {
 
 .balance-danger {
   color: #F56C6C;
+}
+
+.photo-item {
+  text-align: center;
+}
+
+.photo-label {
+  font-size: 14px;
+  color: #606266;
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+
+.image-slot {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  background: #f5f7fa;
 }
 </style>

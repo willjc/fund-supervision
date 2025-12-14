@@ -93,6 +93,15 @@ public class ResidentVO
     /** 备注 */
     private String remark;
 
+    /** 老人照片路径 */
+    private String photoPath;
+
+    /** 身份证正面照片路径 */
+    private String idCardFrontPath;
+
+    /** 身份证反面照片路径 */
+    private String idCardBackPath;
+
     /** 创建时间 */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date createTime;
@@ -392,5 +401,29 @@ public class ResidentVO
 
     public void setPayments(List<PaymentRecord> payments) {
         this.payments = payments;
+    }
+
+    public String getPhotoPath() {
+        return photoPath;
+    }
+
+    public void setPhotoPath(String photoPath) {
+        this.photoPath = photoPath;
+    }
+
+    public String getIdCardFrontPath() {
+        return idCardFrontPath;
+    }
+
+    public void setIdCardFrontPath(String idCardFrontPath) {
+        this.idCardFrontPath = idCardFrontPath;
+    }
+
+    public String getIdCardBackPath() {
+        return idCardBackPath;
+    }
+
+    public void setIdCardBackPath(String idCardBackPath) {
+        this.idCardBackPath = idCardBackPath;
     }
 }

@@ -130,8 +130,15 @@
           <span>{{ parseTime(scope.row.createTime, '{y}-{m}-{d} {h}:{i}:{s}') }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="280">
+      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="320">
         <template slot-scope="scope">
+          <el-button
+            size="mini"
+            type="text"
+            icon="el-icon-view"
+            @click="handleDetail(scope.row)"
+            v-hasPermi="['elder:info:query']"
+          >详情</el-button>
           <el-button
             size="mini"
             type="text"
@@ -180,7 +187,61 @@
     />
 
     <!-- 添加或修改老人基础信息对话框 -->
-    <el-dialog :title="title" :visible.sync="open" width="600px" append-to-body>
+    <el-dialog :title="title" :visible.sync="open" width="800px" append-to-body>
+      <!-- 照片信息（仅在修改时显示） -->
+      <div v-if="form.elderId && (form.photoPath || form.idCardFrontPath || form.idCardBackPath)" style="margin-bottom: 20px; padding: 15px; background: #f5f7fa; border-radius: 4px;">
+        <div style="font-size: 14px; color: #606266; margin-bottom: 10px; font-weight: 500;">
+          <i class="el-icon-picture-outline"></i> 已上传的照片（在H5端上传）
+        </div>
+        <el-row :gutter="15">
+          <el-col :span="8" v-if="form.photoPath">
+            <div style="text-align: center;">
+              <div style="font-size: 12px; color: #909399; margin-bottom: 5px;">老人照片</div>
+              <el-image
+                :src="form.photoPath"
+                :preview-src-list="[form.photoPath]"
+                fit="cover"
+                style="width: 120px; height: 120px; border-radius: 4px; cursor: pointer; border: 1px solid #dcdfe6;"
+              >
+                <div slot="error" style="display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; background: #fff;">
+                  <i class="el-icon-picture-outline" style="font-size: 30px; color: #C0C4CC;"></i>
+                </div>
+              </el-image>
+            </div>
+          </el-col>
+          <el-col :span="8" v-if="form.idCardFrontPath">
+            <div style="text-align: center;">
+              <div style="font-size: 12px; color: #909399; margin-bottom: 5px;">身份证正面</div>
+              <el-image
+                :src="form.idCardFrontPath"
+                :preview-src-list="[form.idCardFrontPath]"
+                fit="cover"
+                style="width: 120px; height: 120px; border-radius: 4px; cursor: pointer; border: 1px solid #dcdfe6;"
+              >
+                <div slot="error" style="display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; background: #fff;">
+                  <i class="el-icon-picture-outline" style="font-size: 30px; color: #C0C4CC;"></i>
+                </div>
+              </el-image>
+            </div>
+          </el-col>
+          <el-col :span="8" v-if="form.idCardBackPath">
+            <div style="text-align: center;">
+              <div style="font-size: 12px; color: #909399; margin-bottom: 5px;">身份证反面</div>
+              <el-image
+                :src="form.idCardBackPath"
+                :preview-src-list="[form.idCardBackPath]"
+                fit="cover"
+                style="width: 120px; height: 120px; border-radius: 4px; cursor: pointer; border: 1px solid #dcdfe6;"
+              >
+                <div slot="error" style="display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; background: #fff;">
+                  <i class="el-icon-picture-outline" style="font-size: 30px; color: #C0C4CC;"></i>
+                </div>
+              </el-image>
+            </div>
+          </el-col>
+        </el-row>
+      </div>
+
       <el-form ref="form" :model="form" :rules="rules" label-width="80px">
         <el-row>
           <el-col :span="12">
@@ -394,6 +455,113 @@
         <el-button @click="passwordDialogOpen = false">取 消</el-button>
       </div>
     </el-dialog>
+
+    <!-- 老人详情对话框 -->
+    <el-dialog title="老人详情" :visible.sync="detailOpen" width="1000px" append-to-body>
+      <div class="elder-detail">
+        <!-- 照片信息 -->
+        <div v-if="elderDetail.photoPath || elderDetail.idCardFrontPath || elderDetail.idCardBackPath" style="margin-bottom: 20px;">
+          <h4 style="margin-bottom: 10px; color: #303133;">
+            <i class="el-icon-picture-outline"></i> 照片信息
+          </h4>
+          <el-row :gutter="20">
+            <el-col :span="8" v-if="elderDetail.photoPath">
+              <div class="photo-item">
+                <div class="photo-label">老人照片</div>
+                <el-image
+                  :src="elderDetail.photoPath"
+                  :preview-src-list="[elderDetail.photoPath]"
+                  fit="cover"
+                  style="width: 200px; height: 200px; border-radius: 4px; cursor: pointer;"
+                >
+                  <div slot="error" class="image-slot">
+                    <i class="el-icon-picture-outline" style="font-size: 50px; color: #C0C4CC;"></i>
+                  </div>
+                </el-image>
+              </div>
+            </el-col>
+            <el-col :span="8" v-if="elderDetail.idCardFrontPath">
+              <div class="photo-item">
+                <div class="photo-label">身份证正面</div>
+                <el-image
+                  :src="elderDetail.idCardFrontPath"
+                  :preview-src-list="[elderDetail.idCardFrontPath]"
+                  fit="cover"
+                  style="width: 200px; height: 200px; border-radius: 4px; cursor: pointer;"
+                >
+                  <div slot="error" class="image-slot">
+                    <i class="el-icon-picture-outline" style="font-size: 50px; color: #C0C4CC;"></i>
+                  </div>
+                </el-image>
+              </div>
+            </el-col>
+            <el-col :span="8" v-if="elderDetail.idCardBackPath">
+              <div class="photo-item">
+                <div class="photo-label">身份证反面</div>
+                <el-image
+                  :src="elderDetail.idCardBackPath"
+                  :preview-src-list="[elderDetail.idCardBackPath]"
+                  fit="cover"
+                  style="width: 200px; height: 200px; border-radius: 4px; cursor: pointer;"
+                >
+                  <div slot="error" class="image-slot">
+                    <i class="el-icon-picture-outline" style="font-size: 50px; color: #C0C4CC;"></i>
+                  </div>
+                </el-image>
+              </div>
+            </el-col>
+          </el-row>
+        </div>
+
+        <!-- 基本信息 -->
+        <el-descriptions title="基本信息" :column="3" border>
+          <el-descriptions-item label="老人姓名">{{ elderDetail.elderName }}</el-descriptions-item>
+          <el-descriptions-item label="性别">
+            <dict-tag :options="dict.type.elder_gender" :value="elderDetail.gender"/>
+          </el-descriptions-item>
+          <el-descriptions-item label="年龄">{{ elderDetail.age }}岁</el-descriptions-item>
+          <el-descriptions-item label="身份证号">{{ elderDetail.idCard }}</el-descriptions-item>
+          <el-descriptions-item label="出生日期">{{ parseTime(elderDetail.birthDate, '{y}-{m}-{d}') }}</el-descriptions-item>
+          <el-descriptions-item label="联系电话">{{ elderDetail.phone }}</el-descriptions-item>
+          <el-descriptions-item label="护理等级">
+            <dict-tag :options="dict.type.elder_care_level" :value="elderDetail.careLevel"/>
+          </el-descriptions-item>
+          <el-descriptions-item label="状态">
+            <dict-tag :options="dict.type.elder_status" :value="elderDetail.status"/>
+          </el-descriptions-item>
+          <el-descriptions-item label="家庭住址" :span="3">{{ elderDetail.address || '-' }}</el-descriptions-item>
+        </el-descriptions>
+
+        <!-- 紧急联系人信息 -->
+        <el-descriptions title="紧急联系人" :column="2" border style="margin-top: 20px;">
+          <el-descriptions-item label="紧急联系人">{{ elderDetail.emergencyContact || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="紧急联系电话">{{ elderDetail.emergencyPhone || '-' }}</el-descriptions-item>
+        </el-descriptions>
+
+        <!-- 健康信息 -->
+        <el-descriptions title="健康信息" :column="1" border style="margin-top: 20px;">
+          <el-descriptions-item label="健康状况">{{ elderDetail.healthStatus || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="特殊需求">{{ elderDetail.specialNeeds || '-' }}</el-descriptions-item>
+        </el-descriptions>
+
+        <!-- 备注信息 -->
+        <el-descriptions v-if="elderDetail.remark" title="备注信息" :column="1" border style="margin-top: 20px;">
+          <el-descriptions-item label="备注">{{ elderDetail.remark }}</el-descriptions-item>
+        </el-descriptions>
+
+        <!-- 系统信息 -->
+        <el-descriptions title="系统信息" :column="2" border style="margin-top: 20px;">
+          <el-descriptions-item label="创建人">{{ elderDetail.createBy }}</el-descriptions-item>
+          <el-descriptions-item label="创建时间">{{ parseTime(elderDetail.createTime, '{y}-{m}-{d} {h}:{i}:{s}') }}</el-descriptions-item>
+          <el-descriptions-item label="更新人">{{ elderDetail.updateBy }}</el-descriptions-item>
+          <el-descriptions-item label="更新时间">{{ parseTime(elderDetail.updateTime, '{y}-{m}-{d} {h}:{i}:{s}') }}</el-descriptions-item>
+        </el-descriptions>
+      </div>
+
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="detailOpen = false">关 闭</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -520,7 +688,10 @@ export default {
               }
             }, trigger: "blur" }
         ]
-      }
+      },
+      // 详情相关
+      detailOpen: false,
+      elderDetail: {}
     };
   },
   created() {
@@ -775,7 +946,37 @@ export default {
           });
         }
       });
+    },
+    /** 详情按钮操作 */
+    handleDetail(row) {
+      const elderId = row.elderId;
+      getElder(elderId).then(response => {
+        this.elderDetail = response.data;
+        this.detailOpen = true;
+      });
     }
   }
 };
 </script>
+
+<style scoped>
+.elder-detail .photo-item {
+  text-align: center;
+}
+
+.elder-detail .photo-label {
+  font-size: 14px;
+  color: #606266;
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+
+.elder-detail .image-slot {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  background: #f5f7fa;
+}
+</style>
