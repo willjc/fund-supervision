@@ -95,6 +95,33 @@ public class DepositApplyController extends BaseController
     }
 
     /**
+     * 检查老人是否有正在审批中的申请
+     */
+    @PreAuthorize("@ss.hasPermi('pension:deposit:query')")
+    @GetMapping(value = "/checkPending/{elderId}")
+    public AjaxResult checkPendingApply(@PathVariable("elderId") Long elderId)
+    {
+        // 查询该老人的所有申请
+        DepositApply query = new DepositApply();
+        query.setElderId(elderId);
+        List<DepositApply> list = depositApplyService.selectDepositApplyList(query);
+
+        // 检查是否有正在审批中的申请（pending_family、family_approved、pending_supervision）
+        for (DepositApply apply : list) {
+            String status = apply.getApplyStatus();
+            if ("pending_family".equals(status) ||
+                "family_approved".equals(status) ||
+                "pending_supervision".equals(status)) {
+                // 找到正在审批中的申请，返回该申请的信息
+                return AjaxResult.success(apply);
+            }
+        }
+
+        // 没有正在审批中的申请
+        return AjaxResult.success(null);
+    }
+
+    /**
      * 新增押金使用申请
      */
     @PreAuthorize("@ss.hasPermi('pension:deposit:add')")

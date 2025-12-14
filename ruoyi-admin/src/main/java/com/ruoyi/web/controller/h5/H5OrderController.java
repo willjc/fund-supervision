@@ -24,12 +24,14 @@ import com.ruoyi.domain.BedInfo;
 import com.ruoyi.domain.ElderInfo;
 import com.ruoyi.domain.ElderFamily;
 import com.ruoyi.domain.OrderInfo;
+import com.ruoyi.domain.OrderItem;
 import com.ruoyi.domain.PensionCheckinDTO;
 import com.ruoyi.domain.PensionInstitution;
 import com.ruoyi.service.IBedInfoService;
 import com.ruoyi.service.IElderFamilyService;
 import com.ruoyi.service.IElderInfoService;
 import com.ruoyi.service.IOrderInfoService;
+import com.ruoyi.service.IOrderItemService;
 import com.ruoyi.service.IPensionCheckinService;
 import com.ruoyi.service.IPensionInstitutionService;
 import com.ruoyi.service.IPensionInstitutionPublicService;
@@ -59,6 +61,9 @@ public class H5OrderController extends BaseController
 
     @Autowired
     private IOrderInfoService orderInfoService;
+
+    @Autowired
+    private IOrderItemService orderItemService;
 
     @Autowired
     private IElderFamilyService elderFamilyService;
@@ -687,24 +692,45 @@ public class H5OrderController extends BaseController
         try {
             BigDecimal totalAmount = order.getOrderAmount() != null ? order.getOrderAmount() : BigDecimal.ZERO;
 
-            // 根据订单类型分配金额到不同余额类型
+            // 根据订单明细项（order_item）的实际金额分配到不同余额类型
             BigDecimal serviceAmount = BigDecimal.ZERO;
             BigDecimal depositAmount = BigDecimal.ZERO;
             BigDecimal memberAmount = BigDecimal.ZERO;
 
-            String orderType = order.getOrderType();
-            if ("1".equals(orderType)) { // 入驻订单
-                // 入驻订单通常包含：押金 + 会员费 + 服务费
-                depositAmount = totalAmount.multiply(new BigDecimal("0.4")); // 40%押金
-                memberAmount = totalAmount.multiply(new BigDecimal("0.1"));  // 10%会员费
-                serviceAmount = totalAmount.subtract(depositAmount).subtract(memberAmount); // 剩余为服务费
-            } else if ("2".equals(orderType)) { // 续费订单
-                // 续费订单主要是服务费
-                serviceAmount = totalAmount.multiply(new BigDecimal("0.9")); // 90%服务费
-                memberAmount = totalAmount.multiply(new BigDecimal("0.1"));  // 10%其他费用
-            } else { // 其他类型
-                serviceAmount = totalAmount.multiply(new BigDecimal("0.8")); // 80%服务费
-                depositAmount = totalAmount.multiply(new BigDecimal("0.2")); // 20%其他
+            // 查询订单明细
+            List<OrderItem> orderItems = orderItemService.selectOrderItemsByOrderId(order.getOrderId());
+
+            if (orderItems != null && !orderItems.isEmpty()) {
+                // 根据订单明细项的类型分配金额
+                for (OrderItem item : orderItems) {
+                    BigDecimal itemTotal = item.getTotalAmount() != null ? item.getTotalAmount() : BigDecimal.ZERO;
+                    String itemType = item.getItemType();
+
+                    if ("deposit".equals(itemType)) {
+                        // 押金类型
+                        depositAmount = depositAmount.add(itemTotal);
+                    } else if ("member_fee".equals(itemType)) {
+                        // 会员费类型
+                        memberAmount = memberAmount.add(itemTotal);
+                    } else {
+                        // 其他类型（床位费、护理费等）归入服务费
+                        serviceAmount = serviceAmount.add(itemTotal);
+                    }
+                }
+            } else {
+                // 如果没有订单明细，使用旧的比例分配方式（向后兼容）
+                String orderType = order.getOrderType();
+                if ("1".equals(orderType)) { // 入驻订单
+                    depositAmount = totalAmount.multiply(new BigDecimal("0.4")); // 40%押金
+                    memberAmount = totalAmount.multiply(new BigDecimal("0.1"));  // 10%会员费
+                    serviceAmount = totalAmount.subtract(depositAmount).subtract(memberAmount); // 剩余为服务费
+                } else if ("2".equals(orderType)) { // 续费订单
+                    serviceAmount = totalAmount.multiply(new BigDecimal("0.9")); // 90%服务费
+                    memberAmount = totalAmount.multiply(new BigDecimal("0.1"));  // 10%其他费用
+                } else { // 其他类型
+                    serviceAmount = totalAmount.multiply(new BigDecimal("0.8")); // 80%服务费
+                    depositAmount = totalAmount.multiply(new BigDecimal("0.2")); // 20%其他
+                }
             }
 
             // 更新账户余额

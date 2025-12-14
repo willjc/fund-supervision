@@ -169,7 +169,7 @@
 
 <script>
 import { listResident } from "@/api/elder/resident";
-import { addDepositUse, getDepositUse, updateDepositUse } from "@/api/elder/depositUse";
+import { addDepositUse, getDepositUse, updateDepositUse, checkPendingApply } from "@/api/elder/depositUse";
 import { getToken } from "@/utils/auth";
 
 export default {
@@ -223,8 +223,9 @@ export default {
       }
     };
   },
-  created() {
-    this.loadResidentList();
+  async created() {
+    // 先加载入住人列表
+    await this.loadResidentList();
 
     // 如果是编辑模式，加载申请数据
     const { applyId, residentId } = this.$route.query;
@@ -241,7 +242,7 @@ export default {
   methods: {
     /** 加载入住人列表 */
     loadResidentList() {
-      listResident({ pageNum: 1, pageSize: 1000 }).then(response => {
+      return listResident({ pageNum: 1, pageSize: 1000 }).then(response => {
         this.residentList = response.rows || [];
       });
     },
@@ -265,7 +266,20 @@ export default {
           };
 
           // 查找并设置选中的入住人
+          console.log('查找入住人:', {
+            elderId: data.elderId,
+            residentListLength: this.residentList.length,
+            residentList: this.residentList
+          });
+
           this.selectedResident = this.residentList.find(item => item.elderId === data.elderId);
+
+          if (!this.selectedResident) {
+            console.error('未找到匹配的入住人:', data.elderId);
+            this.$message.warning('未找到对应的入住人信息，押金余额可能无法显示');
+          } else {
+            console.log('找到入住人:', this.selectedResident);
+          }
 
           // 解析并设置附件列表
           if (data.attachments) {
@@ -351,52 +365,74 @@ export default {
     },
 
     /** 确认提交 */
-    submitConfirmed() {
+    async submitConfirmed() {
       this.submitting = true;
 
-      // 构造提交数据
-      const applicationData = {
-        elderId: this.selectedResident.elderId,
-        institutionId: this.selectedResident.institutionId,
-        accountId: this.selectedResident.accountId,
-        applyAmount: this.form.amount,
-        applyReason: this.form.reason,
-        applyType: '押金使用',
-        urgencyLevel: this.form.urgencyLevel,
-        purpose: this.form.purpose,
-        description: this.form.description,
-        expectedUseDate: this.form.expectedUseDate,
-        attachments: JSON.stringify(this.fileList),
-        applyStatus: 'pending_family', // 直接设为待家属审批
-        remark: this.form.remark
-      };
+      try {
+        // 新增模式下，检查该老人是否有正在审批中的申请
+        if (!this.editingApplyId) {
+          const checkResult = await checkPendingApply(this.selectedResident.elderId);
+          if (checkResult.code === 200 && checkResult.data) {
+            // 有正在审批中的申请
+            const pendingApply = checkResult.data;
+            const statusText = this.getStatusText(pendingApply.applyStatus);
+            this.$message.warning(`该老人有正在审批中的申请（申请编号：${pendingApply.applyNo}，状态：${statusText}），请等待审批完成后再提交新申请`);
+            this.submitting = false;
+            return;
+          }
+        }
 
-      // 判断是新增还是编辑
-      if (this.editingApplyId) {
-        // 编辑模式：更新已有申请
-        applicationData.applyId = this.editingApplyId;
-        updateDepositUse(applicationData).then(response => {
+        // 构造提交数据
+        const applicationData = {
+          elderId: this.selectedResident.elderId,
+          institutionId: this.selectedResident.institutionId,
+          accountId: this.selectedResident.accountId,
+          applyAmount: this.form.amount,
+          applyReason: this.form.reason,
+          applyType: '押金使用',
+          urgencyLevel: this.form.urgencyLevel,
+          purpose: this.form.purpose,
+          description: this.form.description,
+          expectedUseDate: this.form.expectedUseDate,
+          attachments: JSON.stringify(this.fileList),
+          applyStatus: 'pending_family', // 直接设为待家属审批
+          remark: this.form.remark
+        };
+
+        // 判断是新增还是编辑
+        if (this.editingApplyId) {
+          // 编辑模式：更新已有申请
+          applicationData.applyId = this.editingApplyId;
+          await updateDepositUse(applicationData);
           this.$message.success('申请更新成功，等待老人/家属确认');
           this.$router.push('/pension/deposit/list');
-        }).catch(error => {
-          console.error('更新失败:', error);
-          this.$message.error('更新失败，请重试');
-        }).finally(() => {
-          this.submitting = false;
-        });
-      } else {
-        // 新增模式：创建新申请
-        applicationData.applyNo = 'DEP' + new Date().getTime();
-        addDepositUse(applicationData).then(response => {
+        } else {
+          // 新增模式：创建新申请
+          applicationData.applyNo = 'DEP' + new Date().getTime();
+          await addDepositUse(applicationData);
           this.$message.success('申请提交成功，等待老人/家属确认');
           this.$router.push('/pension/deposit/list');
-        }).catch(error => {
-          console.error('提交失败:', error);
-          this.$message.error('提交失败，请重试');
-        }).finally(() => {
-          this.submitting = false;
-        });
+        }
+      } catch (error) {
+        console.error('提交失败:', error);
+        this.$message.error(error.message || '提交失败，请重试');
+      } finally {
+        this.submitting = false;
       }
+    },
+
+    /** 获取状态文本 */
+    getStatusText(status) {
+      const statusMap = {
+        'draft': '草稿',
+        'pending_family': '待家属审批',
+        'family_approved': '家属已审批',
+        'pending_supervision': '待监管审批',
+        'approved': '已通过',
+        'rejected': '已拒绝',
+        'withdrawn': '已撤回'
+      };
+      return statusMap[status] || status;
     },
 
     /** 重置表单 */

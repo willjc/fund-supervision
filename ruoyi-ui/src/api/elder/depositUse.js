@@ -205,6 +205,14 @@ export function getDepositUse(id) {
   })
 }
 
+// 检查老人是否有正在审批中的申请
+export function checkPendingApply(elderId) {
+  return request({
+    url: '/pension/deposit/apply/checkPending/' + elderId,
+    method: 'get'
+  })
+}
+
 // 查询押金使用申请详细(mock数据 - 备用)
 export function getDepositUseMock(id) {
   return new Promise((resolve) => {

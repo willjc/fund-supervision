@@ -45,9 +45,9 @@
             class="attachment-item"
             @click="previewFile(file)"
           >
-            <van-icon name="description" size="24" />
-            <span class="file-name">{{ file.fileName }}</span>
-            <van-icon name="arrow" />
+            <van-icon :name="getFileIcon(file.name)" size="24" color="#1989fa" />
+            <span class="file-name">{{ file.name }}</span>
+            <van-icon name="eye-o" size="18" />
           </div>
         </div>
       </van-cell-group>
@@ -134,7 +134,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { showToast } from 'vant'
+import { showToast, showImagePreview, showDialog } from 'vant'
 import { getApplyDetail } from '@/api/deposit'
 import { formatMoney, formatDate, formatDateTime } from '@/utils/format'
 
@@ -179,9 +179,88 @@ const getStatusText = (status) => {
   return textMap[status] || status
 }
 
+// 获取文件图标
+const getFileIcon = (fileName) => {
+  if (!fileName) return 'description'
+  const ext = fileName.toLowerCase().split('.').pop()
+  const iconMap = {
+    'jpg': 'photo-o',
+    'jpeg': 'photo-o',
+    'png': 'photo-o',
+    'gif': 'photo-o',
+    'bmp': 'photo-o',
+    'webp': 'photo-o',
+    'pdf': 'description',
+    'doc': 'description',
+    'docx': 'description',
+    'xls': 'description',
+    'xlsx': 'description',
+    'txt': 'notes-o'
+  }
+  return iconMap[ext] || 'description'
+}
+
+// 判断是否为图片
+const isImage = (fileName) => {
+  if (!fileName) return false
+  const ext = fileName.toLowerCase().split('.').pop()
+  return ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext)
+}
+
 // 预览文件
 const previewFile = (file) => {
-  showToast('文件预览功能开发中')
+  if (!file || !file.url) {
+    showToast('文件地址不存在')
+    return
+  }
+
+  // 构建完整的文件URL（开发环境通过代理访问，生产环境需要完整URL）
+  const fileUrl = file.url.startsWith('http')
+    ? file.url
+    : `${window.location.origin}${file.url}`
+
+  console.log('预览文件:', file.name, fileUrl)
+
+  // 图片类型使用图片预览
+  if (isImage(file.name)) {
+    showImagePreview({
+      images: [fileUrl],
+      closeable: true,
+      onClose: () => {
+        console.log('关闭图片预览')
+      }
+    })
+    return
+  }
+
+  // PDF、Word等文档类型
+  const ext = file.name.toLowerCase().split('.').pop()
+  if (ext === 'pdf') {
+    // PDF可以在浏览器中直接打开
+    window.open(fileUrl, '_blank')
+  } else if (['doc', 'docx', 'xls', 'xlsx'].includes(ext)) {
+    // Office文档提示下载或使用在线预览
+    showDialog({
+      title: '文档预览',
+      message: '是否下载该文档？',
+      showCancelButton: true,
+      confirmButtonText: '下载',
+      cancelButtonText: '取消'
+    }).then(() => {
+      // 下载文件
+      const link = document.createElement('a')
+      link.href = fileUrl
+      link.download = file.name
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    }).catch(() => {
+      // 取消操作
+    })
+  } else {
+    // 其他类型尝试在新窗口打开
+    window.open(fileUrl, '_blank')
+  }
 }
 
 // 同意申请
@@ -263,15 +342,23 @@ onMounted(() => {
   background: #f7f8fa;
   border-radius: 8px;
   margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.attachment-item:active {
+  background: #e8e9eb;
+  transform: scale(0.98);
 }
 
 .file-name {
   flex: 1;
   font-size: 14px;
-  color: #333;
+  color: #323233;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 500;
 }
 
 .reject-reason {

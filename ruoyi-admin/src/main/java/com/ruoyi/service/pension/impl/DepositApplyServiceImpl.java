@@ -1,12 +1,15 @@
 package com.ruoyi.service.pension.impl;
 
+import java.math.BigDecimal;
 import java.util.List;
 import com.ruoyi.common.utils.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.ruoyi.mapper.pension.DepositApplyMapper;
 import com.ruoyi.domain.pension.DepositApply;
+import com.ruoyi.domain.pension.AccountInfo;
 import com.ruoyi.service.pension.IDepositApplyService;
+import com.ruoyi.service.pension.IAccountInfoService;
 
 /**
  * 押金使用申请Service业务层处理
@@ -19,6 +22,9 @@ public class DepositApplyServiceImpl implements IDepositApplyService
 {
     @Autowired
     private DepositApplyMapper depositApplyMapper;
+
+    @Autowired
+    private IAccountInfoService accountInfoService;
 
     /**
      * 查询押金使用申请
@@ -175,7 +181,54 @@ public class DepositApplyServiceImpl implements IDepositApplyService
             throw new RuntimeException("当前状态不允许监管部门审批");
         }
 
-        // 3. 更新审批信息
+        // 3. 如果审批通过，扣除押金余额
+        if (approved) {
+            Long accountId = apply.getAccountId();
+            if (accountId == null) {
+                throw new RuntimeException("申请中未关联账户信息");
+            }
+
+            AccountInfo account = accountInfoService.selectAccountInfoByAccountId(accountId);
+            if (account == null) {
+                throw new RuntimeException("账户不存在");
+            }
+
+            // 获取申请金额
+            BigDecimal applyAmount = apply.getApplyAmount();
+            if (applyAmount == null || applyAmount.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new RuntimeException("申请金额无效");
+            }
+
+            // 获取当前押金余额
+            BigDecimal currentDepositBalance = account.getDepositBalance() != null ?
+                account.getDepositBalance() : BigDecimal.ZERO;
+            BigDecimal currentTotalBalance = account.getTotalBalance() != null ?
+                account.getTotalBalance() : BigDecimal.ZERO;
+
+            // 验证押金余额是否足够
+            if (currentDepositBalance.compareTo(applyAmount) < 0) {
+                throw new RuntimeException("押金余额不足，当前押金余额：" + currentDepositBalance + "元，申请金额：" + applyAmount + "元");
+            }
+
+            // 扣除押金余额（只扣押金，不影响服务费余额和会员余额）
+            BigDecimal newDepositBalance = currentDepositBalance.subtract(applyAmount);
+            BigDecimal newTotalBalance = currentTotalBalance.subtract(applyAmount);
+
+            account.setDepositBalance(newDepositBalance);
+            account.setTotalBalance(newTotalBalance);
+            account.setUpdateTime(DateUtils.getNowDate());
+
+            // 更新账户余额
+            int accountUpdateResult = accountInfoService.updateAccountInfo(account);
+            if (accountUpdateResult <= 0) {
+                throw new RuntimeException("更新账户余额失败");
+            }
+
+            // 记录实际使用金额
+            apply.setActualAmount(applyAmount);
+        }
+
+        // 4. 更新审批信息
         DepositApply updateApply = new DepositApply();
         updateApply.setApplyId(applyId);
         updateApply.setApprover(approver);
@@ -183,6 +236,11 @@ public class DepositApplyServiceImpl implements IDepositApplyService
         updateApply.setApproveRemark(remark);
         updateApply.setApplyStatus(approved ? "approved" : "rejected");
         updateApply.setUpdateTime(DateUtils.getNowDate());
+
+        // 如果审批通过，记录实际使用金额
+        if (approved) {
+            updateApply.setActualAmount(apply.getApplyAmount());
+        }
 
         return depositApplyMapper.updateDepositApply(updateApply);
     }
