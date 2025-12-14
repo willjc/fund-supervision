@@ -134,8 +134,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { showToast, showImagePreview, showDialog } from 'vant'
-import { getApplyDetail } from '@/api/deposit'
+import { showToast, showImagePreview, showDialog, showConfirmDialog } from 'vant'
+import { getApplyDetail, submitFamilyApproval } from '@/api/deposit'
 import { formatMoney, formatDate, formatDateTime } from '@/utils/format'
 
 const route = useRoute()
@@ -264,13 +264,110 @@ const previewFile = (file) => {
 }
 
 // 同意申请
-const handleApprove = () => {
-  router.push(`/deposit/approve/${route.params.id}`)
+const handleApprove = async () => {
+  try {
+    await showConfirmDialog({
+      title: '确认审批',
+      message: `确认同意该押金使用申请吗？\n申请金额：¥${formatMoney(detail.value.applyAmount)}`
+    })
+
+    const res = await submitFamilyApproval({
+      applyId: route.params.id,
+      approvalResult: 'approved'
+    })
+
+    if (res.code === 200) {
+      showToast({
+        type: 'success',
+        message: '审批成功'
+      })
+      // 刷新详情
+      await loadDetail()
+    } else {
+      showToast({
+        type: 'fail',
+        message: res.msg || '审批失败'
+      })
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('审批失败:', error)
+      showToast({
+        type: 'fail',
+        message: error.message || '审批失败'
+      })
+    }
+  }
 }
 
 // 拒绝申请
-const handleReject = () => {
-  router.push(`/deposit/approve/${route.params.id}`)
+const handleReject = async () => {
+  try {
+    const result = await showDialog({
+      title: '拒绝申请',
+      message: '请输入拒绝原因',
+      showCancelButton: true,
+      confirmButtonText: '确认',
+      cancelButtonText: '取消',
+      beforeClose: (action) => {
+        if (action === 'confirm') {
+          const input = document.querySelector('.van-dialog__message input')
+          if (!input || !input.value.trim()) {
+            showToast('请输入拒绝原因')
+            return false
+          }
+        }
+        return true
+      }
+    })
+
+    // 创建输入框
+    setTimeout(() => {
+      const messageEl = document.querySelector('.van-dialog__message')
+      if (messageEl && !messageEl.querySelector('input')) {
+        const input = document.createElement('input')
+        input.type = 'text'
+        input.placeholder = '请输入拒绝原因'
+        input.style.cssText = 'width: 100%; padding: 8px; margin-top: 12px; border: 1px solid #ebedf0; border-radius: 4px; font-size: 14px;'
+        messageEl.appendChild(input)
+      }
+    }, 0)
+
+    const input = document.querySelector('.van-dialog__message input')
+    const rejectReason = input ? input.value.trim() : ''
+
+    if (!rejectReason) {
+      return
+    }
+
+    const res = await submitFamilyApproval({
+      applyId: route.params.id,
+      approvalResult: 'rejected',
+      rejectReason
+    })
+
+    if (res.code === 200) {
+      showToast({
+        type: 'success',
+        message: '审批成功'
+      })
+      // 刷新详情
+      await loadDetail()
+    } else {
+      showToast({
+        type: 'fail',
+        message: res.msg || '审批失败'
+      })
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('审批失败:', error)
+      showToast({
+        type: 'fail',
+        message: error.message || '审批失败'
+      })
+    }
+  }
 }
 
 // 加载详情

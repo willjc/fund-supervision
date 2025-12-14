@@ -212,7 +212,7 @@
             type="text"
             icon="el-icon-check"
             @click="handleApprove(scope.row)"
-            v-if="scope.row.applyStatus === '0'"
+            v-if="scope.row.applyStatus === 'family_approved'"
             v-hasPermi="['pension:deposit:approve']"
           >通过</el-button>
           <el-button
@@ -220,7 +220,7 @@
             type="text"
             icon="el-icon-close"
             @click="handleReject(scope.row)"
-            v-if="scope.row.applyStatus === '0'"
+            v-if="scope.row.applyStatus === 'family_approved'"
             v-hasPermi="['pension:deposit:reject']"
           >拒绝</el-button>
         </template>
@@ -456,7 +456,7 @@ export default {
         applyNo: null,
         applyType: null,
         urgencyLevel: null,
-        applyStatus: "0" // 默认只查询待审批
+        applyStatus: "family_approved" // 默认查询家属已审批（待监管审批）
       },
       // 拒绝表单
       rejectForm: {

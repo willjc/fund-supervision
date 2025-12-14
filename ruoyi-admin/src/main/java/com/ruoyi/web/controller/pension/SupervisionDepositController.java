@@ -41,8 +41,10 @@ public class SupervisionDepositController extends BaseController
     public TableDataInfo list(DepositApply depositApply)
     {
         startPage();
-        // 默认查询待审批的押金申请
-        depositApply.setApplyStatus("0");
+        // 默认查询家属已审批的押金申请（等待监管审批）
+        if (depositApply.getApplyStatus() == null || depositApply.getApplyStatus().isEmpty()) {
+            depositApply.setApplyStatus("family_approved");
+        }
         List<DepositApply> list = depositApplyService.selectDepositApplyList(depositApply);
         return getDataTable(list);
     }
@@ -90,21 +92,17 @@ public class SupervisionDepositController extends BaseController
     @PutMapping("/approval/approve/{applyId}")
     public AjaxResult approve(@PathVariable Long applyId)
     {
-        DepositApply depositApply = depositApplyService.selectDepositApplyByApplyId(applyId);
-        if (depositApply == null) {
-            return AjaxResult.error("押金申请记录不存在");
+        try {
+            // 调用监管审批方法（包含扣除押金余额的逻辑）
+            int result = depositApplyService.supervisionApprove(applyId, true, "审批通过", getUsername());
+            if (result > 0) {
+                return AjaxResult.success("审批通过成功，押金已扣除");
+            } else {
+                return AjaxResult.error("审批失败");
+            }
+        } catch (Exception e) {
+            return AjaxResult.error("审批失败：" + e.getMessage());
         }
-
-        if (!"0".equals(depositApply.getApplyStatus())) {
-            return AjaxResult.error("只能审批待处理状态的申请");
-        }
-
-        // 更新状态为已批准
-        depositApply.setApplyStatus("1");
-        depositApply.setApprover(getUsername());
-        depositApply.setApproveTime(new java.util.Date());
-
-        return toAjax(depositApplyService.updateDepositApply(depositApply));
     }
 
     /**
@@ -115,22 +113,22 @@ public class SupervisionDepositController extends BaseController
     @PutMapping("/approval/reject/{applyId}")
     public AjaxResult reject(@PathVariable Long applyId, @RequestBody DepositApply depositApply)
     {
-        DepositApply existing = depositApplyService.selectDepositApplyByApplyId(applyId);
-        if (existing == null) {
-            return AjaxResult.error("押金申请记录不存在");
+        try {
+            String rejectReason = depositApply.getApproveRemark();
+            if (rejectReason == null || rejectReason.isEmpty()) {
+                return AjaxResult.error("请输入拒绝原因");
+            }
+
+            // 调用监管审批方法（拒绝）
+            int result = depositApplyService.supervisionApprove(applyId, false, rejectReason, getUsername());
+            if (result > 0) {
+                return AjaxResult.success("审批拒绝成功");
+            } else {
+                return AjaxResult.error("审批失败");
+            }
+        } catch (Exception e) {
+            return AjaxResult.error("审批失败：" + e.getMessage());
         }
-
-        if (!"0".equals(existing.getApplyStatus())) {
-            return AjaxResult.error("只能审批待处理状态的申请");
-        }
-
-        // 更新状态为已拒绝
-        existing.setApplyStatus("2");
-        existing.setApprover(getUsername());
-        existing.setApproveTime(new java.util.Date());
-        existing.setApproveRemark(depositApply.getApproveRemark()); // 拒绝原因
-
-        return toAjax(depositApplyService.updateDepositApply(existing));
     }
 
     /**
@@ -142,29 +140,24 @@ public class SupervisionDepositController extends BaseController
     {
         DepositApply query = new DepositApply();
 
-        // 待处理数量
-        query.setApplyStatus("0");
+        // 待监管审批数量（家属已审批）
+        query.setApplyStatus("family_approved");
         int pendingCount = depositApplyService.selectDepositApplyList(query).size();
 
         // 已批准数量
-        query.setApplyStatus("1");
+        query.setApplyStatus("approved");
         int approvedCount = depositApplyService.selectDepositApplyList(query).size();
 
         // 已拒绝数量
-        query.setApplyStatus("2");
+        query.setApplyStatus("rejected");
         int rejectedCount = depositApplyService.selectDepositApplyList(query).size();
-
-        // 已撤销数量
-        query.setApplyStatus("3");
-        int cancelledCount = depositApplyService.selectDepositApplyList(query).size();
 
         // 构建统计结果
         java.util.Map<String, Object> statistics = new java.util.HashMap<>();
         statistics.put("pendingCount", pendingCount);
         statistics.put("approvedCount", approvedCount);
         statistics.put("rejectedCount", rejectedCount);
-        statistics.put("cancelledCount", cancelledCount);
-        statistics.put("totalCount", pendingCount + approvedCount + rejectedCount + cancelledCount);
+        statistics.put("totalCount", pendingCount + approvedCount + rejectedCount);
 
         return AjaxResult.success(statistics);
     }
@@ -182,16 +175,8 @@ public class SupervisionDepositController extends BaseController
 
         for (Long applyId : applyIds) {
             try {
-                DepositApply depositApply = depositApplyService.selectDepositApplyByApplyId(applyId);
-                if (depositApply != null && "0".equals(depositApply.getApplyStatus())) {
-                    depositApply.setApplyStatus("1");
-                    depositApply.setApprover(getUsername());
-                    depositApply.setApproveTime(new java.util.Date());
-                    depositApplyService.updateDepositApply(depositApply);
-                    successCount++;
-                } else {
-                    failCount++;
-                }
+                depositApplyService.supervisionApprove(applyId, true, "批量审批通过", getUsername());
+                successCount++;
             } catch (Exception e) {
                 failCount++;
             }
@@ -209,7 +194,7 @@ public class SupervisionDepositController extends BaseController
     public AjaxResult getTodayPending()
     {
         DepositApply query = new DepositApply();
-        query.setApplyStatus("0");
+        query.setApplyStatus("family_approved");
         List<DepositApply> allPending = depositApplyService.selectDepositApplyList(query);
 
         // 筛选今日的押金申请
@@ -237,7 +222,7 @@ public class SupervisionDepositController extends BaseController
     public AjaxResult getUrgentApplies()
     {
         DepositApply query = new DepositApply();
-        query.setApplyStatus("0");
+        query.setApplyStatus("family_approved");
         query.setUrgencyLevel("1"); // 紧急
         List<DepositApply> urgentList = depositApplyService.selectDepositApplyList(query);
 
@@ -252,7 +237,7 @@ public class SupervisionDepositController extends BaseController
     public AjaxResult getLargeAmountApplies()
     {
         DepositApply query = new DepositApply();
-        query.setApplyStatus("0");
+        query.setApplyStatus("family_approved");
         List<DepositApply> allPending = depositApplyService.selectDepositApplyList(query);
 
         // 筛选金额大于5000的押金申请
@@ -276,7 +261,7 @@ public class SupervisionDepositController extends BaseController
     public AjaxResult getStatisticsByType()
     {
         DepositApply query = new DepositApply();
-        query.setApplyStatus("0");
+        query.setApplyStatus("family_approved");
         List<DepositApply> allPending = depositApplyService.selectDepositApplyList(query);
 
         // 按申请类型分组统计
