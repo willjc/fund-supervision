@@ -60,10 +60,11 @@ public class H5DepositController extends BaseController
 
     /**
      * 获取押金申请列表（家属视角）
-     * 查询当前用户关联的所有老人的押金申请
+     * 查询当前用户关联的所有老人的押金申请，支持按老人ID筛选
      */
     @GetMapping("/apply/list")
-    public AjaxResult getApplyList(@RequestParam(required = false) String applyStatus,
+    public AjaxResult getApplyList(@RequestParam(required = false) Long elderId,
+                                   @RequestParam(required = false) String applyStatus,
                                    @RequestParam(defaultValue = "1") Integer pageNum,
                                    @RequestParam(defaultValue = "10") Integer pageSize)
     {
@@ -74,13 +75,19 @@ public class H5DepositController extends BaseController
                 return error("用户未登录或身份验证失败");
             }
 
-            // 1. 查询当前用户关联的所有老人ID
+            // 1. 查询当前用户关联的老人ID
             ElderFamily familyQuery = new ElderFamily();
             familyQuery.setUserId(currentUserId);
+
+            // 如果指定了elderId，验证该老人是否属于当前用户
+            if (elderId != null) {
+                familyQuery.setElderId(elderId);
+            }
+
             List<ElderFamily> familyList = elderFamilyService.selectElderFamilyList(familyQuery);
 
             if (familyList == null || familyList.isEmpty()) {
-                // 用户没有关联的老人，返回空列表
+                // 用户没有关联的老人，或指定的老人不属于当前用户
                 Map<String, Object> result = new HashMap<>();
                 result.put("rows", new ArrayList<>());
                 result.put("total", 0);
@@ -92,8 +99,8 @@ public class H5DepositController extends BaseController
             // 2. 查询这些老人的押金申请
             List<DepositApply> allApplies = new ArrayList<>();
             for (ElderFamily family : familyList) {
-                Long elderId = family.getElderId();
-                List<DepositApply> applies = depositApplyService.selectDepositApplyByElderId(elderId);
+                Long queryElderId = family.getElderId();
+                List<DepositApply> applies = depositApplyService.selectDepositApplyByElderId(queryElderId);
                 if (applies != null && !applies.isEmpty()) {
                     allApplies.addAll(applies);
                 }
@@ -141,6 +148,7 @@ public class H5DepositController extends BaseController
                 item.put("applyStatusText", getApplyStatusText(apply.getApplyStatus()));
                 item.put("urgencyLevel", apply.getUrgencyLevel());
                 item.put("purpose", apply.getPurpose());
+                item.put("usagePurpose", apply.getPurpose()); // 前端期望的字段名
                 item.put("createTime", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, apply.getCreateTime()));
 
                 // 获取老人信息

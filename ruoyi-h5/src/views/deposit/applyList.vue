@@ -4,10 +4,10 @@
 
     <!-- 状态标签 -->
     <van-tabs v-model:active="activeTab" @change="onTabChange" sticky offset-top="46px">
+      <van-tab title="全部" name="all" />
       <van-tab title="待审批" name="pending_family" />
       <van-tab title="已通过" name="approved" />
       <van-tab title="已拒绝" name="rejected" />
-      <van-tab title="全部" name="all" />
     </van-tabs>
 
     <!-- 申请列表 -->
@@ -75,14 +75,15 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { showToast } from 'vant'
 import { getApplyList } from '@/api/deposit'
 import { formatMoney, formatDate } from '@/utils/format'
 
 const router = useRouter()
+const route = useRoute()
 
-const activeTab = ref('pending_family')
+const activeTab = ref('all')
 const loading = ref(false)
 const finished = ref(false)
 const refreshing = ref(false)
@@ -108,6 +109,11 @@ const loadApplyList = async () => {
       pageSize: pageSize.value
     }
 
+    // 添加老人ID筛选（从路由参数获取）
+    if (route.query.elderId) {
+      params.elderId = route.query.elderId
+    }
+
     // 添加状态筛选
     if (activeTab.value !== 'all') {
       params.applyStatus = activeTab.value
@@ -116,7 +122,7 @@ const loadApplyList = async () => {
     const res = await getApplyList(params)
 
     if (res.code === 200) {
-      const newList = res.rows || []
+      const newList = res.data?.rows || []
 
       if (refreshing.value) {
         applyList.value = newList
