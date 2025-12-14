@@ -20,8 +20,8 @@
               @click="handleTodoClick(item)"
             >
               <div class="todo-header">
-                <van-tag :type="getTypeColor(item.type)" size="medium">
-                  {{ item.type }}
+                <van-tag :type="getTypeColor(item.typeText)" size="medium">
+                  {{ item.typeText }}
                 </van-tag>
                 <span class="todo-time">{{ item.createTime }}</span>
               </div>
@@ -29,6 +29,16 @@
               <div class="todo-desc">{{ item.description }}</div>
               <div class="todo-footer">
                 <van-button
+                  v-if="item.type === 'deposit_approve'"
+                  size="small"
+                  type="primary"
+                  plain
+                  @click.stop="handleComplete(item)"
+                >
+                  去审批
+                </van-button>
+                <van-button
+                  v-else
                   size="small"
                   type="primary"
                   plain
@@ -77,9 +87,10 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { showToast, showConfirmDialog } from 'vant'
+import { showToast, showLoadingToast } from 'vant'
+import { getTodoList } from '@/api/todo'
 
 const router = useRouter()
 
@@ -87,48 +98,56 @@ const router = useRouter()
 const activeTab = ref('pending')
 
 // 待办列表
-const pendingList = ref([
-  {
-    id: 1,
-    type: '缴费提醒',
-    title: '2月服务费待缴纳',
-    description: '您的2月服务费将于2025-02-01到期,请及时缴纳',
-    createTime: '2025-01-14 09:00',
-    dueDate: '2025-02-01'
-  },
-  {
-    id: 2,
-    type: '体检提醒',
-    title: '老人定期体检',
-    description: '张伟老人本月需进行定期健康检查',
-    createTime: '2025-01-13 10:30',
-    dueDate: '2025-01-20'
-  },
-  {
-    id: 3,
-    type: '预约确认',
-    title: '参观预约待确认',
-    description: '您预约的参观时间为2025-01-18 10:00,请按时到访',
-    createTime: '2025-01-12 15:20',
-    dueDate: '2025-01-18'
-  }
-])
+const pendingList = ref([])
 
-// 已完成列表
-const completedList = ref([
-  {
-    id: 4,
-    type: '缴费提醒',
-    title: '1月服务费已缴纳',
-    description: '您已成功缴纳1月服务费2800元',
-    createTime: '2025-01-08 14:00',
-    completeTime: '2025-01-10 09:30'
+// 已完成列表（暂未实现）
+const completedList = ref([])
+
+// 加载状态
+const loading = ref(false)
+
+// 获取待办列表
+const loadTodoList = async () => {
+  let toast = null
+  try {
+    loading.value = true
+    toast = showLoadingToast({
+      message: '加载中...',
+      forbidClick: true,
+      duration: 0
+    })
+
+    const response = await getTodoList({
+      pageNum: 1,
+      pageSize: 100
+    })
+
+    if (toast) toast.close()
+
+    if (response.code === 200 && response.data) {
+      pendingList.value = response.data.rows || []
+    } else {
+      showToast({
+        type: 'fail',
+        message: response.msg || '加载失败'
+      })
+    }
+  } catch (error) {
+    if (toast) toast.close()
+    console.error('加载待办列表失败', error)
+    showToast({
+      type: 'fail',
+      message: '加载失败'
+    })
+  } finally {
+    loading.value = false
   }
-])
+}
 
 // 获取类型颜色
 const getTypeColor = (type) => {
   const colorMap = {
+    '押金审批': 'warning',
     '缴费提醒': 'warning',
     '体检提醒': 'primary',
     '预约确认': 'success',
@@ -145,48 +164,37 @@ const onTabChange = (name) => {
 // 点击待办事项
 const handleTodoClick = (item) => {
   // 根据类型跳转到相应页面
-  if (item.type === '缴费提醒') {
+  if (item.type === 'deposit_approve') {
+    // 跳转到押金审批详情页
+    router.push(item.path)
+  } else if (item.type === '缴费提醒') {
     router.push('/user/expense')
   } else if (item.type === '预约确认') {
     router.push('/user/appointment')
   }
 }
 
-// 标记完成
+// 标记完成（押金审批不需要此功能，在详情页直接审批）
 const handleComplete = async (item) => {
-  try {
-    await showConfirmDialog({
-      title: '确认完成',
-      message: '确定要标记该事项为已完成吗?'
+  // 押金审批类待办不支持标记完成，需要在详情页审批
+  if (item.type === 'deposit_approve') {
+    showToast({
+      message: '请进入详情页进行审批'
     })
-
-    // 模拟操作
-    await new Promise(resolve => setTimeout(resolve, 300))
-
-    // 移动到已完成列表
-    const index = pendingList.value.findIndex(i => i.id === item.id)
-    if (index > -1) {
-      const completedItem = {
-        ...item,
-        completeTime: new Date().toLocaleString('zh-CN', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit'
-        }).replace(/\//g, '-')
-      }
-      pendingList.value.splice(index, 1)
-      completedList.value.unshift(completedItem)
-
-      showToast('已标记为完成')
-    }
-  } catch (error) {
-    if (error !== 'cancel') {
-      showToast('操作失败')
-    }
+    router.push(item.path)
+    return
   }
+
+  showToast({
+    type: 'fail',
+    message: '该功能暂未实现'
+  })
 }
+
+// 页面加载时获取待办列表
+onMounted(() => {
+  loadTodoList()
+})
 </script>
 
 <style scoped>

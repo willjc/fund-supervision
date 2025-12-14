@@ -27,6 +27,20 @@
           </div>
         </div>
 
+        <!-- 押金管理入口 -->
+        <div class="deposit-manage-entry">
+          <van-button
+            block
+            plain
+            type="primary"
+            size="small"
+            icon="gold-coin-o"
+            @click="goToDepositManage"
+          >
+            押金使用申请管理
+          </van-button>
+        </div>
+
         <!-- 费用类型Tab -->
         <van-tabs
           v-model:active="activeTab"
@@ -270,6 +284,22 @@ const handleRefund = (item) => {
   })
 }
 
+// 跳转押金管理
+const goToDepositManage = () => {
+  if (!selectedElder.value.id) {
+    showToast('请先选择老人')
+    return
+  }
+
+  router.push({
+    path: '/deposit/apply-list',
+    query: {
+      elderId: selectedElder.value.id,
+      elderName: selectedElder.value.name
+    }
+  })
+}
+
 // 页面加载时获取老人列表
 const initPage = async () => {
   await loadElderList()
@@ -360,6 +390,21 @@ onMounted(async () => {
 
 .divider {
   opacity: 0.5;
+}
+
+/* 押金管理入口 */
+.deposit-manage-entry {
+  padding: 12px 16px 16px;
+}
+
+.deposit-manage-entry :deep(.van-button) {
+  border-color: #667eea;
+  color: #667eea;
+  font-weight: 500;
+}
+
+.deposit-manage-entry :deep(.van-button):active {
+  background-color: #f5f6ff;
 }
 
 /* Tab */

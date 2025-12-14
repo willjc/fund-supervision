@@ -2,13 +2,13 @@ import dayjs from 'dayjs'
 
 /**
  * 格式化金额
- * @param {Number} amount 金额(分)
+ * @param {Number} amount 金额(元)
  * @param {Number} decimals 小数位数
  * @returns {String} 格式化后的金额
  */
 export function formatMoney(amount, decimals = 2) {
   if (!amount && amount !== 0) return '0.00'
-  const num = parseFloat(amount) / 100
+  const num = parseFloat(amount)
   return num.toFixed(decimals)
 }
 

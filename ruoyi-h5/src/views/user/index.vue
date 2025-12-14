@@ -122,6 +122,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast, showConfirmDialog } from 'vant'
 import { useUserStore } from '@/store/modules/user'
+import { getTodoCount } from '@/api/todo'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -136,8 +137,20 @@ const userInfo = computed(() => ({
 const userAvatar = ref('https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg')
 
 // 统计数据
-const todoCount = ref(3)
+const todoCount = ref(0)
 const elderCount = computed(() => userStore.elders?.length || 0)
+
+// 加载待办数量
+const loadTodoCount = async () => {
+  try {
+    const response = await getTodoCount()
+    if (response.code === 200 && response.data) {
+      todoCount.value = response.data.totalCount || 0
+    }
+  } catch (error) {
+    console.error('获取待办数量失败', error)
+  }
+}
 
 // 跳转待办事项
 const goToTodo = () => {
@@ -209,6 +222,11 @@ const handleLogout = async () => {
     // 用户取消退出
   }
 }
+
+// 页面加载时获取待办数量
+onMounted(() => {
+  loadTodoCount()
+})
 </script>
 
 <style scoped>

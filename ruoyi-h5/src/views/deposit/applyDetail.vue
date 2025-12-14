@@ -200,11 +200,23 @@ const loadDetail = async () => {
     loading.value = true
     const res = await getApplyDetail(route.params.id)
 
+    console.log('申请详情返回数据:', res)
+
     if (res.code === 200) {
       detail.value = res.data
+      console.log('申请详情:', detail.value)
+    } else {
+      showToast({
+        type: 'fail',
+        message: res.msg || '加载失败'
+      })
     }
   } catch (error) {
-    showToast('加载失败')
+    console.error('加载申请详情失败:', error)
+    showToast({
+      type: 'fail',
+      message: error.message || '加载失败'
+    })
   } finally {
     loading.value = false
   }
