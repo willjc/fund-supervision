@@ -140,24 +140,32 @@ public class SupervisionDepositController extends BaseController
     {
         DepositApply query = new DepositApply();
 
-        // 待监管审批数量（家属已审批）
+        // 待监管审批数量（家属已审批，等待监管审批）
         query.setApplyStatus("family_approved");
-        int pendingCount = depositApplyService.selectDepositApplyList(query).size();
+        int supervisionPendingCount = depositApplyService.selectDepositApplyList(query).size();
 
         // 已批准数量
         query.setApplyStatus("approved");
         int approvedCount = depositApplyService.selectDepositApplyList(query).size();
 
-        // 已拒绝数量
+        // 已拒绝数量（包括家属拒绝和监管拒绝）
         query.setApplyStatus("rejected");
         int rejectedCount = depositApplyService.selectDepositApplyList(query).size();
 
-        // 构建统计结果
+        // 待家属审批数量
+        query.setApplyStatus("pending_family");
+        int familyPendingCount = depositApplyService.selectDepositApplyList(query).size();
+
+        // 构建统计结果 - 待审批包括待家属审批和待监管审批
+        int totalPendingCount = familyPendingCount + supervisionPendingCount;
+
         java.util.Map<String, Object> statistics = new java.util.HashMap<>();
-        statistics.put("pendingCount", pendingCount);
+        statistics.put("pendingCount", totalPendingCount); // 总待审批数量
         statistics.put("approvedCount", approvedCount);
         statistics.put("rejectedCount", rejectedCount);
-        statistics.put("totalCount", pendingCount + approvedCount + rejectedCount);
+        statistics.put("familyPendingCount", familyPendingCount);
+        statistics.put("supervisionPendingCount", supervisionPendingCount);
+        statistics.put("totalCount", totalPendingCount + approvedCount + rejectedCount);
 
         return AjaxResult.success(statistics);
     }

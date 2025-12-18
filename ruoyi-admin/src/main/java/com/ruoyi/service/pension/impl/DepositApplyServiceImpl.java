@@ -146,12 +146,22 @@ public class DepositApplyServiceImpl implements IDepositApplyService
             throw new RuntimeException("当前状态不允许家属审批");
         }
 
-        // 3. 更新审批信息
+        // 3. 判断审批结果
+        String approveStatus;
+        // 判断是同意还是拒绝
+        if ("approved".equals(opinion) || opinion.contains("同意") || opinion.equals("agree")) {
+            approveStatus = "family_approved"; // 家属同意，等待监管部门审批
+        } else {
+            approveStatus = "rejected"; // 家属拒绝
+        }
+
+        // 4. 更新审批信息
         DepositApply updateApply = new DepositApply();
         updateApply.setApplyId(applyId);
         updateApply.setFamilyApproveOpinion(opinion);
+        updateApply.setFamilyConfirmName(approver); // 记录家属审批人
         updateApply.setFamilyApproveTime(DateUtils.getNowDate());
-        updateApply.setApplyStatus("family_approved"); // 家属已审批,等待监管部门审批
+        updateApply.setApplyStatus(approveStatus);
         updateApply.setUpdateTime(DateUtils.getNowDate());
 
         return depositApplyMapper.updateDepositApply(updateApply);

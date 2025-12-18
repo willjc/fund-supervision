@@ -4,6 +4,42 @@
 - 项目名称：若依(RuoYi) 管理系统
 - 版本：v3.9.0
 
+## 2025-12-18
+
+### 押金申请审批家属拒绝逻辑修复
+**问题**:
+1. 家属拒绝押金申请后，状态仍设置为"family_approved"，导致监管端仍能看到待审批
+2. 监管端详情页面缺少家属审批信息显示（时间、审批人、意见）
+3. 统计数量与列表数量不一致
+
+**修改文件**:
+1. `ruoyi-admin/src/main/java/com/ruoyi/service/pension/impl/DepositApplyServiceImpl.java`:
+   - 修改familyApprove方法：根据审批意见判断状态，拒绝时设置为"rejected"
+   - 添加familyConfirmName字段设置，记录家属审批人
+
+2. `ruoyi-admin/src/main/java/com/ruoyi/web/controller/pension/SupervisionDepositController.java`:
+   - 优化统计逻辑：添加familyPendingCount统计，totalCount包含所有相关状态
+
+3. `ruoyi-ui/src/views/supervision/deposit/approval.vue`:
+   - 在详情对话框中添加家属审批信息显示（时间、审批人、意见）
+   - 添加getFamilyApprovalClass和getFamilyApprovalText方法处理审批意见样式和文本
+
+**修复效果**:
+- 家属拒绝的申请将不再出现在监管端待审批列表
+- 监管端详情页面可以看到完整的审批流程（家属审批时间、审批人、意见）
+- 统计数据更准确，避免数量不一致的问题
+
+**问题解释**:
+- 统计卡片的"待监管审批"显示1个：指家属已审批、等待监管审批的申请（family_approved状态）
+- 筛选框"待家属审批"显示4个：指等待家属审批的申请（pending_family状态）
+- 这是两个不同审批阶段的数量，都是正确的
+
+**补充修改**:
+- 修复统计逻辑：待审批数量包括待家属审批(4个) + 待监管审批(1个) = 5个
+- 修复显示全部切换逻辑中的状态值错误（"0"改为"family_approved"）
+- 添加调试信息，确保统计数据正确显示
+- 统计卡片恢复"待审批"标签，因为现在统计的是所有待审批的申请
+
 ## 2025-01-11
 
 ### H5订单提交完整修复

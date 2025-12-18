@@ -258,10 +258,25 @@
           <dict-tag :options="dict.type.deposit_apply_status" :value="currentApply.applyStatus"/>
         </el-descriptions-item>
         <el-descriptions-item label="申请原因" :span="2">{{ currentApply.applyReason }}</el-descriptions-item>
+
+        <!-- 家属审批信息 -->
+        <el-descriptions-item label="家属审批时间" v-if="currentApply.familyApproveTime">
+          {{ parseTime(currentApply.familyApproveTime) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="家属审批人" v-if="currentApply.familyConfirmName">
+          {{ currentApply.familyConfirmName }}
+        </el-descriptions-item>
+        <el-descriptions-item label="家属审批意见" :span="2" v-if="currentApply.familyApproveOpinion">
+          <span :class="getFamilyApprovalClass(currentApply.familyApproveOpinion)">
+            {{ getFamilyApprovalText(currentApply.familyApproveOpinion) }}
+          </span>
+        </el-descriptions-item>
+
+        <!-- 监管审批信息 -->
         <el-descriptions-item label="创建时间">{{ parseTime(currentApply.createTime) }}</el-descriptions-item>
-        <el-descriptions-item label="审批人">{{ currentApply.approver }}</el-descriptions-item>
-        <el-descriptions-item label="审批时间">{{ parseTime(currentApply.approveTime) }}</el-descriptions-item>
-        <el-descriptions-item label="审批意见" v-if="currentApply.approveRemark">
+        <el-descriptions-item label="监管审批人">{{ currentApply.approver || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="监管审批时间">{{ parseTime(currentApply.approveTime) || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="监管审批意见" v-if="currentApply.approveRemark">
           {{ currentApply.approveRemark }}
         </el-descriptions-item>
         <el-descriptions-item label="实际使用金额" v-if="currentApply.actualAmount">
@@ -493,6 +508,7 @@ export default {
     getStatistics() {
       getApprovalStatistics().then(response => {
         this.statistics = response.data;
+        console.log('统计数据:', response.data); // 调试信息
       });
     },
     /** 搜索按钮操作 */
@@ -580,7 +596,7 @@ export default {
       if (value) {
         this.queryParams.applyStatus = null; // 显示全部状态
       } else {
-        this.queryParams.applyStatus = "0"; // 只显示待审批
+        this.queryParams.applyStatus = "family_approved"; // 只显示待监管审批
       }
       this.queryParams.pageNum = 1;
       this.getList();
@@ -605,6 +621,28 @@ export default {
         this.largeAmountList = response.data;
         this.largeAmountOpen = true;
       });
+    },
+    /** 获取家属审批样式类 */
+    getFamilyApprovalClass(opinion) {
+      if (!opinion) return '';
+      if (opinion.includes('同意') || opinion === 'approved' || opinion === 'agree') {
+        return 'text-success';
+      } else if (opinion.includes('拒绝') || opinion === 'rejected' || opinion === 'reject') {
+        return 'text-danger';
+      }
+      return '';
+    },
+    /** 获取家属审批文本 */
+    getFamilyApprovalText(opinion) {
+      if (!opinion) return '';
+      // 如果是简单的同意/拒绝标识，转换为友好文本
+      if (opinion === 'approved' || opinion === 'agree') {
+        return '同意';
+      } else if (opinion === 'rejected' || opinion === 'reject') {
+        return '拒绝';
+      }
+      // 否则返回原始意见
+      return opinion;
     },
     /** 导出按钮操作 */
     handleExport() {
