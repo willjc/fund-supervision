@@ -37,7 +37,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <!-- 关联字段 -->
         <result property="elderName"        column="elder_name"        />
         <result property="institutionName"  column="institution_name"  />
-        <result property="accountBalance"   column="total_balance"     />
+        <result property="accountBalance"   column="deposit_balance"   />
         <result property="bedInfo"          column="bed_info"          />
     </resultMap>
 
@@ -53,7 +53,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                da.family_approve_time, da.family_approve_opinion,
                da.approver, da.approve_time, da.approve_remark, da.actual_amount, da.use_time,
                da.create_by, da.create_time, da.update_by, da.update_time, da.remark,
-               ei.elder_name, pi.institution_name, ai.total_balance,
+               ei.elder_name, pi.institution_name,
+               ai.total_balance, ai.deposit_balance, ai.service_balance, ai.member_balance,
                CONCAT(bi.room_number, '-', bi.bed_number) as bed_info
         from deposit_apply da
         left join elder_info ei on da.elder_id = ei.elder_id

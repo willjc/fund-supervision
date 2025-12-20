@@ -599,11 +599,17 @@ public class H5InstitutionController extends BaseController
         // 默认值
         result.put("rating", 4.5);
         result.put("establishDate", "2024年"); // 可从机构表获取
-        result.put("totalBeds", institution.getBedCount());
 
-        // **通过床位管理系统精确计算可用床位**
-        Map<String, Object> bedStats = bedInfoService.getBedStatistics(institution.getInstitutionId());
-        result.put("availableBeds", bedStats.getOrDefault("availableBeds", 0));
+        // **通过床位管理系统精确计算总床位和可用床位，确保与列表页面数据一致**
+        try {
+            Map<String, Object> bedStats = bedInfoService.getBedStatistics(institution.getInstitutionId());
+            result.put("totalBeds", bedStats.getOrDefault("totalBeds", 0));
+            result.put("availableBeds", bedStats.getOrDefault("availableBeds", 0));
+        } catch (Exception e) {
+            // 异常时使用机构表的床位数作为备用
+            result.put("totalBeds", institution.getBedCount() != null ? institution.getBedCount() : 0);
+            result.put("availableBeds", 0);
+        }
 
         result.put("certificationTags", generateCertificationTags(institution.getInstitutionType()));
         result.put("reviews", new ArrayList<>()); // 暂时为空，后续更新

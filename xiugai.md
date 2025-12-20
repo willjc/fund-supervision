@@ -2661,3 +2661,21 @@ select o.order_id, o.order_no, o.order_type, o.elder_id, o.creator_user_id, o.in
 5. **确认费用增减逻辑的合理性**
 
 **现在H5端'我的费用'页面已经从模拟数据改为真实的费用记录跟踪系统，能够正确显示服务费、押金、会员费的缴纳和使用情况！**
+## 2025-12-20
+
+### 押金申请审批详情页面显示上传文件功能
+**问题描述**: 在后台押金申请审批列表的详情页面中没有显示申请时上传的文件附件
+
+**修改文件**: ruoyi-ui/src/views/supervision/deposit/approval.vue
+
+**主要修改**:
+1. 在详情对话框中添加"申请材料"显示区域，解析attachments字段的JSON数据
+2. 添加parsedAttachments计算属性来解析JSON格式的附件信息
+3. 添加downloadFile方法支持文件下载功能
+4. 添加CSS样式美化附件显示效果
+
+### 修复H5机构详情页面床位数统计不一致问题
+**问题描述**: H5机构详情页面和机构列表页面的床位数统计不一致，详情页面总床位数来自机构表，可用床位数来自床位统计，而列表页面两项都来自床位统计
+
+**修改文件**: ruoyi-admin/src/main/java/com/ruoyi/web/controller/h5/H5InstitutionController.java
+**主要修改**: 修改机构详情页面API，统一使用bedInfoService.getBedStatistics()获取总床位和可用床位数，确保与列表页面数据一致，同时添加异常处理机制

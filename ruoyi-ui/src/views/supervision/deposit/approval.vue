@@ -248,8 +248,8 @@
         <el-descriptions-item label="申请金额">
           <span class="text-primary">¥{{ currentApply.applyAmount }}</span>
         </el-descriptions-item>
-        <el-descriptions-item label="账户余额">
-          <span class="text-success">¥{{ currentApply.accountBalance }}</span>
+        <el-descriptions-item label="押金余额">
+          <span class="text-warning">¥{{ currentApply.accountBalance }}</span>
         </el-descriptions-item>
         <el-descriptions-item label="紧急程度">
           <dict-tag :options="dict.type.urgency_level" :value="currentApply.urgencyLevel"/>
@@ -258,6 +258,23 @@
           <dict-tag :options="dict.type.deposit_apply_status" :value="currentApply.applyStatus"/>
         </el-descriptions-item>
         <el-descriptions-item label="申请原因" :span="2">{{ currentApply.applyReason }}</el-descriptions-item>
+
+        <!-- 申请材料 -->
+        <el-descriptions-item label="申请材料" :span="2" v-if="currentApply.attachments">
+          <div class="attachment-list">
+            <div v-for="(file, index) in parsedAttachments" :key="index" class="attachment-item">
+              <i class="el-icon-document"></i>
+              <span class="file-name">{{ file.name }}</span>
+              <el-button
+                type="text"
+                size="mini"
+                @click="downloadFile(file)"
+                class="download-btn">
+                下载
+              </el-button>
+            </div>
+          </div>
+        </el-descriptions-item>
 
         <!-- 家属审批信息 -->
         <el-descriptions-item label="家属审批时间" v-if="currentApply.familyApproveTime">
@@ -486,6 +503,20 @@ export default {
       }
     };
   },
+  computed: {
+    // 解析附件JSON
+    parsedAttachments() {
+      if (!this.currentApply.attachments) {
+        return [];
+      }
+      try {
+        return JSON.parse(this.currentApply.attachments);
+      } catch (e) {
+        console.error('解析附件JSON失败:', e);
+        return [];
+      }
+    }
+  },
   created() {
     this.getList();
     this.getStatistics();
@@ -649,6 +680,27 @@ export default {
       this.download('pension/supervision/deposit/approval/export', {
         ...this.queryParams
       }, `押金使用审批_${new Date().getTime()}.xlsx`)
+    },
+    /** 下载附件 */
+    downloadFile(file) {
+      if (file.url) {
+        // 构造完整的下载URL
+        let downloadUrl = file.url;
+        // 如果是相对路径，加上服务器地址
+        if (file.url.startsWith('/')) {
+          downloadUrl = process.env.VUE_APP_BASE_API + file.url;
+        }
+
+        // 创建下载链接
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = file.name || '附件';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        this.$modal.msgError('文件下载链接无效');
+      }
     }
   }
 };
@@ -728,5 +780,43 @@ export default {
 .text-danger {
   color: #F56C6C;
   font-weight: bold;
+}
+
+/* 附件样式 */
+.attachment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.attachment-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+}
+
+.attachment-item i {
+  color: #409EFF;
+  margin-right: 8px;
+  font-size: 16px;
+}
+
+.file-name {
+  flex: 1;
+  margin-right: 12px;
+  word-break: break-all;
+}
+
+.download-btn {
+  color: #409EFF;
+  padding: 4px 8px;
+  min-height: auto;
+}
+
+.download-btn:hover {
+  color: #66b1ff;
 }
 </style>
