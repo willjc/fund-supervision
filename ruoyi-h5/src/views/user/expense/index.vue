@@ -63,19 +63,24 @@
           >
             <div
               v-for="item in expenseList"
-              :key="item.id"
+              :key="item.recordId"
               class="expense-item"
             >
               <div class="expense-main">
                 <div class="expense-info">
-                  <div class="expense-title">{{ item.title }}</div>
+                  <div class="expense-title">{{ item.typeText }} - {{ item.description || '暂无描述' }}</div>
                   <div class="expense-time">{{ item.time }}</div>
                 </div>
-                <div class="expense-amount" :class="{ 'income': item.type === 'income' }">
-                  {{ item.type === 'income' ? '+' : '-' }}¥{{ formatAmount(item.amount) }}
+                <div class="expense-amount" :class="item.amountClass">
+                  {{ item.transactionType === 'income' ? '+' : '-' }}¥{{ formatAmount(item.amount) }}
                 </div>
               </div>
-              <div class="expense-desc">{{ item.description }}</div>
+              <div class="expense-meta">
+                <span class="transaction-type">{{ item.transactionTypeText }}</span>
+                <span v-if="item.balanceBefore !== null && item.balanceBefore !== undefined" class="balance-info">
+                  余额: {{ formatAmount(item.balanceBefore) }} → {{ formatAmount(item.balanceAfter) }}
+                </span>
+              </div>
 
               <!-- 退款按钮 -->
               <div v-if="item.canRefund" class="expense-actions">
@@ -155,15 +160,18 @@ const pageSize = ref(10)
 const loadElderList = async () => {
   try {
     const response = await getElderList()
-    if (response.code === 200 && response.data) {
+    if (response.code === 200 && Array.isArray(response.data)) {
       elderOptions.value = response.data.map(elder => ({
-        text: elder.elderName,
-        value: elder.elderId.toString()
-      }))
+        text: elder.elderName || '未知老人',
+        value: elder.elderId?.toString() || ''
+      })).filter(item => item.value) // 过滤掉无效的选项
+    } else {
+      elderOptions.value = []
     }
   } catch (error) {
     console.error('获取老人列表失败:', error)
     showToast('获取老人列表失败')
+    elderOptions.value = [] // 确保始终是数组
   }
 }
 
@@ -213,28 +221,35 @@ const loadExpenseList = async (reset = false) => {
     const response = await getExpenseList(
       selectedElder.value.id,
       typeMap[activeTab.value] || 'all',
+      'all', // 交易类型，默认显示全部
       pageNum.value,
       pageSize.value
     )
 
     if (response.code === 200 && response.data) {
-      const { rows = [], total = 0 } = response.data
+      const { list = [], total = 0 } = response.data
 
       if (reset) {
-        expenseList.value = rows.map(item => ({
+        expenseList.value = list.map(item => ({
           ...item,
-          time: dayjs(item.time).format('YYYY-MM-DD HH:mm')
+          time: item.createTime ? dayjs(item.createTime).format('YYYY-MM-DD HH:mm') : '暂无时间',
+          typeText: getExpenseTypeText(item.expenseType),
+          transactionTypeText: getTransactionTypeText(item.transactionType),
+          amountClass: item.transactionType === 'income' ? 'income' : 'expense'
         }))
       } else {
-        expenseList.value = [...expenseList.value, ...rows.map(item => ({
+        expenseList.value = [...expenseList.value, ...list.map(item => ({
           ...item,
-          time: dayjs(item.time).format('YYYY-MM-DD HH:mm')
+          time: item.createTime ? dayjs(item.createTime).format('YYYY-MM-DD HH:mm') : '暂无时间',
+          typeText: getExpenseTypeText(item.expenseType),
+          transactionTypeText: getTransactionTypeText(item.transactionType),
+          amountClass: item.transactionType === 'income' ? 'income' : 'expense'
         }))]
       }
 
       pageNum.value++
 
-      if (rows.length < pageSize.value || expenseList.value.length >= total) {
+      if (list.length < pageSize.value || expenseList.value.length >= total) {
         finished.value = true
       }
     }
@@ -248,20 +263,52 @@ const loadExpenseList = async (reset = false) => {
 
 // 格式化金额
 const formatAmount = (amount) => {
-  return parseFloat(amount).toFixed(2)
+  if (amount === null || amount === undefined || amount === '') {
+    return '0.00'
+  }
+  const num = parseFloat(amount)
+  return isNaN(num) ? '0.00' : num.toFixed(2)
+}
+
+// 获取费用类型显示文本
+const getExpenseTypeText = (type) => {
+  const typeMap = {
+    'deposit': '押金',
+    'service': '服务费',
+    'member': '会员费',
+    'other': '其他'
+  }
+  return typeMap[type] || '其他'
+}
+
+// 获取交易类型显示文本
+const getTransactionTypeText = (type) => {
+  const typeMap = {
+    'income': '收入',
+    'expense': '支出'
+  }
+  return typeMap[type] || '支出'
 }
 
 // 老人选择确认
 const onElderConfirm = (value) => {
+  // 添加安全检查
+  if (!value || !value.selectedOptions || !value.selectedOptions[0]) {
+    showToast('选择老人失败，请重试')
+    return
+  }
+
   selectedElder.value = {
-    name: value.selectedOptions[0].text,
+    name: value.selectedOptions[0].text || '未知老人',
     id: value.selectedOptions[0].value
   }
   showElderPicker.value = false
 
   // 加载选中老人的账户信息和费用明细
-  loadAccountInfo(selectedElder.value.id)
-  loadExpenseList(true)
+  if (selectedElder.value.id) {
+    loadAccountInfo(selectedElder.value.id)
+    loadExpenseList(true)
+  }
 }
 
 // Tab切换
@@ -474,6 +521,35 @@ onMounted(async () => {
   font-size: 13px;
   color: #666;
   padding-left: 0;
+}
+
+.expense-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.transaction-type {
+  background-color: #f5f5f5;
+  color: #666;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.balance-info {
+  color: #999;
+  font-size: 12px;
+}
+
+.expense-amount.expense {
+  color: #ee0a24;
+}
+
+.expense-amount.income {
+  color: #07c160;
 }
 
 /* 退款操作按钮 */

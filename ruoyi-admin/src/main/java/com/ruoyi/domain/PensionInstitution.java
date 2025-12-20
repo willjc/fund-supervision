@@ -66,8 +66,11 @@ public class PensionInstitution extends BaseEntity
     private String businessScope;
 
     /** 机构类型 */
-    @Excel(name = "机构类型", readConverterExp = "1=民办,2=公办,3=公建民营")
+    @Excel(name = "机构类型", readConverterExp = "1=民办机构,2=公办机构,3=公建民营")
     private String institutionType;
+
+    /** 机构类型中文描述 */
+    private String institutionTypeText;
 
     /** 床位数 */
     @Excel(name = "床位数")
@@ -356,6 +359,40 @@ public class PensionInstitution extends BaseEntity
     public String getInstitutionType()
     {
         return institutionType;
+    }
+
+    /**
+     * 获取机构类型中文描述
+     */
+    public String getInstitutionTypeText()
+    {
+        if (institutionType == null) {
+            return "";
+        }
+        switch (institutionType) {
+            case "1":
+                return "民办机构";
+            case "2":
+                return "公办机构";
+            case "3":
+                return "公建民营";
+            default:
+                // 如果已经是中文描述，直接返回
+                if (institutionType.contains("机构") || institutionType.contains("养老")) {
+                    return institutionType;
+                }
+                return "未知类型(" + institutionType + ")";
+        }
+    }
+
+    public void setInstitutionTypeText(String institutionTypeText)
+    {
+        this.institutionTypeText = institutionTypeText;
+    }
+
+    public String getInstitutionTypeText()
+    {
+        return institutionTypeText;
     }
 
     public void setBedCount(Long bedCount)

@@ -376,6 +376,9 @@ export default {
     /** 获取机构类型文本 */
     getInstitutionTypeText(type) {
       const typeMap = {
+        '1': '民办机构',
+        '2': '公办机构',
+        '3': '公建民营',
         'nursing_home': '养老院',
         'service_center': '养老服务中心',
         'day_care': '日间照料中心',

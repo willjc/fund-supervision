@@ -18,12 +18,16 @@ import com.ruoyi.domain.OrderItem;
 import com.ruoyi.domain.PaymentRecord;
 import com.ruoyi.domain.RenewDTO;
 import com.ruoyi.domain.vo.ResidentVO;
+import com.ruoyi.domain.pension.AccountInfo;
+import com.ruoyi.domain.pension.ExpenseRecord;
 import com.ruoyi.mapper.BedAllocationMapper;
 import com.ruoyi.mapper.ElderAttachmentMapper;
 import com.ruoyi.mapper.ElderInfoMapper;
 import com.ruoyi.mapper.OrderInfoMapper;
 import com.ruoyi.mapper.OrderItemMapper;
 import com.ruoyi.mapper.PaymentRecordMapper;
+import com.ruoyi.mapper.pension.AccountInfoMapper;
+import com.ruoyi.mapper.pension.ExpenseRecordMapper;
 import com.ruoyi.mapper.ResidentMapper;
 import com.ruoyi.service.IResidentService;
 
@@ -56,6 +60,12 @@ public class ResidentServiceImpl implements IResidentService
 
     @Autowired
     private ElderAttachmentMapper elderAttachmentMapper;
+
+    @Autowired
+    private AccountInfoMapper accountInfoMapper;
+
+    @Autowired
+    private ExpenseRecordMapper expenseRecordMapper;
 
     /**
      * 查询入住人列表
@@ -272,6 +282,90 @@ public class ResidentServiceImpl implements IResidentService
         paymentRecord.setCreateTime(DateUtils.getNowDate());
         paymentRecord.setCreateBy(SecurityUtils.getUsername());
         paymentRecordMapper.insertPaymentRecord(paymentRecord);
+
+        // 10. 更新账户余额（如果有充值金额）
+        if (finalAmount.compareTo(BigDecimal.ZERO) > 0) {
+            // 查询或创建账户
+            AccountInfo account = accountInfoMapper.selectAccountInfoByElderId(renewDTO.getElderId());
+            if (account == null) {
+                // 创建新账户
+                account = new AccountInfo();
+                account.setElderId(renewDTO.getElderId());
+                account.setServiceBalance(BigDecimal.ZERO);
+                account.setDepositBalance(BigDecimal.ZERO);
+                account.setMemberBalance(BigDecimal.ZERO);
+                account.setTotalBalance(BigDecimal.ZERO);
+                account.setCreateTime(DateUtils.getNowDate());
+                account.setCreateBy(SecurityUtils.getUsername());
+                accountInfoMapper.insertAccountInfo(account);
+            }
+
+            // 计算更新前的余额
+            BigDecimal oldServiceBalance = account.getServiceBalance() != null ? account.getServiceBalance() : BigDecimal.ZERO;
+            BigDecimal oldDepositBalance = account.getDepositBalance() != null ? account.getDepositBalance() : BigDecimal.ZERO;
+            BigDecimal oldMemberBalance = account.getMemberBalance() != null ? account.getMemberBalance() : BigDecimal.ZERO;
+
+            // 计算各项金额
+            BigDecimal serviceAmount = serviceFeeTotal;
+            BigDecimal renewDepositAmount = renewDTO.getDepositAmount() != null ? renewDTO.getDepositAmount() : BigDecimal.ZERO;
+            BigDecimal memberAmount = renewDTO.getMemberFee() != null ? renewDTO.getMemberFee() : BigDecimal.ZERO;
+
+            // 更新账户余额
+            account.setServiceBalance(oldServiceBalance.add(serviceAmount));
+            account.setDepositBalance(oldDepositBalance.add(renewDepositAmount));
+            account.setMemberBalance(oldMemberBalance.add(memberAmount));
+            account.setTotalBalance(account.getServiceBalance().add(account.getDepositBalance()));
+            account.setUpdateTime(DateUtils.getNowDate());
+            account.setUpdateBy(SecurityUtils.getUsername());
+            accountInfoMapper.updateAccountInfo(account);
+        }
+
+        // 11. 生成费用记录
+        if (finalAmount.compareTo(BigDecimal.ZERO) > 0) {
+            // 服务费充值记录
+            if (serviceFeeTotal.compareTo(BigDecimal.ZERO) > 0) {
+                ExpenseRecord serviceRecord = new ExpenseRecord();
+                serviceRecord.setElderId(renewDTO.getElderId());
+                serviceRecord.setExpenseType("service");
+                serviceRecord.setTransactionType("income");
+                serviceRecord.setAmount(serviceFeeTotal);
+                serviceRecord.setDescription("续费充值：" + renewDTO.getMonthCount() + "个月服务费");
+                serviceRecord.setRelatedId(orderId);
+                serviceRecord.setCreateTime(DateUtils.getNowDate());
+                serviceRecord.setCreateBy(SecurityUtils.getUsername());
+                expenseRecordMapper.insertExpenseRecord(serviceRecord);
+            }
+
+            // 押金补缴记录
+            BigDecimal depositRecordAmount = renewDTO.getDepositAmount() != null ? renewDTO.getDepositAmount() : BigDecimal.ZERO;
+            if (depositRecordAmount.compareTo(BigDecimal.ZERO) > 0) {
+                ExpenseRecord depositRecord = new ExpenseRecord();
+                depositRecord.setElderId(renewDTO.getElderId());
+                depositRecord.setExpenseType("deposit");
+                depositRecord.setTransactionType("income");
+                depositRecord.setAmount(depositRecordAmount);
+                depositRecord.setDescription("押金补缴");
+                depositRecord.setRelatedId(orderId);
+                depositRecord.setCreateTime(DateUtils.getNowDate());
+                depositRecord.setCreateBy(SecurityUtils.getUsername());
+                expenseRecordMapper.insertExpenseRecord(depositRecord);
+            }
+
+            // 会员费补缴记录
+            BigDecimal memberAmount = renewDTO.getMemberFee() != null ? renewDTO.getMemberFee() : BigDecimal.ZERO;
+            if (memberAmount.compareTo(BigDecimal.ZERO) > 0) {
+                ExpenseRecord memberRecord = new ExpenseRecord();
+                memberRecord.setElderId(renewDTO.getElderId());
+                memberRecord.setExpenseType("member");
+                memberRecord.setTransactionType("income");
+                memberRecord.setAmount(memberAmount);
+                memberRecord.setDescription("会员费补缴");
+                memberRecord.setRelatedId(orderId);
+                memberRecord.setCreateTime(DateUtils.getNowDate());
+                memberRecord.setCreateBy(SecurityUtils.getUsername());
+                expenseRecordMapper.insertExpenseRecord(memberRecord);
+            }
+        }
 
         return 1;
     }

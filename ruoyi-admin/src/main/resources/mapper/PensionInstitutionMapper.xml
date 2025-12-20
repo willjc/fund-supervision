@@ -53,6 +53,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="updateBy"         column="update_by"         />
         <result property="updateTime"       column="update_time"       />
         <result property="remark"           column="remark"            />
+        <result property="institutionTypeText" column="institution_type_text" />
     </resultMap>
 
     <sql id="selectPensionInstitutionVo">
@@ -66,7 +67,15 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                fixed_assets, business_license, approval_certificate, supervision_agreement,
                bank_account, supervise_account, status, apply_time, approve_time,
                approve_user, approve_remark, blacklist_flag, create_by, create_time,
-               update_by, update_time, remark
+               update_by, update_time, remark,
+               CASE
+                   WHEN institution_type = '1' THEN '民办机构'
+                   WHEN institution_type = '2' THEN '公办机构'
+                   WHEN institution_type = '3' THEN '公建民营'
+                   WHEN institution_type = 'nursing_home' THEN '养老院'
+                   WHEN institution_type = 'service_center' THEN '服务中心'
+                   ELSE institution_type
+               END as institution_type_text
         from pension_institution
     </sql>
 

@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.mapper.pension.ExpenseRecordMapper">
+
+    <resultMap type="ExpenseRecord" id="ExpenseRecordResult">
+        <result property="recordId"    column="record_id"    />
+        <result property="elderId"    column="elder_id"    />
+        <result property="accountId"    column="account_id"    />
+        <result property="expenseType"    column="expense_type"    />
+        <result property="transactionType"    column="transaction_type"    />
+        <result property="amount"    column="amount"    />
+        <result property="description"    column="description"    />
+        <result property="relatedId"    column="related_id"    />
+        <result property="relatedType"    column="related_type"    />
+        <result property="balanceBefore"    column="balance_before"    />
+        <result property="balanceAfter"    column="balance_after"    />
+        <result property="elderName"    column="elder_name"    />
+        <result property="institutionName"    column="institution_name"    />
+        <result property="createBy"    column="create_by"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"    column="update_by"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="remark"    column="remark"    />
+    </resultMap>
+
+    <sql id="selectExpenseRecordVo">
+        select record_id, elder_id, account_id, expense_type, transaction_type, amount, description, related_id, related_type, balance_before, balance_after, create_by, create_time, update_by, update_time, remark from expense_record
+    </sql>
+
+    <!-- 查询费用记录列表（包含关联信息） -->
+    <select id="selectExpenseRecordList" parameterType="ExpenseRecord" resultMap="ExpenseRecordResult">
+        SELECT
+            er.record_id, er.elder_id, er.account_id, er.expense_type, er.transaction_type,
+            er.amount, er.description, er.related_id, er.related_type,
+            er.balance_before, er.balance_after,
+            er.create_by, er.create_time, er.update_by, er.update_time, er.remark,
+            ei.elder_name,
+            pi.institution_name
+        FROM expense_record er
+        LEFT JOIN elder_info ei ON er.elder_id = ei.elder_id
+        LEFT JOIN account_info ai ON er.account_id = ai.account_id
+        LEFT JOIN pension_institution pi ON ai.institution_id = pi.institution_id
+        <where>
+            <if test="elderId != null "> and er.elder_id = #{elderId}</if>
+            <if test="accountId != null "> and er.account_id = #{accountId}</if>
+            <if test="expenseType != null  and expenseType != ''"> and er.expense_type = #{expenseType}</if>
+            <if test="transactionType != null  and transactionType != ''"> and er.transaction_type = #{transactionType}</if>
+            <if test="amount != null "> and er.amount = #{amount}</if>
+            <if test="description != null  and description != ''"> and er.description like concat('%', #{description}, '%')</if>
+            <if test="relatedId != null "> and er.related_id = #{relatedId}</if>
+            <if test="relatedType != null  and relatedType != ''"> and er.related_type = #{relatedType}</if>
+        </where>
+        ORDER BY er.create_time DESC
+    </select>
+
+    <select id="selectExpenseRecordByRecordId" parameterType="Long" resultMap="ExpenseRecordResult">
+        SELECT
+            er.record_id, er.elder_id, er.account_id, er.expense_type, er.transaction_type,
+            er.amount, er.description, er.related_id, er.related_type,
+            er.balance_before, er.balance_after,
+            er.create_by, er.create_time, er.update_by, er.update_time, er.remark,
+            ei.elder_name,
+            pi.institution_name
+        FROM expense_record er
+        LEFT JOIN elder_info ei ON er.elder_id = ei.elder_id
+        LEFT JOIN account_info ai ON er.account_id = ai.account_id
+        LEFT JOIN pension_institution pi ON ai.institution_id = pi.institution_id
+        where er.record_id = #{recordId}
+    </select>
+
+    <!-- 根据老人ID查询费用记录列表 -->
+    <select id="selectExpenseRecordByElderId" parameterType="Long" resultMap="ExpenseRecordResult">
+        SELECT
+            er.record_id, er.elder_id, er.account_id, er.expense_type, er.transaction_type,
+            er.amount, er.description, er.related_id, er.related_type,
+            er.balance_before, er.balance_after,
+            er.create_by, er.create_time, er.update_by, er.update_time, er.remark,
+            ei.elder_name,
+            pi.institution_name
+        FROM expense_record er
+        LEFT JOIN elder_info ei ON er.elder_id = ei.elder_id
+        LEFT JOIN account_info ai ON er.account_id = ai.account_id
+        LEFT JOIN pension_institution pi ON ai.institution_id = pi.institution_id
+        where er.elder_id = #{elderId}
+        ORDER BY er.create_time DESC
+    </select>
+
+    <!-- 根据账户ID查询费用记录列表 -->
+    <select id="selectExpenseRecordByAccountId" parameterType="Long" resultMap="ExpenseRecordResult">
+        SELECT
+            er.record_id, er.elder_id, er.account_id, er.expense_type, er.transaction_type,
+            er.amount, er.description, er.related_id, er.related_type,
+            er.balance_before, er.balance_after,
+            er.create_by, er.create_time, er.update_by, er.update_time, er.remark,
+            ei.elder_name,
+            pi.institution_name
+        FROM expense_record er
+        LEFT JOIN elder_info ei ON er.elder_id = ei.elder_id
+        LEFT JOIN account_info ai ON er.account_id = ai.account_id
+        LEFT JOIN pension_institution pi ON ai.institution_id = pi.institution_id
+        where er.account_id = #{accountId}
+        ORDER BY er.create_time DESC
+    </select>
+
+    <!-- 根据关联ID和类型查询费用记录 -->
+    <select id="selectExpenseRecordByRelatedId" resultMap="ExpenseRecordResult">
+        SELECT
+            er.record_id, er.elder_id, er.account_id, er.expense_type, er.transaction_type,
+            er.amount, er.description, er.related_id, er.related_type,
+            er.balance_before, er.balance_after,
+            er.create_by, er.create_time, er.update_by, er.update_time, er.remark,
+            ei.elder_name,
+            pi.institution_name
+        FROM expense_record er
+        LEFT JOIN elder_info ei ON er.elder_id = ei.elder_id
+        LEFT JOIN account_info ai ON er.account_id = ai.account_id
+        LEFT JOIN pension_institution pi ON ai.institution_id = pi.institution_id
+        where er.related_id = #{relatedId} and er.related_type = #{relatedType}
+        ORDER BY er.create_time DESC
+        LIMIT 1
+    </select>
+
+    <!-- 获取老人最新费用记录 -->
+    <select id="selectLatestExpenseRecord" resultMap="ExpenseRecordResult">
+        SELECT
+            er.record_id, er.elder_id, er.account_id, er.expense_type, er.transaction_type,
+            er.amount, er.description, er.related_id, er.related_type,
+            er.balance_before, er.balance_after,
+            er.create_by, er.create_time, er.update_by, er.update_time, er.remark,
+            ei.elder_name,
+            pi.institution_name
+        FROM expense_record er
+        LEFT JOIN elder_info ei ON er.elder_id = ei.elder_id
+        LEFT JOIN account_info ai ON er.account_id = ai.account_id
+        LEFT JOIN pension_institution pi ON ai.institution_id = pi.institution_id
+        where er.elder_id = #{elderId} and er.expense_type = #{expenseType}
+        ORDER BY er.create_time DESC
+        LIMIT 1
+    </select>
+
+    <insert id="insertExpenseRecord" parameterType="ExpenseRecord" useGeneratedKeys="true" keyProperty="recordId">
+        insert into expense_record
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="elderId != null">elder_id,</if>
+            <if test="accountId != null">account_id,</if>
+            <if test="expenseType != null and expenseType != ''">expense_type,</if>
+            <if test="transactionType != null and transactionType != ''">transaction_type,</if>
+            <if test="amount != null">amount,</if>
+            <if test="description != null">description,</if>
+            <if test="relatedId != null">related_id,</if>
+            <if test="relatedType != null">related_type,</if>
+            <if test="balanceBefore != null">balance_before,</if>
+            <if test="balanceAfter != null">balance_after,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="elderId != null">#{elderId},</if>
+            <if test="accountId != null">#{accountId},</if>
+            <if test="expenseType != null and expenseType != ''">#{expenseType},</if>
+            <if test="transactionType != null and transactionType != ''">#{transactionType},</if>
+            <if test="amount != null">#{amount},</if>
+            <if test="description != null">#{description},</if>
+            <if test="relatedId != null">#{relatedId},</if>
+            <if test="relatedType != null">#{relatedType},</if>
+            <if test="balanceBefore != null">#{balanceBefore},</if>
+            <if test="balanceAfter != null">#{balanceAfter},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateExpenseRecord" parameterType="ExpenseRecord">
+        update expense_record
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="elderId != null">elder_id = #{elderId},</if>
+            <if test="accountId != null">account_id = #{accountId},</if>
+            <if test="expenseType != null and expenseType != ''">expense_type = #{expenseType},</if>
+            <if test="transactionType != null and transactionType != ''">transaction_type = #{transactionType},</if>
+            <if test="amount != null">amount = #{amount},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="relatedId != null">related_id = #{relatedId},</if>
+            <if test="relatedType != null">related_type = #{relatedType},</if>
+            <if test="balanceBefore != null">balance_before = #{balanceBefore},</if>
+            <if test="balanceAfter != null">balance_after = #{balanceAfter},</if>
+            <if test="createBy != null">create_by = #{createBy},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where record_id = #{recordId}
+    </update>
+
+    <delete id="deleteExpenseRecordByRecordId" parameterType="Long">
+        delete from expense_record where record_id = #{recordId}
+    </delete>
+
+    <delete id="deleteExpenseRecordByRecordIds" parameterType="String">
+        delete from expense_record where record_id in
+        <foreach item="recordId" collection="array" open="(" separator="," close=")">
+            #{recordId}
+        </foreach>
+    </delete>
+</mapper>

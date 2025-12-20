@@ -136,7 +136,7 @@
       <el-table-column label="统一信用代码" align="center" prop="creditCode" />
       <el-table-column label="机构类型" align="center" prop="institutionType">
         <template slot-scope="scope">
-          <dict-tag :options="dict.type.pension_institution_type" :value="scope.row.institutionType"/>
+          {{ getInstitutionTypeText(scope.row.institutionType) }}
         </template>
       </el-table-column>
       <el-table-column label="床位数" align="center" prop="bedCount" />
@@ -945,12 +945,17 @@ export default {
     },
     /** 获取机构类型文本 */
     getInstitutionTypeText(type) {
+      console.log('getInstitutionTypeText called with type:', type, typeof type);
       const typeMap = {
-        '1': '民办',
-        '2': '公办',
-        '3': '公建民营'
+        '1': '民办机构',
+        '2': '公办机构',
+        '3': '公建民营',
+        'nursing_home': '养老院',
+        'service_center': '服务中心'
       };
-      return typeMap[type] || type;
+      const result = typeMap[type] || type;
+      console.log('getInstitutionTypeText result:', result);
+      return result;
     },
     /** 解析收住类型字符串为数组 */
     parseCareLevels(careLevels) {

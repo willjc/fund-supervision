@@ -69,9 +69,11 @@
       </el-form-item>
       <el-form-item label="机构类型" prop="institutionType">
         <el-select v-model="queryParams.institutionType" placeholder="请选择机构类型" clearable style="width: 150px">
-          <el-option label="民办" value="1" />
-          <el-option label="公办" value="2" />
+          <el-option label="民办机构" value="1" />
+          <el-option label="公办机构" value="2" />
           <el-option label="公建民营" value="3" />
+          <el-option label="养老院" value="nursing_home" />
+          <el-option label="服务中心" value="service_center" />
         </el-select>
       </el-form-item>
       <el-form-item label="运营状态" prop="status">
@@ -106,9 +108,12 @@
       <el-table-column label="机构名称" align="center" prop="institutionName" width="200" show-overflow-tooltip />
       <el-table-column label="机构类型" align="center" prop="institutionType" width="100">
         <template slot-scope="scope">
-          <el-tag v-if="scope.row.institutionType === '1'" type="primary">民办</el-tag>
-          <el-tag v-else-if="scope.row.institutionType === '2'" type="success">公办</el-tag>
-          <el-tag v-else type="warning">公建民营</el-tag>
+          <el-tag v-if="scope.row.institutionType === '1'" type="primary">民办机构</el-tag>
+          <el-tag v-else-if="scope.row.institutionType === '2'" type="success">公办机构</el-tag>
+          <el-tag v-else-if="scope.row.institutionType === '3'" type="warning">公建民营</el-tag>
+          <el-tag v-else-if="scope.row.institutionType === 'nursing_home'" type="info">养老院</el-tag>
+          <el-tag v-else-if="scope.row.institutionType === 'service_center'" type="primary">服务中心</el-tag>
+          <el-tag v-else type="default">{{ scope.row.institutionType }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column label="统一信用代码" align="center" prop="creditCode" width="180" />
@@ -178,9 +183,12 @@
             <el-descriptions-item label="机构编号">{{ detailData.institutionId }}</el-descriptions-item>
             <el-descriptions-item label="机构名称">{{ detailData.institutionName }}</el-descriptions-item>
             <el-descriptions-item label="机构类型">
-              <el-tag v-if="detailData.institutionType === '1'" type="primary">民办</el-tag>
-              <el-tag v-else-if="detailData.institutionType === '2'" type="success">公办</el-tag>
-              <el-tag v-else type="warning">公建民营</el-tag>
+              <el-tag v-if="detailData.institutionType === '1'" type="primary">民办机构</el-tag>
+              <el-tag v-else-if="detailData.institutionType === '2'" type="success">公办机构</el-tag>
+              <el-tag v-else-if="detailData.institutionType === '3'" type="warning">公建民营</el-tag>
+              <el-tag v-else-if="detailData.institutionType === 'nursing_home'" type="info">养老院</el-tag>
+              <el-tag v-else-if="detailData.institutionType === 'service_center'" type="primary">服务中心</el-tag>
+              <el-tag v-else type="default">{{ detailData.institutionType }}</el-tag>
             </el-descriptions-item>
             <el-descriptions-item label="运营状态">
               <el-tag v-if="detailData.status === '1'" type="success">正常</el-tag>
@@ -250,9 +258,11 @@
           <el-col :span="12">
             <el-form-item label="机构类型" prop="institutionType">
               <el-select v-model="form.institutionType" placeholder="请选择机构类型" style="width: 100%">
-                <el-option label="民办" value="1" />
-                <el-option label="公办" value="2" />
+                <el-option label="民办机构" value="1" />
+                <el-option label="公办机构" value="2" />
                 <el-option label="公建民营" value="3" />
+                <el-option label="养老院" value="nursing_home" />
+                <el-option label="服务中心" value="service_center" />
               </el-select>
             </el-form-item>
           </el-col>

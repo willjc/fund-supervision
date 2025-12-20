@@ -38,8 +38,10 @@ import com.ruoyi.service.IPensionInstitutionPublicService;
 import com.ruoyi.domain.PensionInstitutionPublic;
 import com.ruoyi.domain.pension.AccountInfo;
 import com.ruoyi.domain.pension.DepositApply;
+import com.ruoyi.domain.pension.ExpenseRecord;
 import com.ruoyi.service.pension.IAccountInfoService;
 import com.ruoyi.service.pension.IDepositApplyService;
+import com.ruoyi.service.pension.IExpenseRecordService;
 
 /**
  * H5订单Controller
@@ -79,6 +81,9 @@ public class H5OrderController extends BaseController
 
     @Autowired
     private IDepositApplyService depositApplyService;
+
+    @Autowired
+    private IExpenseRecordService expenseRecordService;
 
     /**
      * 获取订单列表
@@ -427,11 +432,12 @@ public class H5OrderController extends BaseController
                 Map<String, Object> defaultAccount = new HashMap<>();
                 defaultAccount.put("accountId", null);
                 defaultAccount.put("accountNo", null);
-                defaultAccount.put("totalBalance", new BigDecimal("0"));
-                defaultAccount.put("serviceBalance", new BigDecimal("0"));
-                defaultAccount.put("depositBalance", new BigDecimal("0"));
-                defaultAccount.put("memberBalance", new BigDecimal("0"));
-                defaultAccount.put("prepaidAmount", new BigDecimal("0"));
+                BigDecimal zeroBalance = new BigDecimal("0");
+                defaultAccount.put("totalBalance", zeroBalance);  // 账户余额（服务费+押金）
+                defaultAccount.put("serviceBalance", zeroBalance);
+                defaultAccount.put("depositBalance", zeroBalance);
+                defaultAccount.put("memberBalance", zeroBalance);
+                defaultAccount.put("prepaidAmount", zeroBalance);
                 defaultAccount.put("hasAccount", false);
                 return success(defaultAccount);
             }
@@ -440,16 +446,21 @@ public class H5OrderController extends BaseController
             Map<String, Object> result = new HashMap<>();
             result.put("accountId", account.getAccountId());
             result.put("accountNo", account.getAccountNo());
-            result.put("totalBalance", account.getTotalBalance() != null ? account.getTotalBalance() : new BigDecimal("0"));
-            result.put("serviceBalance", account.getServiceBalance() != null ? account.getServiceBalance() : new BigDecimal("0"));
-            result.put("depositBalance", account.getDepositBalance() != null ? account.getDepositBalance() : new BigDecimal("0"));
-            result.put("memberBalance", account.getMemberBalance() != null ? account.getMemberBalance() : new BigDecimal("0"));
 
-            // 计算预存金额（总余额 - 押金余额）
-            BigDecimal totalBalance = account.getTotalBalance() != null ? account.getTotalBalance() : new BigDecimal("0");
+            BigDecimal serviceBalance = account.getServiceBalance() != null ? account.getServiceBalance() : new BigDecimal("0");
             BigDecimal depositBalance = account.getDepositBalance() != null ? account.getDepositBalance() : new BigDecimal("0");
-            BigDecimal prepaidAmount = totalBalance.subtract(depositBalance);
-            result.put("prepaidAmount", prepaidAmount.compareTo(BigDecimal.ZERO) >= 0 ? prepaidAmount : new BigDecimal("0"));
+            BigDecimal memberBalance = account.getMemberBalance() != null ? account.getMemberBalance() : new BigDecimal("0");
+
+            // 账户余额 = 服务费余额 + 押金余额（不包括会员费）
+            BigDecimal accountBalance = serviceBalance.add(depositBalance);
+
+            result.put("totalBalance", accountBalance);  // 用于显示的"账户余额"
+            result.put("serviceBalance", serviceBalance);
+            result.put("depositBalance", depositBalance);
+            result.put("memberBalance", memberBalance);  // 会员费单独显示
+
+            // 计算预存金额（服务费余额）
+            result.put("prepaidAmount", serviceBalance);
             result.put("hasAccount", true);
 
             return success(result);
@@ -459,147 +470,7 @@ public class H5OrderController extends BaseController
         }
     }
 
-    /**
-     * 获取老人费用明细记录
-     */
-    @GetMapping("/expense/list")
-    public AjaxResult getExpenseList(@RequestParam Long elderId,
-                                   @RequestParam(required = false, defaultValue = "all") String type,
-                                   @RequestParam(defaultValue = "1") Integer pageNum,
-                                   @RequestParam(defaultValue = "20") Integer pageSize) {
-        try {
-            // 获取当前用户ID
-            Long currentUserId = getCurrentUserId();
-            if (currentUserId == null) {
-                return error("用户未登录或身份验证失败");
-            }
-
-            // 验证用户是否有权限访问该老人信息
-            ElderFamily familyQuery = new ElderFamily();
-            familyQuery.setUserId(currentUserId);
-            familyQuery.setElderId(elderId);
-            List<ElderFamily> familyList = elderFamilyService.selectElderFamilyList(familyQuery);
-
-            if (familyList == null || familyList.isEmpty()) {
-                return error("无权访问该老人信息");
-            }
-
-            List<Map<String, Object>> expenseList = new java.util.ArrayList<>();
-
-            // 1. 查询服务费相关记录
-            if ("all".equals(type) || "service".equals(type)) {
-                OrderInfo orderQuery = new OrderInfo();
-                orderQuery.setElderId(elderId);
-                orderQuery.setOrderStatus("1"); // 已支付订单
-                List<OrderInfo> orderList = orderInfoService.selectOrderInfoList(orderQuery);
-
-                for (OrderInfo order : orderList) {
-                    // 服务费预存记录（收入）
-                    Map<String, Object> incomeItem = new HashMap<>();
-                    incomeItem.put("id", "SERVICE_PREPAID_" + order.getOrderId());
-                    incomeItem.put("type", "income");
-                    incomeItem.put("title", "服务费预存");
-                    incomeItem.put("amount", order.getOrderAmount());
-                    incomeItem.put("time", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, order.getCreateTime()));
-                    incomeItem.put("description", "预存" + (order.getMonthCount() != null ? order.getMonthCount() : 0) + "个月服务费");
-                    incomeItem.put("canRefund", false);
-                    incomeItem.put("monthCount", order.getMonthCount() != null ? order.getMonthCount() : 0);
-                    expenseList.add(incomeItem);
-
-                    // TODO: 后续可以添加月扣记录
-                    // 这里暂时只显示预存记录
-                }
-            }
-
-            // 2. 查询押金相关记录
-            if ("all".equals(type) || "deposit".equals(type)) {
-                // 查询账户信息获取押金
-                AccountInfo account = accountInfoService.selectAccountInfoByElderId(elderId);
-                if (account != null && account.getDepositBalance() != null && account.getDepositBalance().compareTo(BigDecimal.ZERO) > 0) {
-                    // 押金缴纳记录（收入）
-                    Map<String, Object> incomeItem = new HashMap<>();
-                    incomeItem.put("id", "DEPOSIT_PAID_" + account.getAccountId());
-                    incomeItem.put("type", "income");
-                    incomeItem.put("title", "押金缴纳");
-                    incomeItem.put("amount", account.getDepositBalance());
-                    incomeItem.put("time", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, account.getCreateTime()));
-                    incomeItem.put("description", "入住押金");
-                    incomeItem.put("canRefund", false);
-                    expenseList.add(incomeItem);
-                }
-
-                // 查询押金使用记录（支出）
-                DepositApply depositQuery = new DepositApply();
-                depositQuery.setElderId(elderId);
-                List<DepositApply> depositList = depositApplyService.selectDepositApplyList(depositQuery);
-
-                for (DepositApply deposit : depositList) {
-                    Map<String, Object> expenseItem = new HashMap<>();
-                    expenseItem.put("id", "DEP_USED_" + deposit.getApplyId());
-                    expenseItem.put("type", "expense");
-                    expenseItem.put("title", "押金使用");
-                    expenseItem.put("amount", deposit.getActualAmount() != null ? deposit.getActualAmount() : deposit.getApplyAmount());
-                    expenseItem.put("time", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, deposit.getCreateTime()));
-                    expenseItem.put("description", deposit.getApplyReason());
-                    expenseItem.put("canRefund", false); // 押金使用后不能退款
-
-                    expenseList.add(expenseItem);
-                }
-            }
-
-            // 3. 查询会员费相关记录
-            if ("all".equals(type) || "member".equals(type)) {
-                // 查询账户信息获取会员费
-                AccountInfo account = accountInfoService.selectAccountInfoByElderId(elderId);
-                if (account != null && account.getMemberBalance() != null && account.getMemberBalance().compareTo(BigDecimal.ZERO) > 0) {
-                    // 会员费缴纳记录（收入）
-                    Map<String, Object> incomeItem = new HashMap<>();
-                    incomeItem.put("id", "MEMBER_PAID_" + account.getAccountId());
-                    incomeItem.put("type", "income");
-                    incomeItem.put("title", "会员费缴纳");
-                    incomeItem.put("amount", account.getMemberBalance());
-                    incomeItem.put("time", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, account.getCreateTime()));
-                    incomeItem.put("description", "一次性会员费");
-                    incomeItem.put("canRefund", false);
-                    expenseList.add(incomeItem);
-                }
-            }
-
-            // 4. 查询其他费用记录（可扩展）
-            if ("all".equals(type) || "other".equals(type)) {
-                // 暂时没有其他费用记录的数据源
-                // TODO: 可以根据业务需要添加其他费用类型
-            }
-
-            // 按时间倒序排序
-            expenseList.sort((a, b) -> {
-                String timeA = (String) a.get("time");
-                String timeB = (String) b.get("time");
-                return timeB.compareTo(timeA);
-            });
-
-            // 分页处理
-            int startIndex = (pageNum - 1) * pageSize;
-            int endIndex = startIndex + pageSize;
-            List<Map<String, Object>> paginatedList = new java.util.ArrayList<>();
-
-            for (int i = startIndex; i < endIndex && i < expenseList.size(); i++) {
-                paginatedList.add(expenseList.get(i));
-            }
-
-            Map<String, Object> result = new HashMap<>();
-            result.put("rows", paginatedList);
-            result.put("total", expenseList.size());
-            result.put("pageNum", pageNum);
-            result.put("pageSize", pageSize);
-
-            return success(result);
-        } catch (Exception e) {
-            logger.error("获取费用明细失败", e);
-            return error("获取费用明细失败：" + e.getMessage());
-        }
-    }
-
+    
     /**
      * 处理支付请求
      * 模拟支付接口，默认支付成功
@@ -747,6 +618,51 @@ public class H5OrderController extends BaseController
             account.setRemark(account.getRemark() + " | 支付订单" + order.getOrderNo() + "增加余额" + totalAmount + "元");
 
             accountInfoService.updateAccountInfo(account);
+
+            // 生成订单支付费用记录
+            try {
+                int recordResult = expenseRecordService.createOrderExpenseRecords(
+                    account.getElderId(),
+                    account.getAccountId(),
+                    order.getOrderId(),
+                    order.getOrderType(),
+                    depositAmount,
+                    serviceAmount,
+                    memberAmount,
+                    BigDecimal.ZERO, // otherAmount 暂时为0
+                    currentTotal,     // 支付前余额
+                    account.getTotalBalance() // 支付后余额
+                );
+                if (recordResult <= 0) {
+                    logger.warn("创建订单费用记录失败，但支付流程继续执行");
+                } else {
+                    // 费用记录生成成功后，如果是入驻订单，需要扣除首月服务费
+                    if ("1".equals(order.getOrderType())) {
+                        // 计算首月服务费并从账户余额中扣除
+                        BigDecimal firstMonthServiceFee = calculateFirstMonthServiceFee(order.getOrderId());
+                        if (firstMonthServiceFee.compareTo(BigDecimal.ZERO) > 0) {
+                            // 检查服务费余额是否足够
+                            if (account.getServiceBalance().compareTo(firstMonthServiceFee) >= 0) {
+                                BigDecimal newServiceBalance = account.getServiceBalance().subtract(firstMonthServiceFee);
+                                BigDecimal newTotalBalance = account.getTotalBalance().subtract(firstMonthServiceFee);
+
+                                account.setServiceBalance(newServiceBalance);
+                                account.setTotalBalance(newTotalBalance);
+
+                                // 再次更新账户余额（扣除首月服务费）
+                                accountInfoService.updateAccountInfo(account);
+
+                                logger.info("扣除首月服务费：" + firstMonthServiceFee + "元，订单号：" + order.getOrderNo());
+                            } else {
+                                logger.warn("服务费余额不足以扣除首月服务费：" + firstMonthServiceFee + "元，当前余额：" + account.getServiceBalance() + "元");
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                logger.error("创建订单费用记录异常：" + e.getMessage());
+                // 费用记录创建失败不影响主流程
+            }
 
         } catch (Exception e) {
             logger.error("更新账户余额失败", e);
@@ -1149,6 +1065,221 @@ public class H5OrderController extends BaseController
             // 用户未登录，返回null
             logger.warn("获取当前用户ID失败，用户可能未登录", e);
             return null;
+        }
+    }
+
+    // ========================= 费用记录相关API =========================
+
+    /**
+     * 获取老人费用记录列表
+     * H5端用户只能查看自己关联老人的费用记录
+     */
+    @GetMapping("/expense/list")
+    public AjaxResult getExpenseList(@RequestParam Long elderId,
+                                    @RequestParam(required = false, defaultValue = "all") String type,
+                                    @RequestParam(required = false, defaultValue = "all") String transactionType,
+                                    @RequestParam(required = false, defaultValue = "1") Integer pageNum,
+                                    @RequestParam(required = false, defaultValue = "20") Integer pageSize)
+    {
+        try {
+            // 验证用户登录
+            Long userId = getCurrentUserId();
+            if (userId == null) {
+                return error("用户未登录或身份验证失败");
+            }
+
+            // 验证老人权限（只能查看自己关联的老人）
+            if (!hasElderAccess(userId, elderId)) {
+                return error("您没有权限查看该老人的费用记录");
+            }
+
+            // 构建查询条件
+            ExpenseRecord query = new ExpenseRecord();
+            query.setElderId(elderId);
+
+            // 费用类型过滤
+            if (!"all".equals(type)) {
+                query.setExpenseType(type);
+            }
+
+            // 交易类型过滤
+            if (!"all".equals(transactionType)) {
+                query.setTransactionType(transactionType);
+            }
+
+            // 查询费用记录
+            List<ExpenseRecord> expenseList = expenseRecordService.selectExpenseRecordList(query);
+
+            // 简单分页处理
+            int total = expenseList.size();
+            int start = (pageNum - 1) * pageSize;
+            int end = Math.min(start + pageSize, total);
+
+            List<ExpenseRecord> pageList = expenseList.subList(start, end);
+
+            // 构建返回结果
+            Map<String, Object> result = new HashMap<>();
+            result.put("total", total);
+            result.put("pageNum", pageNum);
+            result.put("pageSize", pageSize);
+            result.put("pages", (total + pageSize - 1) / pageSize);
+            result.put("list", pageList);
+
+            return success(result);
+
+        } catch (Exception e) {
+            logger.error("获取费用记录列表失败", e);
+            return error("获取费用记录失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取费用记录详情
+     */
+    @GetMapping("/expense/{recordId}")
+    public AjaxResult getExpenseDetail(@PathVariable Long recordId) {
+        try {
+            // 验证用户登录
+            Long userId = getCurrentUserId();
+            if (userId == null) {
+                return error("用户未登录或身份验证失败");
+            }
+
+            // 查询费用记录
+            ExpenseRecord expenseRecord = expenseRecordService.selectExpenseRecordByRecordId(recordId);
+            if (expenseRecord == null) {
+                return error("费用记录不存在");
+            }
+
+            // 验证老人权限（只能查看自己关联的老人）
+            if (!hasElderAccess(userId, expenseRecord.getElderId())) {
+                return error("您没有权限查看该费用记录");
+            }
+
+            return success(expenseRecord);
+
+        } catch (Exception e) {
+            logger.error("获取费用记录详情失败", e);
+            return error("获取费用记录详情失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取老人费用统计信息
+     */
+    @GetMapping("/expense/statistics")
+    public AjaxResult getExpenseStatistics(@RequestParam Long elderId) {
+        try {
+            // 验证用户登录
+            Long userId = getCurrentUserId();
+            if (userId == null) {
+                return error("用户未登录或身份验证失败");
+            }
+
+            // 验证老人权限
+            if (!hasElderAccess(userId, elderId)) {
+                return error("您没有权限查看该老人的费用统计");
+            }
+
+            // 查询所有费用记录
+            ExpenseRecord query = new ExpenseRecord();
+            query.setElderId(elderId);
+            List<ExpenseRecord> allRecords = expenseRecordService.selectExpenseRecordList(query);
+
+            // 统计计算
+            Map<String, Object> statistics = new HashMap<>();
+
+            // 按费用类型统计
+            Map<String, BigDecimal> typeAmount = new HashMap<>();
+            Map<String, Long> typeCount = new HashMap<>();
+
+            // 按交易类型统计
+            BigDecimal totalIncome = BigDecimal.ZERO;
+            BigDecimal totalExpense = BigDecimal.ZERO;
+
+            for (ExpenseRecord record : allRecords) {
+                String expType = record.getExpenseType();
+                String transType = record.getTransactionType();
+                BigDecimal amount = record.getAmount() != null ? record.getAmount() : BigDecimal.ZERO;
+
+                // 按费用类型统计
+                typeAmount.put(expType, typeAmount.getOrDefault(expType, BigDecimal.ZERO).add(amount));
+                typeCount.put(expType, typeCount.getOrDefault(expType, 0L) + 1);
+
+                // 按交易类型统计
+                if ("income".equals(transType)) {
+                    totalIncome = totalIncome.add(amount);
+                } else if ("expense".equals(transType)) {
+                    totalExpense = totalExpense.add(amount);
+                }
+            }
+
+            statistics.put("typeAmount", typeAmount);
+            statistics.put("typeCount", typeCount);
+            statistics.put("totalIncome", totalIncome);
+            statistics.put("totalExpense", totalExpense);
+            statistics.put("netAmount", totalIncome.subtract(totalExpense));
+            statistics.put("totalCount", allRecords.size());
+
+            return success(statistics);
+
+        } catch (Exception e) {
+            logger.error("获取费用统计信息失败", e);
+            return error("获取费用统计失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 验证用户是否有权限访问老人信息
+     * 通过elder_family表验证用户是否为老人的家属
+     */
+    private boolean hasElderAccess(Long userId, Long elderId) {
+        try {
+            ElderFamily query = new ElderFamily();
+            query.setUserId(userId);
+            query.setElderId(elderId);
+
+            List<ElderFamily> familyList = elderFamilyService.selectElderFamilyList(query);
+            return familyList != null && !familyList.isEmpty();
+        } catch (Exception e) {
+            logger.error("验证老人访问权限失败", e);
+            return false;
+        }
+    }
+
+    /**
+     * 计算首月服务费
+     * 根据订单明细中的床位费和护理费计算首月费用
+     *
+     * @param orderId 订单ID
+     * @return 首月服务费金额
+     */
+    private BigDecimal calculateFirstMonthServiceFee(Long orderId) {
+        try {
+            List<OrderItem> orderItems = orderItemService.selectOrderItemsByOrderId(orderId);
+            BigDecimal firstMonthFee = BigDecimal.ZERO;
+
+            if (orderItems != null && !orderItems.isEmpty()) {
+                for (OrderItem item : orderItems) {
+                    String itemType = item.getItemType();
+                    BigDecimal totalAmount = item.getTotalAmount() != null ? item.getTotalAmount() : BigDecimal.ZERO;
+                    Integer quantity = item.getQuantity() != null ? item.getQuantity().intValue() : 1;
+
+                    if ("bed_fee".equals(itemType) || "care_fee".equals(itemType)) {
+                        // 计算单月费用：总金额 / 数量（月份数）
+                        if (quantity > 0) {
+                            BigDecimal monthlyFee = totalAmount.divide(new BigDecimal(quantity), 2, BigDecimal.ROUND_HALF_UP);
+                            firstMonthFee = firstMonthFee.add(monthlyFee);
+                        }
+                    }
+                }
+            }
+
+            return firstMonthFee;
+        } catch (Exception e) {
+            // 计算失败时返回0，避免影响主流程
+            logger.error("计算首月服务费异常：" + e.getMessage());
+            return BigDecimal.ZERO;
         }
     }
 }

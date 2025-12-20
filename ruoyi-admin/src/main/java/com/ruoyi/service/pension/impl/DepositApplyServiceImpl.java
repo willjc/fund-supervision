@@ -10,6 +10,7 @@ import com.ruoyi.domain.pension.DepositApply;
 import com.ruoyi.domain.pension.AccountInfo;
 import com.ruoyi.service.pension.IDepositApplyService;
 import com.ruoyi.service.pension.IAccountInfoService;
+import com.ruoyi.service.pension.IExpenseRecordService;
 
 /**
  * 押金使用申请Service业务层处理
@@ -25,6 +26,9 @@ public class DepositApplyServiceImpl implements IDepositApplyService
 
     @Autowired
     private IAccountInfoService accountInfoService;
+
+    @Autowired
+    private IExpenseRecordService expenseRecordService;
 
     /**
      * 查询押金使用申请
@@ -232,6 +236,25 @@ public class DepositApplyServiceImpl implements IDepositApplyService
             int accountUpdateResult = accountInfoService.updateAccountInfo(account);
             if (accountUpdateResult <= 0) {
                 throw new RuntimeException("更新账户余额失败");
+            }
+
+            // 生成押金使用费用记录
+            try {
+                int recordResult = expenseRecordService.createDepositExpenseRecord(
+                    apply.getElderId(),
+                    accountId,
+                    applyId,
+                    applyAmount,
+                    currentTotalBalance, // 扣除前余额
+                    newTotalBalance    // 扣除后余额
+                );
+                if (recordResult <= 0) {
+                    // 费用记录创建失败不影响主流程，只记录日志
+                    System.err.println("创建费用记录失败，但审批流程继续执行");
+                }
+            } catch (Exception e) {
+                // 费用记录创建失败不影响主流程，只记录日志
+                System.err.println("创建费用记录异常：" + e.getMessage());
             }
 
             // 记录实际使用金额
