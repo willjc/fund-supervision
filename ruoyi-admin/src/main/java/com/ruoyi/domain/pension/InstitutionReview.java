@@ -98,6 +98,10 @@ public class InstitutionReview extends BaseEntity
     @Excel(name = "用户名")
     private String userName;
 
+    /** 订单号 */
+    @Excel(name = "订单号")
+    private String orderNo;
+
     /** 图片列表（解析后的列表） */
     private List<ReviewImage> imageList;
 
@@ -320,6 +324,16 @@ public class InstitutionReview extends BaseEntity
     public String getUserName()
     {
         return userName;
+    }
+
+    public void setOrderNo(String orderNo)
+    {
+        this.orderNo = orderNo;
+    }
+
+    public String getOrderNo()
+    {
+        return orderNo;
     }
 
     public List<ReviewImage> getImageList() {

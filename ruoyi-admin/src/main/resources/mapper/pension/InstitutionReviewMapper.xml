@@ -30,6 +30,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="institutionImage"   column="main_picture"        />
         <result property="elderName"          column="elder_name"          />
         <result property="userName"           column="user_name"           />
+        <result property="orderNo"            column="order_no"            />
     </resultMap>
 
     <sql id="selectInstitutionReviewVo">
@@ -46,11 +47,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                r.content, r.images, r.status, r.review_remark, r.review_time, r.review_by,
                r.feedback_id, r.create_time, r.update_time,
                i.institution_name, p.main_picture,
+               o.order_no,
                e.elder_name,
                u.user_name
         from institution_review r
         left join pension_institution i on r.institution_id = i.institution_id
         left join pension_institution_public p on r.institution_id = p.institution_id
+        left join order_info o on r.order_id = o.order_id
         left join elder_info e on r.elder_id = e.elder_id
         left join sys_user u on r.user_id = u.user_id
     </sql>
@@ -200,5 +203,25 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             #{reviewId}
         </foreach>
     </delete>
+
+    <!-- 查询用户的待评价订单列表 -->
+    <select id="selectPendingEvaluationOrders" parameterType="Long" resultType="java.util.Map">
+        SELECT
+            o.order_id as orderId,
+            o.order_no as orderNo,
+            o.institution_id as institutionId,
+            o.order_amount as orderAmount,
+            o.create_time as createTime,
+            i.institution_name,
+            p.main_picture as institutionImage
+        FROM order_info o
+        LEFT JOIN pension_institution i ON o.institution_id = i.institution_id
+        LEFT JOIN pension_institution_public p ON o.institution_id = p.institution_id
+        LEFT JOIN institution_review ir ON o.order_id = ir.order_id
+        WHERE o.order_status = '1'
+          AND o.creator_user_id = #{userId}
+          AND ir.review_id IS NULL
+        ORDER BY o.create_time DESC
+    </select>
 
 </mapper>

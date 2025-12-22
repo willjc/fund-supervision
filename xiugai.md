@@ -2707,3 +2707,7 @@ select o.order_id, o.order_no, o.order_type, o.elder_id, o.creator_user_id, o.in
 修复评价列表中机构图片和星级显示问题：后端添加图片字段，前端优化数据处理
 修复星级评分显示问题：将average_rating字符串转换为整数供van-rate组件显示
 简化评价系统：前端评价页面改为单一总体评分，后端保持三个字段兼容性
+修复评价列表中机构图片显示问题：统一使用main_picture字段与订单详情保持一致
+实现待评价列表功能：添加后端API和前端UI实现待评价订单列表显示
+修复已评价页面订单号显示为数字问题：添加order_no字段到查询中并更新前端使用orderNo
+修复评价时间字体大小不一致问题：添加evaluation-time样式类，设置字体大小为13px与订单号保持一致

@@ -81,3 +81,19 @@ export function getUserReviewList(pageNum = 1, pageSize = 10) {
     }
   })
 }
+
+/**
+ * 获取用户的待评价订单列表
+ * @param {Number} pageNum - 页码
+ * @param {Number} pageSize - 每页数量
+ */
+export function getPendingEvaluationList(pageNum = 1, pageSize = 10) {
+  return request({
+    url: '/h5/review/pending/list',
+    method: 'get',
+    params: {
+      pageNum,
+      pageSize
+    }
+  })
+}

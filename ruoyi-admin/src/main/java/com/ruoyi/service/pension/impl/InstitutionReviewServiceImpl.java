@@ -304,4 +304,10 @@ public class InstitutionReviewServiceImpl implements IInstitutionReviewService
 
         return statistics;
     }
+
+    @Override
+    public List<Map<String, Object>> selectPendingEvaluationOrders(Long userId)
+    {
+        return institutionReviewMapper.selectPendingEvaluationOrders(userId);
+    }
 }

@@ -1,6 +1,7 @@
 package com.ruoyi.mapper.pension;
 
 import java.util.List;
+import java.util.Map;
 import com.ruoyi.domain.pension.InstitutionReview;
 
 /**
@@ -112,4 +113,12 @@ public interface InstitutionReviewMapper
      * @return 结果
      */
     public int batchUpdateReviewStatus(Long[] reviewIds, Integer status, String reviewRemark, String reviewBy);
+
+    /**
+     * 查询用户的待评价订单列表
+     *
+     * @param userId 用户ID
+     * @return 待评价订单列表
+     */
+    public List<Map<String, Object>> selectPendingEvaluationOrders(Long userId);
 }

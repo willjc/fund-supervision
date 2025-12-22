@@ -13,7 +13,44 @@
       >
         <van-tab title="待评价" name="pending">
           <div class="evaluation-list">
-            <div v-if="pendingList.length === 0" class="empty-state">
+            <!-- 加载状态 -->
+            <van-loading v-if="loading && pendingList.length === 0" class="loading-center" />
+
+            <!-- 待评价订单列表 -->
+            <div
+              v-for="item in pendingList"
+              :key="item.id"
+              class="evaluation-item"
+            >
+              <div class="institution-info">
+                <van-image
+                  width="60"
+                  height="60"
+                  :src="item.institutionImage"
+                  fit="cover"
+                  round
+                />
+                <div class="institution-detail">
+                  <div class="institution-name">{{ item.institutionName }}</div>
+                  <div class="order-info">订单号: {{ item.orderNo }}</div>
+                  <div class="order-time">下单时间: {{ formatTime(item.createTime) }}</div>
+                  <div class="order-amount">订单金额: ¥{{ formatAmount(item.orderAmount) }}</div>
+                </div>
+              </div>
+
+              <div class="evaluation-action">
+                <van-button
+                  type="primary"
+                  size="small"
+                  @click="goToReview(item.id, item.institutionName, item.orderAmount)"
+                >
+                  去评价
+                </van-button>
+              </div>
+            </div>
+
+            <!-- 空状态 -->
+            <div v-if="!loading && pendingList.length === 0" class="empty-state">
               <van-empty description="暂无待评价订单" />
             </div>
           </div>
@@ -97,7 +134,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showImagePreview, showToast } from 'vant'
-import { getUserReviewList } from '@/api/review'
+import { getUserReviewList, getPendingEvaluationList } from '@/api/review'
 
 const router = useRouter()
 
@@ -122,6 +159,8 @@ const onTabChange = (name) => {
   activeTab.value = name
   if (name === 'completed' && completedList.value.length === 0) {
     loadUserReviews()
+  } else if (name === 'pending' && pendingList.value.length === 0) {
+    loadPendingReviews()
   }
 }
 
@@ -169,7 +208,7 @@ const loadUserReviews = async (reset = true) => {
           id: review.reviewId,
           institutionName: review.institutionName || '养老机构',
           institutionImage: institutionImage,
-          orderNo: review.orderId,
+          orderNo: review.orderNo || review.orderId, // 优先使用orderNo，fallback到orderId
           orderTime: review.createTime,
           evaluationTime: review.createTime,
           rating: rating,
@@ -201,6 +240,51 @@ const loadUserReviews = async (reset = true) => {
   }
 }
 
+// 加载待评价订单
+const loadPendingReviews = async () => {
+  if (loading.value) return
+
+  try {
+    loading.value = true
+
+    const response = await getPendingEvaluationList()
+
+    if (response.code === 200) {
+      const { rows } = response.data
+
+      // 处理待评价订单数据
+      const processedOrders = rows.map(order => ({
+        id: order.orderId,
+        orderNo: order.orderNo,
+        institutionName: order.institutionName || '养老机构',
+        institutionImage: order.institutionImage || 'https://via.placeholder.com/60x60',
+        orderAmount: order.orderAmount,
+        createTime: order.createTime
+      }))
+
+      pendingList.value = processedOrders
+    } else {
+      showToast(response.msg || '获取待评价订单失败')
+    }
+  } catch (error) {
+    console.error('加载待评价订单失败:', error)
+    showToast('加载待评价订单失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 跳转到评价页面
+const goToReview = (orderId, institutionName, orderAmount) => {
+  router.push({
+    path: `/review/submit/${orderId}`,
+    query: {
+      institutionName,
+      orderAmount
+    }
+  })
+}
+
 // 加载更多
 const onLoadMore = () => {
   if (!finished.value && !loading.value) {
@@ -223,6 +307,12 @@ const formatTime = (time) => {
   if (!time) return ''
   const date = new Date(time)
   return date.toLocaleDateString() + ' ' + date.toLocaleTimeString().slice(0, 5)
+}
+
+// 格式化金额
+const formatAmount = (amount) => {
+  if (!amount) return '0.00'
+  return parseFloat(amount).toFixed(2)
 }
 
 onMounted(() => {
@@ -290,10 +380,16 @@ onMounted(() => {
   margin-bottom: 2px;
 }
 
+.order-time {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 2px;
+}
+
 .evaluation-time {
-  font-size: 12px;
-  color: #999;
-  margin-bottom: 4px;
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 2px;
 }
 
 .review-status {
@@ -350,5 +446,17 @@ onMounted(() => {
 .no-more {
   font-size: 14px;
   color: #999;
+}
+
+.evaluation-action {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.order-amount {
+  font-size: 14px;
+  color: #ee0a24;
+  font-weight: 500;
 }
 </style>

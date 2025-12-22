@@ -128,4 +128,12 @@ public interface IInstitutionReviewService
      * @return 统计信息
      */
     public java.util.Map<String, Object> getInstitutionReviewStatistics(Long institutionId);
+
+    /**
+     * 查询用户的待评价订单列表
+     *
+     * @param userId 用户ID
+     * @return 待评价订单列表
+     */
+    public java.util.List<java.util.Map<String, Object>> selectPendingEvaluationOrders(Long userId);
 }

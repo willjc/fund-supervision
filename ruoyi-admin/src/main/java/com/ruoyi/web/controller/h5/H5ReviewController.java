@@ -191,6 +191,31 @@ public class H5ReviewController extends BaseController
     }
 
     /**
+     * 获取用户的待评价订单列表
+     */
+    @GetMapping("/pending/list")
+    public AjaxResult getPendingEvaluationList()
+    {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return AjaxResult.error("用户未登录");
+        }
+
+        try {
+            // 查询用户已支付但未评价的订单
+            List<Map<String, Object>> pendingOrders = institutionReviewService.selectPendingEvaluationOrders(userId);
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("rows", pendingOrders);
+            result.put("total", pendingOrders.size());
+
+            return AjaxResult.success(result);
+        } catch (Exception e) {
+            return AjaxResult.error("获取待评价订单失败: " + e.getMessage());
+        }
+    }
+
+    /**
      * 导出机构评价列表
      */
     @Log(title = "机构评价", businessType = BusinessType.EXPORT)
