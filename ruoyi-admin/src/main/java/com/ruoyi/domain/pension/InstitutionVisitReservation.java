@@ -84,6 +84,10 @@ public class InstitutionVisitReservation extends BaseEntity
     @Excel(name = "机构名称")
     private String institutionName;
 
+    /** 机构封面图 */
+    @Excel(name = "机构封面图")
+    private String institutionCover;
+
     /** 用户名 */
     @Excel(name = "用户名")
     private String userName;
@@ -236,6 +240,16 @@ public class InstitutionVisitReservation extends BaseEntity
     public String getInstitutionName()
     {
         return institutionName;
+    }
+
+    public void setInstitutionCover(String institutionCover)
+    {
+        this.institutionCover = institutionCover;
+    }
+
+    public String getInstitutionCover()
+    {
+        return institutionCover;
     }
 
     public void setUserName(String userName)

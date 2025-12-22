@@ -25,6 +25,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <resultMap id="InstitutionVisitReservationWithRelationsResult" type="InstitutionVisitReservation" extends="InstitutionVisitReservationResult">
         <result property="institutionName"   column="institution_name"   />
+        <result property="institutionCover"  column="institution_cover"  />
         <result property="userName"          column="user_name"          />
     </resultMap>
 
@@ -42,6 +43,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                r.visitor_count, r.remark, r.status, r.handle_user, r.handle_time,
                r.handle_remark, r.create_time, r.update_time,
                i.institution_name,
+               i.cover_images as institution_cover,
                u.user_name
         from institution_visit_reservation r
         left join pension_institution i on r.institution_id = i.institution_id

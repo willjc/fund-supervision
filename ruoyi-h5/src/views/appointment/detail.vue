@@ -73,30 +73,14 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showToast, showConfirmDialog } from 'vant'
+import { getVisitDetail, cancelVisit } from '@/api/visit'
+import { getInstitutionDetail } from '@/api/institution'
 
 const route = useRoute()
 const router = useRouter()
 
 const loading = ref(false)
-
-// 模拟详情数据
-const mockDetail = {
-  appointmentId: 1,
-  appointmentNo: 'AP1736825400000',
-  status: '0', // 0-待参观 1-已完成 2-已取消
-  visitDate: '2025-01-20',
-  visitTime: '10:00',
-  visitorName: '张三',
-  visitorPhone: '13800138000',
-  visitorCount: 2,
-  remark: '希望能详细了解护理服务和收费标准',
-  institutionInfo: {
-    name: '郑州市金水区花园口社区养老服务中心',
-    address: '郑州市金水区花园口镇花园路123号',
-    contactPhone: '0371-12345678',
-    coverImage: 'https://via.placeholder.com/60x60'
-  }
-}
+const reservationId = ref(route.params.id)
 
 const detail = ref({
   appointmentNo: '',
@@ -119,7 +103,7 @@ const detail = ref({
 const getStatusText = (status) => {
   const statusMap = {
     '0': '待参观',
-    '1': '已完成',
+    '1': '已参观',
     '2': '已取消'
   }
   return statusMap[status] || '未知'
@@ -133,14 +117,16 @@ const handleCancel = async () => {
       message: '确定要取消这次预约吗?'
     })
 
-    // 模拟取消
-    await new Promise(resolve => setTimeout(resolve, 500))
-
-    showToast('已取消预约')
-    detail.value.status = '2'
+    const response = await cancelVisit(reservationId.value)
+    if (response.code === 200) {
+      showToast('已取消预约')
+      detail.value.status = '2'
+    } else {
+      showToast(response.msg || '取消失败')
+    }
   } catch (error) {
     if (error !== 'cancel') {
-      showToast('取消失败')
+      showToast(error.message || '取消失败')
     }
   }
 }
@@ -157,11 +143,48 @@ const loadDetail = async () => {
   try {
     loading.value = true
 
-    // 模拟网络延迟
-    await new Promise(resolve => setTimeout(resolve, 500))
+    // 获取预约详情
+    const response = await getVisitDetail(reservationId.value)
+    if (response.code === 200 && response.data) {
+      const data = response.data
 
-    detail.value = mockDetail
+      // 基本预约信息
+      detail.value.appointmentNo = data.reservationNo
+      detail.value.status = data.status
+      detail.value.visitDate = data.visitDate
+      detail.value.visitTime = data.visitTime
+      detail.value.visitorName = data.visitorName
+      detail.value.visitorPhone = data.visitorPhone
+      detail.value.visitorCount = data.visitorCount
+      detail.value.remark = data.remark
+
+      // 机构基本信息
+      detail.value.institutionInfo.name = data.institutionName
+      detail.value.institutionInfo.coverImage = data.institutionCover || ''
+
+      // 如果有机构ID，获取机构详细信息（地址、电话等）
+      if (data.institutionId) {
+        try {
+          const instResponse = await getInstitutionDetail(data.institutionId)
+          if (instResponse.code === 200 && instResponse.data) {
+            const instData = instResponse.data
+            detail.value.institutionInfo.address = instData.actualAddress || instData.address || ''
+            detail.value.institutionInfo.contactPhone = instData.contactPhone || ''
+            // 如果API返回的cover为空，尝试使用mainPicture
+            if (!detail.value.institutionInfo.coverImage) {
+              detail.value.institutionInfo.coverImage = instData.mainPicture || ''
+            }
+          }
+        } catch (error) {
+          console.error('加载机构详情失败:', error)
+          // 机构详情加载失败不影响预约详情展示
+        }
+      }
+    } else {
+      showToast(response.msg || '加载失败')
+    }
   } catch (error) {
+    console.error('加载预约详情失败:', error)
     showToast('加载失败')
   } finally {
     loading.value = false

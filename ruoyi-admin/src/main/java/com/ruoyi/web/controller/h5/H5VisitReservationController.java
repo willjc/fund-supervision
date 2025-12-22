@@ -18,7 +18,9 @@ import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.SecurityUtils;
+import com.ruoyi.domain.PensionInstitutionPublic;
 import com.ruoyi.domain.pension.InstitutionVisitReservation;
+import com.ruoyi.service.IPensionInstitutionPublicService;
 import com.ruoyi.service.pension.IInstitutionVisitReservationService;
 
 /**
@@ -33,6 +35,9 @@ public class H5VisitReservationController extends BaseController
 {
     @Autowired
     private IInstitutionVisitReservationService visitReservationService;
+
+    @Autowired
+    private IPensionInstitutionPublicService institutionPublicService;
 
     /**
      * 提交预约参观
@@ -145,6 +150,15 @@ public class H5VisitReservationController extends BaseController
                 item.put("reservationNo", reservation.getReservationNo());
                 item.put("institutionId", reservation.getInstitutionId());
                 item.put("institutionName", reservation.getInstitutionName());
+
+                // 获取机构公示信息中的主图
+                PensionInstitutionPublic publicInfo = institutionPublicService.selectPensionInstitutionPublicByInstitutionId(reservation.getInstitutionId());
+                if (publicInfo != null && publicInfo.getMainPicture() != null && !publicInfo.getMainPicture().isEmpty()) {
+                    item.put("institutionCover", publicInfo.getMainPicture());
+                } else {
+                    item.put("institutionCover", "");
+                }
+
                 item.put("visitorName", reservation.getVisitorName());
                 item.put("visitorPhone", reservation.getVisitorPhone());
                 item.put("visitDate", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD, reservation.getVisitDate()));
@@ -201,6 +215,15 @@ public class H5VisitReservationController extends BaseController
             result.put("reservationNo", reservation.getReservationNo());
             result.put("institutionId", reservation.getInstitutionId());
             result.put("institutionName", reservation.getInstitutionName());
+
+            // 获取机构公示信息中的主图
+            PensionInstitutionPublic publicInfo = institutionPublicService.selectPensionInstitutionPublicByInstitutionId(reservation.getInstitutionId());
+            if (publicInfo != null && publicInfo.getMainPicture() != null && !publicInfo.getMainPicture().isEmpty()) {
+                result.put("institutionCover", publicInfo.getMainPicture());
+            } else {
+                result.put("institutionCover", "");
+            }
+
             result.put("visitorName", reservation.getVisitorName());
             result.put("visitorPhone", reservation.getVisitorPhone());
             result.put("visitDate", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD, reservation.getVisitDate()));
