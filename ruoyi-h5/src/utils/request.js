@@ -43,11 +43,8 @@ service.interceptors.response.use(
       })
       return Promise.reject(new Error(res.msg || '未授权'))
     } else {
-      // 其他错误
-      showToast({
-        message: res.msg || '请求失败',
-        type: 'fail'
-      })
+      // 其他业务错误 - 不在这里显示toast，让具体业务页面处理
+      // 这样可以提供更准确的错误信息
       return Promise.reject(new Error(res.msg || '请求失败'))
     }
   },
@@ -61,25 +58,61 @@ service.interceptors.response.use(
           message = '未授权,请重新登录'
           removeToken()
           window.location.href = '/login'
+          showToast({
+            message: message,
+            type: 'fail'
+          })
           break
         case 403:
           message = '拒绝访问'
+          showToast({
+            message: message,
+            type: 'fail'
+          })
           break
         case 404:
           message = '请求错误,未找到该资源'
+          showToast({
+            message: message,
+            type: 'fail'
+          })
           break
         case 500:
-          message = '服务器错误'
+          // 500错误可能是业务异常，让业务页面处理
+          if (error.response.data && error.response.data.msg) {
+            message = error.response.data.msg
+          } else {
+            message = '服务器错误'
+            showToast({
+              message: message,
+              type: 'fail'
+            })
+          }
           break
         default:
-          message = error.response.data.msg || '网络错误'
+          message = error.response.data?.msg || '网络错误'
+          if (!error.response.data?.msg) {
+            showToast({
+              message: message,
+              type: 'fail'
+            })
+          }
       }
+    } else if (error.request) {
+      // 请求发出但没有收到响应
+      message = '网络连接失败，请检查网络后重试'
+      showToast({
+        message: message,
+        type: 'fail'
+      })
+    } else {
+      // 其他错误
+      message = error.message || '请求失败'
+      showToast({
+        message: message,
+        type: 'fail'
+      })
     }
-
-    showToast({
-      message: message,
-      type: 'fail'
-    })
 
     return Promise.reject(error)
   }

@@ -331,7 +331,7 @@ const goToDetail = (orderId) => {
   })
 }
 
-// 取消订单 (使用模拟数据)
+// 取消订单
 const handleCancel = async (order) => {
   try {
     await showConfirmDialog({
@@ -339,23 +339,56 @@ const handleCancel = async (order) => {
       message: '确定要取消该订单吗?'
     })
 
-    // 模拟取消成功
-    await new Promise(resolve => setTimeout(resolve, 300))
+    showToast({
+      message: '正在取消订单...',
+      forbidClick: true,
+      duration: 500
+    })
 
-    // 更新模拟数据中的订单状态
-    const targetOrder = mockOrders.find(o => o.orderId === order.orderId)
-    if (targetOrder) {
-      targetOrder.orderStatus = '2' // 2-已取消
+    console.log('开始取消订单，订单ID:', order.orderId)
+    console.log('订单信息:', JSON.stringify(order, null, 2))
+
+    // 调用取消订单API
+    const response = await cancelOrder(order.orderId)
+    console.log('取消订单API响应:', response)
+
+    if (response.code === 200) {
+      showToast('取消成功')
+      // 刷新列表
+      resetList()
+      onLoad()
+    } else {
+      console.error('取消订单失败:', response)
+      showToast(response.msg || '取消失败')
     }
-
-    showToast('取消成功')
-    // 刷新列表
-    resetList()
-    onLoad()
   } catch (error) {
     // 用户取消了对话框
     if (error !== 'cancel') {
-      showToast('取消失败')
+      console.error('取消订单异常:', error)
+      console.error('错误���情:', {
+        message: error.message,
+        response: error.response,
+        request: error.request,
+        config: error.config
+      })
+
+      // 提供更具体的错误信息
+      let errorMessage = '取消失败，请重试'
+      if (error.response) {
+        // 服务器返回了错误状态码
+        console.error('响应错误:', error.response.status, error.response.data)
+        errorMessage = error.response.data?.msg || `��务器错误(${error.response.status})`
+      } else if (error.request) {
+        // 请求发出但没有收到响应
+        console.error('网络请求失败:', error.request)
+        errorMessage = '网络连接失败，请检查网络后重试'
+      } else {
+        // 其他错误
+        console.error('请求配置错误:', error.config)
+        errorMessage = error.message || '未知错误'
+      }
+
+      showToast(errorMessage)
     }
   }
 }

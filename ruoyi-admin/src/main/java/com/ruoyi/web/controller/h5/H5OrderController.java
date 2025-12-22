@@ -470,7 +470,73 @@ public class H5OrderController extends BaseController
         }
     }
 
-    
+    /**
+     * 取消订单
+     */
+    @PostMapping("/order/{orderId}/cancel")
+    public AjaxResult cancelOrder(@PathVariable Long orderId) {
+        try {
+            logger.info("开始处理取消订单请求，订单ID：{}", orderId);
+
+            // 获取当前用户ID
+            Long currentUserId = getCurrentUserId();
+            if (currentUserId == null) {
+                logger.error("取消订单失败：用户未登录或身份验证失败，订单ID：{}", orderId);
+                return error("用户未登录或身份验证失败");
+            }
+
+            logger.info("当前用户ID：{}", currentUserId);
+
+            // 查询订单信息
+            OrderInfo order = orderInfoService.selectOrderInfoByOrderId(orderId);
+            if (order == null) {
+                logger.error("取消订单失败：订单不存在，订单ID：{}", orderId);
+                return error("订单不存在");
+            }
+
+            logger.info("查询到订单信息：订单号={}，状态={}，创建者={}，金额={}",
+                order.getOrderNo(), order.getOrderStatus(), order.getCreatorUserId(), order.getOrderAmount());
+
+            // 验证订单是否为当前用户的订单
+            Long orderCreatorId = order.getCreatorUserId();
+            if (orderCreatorId == null) {
+                // 如果订单没有创建者ID，设置为当前用户并允许取消
+                logger.warn("订单{}没有创建者ID，设置为当前用户{}", orderId, currentUserId);
+                order.setCreatorUserId(currentUserId);
+            } else if (!currentUserId.equals(orderCreatorId)) {
+                logger.error("取消订单失败：无权限操作该订单，订单ID={}，当前用户={}，订单创建者={}",
+                    orderId, currentUserId, orderCreatorId);
+                return error("无权限操作该订单");
+            }
+
+            // 验证订单状态是否可以取消
+            String currentStatus = order.getOrderStatus();
+            if (!"0".equals(currentStatus)) {
+                logger.error("取消订单失败：订单状态不允许取消，订单ID={}，当前状态={}", orderId, currentStatus);
+                return error("只有待付款的订单才能取消");
+            }
+
+            // 更新订单状态为已取消
+            order.setOrderStatus("2"); // 2-已取消
+            order.setUpdateTime(new Date());
+
+            logger.info("开始更新订单状态，订单ID={}，新状态=2（已取消）", orderId);
+
+            int result = orderInfoService.updateOrderInfo(order);
+            if (result > 0) {
+                logger.info("订单{}取消成功，订单号：{}", orderId, order.getOrderNo());
+                return success("订单取消成功");
+            } else {
+                logger.error("订单{}取消失败，数据库更新返回0", orderId);
+                return error("订单取消失败，请稍后重试");
+            }
+        } catch (Exception e) {
+            logger.error("取消订单异常，订单ID：{}", orderId, e);
+            return error("取消订单失败：" + e.getMessage());
+        }
+    }
+
+
     /**
      * 处理支付请求
      * 模拟支付接口，默认支付成功

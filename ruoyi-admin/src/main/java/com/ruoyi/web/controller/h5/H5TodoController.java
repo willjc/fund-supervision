@@ -42,11 +42,12 @@ public class H5TodoController extends BaseController
 
     /**
      * 获取待办事项列表
-     * 当前仅包含：待家属审批的押金申请
+     * 支持查询待办和已完成的事项
      */
     @GetMapping("/list")
     public AjaxResult getTodoList(@RequestParam(defaultValue = "1") Integer pageNum,
-                                  @RequestParam(defaultValue = "10") Integer pageSize)
+                                  @RequestParam(defaultValue = "10") Integer pageSize,
+                                  @RequestParam(required = false) String status)
     {
         try {
             // 获取当前用户ID
@@ -70,8 +71,9 @@ public class H5TodoController extends BaseController
                 return success(result);
             }
 
-            // 2. 查询待审批的押金申请（状态为pending_family）
+            // 2. 根据状态查询押金申请
             List<Map<String, Object>> todoList = new ArrayList<>();
+            String targetStatus = status; // "pending" 或 "completed"
 
             for (ElderFamily family : familyList) {
                 Long elderId = family.getElderId();
@@ -80,8 +82,20 @@ public class H5TodoController extends BaseController
                 List<DepositApply> applies = depositApplyService.selectDepositApplyByElderId(elderId);
                 if (applies != null && !applies.isEmpty()) {
                     for (DepositApply apply : applies) {
-                        // 只显示待家属审批的申请
-                        if ("pending_family".equals(apply.getApplyStatus())) {
+                        boolean shouldInclude = false;
+                        String todoStatus = "";
+
+                        if ("completed".equals(targetStatus)) {
+                            // 已完成：包含已通过和已拒绝的申请
+                            shouldInclude = "approved".equals(apply.getApplyStatus()) || "rejected".equals(apply.getApplyStatus());
+                            todoStatus = "approved".equals(apply.getApplyStatus()) ? "approved" : "rejected";
+                        } else {
+                            // 默认或pending：查询待家属审批的申请
+                            shouldInclude = "pending_family".equals(apply.getApplyStatus());
+                            todoStatus = "pending";
+                        }
+
+                        if (shouldInclude) {
                             Map<String, Object> todo = new HashMap<>();
                             todo.put("type", "deposit_approve"); // 待办类型
                             todo.put("typeText", "押金审批");
@@ -91,7 +105,19 @@ public class H5TodoController extends BaseController
                             todo.put("amount", apply.getApplyAmount());
                             todo.put("createTime", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, apply.getCreateTime()));
                             todo.put("urgencyLevel", apply.getUrgencyLevel());
-                            todo.put("status", "pending");
+                            todo.put("status", todoStatus); // pending/approved/rejected
+
+                            // 已完成事项需要额外的完成信息
+                            if ("completed".equals(targetStatus)) {
+                                todo.put("completeTime", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, apply.getUpdateTime()));
+                                todo.put("approver", apply.getApprover());
+                                todo.put("approveTime", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, apply.getApproveTime()));
+                                todo.put("approveRemark", apply.getApproveRemark());
+
+                                String resultText = "approved".equals(apply.getApplyStatus()) ? "审批通过" : "审批拒绝";
+                                todo.put("resultText", resultText);
+                                todo.put("resultType", "approved".equals(apply.getApplyStatus()) ? "success" : "danger");
+                            }
 
                             // 获取老人信息
                             if (apply.getElderId() != null) {
@@ -163,9 +189,10 @@ public class H5TodoController extends BaseController
             List<ElderFamily> familyList = elderFamilyService.selectElderFamilyList(familyQuery);
 
             int depositApproveCount = 0;
+            int completedCount = 0;
 
             if (familyList != null && !familyList.isEmpty()) {
-                // 2. 统计待审批的押金申请数量
+                // 2. 统计待审批和已完成的押金申请数量
                 for (ElderFamily family : familyList) {
                     Long elderId = family.getElderId();
                     List<DepositApply> applies = depositApplyService.selectDepositApplyByElderId(elderId);
@@ -173,6 +200,8 @@ public class H5TodoController extends BaseController
                         for (DepositApply apply : applies) {
                             if ("pending_family".equals(apply.getApplyStatus())) {
                                 depositApproveCount++;
+                            } else if ("approved".equals(apply.getApplyStatus()) || "rejected".equals(apply.getApplyStatus())) {
+                                completedCount++;
                             }
                         }
                     }
@@ -181,8 +210,9 @@ public class H5TodoController extends BaseController
 
             // 3. 构建返回数据
             Map<String, Object> data = new HashMap<>();
-            data.put("depositApproveCount", depositApproveCount); // 押金审批待办数量
-            data.put("totalCount", depositApproveCount); // 总待办数量（目前只有押金审批）
+            data.put("pendingCount", depositApproveCount); // 待办数量
+            data.put("completedCount", completedCount); // 已完成数量
+            data.put("totalCount", depositApproveCount + completedCount); // 总数量
 
             return success(data);
         } catch (Exception e) {

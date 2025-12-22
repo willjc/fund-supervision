@@ -63,16 +63,52 @@
               class="todo-item completed"
             >
               <div class="todo-header">
-                <van-tag type="success" size="medium">
-                  {{ item.type }}
+                <van-tag :type="item.resultType || 'success'" size="medium">
+                  {{ item.typeText }}
                 </van-tag>
                 <span class="todo-time">{{ item.completeTime }}</span>
               </div>
               <div class="todo-title">{{ item.title }}</div>
               <div class="todo-desc">{{ item.description }}</div>
-              <div class="complete-mark">
-                <van-icon name="success" size="16" color="#07c160" />
-                <span>已完成</span>
+
+              <!-- 审批详情信息 -->
+              <div class="approval-details">
+                <div class="detail-row">
+                  <span class="detail-label">申请时间：</span>
+                  <span class="detail-value">{{ item.createTime }}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">申请金额：</span>
+                  <span class="detail-value amount">¥{{ formatAmount(item.amount) }}</span>
+                </div>
+                <div v-if="item.elderName" class="detail-row">
+                  <span class="detail-label">关联老人：</span>
+                  <span class="detail-value">{{ item.elderName }}</span>
+                </div>
+                <div v-if="item.approveTime" class="detail-row">
+                  <span class="detail-label">审批时间：</span>
+                  <span class="detail-value">{{ item.approveTime }}</span>
+                </div>
+                <div v-if="item.approver" class="detail-row">
+                  <span class="detail-label">审批人：</span>
+                  <span class="detail-value">{{ item.approver }}</span>
+                </div>
+                <div v-if="item.approveRemark" class="detail-row">
+                  <span class="detail-label">审批意见：</span>
+                  <span class="detail-value">{{ item.approveRemark }}</span>
+                </div>
+              </div>
+
+              <div class="complete-info">
+                <div class="complete-result">
+                  <van-tag :type="item.resultType || 'success'" size="small">
+                    {{ item.resultText }}
+                  </van-tag>
+                </div>
+                <div class="complete-mark">
+                  <van-icon name="success" size="16" color="#07c160" />
+                  <span>已完成</span>
+                </div>
               </div>
             </div>
 
@@ -90,7 +126,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast, showLoadingToast } from 'vant'
-import { getTodoList } from '@/api/todo'
+import { getTodoList, getCompletedList } from '@/api/todo'
 
 const router = useRouter()
 
@@ -100,7 +136,7 @@ const activeTab = ref('pending')
 // 待办列表
 const pendingList = ref([])
 
-// 已完成列表（暂未实现）
+// 已完成列表
 const completedList = ref([])
 
 // 加载状态
@@ -144,6 +180,44 @@ const loadTodoList = async () => {
   }
 }
 
+// 获取已完成列表
+const loadCompletedList = async () => {
+  let toast = null
+  try {
+    loading.value = true
+    toast = showLoadingToast({
+      message: '加载中...',
+      forbidClick: true,
+      duration: 0
+    })
+
+    const response = await getCompletedList({
+      pageNum: 1,
+      pageSize: 100
+    })
+
+    if (toast) toast.close()
+
+    if (response.code === 200 && response.data) {
+      completedList.value = response.data.rows || []
+    } else {
+      showToast({
+        type: 'fail',
+        message: response.msg || '加载失败'
+      })
+    }
+  } catch (error) {
+    if (toast) toast.close()
+    console.error('加载已完成列表失败', error)
+    showToast({
+      type: 'fail',
+      message: '加载失败'
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
 // 获取类型颜色
 const getTypeColor = (type) => {
   const colorMap = {
@@ -159,6 +233,9 @@ const getTypeColor = (type) => {
 // Tab切换
 const onTabChange = (name) => {
   activeTab.value = name
+  if (name === 'completed' && completedList.value.length === 0) {
+    loadCompletedList()
+  }
 }
 
 // 点击待办事项
@@ -189,6 +266,12 @@ const handleComplete = async (item) => {
     type: 'fail',
     message: '该功能暂未实现'
   })
+}
+
+// 格式化金额
+const formatAmount = (amount) => {
+  if (!amount) return '0.00'
+  return parseFloat(amount).toFixed(2)
 }
 
 // 页面加载时获取待办列表
@@ -267,9 +350,64 @@ onMounted(() => {
   margin-bottom: 12px;
 }
 
+/* 审批详情样式 */
+.approval-details {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.detail-row:last-child {
+  margin-bottom: 0;
+}
+
+.detail-label {
+  color: #666;
+  font-weight: 500;
+  min-width: 80px;
+}
+
+.detail-value {
+  color: #333;
+  flex: 1;
+  text-align: right;
+}
+
+.detail-value.amount {
+  color: #ee0a24;
+  font-weight: 600;
+}
+
 .todo-footer {
   display: flex;
   justify-content: flex-end;
+}
+
+.complete-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.complete-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.approver-info {
+  font-size: 12px;
+  color: #666;
 }
 
 .complete-mark {
