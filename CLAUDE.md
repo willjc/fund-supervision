@@ -554,4 +554,45 @@ ruoyi-admin/
 - **功能描述**: `功能描述.md` - 完整的功能需求文档
 - **业务流程**: `业务流程详解.md` - 详细的业务流程说明
 - **开发列表**: `开发列表.md` - 功能开发计划和指导
-- **修改记录**: `xiugai.md` - 项目历史变更记录（已停止更新，改为更新CLAUDE.md）
+- **修改记录**: `xiugai.md` - 项目历史变更记录（已停止更新，改为更新CLAUDE.md）## 2025-12-20 修复评价提交数据库字段错误
+
+### 问题描述
+H5端评价提交时出现数据库字段错误：
+- 错误信息：Unknown column 'create_by' in 'field list'
+- 原因：institution_review表没有create_by字段，但代码试图插入该字段
+
+### 修复内容
+
+#### 1. 修改H5ReviewController.java
+**文件位置**：ruoyi-admin/src/main/java/com/ruoyi/web/controller/h5/H5ReviewController.java
+
+**修改内容**：
+- 移除对create_by字段的设置
+- 添加IOrderInfoService依赖注入
+- 在评价提交时从订单获取institution_id和elder_id
+
+**具体修改**：
+
+
+#### 2. 修改InstitutionReviewMapper.xml
+**文件位置**：ruoyi-admin/src/main/resources/mapper/pension/InstitutionReviewMapper.xml
+
+**修改内容**：
+- 移除insert语句中create_by字段的引用（第138行和第155行）
+
+**具体修改**：
+
+
+#### 3. 添加必要的import
+**文件位置**：H5ReviewController.java
+
+**添加import**：
+
+
+### 测试验证
+修复后的评价功能应该能够：
+- 正确提交评价数据到数据库
+- 自动从订单中获取机构和老人信息
+- 避免数据库字段错误
+
+

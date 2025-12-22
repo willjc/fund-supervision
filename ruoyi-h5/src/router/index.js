@@ -191,7 +191,14 @@ const routes = [
     component: () => import('@/views/user/evaluation/form.vue'),
     meta: { title: '写评价', requireAuth: false }
   },
-  // 我的收藏
+  // 评价提交页面
+  {
+    path: '/review/submit/:orderId',
+    name: 'ReviewSubmit',
+    component: () => import('@/views/review/submit.vue'),
+    meta: { title: '发表评价', requireAuth: true }
+  },
+    // 我的收藏
   {
     path: '/user/collection',
     name: 'UserCollection',

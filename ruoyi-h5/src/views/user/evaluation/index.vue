@@ -13,36 +13,6 @@
       >
         <van-tab title="待评价" name="pending">
           <div class="evaluation-list">
-            <div
-              v-for="item in pendingList"
-              :key="item.id"
-              class="evaluation-item"
-            >
-              <div class="institution-info">
-                <van-image
-                  width="60"
-                  height="60"
-                  :src="item.institutionImage"
-                  fit="cover"
-                  round
-                />
-                <div class="institution-detail">
-                  <div class="institution-name">{{ item.institutionName }}</div>
-                  <div class="order-info">订单号: {{ item.orderNo }}</div>
-                  <div class="order-time">{{ item.orderTime }}</div>
-                </div>
-              </div>
-
-              <van-button
-                type="primary"
-                size="small"
-                round
-                @click="goToWrite(item)"
-              >
-                去评价
-              </van-button>
-            </div>
-
             <div v-if="pendingList.length === 0" class="empty-state">
               <van-empty description="暂无待评价订单" />
             </div>
@@ -51,6 +21,10 @@
 
         <van-tab title="已评价" name="completed">
           <div class="evaluation-list">
+            <!-- 加载状态 -->
+            <van-loading v-if="loading && completedList.length === 0" class="loading-center" />
+
+            <!-- 评价列表 -->
             <div
               v-for="item in completedList"
               :key="item.id"
@@ -67,7 +41,12 @@
                 <div class="institution-detail">
                   <div class="institution-name">{{ item.institutionName }}</div>
                   <div class="order-info">订单号: {{ item.orderNo }}</div>
-                  <div class="evaluation-time">评价时间: {{ item.evaluationTime }}</div>
+                  <div class="evaluation-time">评价时间: {{ formatTime(item.evaluationTime) }}</div>
+                  <div class="review-status">
+                    <van-tag v-if="item.status === 0" type="warning" size="small">待审核</van-tag>
+                    <van-tag v-else-if="item.status === 1" type="success" size="small">已通过</van-tag>
+                    <van-tag v-else-if="item.status === 2" type="danger" size="small">已拒绝</van-tag>
+                  </div>
                 </div>
               </div>
 
@@ -79,7 +58,7 @@
                   color="#ffd21e"
                   void-color="#eee"
                 />
-                <div class="evaluation-text">{{ item.content }}</div>
+                <div class="evaluation-text">{{ item.content || '用户暂未填写评价内容' }}</div>
                 <div v-if="item.images && item.images.length > 0" class="evaluation-images">
                   <van-image
                     v-for="(img, index) in item.images"
@@ -94,7 +73,17 @@
               </div>
             </div>
 
-            <div v-if="completedList.length === 0" class="empty-state">
+            <!-- 加载更多 -->
+            <div v-if="completedList.length > 0" class="load-more">
+              <van-loading v-if="loading" size="16px" />
+              <div v-else-if="finished" class="no-more">没有更多了</div>
+              <van-button v-else type="primary" plain size="small" @click="onLoadMore">
+                加载更多
+              </van-button>
+            </div>
+
+            <!-- 空状态 -->
+            <div v-if="!loading && completedList.length === 0" class="empty-state">
               <van-empty description="暂无评价记录" />
             </div>
           </div>
@@ -105,68 +94,127 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { showImagePreview } from 'vant'
+import { showImagePreview, showToast } from 'vant'
+import { getUserReviewList } from '@/api/review'
 
 const router = useRouter()
 
 // 活动Tab
-const activeTab = ref('pending')
+const activeTab = ref('completed')
+const loading = ref(false)
+const finished = ref(false)
 
-// 待评价列表
-const pendingList = ref([
-  {
-    id: 1,
-    institutionName: '郑州市金水区花园口社区养老服务中心',
-    institutionImage: 'https://via.placeholder.com/60x60',
-    orderNo: 'ORD20250114093000',
-    orderTime: '2025-01-14 09:30'
-  }
-])
+// 待评价列表 - 暂时为空，后续可以获取已支付但未评价的订单
+const pendingList = ref([])
 
-// 已评价列表
-const completedList = ref([
-  {
-    id: 2,
-    institutionName: '郑州市二七区福寿园养老院',
-    institutionImage: 'https://via.placeholder.com/60x60',
-    orderNo: 'ORD20250110143000',
-    orderTime: '2025-01-10 14:30',
-    evaluationTime: '2025-01-12 16:20',
-    rating: 5,
-    content: '服务很好,工作人员很专业,环境也很干净整洁,老人住得很舒心。',
-    images: [
-      'https://via.placeholder.com/200x200',
-      'https://via.placeholder.com/200x200'
-    ]
-  }
-])
+// 已评价列表 - 从数据库获取真实的评价记录
+const completedList = ref([])
+
+// 分页信息
+const pageNum = ref(1)
+const pageSize = ref(10)
+const total = ref(0)
 
 // Tab切换
 const onTabChange = (name) => {
   activeTab.value = name
+  if (name === 'completed' && completedList.value.length === 0) {
+    loadUserReviews()
+  }
 }
 
-// 跳转到写评价页面
-const goToWrite = (item) => {
-  router.push({
-    path: '/user/evaluation/form',
-    query: {
-      orderId: item.id,
-      institutionName: item.institutionName
+// 加载用户评价记录
+const loadUserReviews = async (reset = true) => {
+  if (loading.value) return
+
+  try {
+    loading.value = true
+
+    if (reset) {
+      pageNum.value = 1
+      finished.value = false
+      completedList.value = []
     }
-  })
+
+    const response = await getUserReviewList(pageNum.value, pageSize.value)
+
+    if (response.code === 200) {
+      const { rows, total: totalCount } = response.data
+
+      // 处理图片数据
+      const processedReviews = rows.map(review => {
+        let images = []
+        if (review.imageList && review.imageList.length > 0) {
+          images = review.imageList.map(img => img.url)
+        }
+
+        return {
+          id: review.reviewId,
+          institutionName: review.institutionName || '养老机构',
+          institutionImage: 'https://via.placeholder.com/60x60', // 暂时使用占位图
+          orderNo: review.orderId,
+          orderTime: review.createTime,
+          evaluationTime: review.createTime,
+          rating: review.averageRating || 5,
+          content: review.content,
+          status: review.status, // 0-待审核, 1-已通过, 2-已拒绝
+          images: images
+        }
+      })
+
+      if (reset) {
+        completedList.value = processedReviews
+      } else {
+        completedList.value.push(...processedReviews)
+      }
+
+      total.value = totalCount
+
+      if (completedList.value.length >= total.value) {
+        finished.value = true
+      }
+    } else {
+      showToast(response.msg || '获取评价记录失败')
+    }
+  } catch (error) {
+    console.error('加载评价记录失败:', error)
+    showToast('加载评价记录失败')
+  } finally {
+    loading.value = false
+  }
 }
 
-// 预览图片
-const previewImages = (images, startPosition) => {
+// 加载更多
+const onLoadMore = () => {
+  if (!finished.value && !loading.value) {
+    pageNum.value++
+    loadUserReviews(false)
+  }
+}
+
+// 图片预览
+const previewImages = (images, startPosition = 0) => {
   showImagePreview({
     images,
     startPosition,
     closeable: true
   })
 }
+
+// 格式化时间
+const formatTime = (time) => {
+  if (!time) return ''
+  const date = new Date(time)
+  return date.toLocaleDateString() + ' ' + date.toLocaleTimeString().slice(0, 5)
+}
+
+onMounted(() => {
+  if (activeTab.value === 'completed') {
+    loadUserReviews()
+  }
+})
 </script>
 
 <style scoped>
@@ -205,62 +253,87 @@ const previewImages = (images, startPosition) => {
 
 .institution-info {
   display: flex;
-  gap: 12px;
+  align-items: flex-start;
   margin-bottom: 12px;
 }
 
 .institution-detail {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  margin-left: 12px;
 }
 
 .institution-name {
-  font-size: 15px;
-  font-weight: 500;
+  font-size: 16px;
+  font-weight: 600;
   color: #333;
+  margin-bottom: 4px;
 }
 
 .order-info {
   font-size: 13px;
   color: #666;
+  margin-bottom: 2px;
 }
 
-.order-time,
 .evaluation-time {
   font-size: 12px;
   color: #999;
+  margin-bottom: 4px;
 }
 
-/* 评价内容卡片 */
+.review-status {
+  margin-top: 4px;
+}
+
 .evaluation-content-card {
-  background: #f7f8fa;
+  background: #f8f9fa;
   border-radius: 8px;
   padding: 12px;
-  margin-top: 8px;
 }
 
 .evaluation-text {
   font-size: 14px;
-  color: #333;
-  line-height: 1.6;
+  color: #666;
+  line-height: 1.5;
   margin-top: 8px;
+  margin-bottom: 8px;
 }
 
 .evaluation-images {
   display: flex;
   gap: 8px;
-  margin-top: 12px;
   flex-wrap: wrap;
 }
 
-.evaluation-images .van-image {
-  border-radius: 6px;
+.evaluation-images :deep(.van-image) {
+  border-radius: 4px;
+  overflow: hidden;
   cursor: pointer;
 }
 
 .empty-state {
-  padding: 100px 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+}
+
+.loading-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}
+
+.load-more {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px 0;
+}
+
+.no-more {
+  font-size: 14px;
+  color: #999;
 }
 </style>

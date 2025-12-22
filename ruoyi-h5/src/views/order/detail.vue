@@ -105,6 +105,9 @@
         <van-button v-if="order.orderStatus === '0'" block type="primary" @click="handlePay">
           立即支付
         </van-button>
+        <van-button v-if="order.orderStatus === '1'" block type="primary" @click="handleReview">
+          去评价
+        </van-button>
         <van-button v-if="order.orderStatus === '1'" block @click="handleContact">
           联系客服
         </van-button>
@@ -250,6 +253,23 @@ const handlePay = () => {
       amount: order.value.paidAmount || order.value.orderAmount,
       elderName: order.value.elderName,
       institutionId: order.value.institutionId
+    }
+  })
+}
+
+// 评价订单
+const handleReview = () => {
+  if (!order.value) {
+    showToast('订单信息不存在')
+    return
+  }
+
+  // 跳转到评价页面
+  router.push({
+    path: `/review/submit/${order.value.orderId}`,
+    query: {
+      institutionName: order.value.institutionName,
+      orderAmount: order.value.paidAmount || order.value.orderAmount
     }
   })
 }

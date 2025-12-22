@@ -2679,3 +2679,26 @@ select o.order_id, o.order_no, o.order_type, o.elder_id, o.creator_user_id, o.in
 
 **修改文件**: ruoyi-admin/src/main/java/com/ruoyi/web/controller/h5/H5InstitutionController.java
 **主要修改**: 修改机构详情页面API，统一使用bedInfoService.getBedStatistics()获取总床位和可用床位数，确保与列表页面数据一致，同时添加异常处理机制
+
+## 2025-12-20
+
+### 实现订单评价功能
+**功能描述**: 实现已支付订单的评价功能，包括环境、服务、价格三个维度的星级评分，支持文字评价和最多9张图片上传，评价需要民政监管审核后才能在��构详情页显示
+
+**主要实现**:
+1. **数据库表**: 创建institution_review表，支持评价的三维度评分、图片存储、审核状态
+2. **后端实现**: 创建InstitutionReview实体类、Mapper、Service和Controller，支持评价提交、审核、统计查询
+3. **H5页面**: 修改订单详情页增加去评价按钮，创建评价提交页面支持星级评分、文字评价和图片上传
+4. **文件清单**:
+- sql/institution_review_table.sql: 评价表创建脚本
+- ruoyi-admin/src/main/java/com/ruoyi/domain/pension/InstitutionReview.java: 评价实体类
+- ruoyi-h5/src/views/review/submit.vue: H5评价提交页面
+### 修复H5评价页面路由空白问题
+**问题描述**: H5端订单详情页面点击去评价后跳转到空白页面，原因是Vue Router缺少对应的路由配置
+**修改文件**: ruoyi-h5/src/router/index.js, ruoyi-h5/src/views/review/submit.vue
+**主要修改**:
+1. 在router/index.js中添加/review/submit/:orderId路由配置
+2. 修正评价提交成功后的跳转路径，从/user/review改为/user/evaluation
+修复评价提交数据库字段错误完成
+修复订单不存在错误：将selectOrderInfoByOrderNo改为selectOrderInfoByOrderId并添加类型转换
+修复我的评价页面显示问题：将静态页面改为动态数据获取

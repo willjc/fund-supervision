@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.mapper.pension.InstitutionReviewMapper">
+
+    <resultMap type="InstitutionReview" id="InstitutionReviewResult">
+        <result property="reviewId"           column="review_id"           />
+        <result property="orderId"            column="order_id"            />
+        <result property="institutionId"      column="institution_id"      />
+        <result property="elderId"            column="elder_id"            />
+        <result property="userId"             column="user_id"             />
+        <result property="environmentRating"  column="environment_rating"  />
+        <result property="serviceRating"      column="service_rating"      />
+        <result property="priceRating"        column="price_rating"        />
+        <result property="averageRating"      column="average_rating"      />
+        <result property="content"            column="content"             />
+        <result property="images"             column="images"              />
+        <result property="status"             column="status"              />
+        <result property="reviewRemark"       column="review_remark"       />
+        <result property="reviewTime"         column="review_time"         />
+        <result property="reviewBy"           column="review_by"           />
+        <result property="feedbackId"         column="feedback_id"         />
+        <result property="createTime"         column="create_time"         />
+        <result property="updateTime"         column="update_time"         />
+    </resultMap>
+
+    <resultMap id="InstitutionReviewWithRelationsResult" type="InstitutionReview" extends="InstitutionReviewResult">
+        <result property="institutionName"    column="institution_name"    />
+        <result property="elderName"          column="elder_name"          />
+        <result property="userName"           column="user_name"           />
+    </resultMap>
+
+    <sql id="selectInstitutionReviewVo">
+        select review_id, order_id, institution_id, elder_id, user_id,
+               environment_rating, service_rating, price_rating, average_rating,
+               content, images, status, review_remark, review_time, review_by,
+               feedback_id, create_time, update_time
+        from institution_review
+    </sql>
+
+    <sql id="selectInstitutionReviewWithRelationsVo">
+        select r.review_id, r.order_id, r.institution_id, r.elder_id, r.user_id,
+               r.environment_rating, r.service_rating, r.price_rating, r.average_rating,
+               r.content, r.images, r.status, r.review_remark, r.review_time, r.review_by,
+               r.feedback_id, r.create_time, r.update_time,
+               i.institution_name,
+               e.elder_name,
+               u.user_name
+        from institution_review r
+        left join pension_institution i on r.institution_id = i.institution_id
+        left join elder_info e on r.elder_id = e.elder_id
+        left join sys_user u on r.user_id = u.user_id
+    </sql>
+
+    <select id="selectInstitutionReviewList" parameterType="InstitutionReview" resultMap="InstitutionReviewResult">
+        <include refid="selectInstitutionReviewVo"/>
+        <where>
+            <if test="orderId != null  and orderId != ''"> and order_id = #{orderId}</if>
+            <if test="institutionId != null "> and institution_id = #{institutionId}</if>
+            <if test="elderId != null "> and elder_id = #{elderId}</if>
+            <if test="userId != null "> and user_id = #{userId}</if>
+            <if test="environmentRating != null "> and environment_rating = #{environmentRating}</if>
+            <if test="serviceRating != null "> and service_rating = #{serviceRating}</if>
+            <if test="priceRating != null "> and price_rating = #{priceRating}</if>
+            <if test="status != null "> and status = #{status}</if>
+            <if test="feedbackId != null "> and feedback_id = #{feedbackId}</if>
+        </where>
+        order by create_time desc
+    </select>
+
+    <select id="selectInstitutionReviewWithRelationsList" parameterType="InstitutionReview" resultMap="InstitutionReviewWithRelationsResult">
+        <include refid="selectInstitutionReviewWithRelationsVo"/>
+        <where>
+            <if test="orderId != null  and orderId != ''"> and r.order_id = #{orderId}</if>
+            <if test="institutionId != null "> and r.institution_id = #{institutionId}</if>
+            <if test="elderId != null "> and r.elder_id = #{elderId}</if>
+            <if test="userId != null "> and r.user_id = #{userId}</if>
+            <if test="environmentRating != null "> and r.environment_rating = #{environmentRating}</if>
+            <if test="serviceRating != null "> and r.service_rating = #{serviceRating}</if>
+            <if test="priceRating != null "> and r.price_rating = #{priceRating}</if>
+            <if test="status != null "> and r.status = #{status}</if>
+            <if test="feedbackId != null "> and r.feedback_id = #{feedbackId}</if>
+        </where>
+        order by r.create_time desc
+    </select>
+
+    <select id="selectInstitutionReviewByReviewId" parameterType="Long" resultMap="InstitutionReviewResult">
+        <include refid="selectInstitutionReviewVo"/>
+        where review_id = #{reviewId}
+    </select>
+
+    <select id="selectInstitutionReviewByOrderId" parameterType="String" resultMap="InstitutionReviewResult">
+        <include refid="selectInstitutionReviewVo"/>
+        where order_id = #{orderId}
+    </select>
+
+    <select id="selectApprovedReviewsByInstitutionId" resultMap="InstitutionReviewResult">
+        <include refid="selectInstitutionReviewVo"/>
+        where institution_id = #{institutionId} and status = 1
+        order by create_time desc
+        <if test="limit != null and limit > 0">
+            limit #{limit}
+        </if>
+    </select>
+
+    <select id="countReviewsByInstitutionId" resultType="int">
+        select count(1) from institution_review where institution_id = #{institutionId}
+        <if test="status != null">
+            and status = #{status}
+        </if>
+    </select>
+
+    <select id="calculateAverageRatingByInstitutionId" resultType="Double">
+        select avg(average_rating) from institution_review where institution_id = #{institutionId}
+        <if test="status != null">
+            and status = #{status}
+        </if>
+    </select>
+
+    <insert id="insertInstitutionReview" parameterType="InstitutionReview" useGeneratedKeys="true" keyProperty="reviewId">
+        insert into institution_review
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="orderId != null and orderId != ''">order_id,</if>
+            <if test="institutionId != null">institution_id,</if>
+            <if test="elderId != null">elder_id,</if>
+            <if test="userId != null">user_id,</if>
+            <if test="environmentRating != null">environment_rating,</if>
+            <if test="serviceRating != null">service_rating,</if>
+            <if test="priceRating != null">price_rating,</if>
+            <if test="content != null">content,</if>
+            <if test="images != null">images,</if>
+            <if test="status != null">status,</if>
+            <if test="reviewRemark != null">review_remark,</if>
+            <if test="reviewTime != null">review_time,</if>
+            <if test="reviewBy != null">review_by,</if>
+            <if test="feedbackId != null">feedback_id,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="orderId != null and orderId != ''">#{orderId},</if>
+            <if test="institutionId != null">#{institutionId},</if>
+            <if test="elderId != null">#{elderId},</if>
+            <if test="userId != null">#{userId},</if>
+            <if test="environmentRating != null">#{environmentRating},</if>
+            <if test="serviceRating != null">#{serviceRating},</if>
+            <if test="priceRating != null">#{priceRating},</if>
+            <if test="content != null">#{content},</if>
+            <if test="images != null">#{images},</if>
+            <if test="status != null">#{status},</if>
+            <if test="reviewRemark != null">#{reviewRemark},</if>
+            <if test="reviewTime != null">#{reviewTime},</if>
+            <if test="reviewBy != null">#{reviewBy},</if>
+            <if test="feedbackId != null">#{feedbackId},</if>
+         </trim>
+    </insert>
+
+    <update id="updateInstitutionReview" parameterType="InstitutionReview">
+        update institution_review
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="orderId != null and orderId != ''">order_id = #{orderId},</if>
+            <if test="institutionId != null">institution_id = #{institutionId},</if>
+            <if test="elderId != null">elder_id = #{elderId},</if>
+            <if test="userId != null">user_id = #{userId},</if>
+            <if test="environmentRating != null">environment_rating = #{environmentRating},</if>
+            <if test="serviceRating != null">service_rating = #{serviceRating},</if>
+            <if test="priceRating != null">price_rating = #{priceRating},</if>
+            <if test="content != null">content = #{content},</if>
+            <if test="images != null">images = #{images},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="reviewRemark != null">review_remark = #{reviewRemark},</if>
+            <if test="reviewTime != null">review_time = #{reviewTime},</if>
+            <if test="reviewBy != null">review_by = #{reviewBy},</if>
+            <if test="feedbackId != null">feedback_id = #{feedbackId},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+        </trim>
+        where review_id = #{reviewId}
+    </update>
+
+    <update id="batchUpdateReviewStatus">
+        update institution_review set
+        status = #{status},
+        review_remark = #{reviewRemark},
+        review_by = #{reviewBy},
+        review_time = now()
+        where review_id in
+        <foreach item="reviewId" collection="reviewIds" open="(" separator="," close=")">
+            #{reviewId}
+        </foreach>
+    </update>
+
+    <delete id="deleteInstitutionReviewByReviewId" parameterType="Long">
+        delete from institution_review where review_id = #{reviewId}
+    </delete>
+
+    <delete id="deleteInstitutionReviewByReviewIds" parameterType="String">
+        delete from institution_review where review_id in
+        <foreach item="reviewId" collection="array" open="(" separator="," close=")">
+            #{reviewId}
+        </foreach>
+    </delete>
+
+</mapper>
