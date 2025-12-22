@@ -150,14 +150,29 @@ const loadUserReviews = async (reset = true) => {
           images = review.imageList.map(img => img.url)
         }
 
+        // 处理机构图片 - 统一使用main_picture字段
+        let institutionImage = 'https://via.placeholder.com/60x60'
+        if (review.institutionImage) {
+          institutionImage = review.institutionImage
+        }
+
+        // 处理星���评分 - van-rate需要整数，将平均评分四舍五入为整数
+        let rating = 5
+        if (review.averageRating !== null && review.averageRating !== undefined) {
+          const avgRating = Number(review.averageRating)
+          if (!isNaN(avgRating) && avgRating >= 1 && avgRating <= 5) {
+            rating = Math.round(avgRating) // 四舍五入为最接近的整数
+          }
+        }
+
         return {
           id: review.reviewId,
           institutionName: review.institutionName || '养老机构',
-          institutionImage: 'https://via.placeholder.com/60x60', // 暂时使用占位图
+          institutionImage: institutionImage,
           orderNo: review.orderId,
           orderTime: review.createTime,
           evaluationTime: review.createTime,
-          rating: review.averageRating || 5,
+          rating: rating,
           content: review.content,
           status: review.status, // 0-待审核, 1-已通过, 2-已拒绝
           images: images

@@ -390,11 +390,6 @@ public class PensionInstitution extends BaseEntity
         this.institutionTypeText = institutionTypeText;
     }
 
-    public String getInstitutionTypeText()
-    {
-        return institutionTypeText;
-    }
-
     public void setBedCount(Long bedCount)
     {
         this.bedCount = bedCount;

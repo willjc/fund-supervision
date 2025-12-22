@@ -19,39 +19,15 @@
       <!-- 评分区域 -->
       <div class="rating-section">
         <div class="rating-item">
-          <div class="rating-label">环境设施</div>
+          <div class="rating-label">总体评分</div>
           <van-rate
-            v-model="review.environmentRating"
-            :size="25"
+            v-model="review.rating"
+            :size="30"
             color="#ffd21e"
             void-icon="star"
             void-color="#eee"
           />
-          <span class="rating-text">{{ getRatingText(review.environmentRating) }}</span>
-        </div>
-
-        <div class="rating-item">
-          <div class="rating-label">服务质量</div>
-          <van-rate
-            v-model="review.serviceRating"
-            :size="25"
-            color="#ffd21e"
-            void-icon="star"
-            void-color="#eee"
-          />
-          <span class="rating-text">{{ getRatingText(review.serviceRating) }}</span>
-        </div>
-
-        <div class="rating-item">
-          <div class="rating-label">性价比</div>
-          <van-rate
-            v-model="review.priceRating"
-            :size="25"
-            color="#ffd21e"
-            void-icon="star"
-            void-color="#eee"
-          />
-          <span class="rating-text">{{ getRatingText(review.priceRating) }}</span>
+          <span class="rating-text">{{ getRatingText(review.rating) }}</span>
         </div>
       </div>
 
@@ -119,9 +95,7 @@ const orderAmount = ref(route.query.orderAmount || '')
 
 // 评价数据
 const review = ref({
-  environmentRating: 5,
-  serviceRating: 5,
-  priceRating: 5,
+  rating: 5,
   content: '',
   imageList: []
 })
@@ -131,10 +105,7 @@ const imageList = ref([])
 
 // 计算是否可以提交
 const canSubmit = computed(() => {
-  return review.value.environmentRating > 0 &&
-         review.value.serviceRating > 0 &&
-         review.value.priceRating > 0 &&
-         review.value.content.trim().length > 0
+  return review.value.rating > 0 && review.value.content.trim().length > 0
 })
 
 // 获取评分文本
@@ -200,12 +171,13 @@ const handleSubmit = async () => {
       uid: Date.now() + '_' + index
     }))
 
-    // 构建提交数据
+    // 构建提交数据 - 将单个评分复制到三个字段，保持数据库兼容性
+    const rating = review.value.rating
     const submitData = {
       orderId: orderId.value,
-      environmentRating: review.value.environmentRating,
-      serviceRating: review.value.serviceRating,
-      priceRating: review.value.priceRating,
+      environmentRating: rating,
+      serviceRating: rating,
+      priceRating: rating,
       content: review.value.content.trim(),
       imageList: reviewImages
     }

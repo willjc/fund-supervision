@@ -2,6 +2,7 @@ package com.ruoyi.web.controller.h5;
 
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import javax.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -164,19 +165,29 @@ public class H5ReviewController extends BaseController
      * 获取用户的评价记录
      */
     @GetMapping("/user/list")
-    public TableDataInfo getUserReviewList()
+    public AjaxResult getUserReviewList()
     {
         Long userId = SecurityUtils.getUserId();
         if (userId == null) {
-            return getDataTable(null);
+            return AjaxResult.error("用户未登录");
         }
 
-        startPage();
-        InstitutionReview query = new InstitutionReview();
-        query.setUserId(userId);
+        try {
+            InstitutionReview query = new InstitutionReview();
+            query.setUserId(userId);
+            query.setStatus(null); // 查询所有状态的评价
 
-        List<InstitutionReview> list = institutionReviewService.selectInstitutionReviewWithRelationsList(query);
-        return getDataTable(list);
+            List<InstitutionReview> list = institutionReviewService.selectInstitutionReviewWithRelationsList(query);
+
+            // 直接返回AjaxResult，包装成前端期望的格式
+            Map<String, Object> result = new HashMap<>();
+            result.put("rows", list);
+            result.put("total", list.size());
+
+            return AjaxResult.success(result);
+        } catch (Exception e) {
+            return AjaxResult.error("获取评价记录失败: " + e.getMessage());
+        }
     }
 
     /**

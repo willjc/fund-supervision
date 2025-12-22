@@ -27,6 +27,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <resultMap id="InstitutionReviewWithRelationsResult" type="InstitutionReview" extends="InstitutionReviewResult">
         <result property="institutionName"    column="institution_name"    />
+        <result property="institutionImage"   column="main_picture"        />
         <result property="elderName"          column="elder_name"          />
         <result property="userName"           column="user_name"           />
     </resultMap>
@@ -44,11 +45,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                r.environment_rating, r.service_rating, r.price_rating, r.average_rating,
                r.content, r.images, r.status, r.review_remark, r.review_time, r.review_by,
                r.feedback_id, r.create_time, r.update_time,
-               i.institution_name,
+               i.institution_name, p.main_picture,
                e.elder_name,
                u.user_name
         from institution_review r
         left join pension_institution i on r.institution_id = i.institution_id
+        left join pension_institution_public p on r.institution_id = p.institution_id
         left join elder_info e on r.elder_id = e.elder_id
         left join sys_user u on r.user_id = u.user_id
     </sql>

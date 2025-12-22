@@ -2702,3 +2702,8 @@ select o.order_id, o.order_no, o.order_type, o.elder_id, o.creator_user_id, o.in
 修复评价提交数据库字段错误完成
 修复订单不存在错误：将selectOrderInfoByOrderNo改为selectOrderInfoByOrderId并添加类型转换
 修复我的评价页面显示问题：将静态页面改为动态数据获取
+修复后端启动错误：删除PensionInstitution.java中重复的getInstitutionTypeText方法
+排查并修复评价列表显示问题：修改API返回格式和分页处理
+修复评价列表中机构图片和星级显示问题：后端添加图片字段，前端优化数据处理
+修复星级评分显示问题：将average_rating字符串转换为整数供van-rate组件显示
+简化评价系统：前端评价页面改为单一总体评分，后端保持三个字段兼容性

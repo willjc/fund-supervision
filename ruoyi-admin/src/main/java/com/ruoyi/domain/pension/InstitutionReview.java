@@ -87,6 +87,9 @@ public class InstitutionReview extends BaseEntity
     @Excel(name = "机构名称")
     private String institutionName;
 
+    /** 机构图片 */
+    private String institutionImage;
+
     /** 老人姓名 */
     @Excel(name = "老人姓名")
     private String elderName;
@@ -287,6 +290,16 @@ public class InstitutionReview extends BaseEntity
     public String getInstitutionName()
     {
         return institutionName;
+    }
+
+    public void setInstitutionImage(String institutionImage)
+    {
+        this.institutionImage = institutionImage;
+    }
+
+    public String getInstitutionImage()
+    {
+        return institutionImage;
     }
 
     public void setElderName(String elderName)
