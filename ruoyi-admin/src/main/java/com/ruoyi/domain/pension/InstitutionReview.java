@@ -19,6 +19,11 @@ public class InstitutionReview extends BaseEntity
 {
     private static final long serialVersionUID = 1L;
 
+    /** 审核状态常量 */
+    public static final Integer STATUS_PENDING = 0;    // 待审核
+    public static final Integer STATUS_APPROVED = 1;   // 已通过
+    public static final Integer STATUS_REJECTED = 2;   // 已拒绝
+
     /** 评价ID */
     private Long reviewId;
 
@@ -342,6 +347,45 @@ public class InstitutionReview extends BaseEntity
 
     public void setImageList(List<ReviewImage> imageList) {
         this.imageList = imageList;
+    }
+
+    /**
+     * 获取审核状态文本
+     */
+    public String getStatusText() {
+        if (status == null) {
+            return "未知";
+        }
+        if (status.equals(STATUS_PENDING)) {
+            return "待审核";
+        } else if (status.equals(STATUS_APPROVED)) {
+            return "已通过";
+        } else if (status.equals(STATUS_REJECTED)) {
+            return "已拒绝";
+        } else {
+            return "未知状态";
+        }
+    }
+
+    /**
+     * 判断是否已审核（通过或拒绝）
+     */
+    public boolean isReviewed() {
+        return STATUS_APPROVED.equals(status) || STATUS_REJECTED.equals(status);
+    }
+
+    /**
+     * 判断是否已通过审核
+     */
+    public boolean isApproved() {
+        return STATUS_APPROVED.equals(status);
+    }
+
+    /**
+     * 判断是否被拒绝
+     */
+    public boolean isRejected() {
+        return STATUS_REJECTED.equals(status);
     }
 
     @Override

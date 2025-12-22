@@ -214,35 +214,37 @@
         </van-tab>
 
         <van-tab title="评价" name="review">
+          <!-- 评价统计摘要 -->
           <div class="review-summary">
             <div class="overall-rating">
-              <div class="rating-score">{{ detail.rating }}</div>
+              <div class="rating-score">{{ detail.rating || 0 }}</div>
               <van-rate v-model="detail.rating" :size="16" color="#ffd21e" void-icon="star" void-color="#eee" readonly />
-              <div class="rating-count">{{ detail.reviewCount }}条评价</div>
+              <div class="rating-count">{{ detail.reviewCount || 0 }}条评价</div>
             </div>
 
-            <div class="rating-breakdown">
+            <!-- 加载状态 -->
+            <div v-if="reviewLoading" class="review-loading">
+              <van-loading size="20px">加载评价中...</van-loading>
+            </div>
+
+            <!-- 评价统计信息 -->
+            <div v-else-if="reviewStatistics.totalCount > 0" class="rating-breakdown">
               <div class="rating-item">
-                <span class="rating-label">环境</span>
-                <van-rate v-model="detail.ratingEnvironment" :size="12" color="#ffd21e" void-icon="star" void-color="#eee" readonly />
-                <span class="rating-score">{{ detail.ratingEnvironment }}</span>
+                <span class="rating-label">综合</span>
+                <van-rate v-model="detail.rating" :size="12" color="#ffd21e" void-icon="star" void-color="#eee" readonly />
+                <span class="rating-score">{{ detail.rating || 0 }}</span>
               </div>
-              <div class="rating-item">
-                <span class="rating-label">服务</span>
-                <van-rate v-model="detail.ratingService" :size="12" color="#ffd21e" void-icon="star" void-color="#eee" readonly />
-                <span class="rating-score">{{ detail.ratingService }}</span>
-              </div>
-              <div class="rating-item">
-                <span class="rating-label">价格</span>
-                <van-rate v-model="detail.ratingPrice" :size="12" color="#ffd21e" void-icon="star" void-color="#eee" readonly />
-                <span class="rating-score">{{ detail.ratingPrice }}</span>
-              </div>
+            </div>
+
+            <!-- 暂无评价 -->
+            <div v-else-if="!reviewLoading" class="no-reviews">
+              <van-empty description="暂无评价" image-size="80" />
             </div>
           </div>
 
           <!-- 评价列表 -->
-          <div v-if="detail.reviews && detail.reviews.length > 0" class="review-list">
-            <div v-for="(review, index) in detail.reviews" :key="index" class="review-item">
+          <div v-if="reviewList.length > 0" class="review-list">
+            <div v-for="(review, index) in reviewList" :key="review.reviewId || index" class="review-item">
               <div class="review-header">
                 <van-image
                   round
@@ -265,6 +267,7 @@
                   height="80"
                   :src="img"
                   fit="cover"
+                  @click="previewReviewImage(review.images, imgIndex)"
                 />
               </div>
             </div>
@@ -293,6 +296,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showToast, showDialog, showImagePreview } from 'vant'
 import { getInstitutionDetail, favoriteInstitution, unfavoriteInstitution, checkFavorite } from '@/api/institution'
+import { getReviewList, getReviewStatistics, getLatestReviews } from '@/api/review'
 import { useUserStore } from '@/store/modules/user'
 import { getToken } from '@/utils/auth'
 
@@ -302,6 +306,11 @@ const router = useRouter()
 const loading = ref(false)
 const activeTab = ref('intro')
 const selectedFacilityType = ref('room') // 默认选中房间设施
+
+// 评价相关数据
+const reviewList = ref([])
+const reviewStatistics = ref({})
+const reviewLoading = ref(false)
 
 // 模拟机构详情数据
 const mockDetail = {
@@ -570,6 +579,57 @@ const applyEnter = () => {
   })
 }
 
+// 加载评价数据
+const loadReviews = async () => {
+  if (!detail.value.institutionId) return
+
+  try {
+    reviewLoading.value = true
+
+    // 并行加载评价列表和统计信息
+    const [listResponse, statsResponse] = await Promise.all([
+      getReviewList(detail.value.institutionId, 1, 10),
+      getReviewStatistics(detail.value.institutionId)
+    ])
+
+    // 处理评价列表
+    if (listResponse.code === 200 && listResponse.rows) {
+      reviewList.value = listResponse.rows.map(review => ({
+        reviewId: review.reviewId,
+        userName: review.userName || '匿名用户',
+        avatar: '', // 暂时没有头像字段
+        rating: Math.round(review.averageRating || 0), // 将平均评分转换为整数
+        createTime: review.reviewTime || review.createTime, // 使用审核时间或创建时间
+        content: review.content,
+        images: review.images ? JSON.parse(review.images || '[]').map(img => img.url || img) : []
+      }))
+    }
+
+    // 处理统计信息
+    if (statsResponse.code === 200 && statsResponse.data) {
+      reviewStatistics.value = statsResponse.data
+      // 更新详情页的评分信息
+      detail.value.rating = reviewStatistics.value.averageRating || 4.5
+      detail.value.reviewCount = reviewStatistics.value.totalCount || reviewList.value.length
+    }
+
+  } catch (error) {
+    console.error('加载评价数据失败:', error)
+    // 不显示错误提示，静默失败
+  } finally {
+    reviewLoading.value = false
+  }
+}
+
+// 预览评价图片
+const previewReviewImage = (images, startIndex = 0) => {
+  showImagePreview({
+    images: images,
+    startPosition: startIndex,
+    closeable: true
+  })
+}
+
 // 加载详情
 const loadDetail = async () => {
   try {
@@ -597,6 +657,9 @@ const loadDetail = async () => {
 
     // 加载详情后检查收藏状态
     await checkFavoriteStatus()
+
+    // 加载评价数据
+    await loadReviews()
   } catch (error) {
     console.error('加载机构详情失败:', error)
     showToast('加载失败')
@@ -1070,6 +1133,19 @@ onMounted(() => {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+/* 评价加载状态 */
+.review-loading {
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+  color: #999;
+}
+
+/* 无评价状态 */
+.no-reviews {
+  padding: 20px;
 }
 
 /* 底部操作栏 */

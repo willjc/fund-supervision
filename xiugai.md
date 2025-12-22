@@ -3001,3 +3001,622 @@ if (error.response) {
 3. 系统应该成功取消订单并显示"取消成功"
 4. 订单状态从"待付款"变为"已取消"
 
+## 2025-12-22 实现民政监管端机构评价审核功能
+
+### 需求描述
+在民政监管→反馈管理导航下增加机构评价管理页面，用于民政监管机构审核用户提交的订单评价。审核通过后的评价才会在机构详情页显示。
+
+### 实现内容
+
+#### 1. 完善实体类审核功能
+**文件**: `ruoyi-admin/src/main/java/com/ruoyi/domain/pension/InstitutionReview.java`
+
+**新增功能**:
+- 添加审核状态常量：`STATUS_PENDING`(0)、`STATUS_APPROVED`(1)、`STATUS_REJECTED`(2)
+- 添加状态判断方法：`isReviewed()`、`isApproved()`、`isRejected()`
+- 添加状态文本获取方法：`getStatusText()`
+
+**关键代码**:
+```java
+public static final Integer STATUS_PENDING = 0;    // 待审核
+public static final Integer STATUS_APPROVED = 1;   // 已通过
+public static final Integer STATUS_REJECTED = 2;   // 已拒绝
+
+public String getStatusText() {
+    switch (status) {
+        case STATUS_PENDING: return "待审核";
+        case STATUS_APPROVED: return "已通过";
+        case STATUS_REJECTED: return "已拒绝";
+        default: return "未知状态";
+    }
+}
+```
+
+#### 2. 创建监管端评价审核Controller
+**文件**: `ruoyi-admin/src/main/java/com/ruoyi/web/controller/supervision/InstitutionReviewController.java`
+
+**核心API接口**:
+- `GET /supervision/review/list` - 查询评价审核列表
+- `PUT /supervision/review/approve/{id}` - 审核通过
+- `PUT /supervision/review/reject/{id}` - 审核拒绝
+- `PUT /supervision/review/batchApprove` - 批量审核通过
+- `GET /supervision/review/statistics` - 获取审核统计信息
+
+**功能特性**:
+- 支持单个和批量审核
+- 审核拒绝时必须填写审核意见
+- 防止重复审核已处理过的评价
+- 自动记录审核人和审核时间
+
+#### 3. 创建前端API接口
+**文件**: `ruoyi-ui/src/api/supervision/review.js`
+
+提供完整的前端API调用方法，包括查询、审核、删除、导出等功能。
+
+#### 4. 创建监管端评价审核页面
+**文件**: `ruoyi-ui/src/views/supervision/feedback/review/index.vue`
+
+**页面功能**:
+- **统计卡片**: 显示总评价数、待审核、已通过、已拒绝数量
+- **搜索筛选**: 支持按机构名称、审核状态、评价用户、评价时间筛选
+- **列表展示**: 显示评价详情，包括评分、内容、状态等信息
+- **批量操作**: 支持批量审核通过��批量拒绝、批量删除
+- **审核操作**:
+  - 单个审核：通过/拒绝
+  - 批量审核：选择多个评价进行批量操作
+  - 查看详情：完整的评价信息展示
+
+**审核流程**:
+1. 民政监管人员查看待审核评价列表
+2. 选择评价进行审核操作
+3. 填写审核意见（拒绝时必填）
+4. 系统更新评价状态和审核信息
+5. 审核通过的评价可在机构详情页显示
+
+#### 5. 创建审核状态字典
+**数据库字典**: `review_status`
+
+**字典数据**:
+- `0` - 待审核 (warning样式)
+- `1` - 已通过 (success样式)
+- `2` - 已拒绝 (danger样式)
+
+### 数据流程
+
+1. **评价提交流程**:
+   H5用户提交评价 → 状态为"待审核" → 等待监管审核
+
+2. **审核流程**:
+   监管人员审核 → 状态更新为"已通过"或"已拒绝" → 记录审核信息
+
+3. **展示流程**:
+   机构详情页查询 → 只显示状态为"已通过"的评价 → 用户可见
+
+### 权限配置
+
+需要在系统管理中配置以下权限：
+- `supervision:review:list` - 查看评价审核列表
+- `supervision:review:query` - 查看评价详情
+- `supervision:review:approve` - 审核通过评价
+- `supervision:review:reject` - 审核拒绝评价
+- `supervision:review:remove` - 删除评价
+- `supervision:review:export` - 导出评价数据
+
+### 技术亮点
+
+1. **状态管理**: 使用常量定义审核状态，确保数据一致性
+2. **批量操作**: 支持批量审核，提高审核效率
+3. **统计展示**: 实时统计各状态评价数量
+4. **权限控制**: 严格的权限验证，确保操作安全性
+5. **用户体验**: 清晰的审核流程和友好的操作界面
+
+### 下一步工作
+
+还需要完成：
+1. 更新机构详情页面，只显示已通过审核的评价
+2. 在系统管理中配置菜单和权限
+
+
+## 2025-12-22 修改机构详情页只显示已通过审核的评价
+
+### 修改内容
+
+#### 1. 修改H5机构详情页面
+**文件位置**：ruoyi-h5/src/views/institution/detail.vue
+
+**修改内容**：
+- 引入评价API函数：getReviewList, getReviewStatistics, getLatestReviews
+- 添加评价数据状态管理：reviewList, reviewStatistics, reviewLoading
+- 创建loadReviews函数异步加载已通过的评价数据和统计信息
+- 在loadDetail函数中调用loadReviews，确保在机构详情加载后加载评价
+- 修改评价tab模板，使用真实评价数据替代模拟数据
+- 添加评价加载状态、空状态处理
+- 添加评价图片预览功能previewReviewImage
+- 添加相关CSS样式支持
+
+**具体修改**：
+1. **导入评价API**:
+
+
+2. **添加评价数据管理**:
+
+
+3. **创建loadReviews函数**:
+
+
+4. **更新评价tab模板**:
+- 使用真实评价数据替代模拟数据
+- 添加加载状态显示
+- 添加空评价状态显示
+- 支持评价图片预览
+
+5. **添加图片预览功能**:
+
+
+6. **添加CSS样式**:
+
+
+### 实现效果
+
+1. **数据准确性**: 机构详情页的评价tab现在只显示已通过民政监管审核的评价
+2. **实时更新**: 评价数据实时从后端获取，确保数据最新
+3. **用户体验**: 
+   - 加载状态提示
+   - 空评价状态友好显示
+   - 评价图片可点击预览
+4. **性能优化**: 并行加载评价列表和统计信息，提高加载效率
+
+### 数据流程
+
+1. **机构详情加载**: 加载机构基础信息
+2. **评价数据加载**: 调用后端API获取已通过审核的评价列表和统计信息
+3. **数据展示**: 在评价tab中显示真实评价数据
+4. **审核过滤**: 后端API已设置status=1，只返回已通过的评价
+
+### 安全性
+
+- 使用已有的评价API接口，确保权限控制
+- 后端API已实现审核状态过滤，只显示已通过的评价
+- 前端错误处理，避免因评价数据加载失败影响整个页面
+
+
+
+## 2025-12-22 修改机构详情页只显示已通过审核的评价
+
+### 修改内容
+
+#### 1. 修改H5机构详情页面
+**文件位置**：ruoyi-h5/src/views/institution/detail.vue
+
+**主要修改**：
+- 引入评价API函数（getReviewList, getReviewStatistics, getLatestReviews）
+- 添加评价数据状态管理（reviewList, reviewStatistics, reviewLoading）
+- 创建loadReviews函数异步加载已通过的评价数据和统计信息
+- 在loadDetail函数中调用loadReviews，确保在机构详情加载后加载评价
+- 修改评价tab模板，使用真实评价数据替代模拟数据
+- 添加评价加载状态、空状态处理
+- 添加评价图片预览功能previewReviewImage
+- 添加相关CSS样式支持
+
+**实现效果**：
+1. 机构详情页的评价tab现在只显示已通过民政监管审核的评价
+2. 评价数据实时从后端获取，确保数据最新
+3. 良好的用户体验：加载状态提示、空评价状态友好显示、评价图片可点击预览
+4. 性能优化：并行加载评价列表和统计信息
+
+**数据流程**：
+1. 机构详情加载 → 2. 评价数据加载（已通过审核） → 3. 数据展示 → 4. 用户交互
+
+**安全性**：
+- 使用已有的评价API接口，确保权限控制
+- 后端API已实现审核状态过滤（status=1），只返回已通过的评价
+- 前端错误处理，避免因评价数据加载失败影响整个页面
+
+
+## 2025-12-22 配置机构评价管理系统菜单和权限
+
+### 数据库菜单配置
+
+#### 1. 添加主菜单
+**菜单ID**: 4064
+**菜单名称**: 机构评价管理
+**父级菜单**: 2001 (民政监管-反馈管理)
+**菜单类型**: C (菜单页面)
+**组件路径**: supervision/feedback/review/index
+**图标**: star
+
+```sql
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, menu_type, visible, status, perms, icon, component, query, create_by, create_time, update_by, update_time, remark) VALUES 
+(4064, '机构评价管理', 2001, 6, 'C', '0', '0', NULL, 'star', 'supervision/feedback/review/index', '', 'admin', NOW(), 'admin', NOW(), '民政监管-反馈管理-机构评价管理页面');
+```
+
+#### 2. 添加权限按钮
+为机构评价管理页面添加完整的权限按钮：
+
+- **4065**: 机构评价查询 (supervision:review:list)
+- **4066**: 机构评价详情 (supervision:review:query)  
+- **4067**: 评价审核通过 (supervision:review:approve)
+- **4068**: 评价审核拒绝 (supervision:review:reject)
+- **4069**: 评价删除 (supervision:review:remove)
+- **4070**: 评价导出 (supervision:review:export)
+
+```sql
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, menu_type, visible, status, perms, icon, component, query, create_by, create_time, update_by, update_time, remark) VALUES 
+(4065, '机构评价查询', 4064, 1, 'F', '0', '0', 'supervision:review:list', '#', '', '', 'admin', NOW(), 'admin', NOW(), ''),
+(4066, '机构评价详情', 4064, 2, 'F', '0', '0', 'supervision:review:query', '#', '', '', 'admin', NOW(), 'admin', NOW(), ''),
+(4067, '评价审核通过', 4064, 3, 'F', '0', '0', 'supervision:review:approve', '#', '', '', 'admin', NOW(), 'admin', NOW(), ''),
+(4068, '评价审核拒绝', 4064, 4, 'F', '0', '0', 'supervision:review:reject', '#', '', '', 'admin', NOW(), 'admin', NOW(), ''),
+(4069, '评价删除', 4064, 5, 'F', '0', '0', 'supervision:review:remove', '#', '', '', 'admin', NOW(), 'admin', NOW(), ''),
+(4070, '评价导出', 4064, 6, 'F', '0', '0', 'supervision:review:export', '#', '', '', 'admin', NOW(), 'admin', NOW(), '');
+```
+
+#### 3. 为角色分配权限
+为管理员角色（role_id=1）分配所有机构评价管理权限：
+
+```sql
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES 
+(1, 4064), (1, 4065), (1, 4066), (1, 4067), (1, 4068), (1, 4069), (1, 4070);
+```
+
+### 菜单访问路径
+
+- **菜单层级**: 民政监管 → 反馈管理 → 机构评价管理
+- **访问路径**: `/supervision/feedback/review`
+- **前端组件**: `src/views/supervision/feedback/review/index.vue`
+
+### 权限控制
+
+所有相关接口都已经配置了相应的权限注解：
+- `@PreAuthorize("@ss.hasPermi('supervision:review:list')")` - 列表查询
+- `@PreAuthorize("@ss.hasPermi('supervision:review:query')")` - 详情查询  
+- `@PreAuthorize("@ss.hasPermi('supervision:review:approve')")` - 审核通过
+- `@PreAuthorize("@ss.hasPermi('supervision:review:reject')")` - 审核拒绝
+- `@PreAuthorize("@ss.hasPermi('supervision:review:remove')")` - 删除操作
+- `@PreAuthorize("@ss.hasPermi('supervision:review:export')")` - 导出功能
+
+### 完成效果
+
+1. **系统菜单显示**: 管理员登录后可以在左侧菜单中看到"机构评价管理"
+2. **权限控制**: 所有功能按钮都有权限控制，只有分配了相应权限的角色才能操作
+3. **完整功能**: 支持评价列表查询、详情查看、审核操作、删除和导出等完整功能
+
+### 后续操作
+
+重启后端服务后，使用admin账号登录即可在"民政监管 > 反馈管理 > 机构评价管理"中看到完整的评价审核管理页面。
+
+## 2025-12-22 修复反馈管理菜单缺失问题
+
+### 问题描述
+用户反馈在配置机构评价管理菜单后，整个"民政监管->反馈管理"菜单都看不到了。
+
+### 问题原因
+通过检查发现，数据库中反馈管理模块的菜单配置是正确的，但是对应的前端组件文件缺失，导致菜单无法正常加载。
+
+### 修复内容
+
+#### 1. 创建反馈列表页面
+**文件位置**：ruoyi-ui/src/views/supervision/feedback/list/index.vue
+- 实现反馈信息的列表展示和CRUD操作
+- 支持按反馈类型、状态、时间范围搜索
+- 提供新增、编辑、删除、导出等功能
+
+#### 2. 创建反馈统计页面
+**文件位置**：ruoyi-ui/src/views/supervision/feedback/statistics/index.vue
+- 提供反馈数据的统计分析功能
+- 包含趋势图表、类型分布饼图、状态统计柱状图
+- 支持时间范围筛选和数据导出
+
+#### 3. 创建热点反馈页面
+**文件位置**：ruoyi-ui/src/views/supervision/feedback/hot/index.vue
+- 分析和展示热点反馈问题
+- 提供反馈热度排行、趋势分析
+- 支持关键词云展示和详情查看
+
+#### 4. 创建满意度调查页面
+**文件位置**：ruoyi-ui/src/views/supervision/feedback/satisfaction/index.vue
+- 展示满意度调查统计数据
+- 提供评分分布、平均分计算
+- 支持按机构、时间范围筛选和趋势分析
+
+### 完成效果
+1. **菜单完整显示**: "民政监管->反馈管理"菜单及其所有子菜单现在可以正常显示
+2. **功能完备**: 所有子菜单都有对应的前端页面组件支持
+3. **数据可视化**: 统计和分析页面包含丰富的图表展示
+
+### 后续操作
+重启后端服务，清除浏览器缓存，重新登录后即可在"民政监管 > 反馈管理"中看到完整的菜单结构。
+
+## 2025-12-22 修复反馈管理菜单权限问题
+
+### 问题描述
+用户反馈在系统菜单配置中可以看到"反馈管理"菜单，但在实际的"民政监管"菜单下却看不到"反馈管理"子菜单。
+
+### 问题原因
+通过数据库检查发现，超级管理员（role_id=1）没有被分配"民政监管"（menu_id=3000）和"反馈管理"（menu_id=3600）及其子菜单的访问权限，导致菜单无法在前端显示。
+
+### 修复内容
+
+#### 1. 添加主菜单权限
+为超级管理员添加以下菜单权限：
+- 民政监管 (menu_id=3000)
+- 反馈管理 (menu_id=3600)
+
+```sql
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 3000), (1, 3600);
+```
+
+#### 2. 添加子菜单权限
+为超级管理员添加反馈管理下所有子菜单的权限：
+- 反馈列表 (menu_id=3601)
+- 反馈统计 (menu_id=3602)
+- 热点反馈 (menu_id=3603)
+- 满意度评价 (menu_id=3604)
+- 机构评价管�� (menu_id=4064)
+
+```sql
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES (1, 3601), (1, 3602), (1, 3603), (1, 3604);
+```
+
+### 权限验证
+通过查询 `sys_role_menu` 表确认所有权限已正确分配：
+- 超级管理员现在拥有完整的反馈管理模块访问权限
+- 所有子菜单权限都已配置完成
+
+### 完成效果
+1. **菜单完整显示**: 用户重新登录后可以在"民政监管"下看到"反馈管理"菜单
+2. **所有子菜单可见**: 反馈列表、反馈统计、热点反馈、满意度评价、机构评价管理都能正常显示
+3. **权限控制完整**: 每个子菜单都有对应的权限控制，确保安全访问
+
+### 后续操作
+用户需要：
+1. 重启后端服务
+2. 清除浏览器缓存 (Ctrl+F5)
+3. 重新登录系统
+
+重新登录后即可在"民政监管 → 反馈管理"中看到完整的菜单结构和功能页面。
+
+## 2025-12-22 简化机构评价管理菜单结构
+
+### 问题描述
+用户需求很简单：在"民政监管"目录下能看到"机构评价管理"菜单，点击后查看和审核所有评价即可。但当前"机构评价管理"被放在"反馈管理"子菜单下，而"反馈管理"菜单配置有问题导致无法显示。
+
+### 解决方案
+直接将"机构评价管理"菜单提升到"民政监管"下，作为其直接子菜单，跳过"反馈管理"这个中间层级。
+
+### 修复内容
+
+#### 修改菜单层级
+将"机构评价管理"（menu_id=4064）的父菜单从"反馈管理"（3600）改为"民政监管"（3000）：
+
+```sql
+UPDATE sys_menu SET parent_id = 3000, order_num = 7 WHERE menu_id = 4064;
+```
+
+#### 修改后的菜单结构
+```
+民政监管 (3000)
+├── 机构管理 (3100)
+├── 预警核验 (3200)
+├── 账户管理 (3300)
+├── 资金管理 (3400)
+├── 公告管理 (3500)
+├── 反馈管理 (3600)
+└── 机构评价管理 (4064) ← 直接在民政监管下
+```
+
+### 完成效果
+1. **菜单直接可见**: "机构评价管理"现在直接显示在"民政监管"下，不受"反馈管理"影响
+2. **功能完整**: 点击后可以查看所有评价，进行审核、通过、拒绝、批量操作等管理功能
+3. **权限正常**: 超级管理员已有该菜单权限，无需额外配置
+
+### 后续操作
+用户需要：
+1. 重启后端服务
+2. 清除浏览器缓存 (Ctrl+F5)
+3. 重新登录系统
+
+重新登录后即可在"民政监管"菜单下直接看到"机构评价管理"入口。
+
+## 2025-12-22 修复后台登录后页面空白问题
+
+### 问题描述
+用户反馈后台无法登录，重启后依旧是空白页面。
+
+### 问题原因
+"反馈管理"下的子菜单（反馈列表、反馈统计、热点反馈、满意度评价）的component配置路径与实际文件结构不匹配：
+- 数据库配置：`supervision/feedback/list`
+- 实际文件路径：`supervision/feedback/list/index.vue`
+
+由于超级管理员拥有这些菜单的权限，前端尝试加载这些组件时找不到文件，导致JavaScript错误，整个页面崩溃无法渲染。
+
+### 解决方案
+隐藏"反馈管理"菜单及其所有子菜单，因为用户只需要"机构评价管理"功能，不需要反馈管理的其他功能。
+
+### 修复内容
+
+#### 隐藏反馈管理相关菜单
+```sql
+UPDATE sys_menu SET visible = '1' WHERE parent_id = 3600;
+UPDATE sys_menu SET visible = '1' WHERE menu_id = 3600;
+```
+
+#### 隐藏的菜单
+- 反馈管理 (menu_id=3600)
+- 反馈列表 (menu_id=3601)
+- 反馈统计 (menu_id=3602)
+- 热点反馈 (menu_id=3603)
+- 满意度评价 (menu_id=3604)
+
+### 完成效果
+1. **页面恢复正常**: 前端不再尝试加载有问题的组件，页面可以正常渲染
+2. **保留机构评价管理**: "机构评价管理"菜单不受影响，直接显示在"民政监管"下
+3. **功能不受影响**: 用户需要的评价审核功能完全正常可用
+
+### 后续操作
+用户需要：
+1. 刷新浏览器页面 (F5)
+2. 重新登录系统
+
+现在可以正常登录并使用"机构评价管理"功能了。
+
+## 2025-12-22 修复机构评价管理路由path缺失问题
+
+### 问题描述
+前端控制台报错：`[vue-router] "path" is required in a route configuration`，导致路由加载失败，页面空白。
+
+### 问题原因
+"机构评价管理"菜单���menu_id=4064）的path字段为空，在若依框架中，菜单类型为C（页面菜单）时，path字段是必需的，用于生成路由配置。
+
+### 解决方案
+为"机构评价管理"菜单设置path字段。
+
+### 修复内容
+
+#### 更新菜单path字段
+```sql
+UPDATE sys_menu SET path = 'review' WHERE menu_id = 4064;
+```
+
+#### 修复后的配置
+```
+menu_id: 4064
+menu_name: 机构评价管理
+parent_id: 3000 (民政监管)
+path: review
+component: supervision/feedback/review/index
+```
+
+### 完成效果
+1. **路由配置正常**: 前端可以正确生成路由配置
+2. **菜单正常显示**: "机构评价管理"可以在"民政监管"下正常显示
+3. **页面正常加载**: 点击菜单后可以正常加载评价管理页面
+
+### 后续操作
+用户需要：
+1. 刷新浏览器页面 (F5)
+
+现在页面应该可以正常加载了。
+
+## 2025-12-22 修复InstitutionReview实体类编译错误
+
+### 问题描述
+访问"机构评价管理"页面时后端报错：
+```
+Could not get property 'statusText' from class com.ruoyi.domain.pension.InstitutionReview
+Unresolved compilation problems: case expressions must be constant expressions
+```
+
+### 问题原因
+`InstitutionReview.java`的`getStatusText()`方法中使用了switch语句，case表达式为`STATUS_PENDING`等Integer常量。但Java的switch要求case必须是编译时常量（如int字面量0、1、2），而Integer对象即使声明为final static也不是编译时常量。
+
+### 解决方案
+将switch语句改为if-else语句。
+
+### 修复内容
+
+#### 修改getStatusText()方法
+**文件位置**：ruoyi-admin/src/main/java/com/ruoyi/domain/pension/InstitutionReview.java:355-368
+
+**修改前**（使用switch，编译失败）：
+```java
+public String getStatusText() {
+    if (status == null) {
+        return "未知";
+    }
+    switch (status) {
+        case STATUS_PENDING:  // ❌ Integer常量不是编译时常量
+            return "待审核";
+        case STATUS_APPROVED:
+            return "已通过";
+        case STATUS_REJECTED:
+            return "已拒绝";
+        default:
+            return "未知状态";
+    }
+}
+```
+
+**修改后**（使用if-else，编译通过）：
+```java
+public String getStatusText() {
+    if (status == null) {
+        return "未知";
+    }
+    if (status.equals(STATUS_PENDING)) {
+        return "待审核";
+    } else if (status.equals(STATUS_APPROVED)) {
+        return "已通过";
+    } else if (status.equals(STATUS_REJECTED)) {
+        return "已拒绝";
+    } else {
+        return "未知状态";
+    }
+}
+```
+
+### 完成效果
+1. **编译错误解决**: 代码可以正常编译
+2. **功能正常**: getStatusText()方法可以正确返回状态文本
+3. **页面可访问**: "机构评价管理"页面可以正常加载
+
+### 后续操作
+用户需要：
+1. 重启后端服务
+2. 刷新浏览器页面 (F5)
+
+现在"机构评价管理"页面应该可以正常访问了。
+
+## 2025-12-22 修复机构评价管理页面缺少关联数据显示问题
+
+### 问题描述
+"机构评价管理"页面只显示了评分、评分内容、审核状态、评价时间等基本信息，缺少：
+- 机构名称
+- 评价用户
+- 老人姓名
+- 订单号
+
+### 问题原因
+InstitutionReviewController的list方法和export方法调用的是`selectInstitutionReviewList`，该方法只查询institution_review表的基本字段，不包含关联表数据（机构名称、用户名、老人姓名、订单号等）。
+
+Mapper中有两个查询方法：
+- `selectInstitutionReviewList` - 只查询基本信息
+- `selectInstitutionReviewWithRelationsList` - 查询基本信息+关联数据（LEFT JOIN关联pension_institution、order_info、elder_info、sys_user等表）
+
+### 解决方案
+修改Controller，调用包含关联查询的方法。
+
+### 修复内容
+
+#### 修改Controller查询方法
+**文件位置**：ruoyi-admin/src/main/java/com/ruoyi/web/controller/supervision/InstitutionReviewController.java
+
+**修改list方法（第47行）**：
+```java
+// 修改前
+List<InstitutionReview> list = institutionReviewService.selectInstitutionReviewList(institutionReview);
+
+// 修改后
+List<InstitutionReview> list = institutionReviewService.selectInstitutionReviewWithRelationsList(institutionReview);
+```
+
+**修改export方法（第59行）**：
+```java
+// 修改前
+List<InstitutionReview> list = institutionReviewService.selectInstitutionReviewList(institutionReview);
+
+// 修改后
+List<InstitutionReview> list = institutionReviewService.selectInstitutionReviewWithRelationsList(institutionReview);
+```
+
+### 完成效果
+1. **数据完整显示**: 页面现在可以显示机构名称、评价用户、老人姓名、订单号等关联数据
+2. **导出功能正常**: 导出的Excel文件也包含完整的关联数据
+3. **查询性能**: 通过LEFT JOIN关联查询，一次性获取所有需要的数据
+
+### 后续操作
+用户需要：
+1. 重启后端服务
+2. 刷新浏览器页面 (F5)
+
+现在"机构评价管理"页面应该可以显示完整的数据了，包括机构名称、评价用户、老人姓名、订单号、评分、评价内容、审核状态、评价时间等所有字段。
+
