@@ -19,7 +19,7 @@
     </van-nav-bar>
 
     <div v-if="loading" class="loading-container">
-      <van-loading size="24px">加载中...</van-loading>
+      <van-loading size="24px">加载�?..</van-loading>
     </div>
 
     <div v-else class="detail-content">
@@ -148,24 +148,24 @@
           </div>
         </div>
 
-        <!-- 月参考价格区域 (参考列表页样式) -->
+        <!-- 月参考价格区(参考列表页样式) -->
         <div class="price-section">
           <div class="price-header">月参考价格</div>
           <div class="price-grid">
             <div class="price-item">
-              <span class="price-label">总费用:</span>
+              <span class="price-label">总费用</span>
               <span class="price-value">¥{{ detail.priceRanges?.total?.min || 1500 }} ~ ¥{{ detail.priceRanges?.total?.max || 3500 }}</span>
             </div>
             <div class="price-item">
-              <span class="price-label">床位费:</span>
+              <span class="price-label">床位费</span>
               <span class="price-value">¥{{ detail.priceRanges?.bed?.min || 500 }} ~ ¥{{ detail.priceRanges?.bed?.max || 800 }}</span>
             </div>
             <div class="price-item">
-              <span class="price-label">护理费:</span>
+              <span class="price-label">护理费</span>
               <span class="price-value">¥{{ detail.priceRanges?.nursing?.min || 800 }} ~ ¥{{ detail.priceRanges?.nursing?.max || 2000 }}</span>
             </div>
             <div class="price-item">
-              <span class="price-label">膳食费:</span>
+              <span class="price-label">膳食费</span>
               <span class="price-value">¥{{ detail.priceRanges?.diet?.min || 600 }} ~ ¥{{ detail.priceRanges?.diet?.max || 1200 }}</span>
             </div>
           </div>
@@ -277,11 +277,14 @@
 
       <!-- 底部操作栏 -->
       <div class="action-bar">
-        <van-button round plain icon="star-o" @click="toggleFavorite">
+        <van-button round plain @click="toggleFavorite">
           {{ detail.isFavorite ? '已收藏' : '收藏' }}
         </van-button>
-        <van-button round plain icon="phone-o" @click="makeCall">
+        <van-button round plain @click="makeCall">
           电话
+        </van-button>
+        <van-button round plain type="warning" @click="bookVisit">
+          预约参观
         </van-button>
         <van-button round type="primary" @click="applyEnter">
           申请入住
@@ -317,7 +320,7 @@ const mockDetail = {
   institutionId: 1,
   name: '郑州市金水区花园口社区养老服务中心',
   institutionType: '养老院',
-  address: '郑州市金水区花园口镇花园路233号',
+  address: '郑州市金水区花园口镇花园路133号',
   contactPhone: '0371-12345678',
   description: '本机构是经郑州市民政局批准成立的综合性养老服务机构，占地面积5000平方米，建筑面积3000平方米。拥有专业的护理团队和完善的医疗设施，致力于为老年人提供优质的养老服务。机构环境优美，设施齐全，交通便利，是老年人安享晚年的理想之所。',
   images: [
@@ -336,8 +339,8 @@ const mockDetail = {
   totalBeds: 50,
   availableBeds: 8,
   buildingArea: 1000, // 建筑面积
-  establishDate: '2024年3月', // 建立日期
-  certificationTags: ['公办养老', '自理', '失智', '失能', '内设医疗机构', '试点机构无忧退费'], // 认证标签
+  establishDate: '2024年01月', // 建立日期
+  certificationTags: ['公办养老', '自理', '失智', '失能', '内设医疗机构', '试点机构无忧退款'], // 认证标签
   monthlyPrice: '2800-3500', // 月参考价格
   isFavorite: false, // 是否收藏
   // 三个设施卡片数据
@@ -377,10 +380,10 @@ const mockDetail = {
   parkFacilities: [
     { name: '花园', image: 'https://via.placeholder.com/300x200/90EE90/FFFFFF?text=花园' },
     { name: '健身广场', image: 'https://via.placeholder.com/300x200/87CEEB/FFFFFF?text=健身广场' },
-    { name: '休闲亭', image: 'https://via.placeholder.com/300x200/DDA0DD/FFFFFF?text=休闲亭' },
+    { name: '休闲区', image: 'https://via.placeholder.com/300x200/DDA0DD/FFFFFF?text=休闲区' },
     { name: '步道', image: 'https://via.placeholder.com/300x200/F0E68C/FFFFFF?text=步道' },
     { name: '垂钓区', image: 'https://via.placeholder.com/300x200/20B2AA/FFFFFF?text=垂钓区' },
-    { name: '观景台', image: 'https://via.placeholder.com/300x200/FFB6C1/FFFFFF?text=观景台' },
+    { name: '观景区', image: 'https://via.placeholder.com/300x200/FFB6C1/FFFFFF?text=观景区' },
     { name: '太极广场', image: 'https://via.placeholder.com/300x200/FFA07A/FFFFFF?text=太极广场' },
     { name: '棋牌区', image: 'https://via.placeholder.com/300x200/98D8C8/FFFFFF?text=棋牌区' },
     { name: '荷花池', image: 'https://via.placeholder.com/300x200/F7DC6F/FFFFFF?text=荷花池' },
@@ -413,7 +416,7 @@ const mockDetail = {
     { icon: 'friends-o', name: '活动室' }
   ],
   medicalFacilities: [
-    { icon: 'medal-o', name: '医疗室' },
+    { icon: 'medal-o', name: '医疗站' },
     { icon: 'cluster-o', name: '康复室' },
     { icon: 'manager-o', name: '理疗室' },
     { icon: 'chart-trending-o', name: '健康监测' }
@@ -429,7 +432,7 @@ const mockDetail = {
       avatar: '',
       rating: 5,
       createTime: '2025-01-10',
-      content: '整体不错，饮食营养均衡，医护人员很专业。唯一的建议是希望能增加一些户外活动。',
+      content: '整体不错，饮食营养均衡，医护人员��专业。唯一的建议是希望能增加一些户外活动区',
       images: []
     },
     {
@@ -439,7 +442,7 @@ const mockDetail = {
       createTime: '2025-01-05',
       content: '非常满意！父亲在这里住了半年，身体状况明显改善。工作人员都很有爱心，把老人照顾得很好。',
       images: [
-        'https://via.placeholder.com/100x100/F5A623/FFFFFF?text=图1'
+        'https://via.placeholder.com/100x100/F5A623/FFFFFF?text=图'
       ]
     }
   ]
@@ -499,7 +502,7 @@ const toggleFavorite = async () => {
     // 处理特定的错误信息
     const errorMsg = error.response?.data?.msg || error.message || '操作失败'
 
-    if (errorMsg.includes('已经收藏过') || errorMsg.includes('已收藏')) {
+    if (errorMsg.includes('已经收藏') || errorMsg.includes('已收藏')) {
       showToast('您已经收藏过该机构了')
       // 同步收藏状态
       detail.value.isFavorite = true
@@ -512,15 +515,15 @@ const toggleFavorite = async () => {
 // 检查收藏状态
 const checkFavoriteStatus = async () => {
   try {
-    console.log('检查收藏状态, institutionId:', detail.value.institutionId)
+    console.log('检查收藏状态 institutionId:', detail.value.institutionId)
     const response = await checkFavorite(detail.value.institutionId)
-    console.log('收藏状态检查结果:', response)
+    console.log('收藏状态检查结果', response)
     if (response.code === 200) {
       detail.value.isFavorite = response.data.isFavorited
       console.log('设置收藏状态为:', detail.value.isFavorite)
     }
   } catch (error) {
-    console.error('检查收藏状态失败:', error)
+    console.error('检查收藏状态失败', error)
     // 默认未收藏
     detail.value.isFavorite = false
   }
@@ -539,7 +542,7 @@ const selectFacilityType = (type) => {
   selectedFacilityType.value = type
 }
 
-// 轮播图点击放大 (已去掉轮播图，保留以防万一)
+// 轮播图点击放大(已去掉轮播图，保留以防万一)
 const previewImages = (startIndex) => {
   showImagePreview({
     images: detail.value.images,
@@ -575,6 +578,14 @@ const makeCall = () => {
 const applyEnter = () => {
   router.push({
     name: 'OrderConfirm',
+    params: { institutionId: route.params.id }
+  })
+}
+
+// 预约参观
+const bookVisit = () => {
+  router.push({
+    name: 'AppointmentBooking',
     params: { institutionId: route.params.id }
   })
 }
@@ -733,7 +744,7 @@ onMounted(() => {
 .rating-section {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 12px;
 }
 
@@ -746,7 +757,7 @@ onMounted(() => {
 .cert-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 16px;
 }
 
@@ -934,7 +945,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
 }
 
 .address-text {
@@ -955,7 +966,7 @@ onMounted(() => {
   cursor: pointer;
 }
 
-/* 月参考价格区域 (参考列表页样式) */
+/* 月参考价格区(参考列表页样式) */
 .price-section {
   background: #e8f4fc;
   border-radius: 8px;
@@ -1006,7 +1017,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .facility-icon {
@@ -1097,7 +1108,7 @@ onMounted(() => {
 .rating-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .rating-label {
@@ -1160,7 +1171,7 @@ onMounted(() => {
 
 .review-images {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
@@ -1184,8 +1195,8 @@ onMounted(() => {
   left: 0;
   right: 0;
   display: flex;
-  gap: 8px;
-  padding: 12px 16px;
+  gap: 10px;
+  padding: 10px 14px;
   background: #fff;
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
   z-index: 100;
@@ -1193,5 +1204,7 @@ onMounted(() => {
 
 .action-bar .van-button {
   flex: 1;
+  font-size: 13px;
+  height: 36px;
 }
 </style>

@@ -83,7 +83,7 @@
         </van-cell-group>
 
         <div class="submit-bar">
-          <van-button round block type="primary" native-type="submit">
+          <van-button round block type="primary" native-type="submit" :loading="submitting">
             提交预约
           </van-button>
         </div>
@@ -119,16 +119,42 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showToast, showConfirmDialog } from 'vant'
+import { submitVisit } from '@/api/visit'
+import { getInstitutionDetail } from '@/api/institution'
 
 const route = useRoute()
 const router = useRouter()
 
+const submitting = ref(false)
+
 // 机构信息
 const institutionInfo = ref({
-  name: '郑州市金水区花园口社区养老服务中心',
-  address: '郑州市金水区花园口镇花园路123号',
-  coverImage: 'https://via.placeholder.com/80x80'
+  institutionId: null,
+  name: '加载中...',
+  address: '',
+  coverImage: ''
 })
+
+// 加载机构信息
+const loadInstitutionInfo = async () => {
+  if (route.params.institutionId) {
+    try {
+      const response = await getInstitutionDetail(route.params.institutionId)
+      if (response.code === 200 && response.data) {
+        const data = response.data
+        institutionInfo.value = {
+          institutionId: data.institutionId,
+          name: data.institutionName || data.name,
+          address: data.actualAddress || data.address || '',
+          coverImage: data.mainPicture || data.coverImage || ''
+        }
+      }
+    } catch (error) {
+      console.error('加载机构信息失败:', error)
+      showToast('加载机构信息失败')
+    }
+  }
+}
 
 // 表单数据
 const formData = ref({
@@ -171,34 +197,47 @@ const onSubmit = async (values) => {
       message: `确认预约 ${formData.value.visitDate} ${formData.value.visitTime} 参观吗?`
     })
 
-    // 模拟提交
-    await new Promise(resolve => setTimeout(resolve, 500))
+    submitting.value = true
 
-    showToast('预约成功')
-
-    // 跳转到成功页面
-    router.replace({
-      name: 'AppointmentSuccess',
-      query: {
-        institutionName: institutionInfo.value.name,
-        visitDate: formData.value.visitDate,
-        visitTime: formData.value.visitTime,
-        visitorName: formData.value.visitorName,
-        visitorPhone: formData.value.visitorPhone
-      }
+    // 调用真实API
+    const response = await submitVisit({
+      institutionId: institutionInfo.value.institutionId,
+      visitorName: formData.value.visitorName,
+      visitorPhone: formData.value.visitorPhone,
+      visitDate: formData.value.visitDate,
+      visitTime: formData.value.visitTime,
+      visitorCount: formData.value.visitorCount,
+      remark: formData.value.remark
     })
+
+    if (response.code === 200) {
+      showToast('预约成功')
+
+      // 跳转到成功页面
+      router.replace({
+        name: 'AppointmentSuccess',
+        query: {
+          institutionName: institutionInfo.value.name,
+          visitDate: formData.value.visitDate,
+          visitTime: formData.value.visitTime,
+          visitorName: formData.value.visitorName
+        }
+      })
+    } else {
+      showToast(response.msg || '预约失败')
+    }
   } catch (error) {
     if (error !== 'cancel') {
-      showToast('预约失败')
+      console.error('预约失败:', error)
+      showToast(error.message || '预约失败')
     }
+  } finally {
+    submitting.value = false
   }
 }
 
 onMounted(() => {
-  // 可以从路由参数获取机构信息
-  if (route.params.institutionId) {
-    // 这里应该调用API获取机构信息
-  }
+  loadInstitutionInfo()
 })
 </script>
 

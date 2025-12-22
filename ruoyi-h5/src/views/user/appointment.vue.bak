@@ -6,9 +6,9 @@
       <!-- 筛选栏 -->
       <van-tabs v-model:active="activeTab" sticky offset-top="46" @change="onTabChange">
         <van-tab title="全部" name="all" />
-        <van-tab title="待参观" name="0" />
-        <van-tab title="已参观" name="1" />
-        <van-tab title="已取消" name="2" />
+        <van-tab title="待参观" name="pending" />
+        <van-tab title="已参观" name="visited" />
+        <van-tab title="已取消" name="cancelled" />
       </van-tabs>
 
       <!-- 预约列表 -->
@@ -61,9 +61,17 @@
               <van-button
                 v-if="appointment.status === '0'"
                 size="small"
+                type="primary"
+                @click="handleCall(appointment)"
+              >
+                联系机构
+              </van-button>
+              <van-button
+                v-if="appointment.status === '0'"
+                size="small"
                 type="danger"
                 plain
-                @click="cancelAppointment(appointment.appointmentId)"
+                @click="cancelAppointment(appointment)"
               >
                 取消预约
               </van-button>
@@ -81,7 +89,6 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast, showConfirmDialog } from 'vant'
-import { getMyVisits, cancelVisit } from '@/api/visit'
 
 const router = useRouter()
 
@@ -92,14 +99,58 @@ const finished = ref(false)
 const refreshing = ref(false)
 const pageNum = ref(1)
 const pageSize = ref(10)
-const isRefresh = ref(false)
+
+// 模拟预约数据
+const mockAppointments = [
+  {
+    appointmentId: 1,
+    appointmentNo: 'AP1736825400000',
+    institutionName: '郑州市金水区花园口社区养老服务中心',
+    institutionCover: 'https://via.placeholder.com/60x60',
+    institutionPhone: '0371-12345678',
+    status: '0', // 0-待参观 1-已参观 2-已取消
+    visitDate: '2025-01-20',
+    visitTime: '10:00',
+    visitorName: '张三',
+    visitorPhone: '13800138000',
+    visitorCount: 2,
+    createTime: '2025-01-14'
+  },
+  {
+    appointmentId: 2,
+    appointmentNo: 'AP1736739200000',
+    institutionName: '郑州颐养家园养老院',
+    institutionCover: 'https://via.placeholder.com/60x60',
+    institutionPhone: '0371-23456789',
+    status: '1',
+    visitDate: '2025-01-12',
+    visitTime: '14:00',
+    visitorName: '李四',
+    visitorPhone: '13900139000',
+    visitorCount: 1,
+    createTime: '2025-01-10'
+  },
+  {
+    appointmentId: 3,
+    appointmentNo: 'AP1736652800000',
+    institutionName: '河南省老干部康养中心',
+    institutionCover: 'https://via.placeholder.com/60x60',
+    institutionPhone: '0371-34567890',
+    status: '2',
+    visitDate: '2025-01-08',
+    visitTime: '09:00',
+    visitorName: '王五',
+    visitorPhone: '13700137000',
+    visitorCount: 3,
+    createTime: '2025-01-05'
+  }
+]
 
 // Tab切换
 const onTabChange = () => {
   pageNum.value = 1
   finished.value = false
   appointmentList.value = []
-  isRefresh.value = true
   onLoad()
 }
 
@@ -107,8 +158,9 @@ const onTabChange = () => {
 const onRefresh = () => {
   pageNum.value = 1
   finished.value = false
-  isRefresh.value = true
+  appointmentList.value = []
   onLoad()
+  refreshing.value = false
 }
 
 // 加载列表
@@ -116,50 +168,36 @@ const onLoad = async () => {
   try {
     loading.value = true
 
-    // 构建查询参数
-    const params = {
-      status: activeTab.value === 'all' ? null : activeTab.value,
-      pageNum: pageNum.value,
-      pageSize: pageSize.value
+    // 模拟网络延迟
+    await new Promise(resolve => setTimeout(resolve, 500))
+
+    // 筛选数据
+    let filteredList = [...mockAppointments]
+
+    if (activeTab.value === 'pending') {
+      filteredList = filteredList.filter(item => item.status === '0')
+    } else if (activeTab.value === 'visited') {
+      filteredList = filteredList.filter(item => item.status === '1')
+    } else if (activeTab.value === 'cancelled') {
+      filteredList = filteredList.filter(item => item.status === '2')
     }
 
-    const response = await getMyVisits(params)
+    // 分页处理
+    const startIndex = (pageNum.value - 1) * pageSize.value
+    const endIndex = startIndex + pageSize.value
+    const list = filteredList.slice(startIndex, endIndex)
 
-    if (response.code === 200) {
-      const rows = response.data.rows || []
+    if (list.length === 0) {
+      finished.value = true
+    } else {
+      appointmentList.value = [...appointmentList.value, ...list]
+      pageNum.value++
 
-      // 字段映射（后端返回的字段名与前端期望的保持一致）
-      const mappedList = rows.map(item => ({
-        appointmentId: item.reservationId,
-        appointmentNo: item.reservationNo,
-        institutionId: item.institutionId,
-        institutionName: item.institutionName,
-        institutionCover: item.institutionCover || '',
-        status: item.status,
-        visitDate: item.visitDate,
-        visitTime: item.visitTime,
-        visitorName: item.visitorName,
-        visitorPhone: item.visitorPhone,
-        visitorCount: item.visitorCount,
-        createTime: item.createTime
-      }))
-
-      if (isRefresh.value) {
-        appointmentList.value = mappedList
-        isRefresh.value = false
-      } else {
-        appointmentList.value = [...appointmentList.value, ...mappedList]
-      }
-
-      // 判断是否加载完成
-      finished.value = mappedList.length < pageSize.value
-
-      if (mappedList.length > 0) {
-        pageNum.value++
+      if (endIndex >= filteredList.length) {
+        finished.value = true
       }
     }
   } catch (error) {
-    console.error('加载预约列表失败:', error)
     showToast('加载失败')
     finished.value = true
   } finally {
@@ -175,25 +213,34 @@ const viewDetail = (appointment) => {
   })
 }
 
+// 联系机构
+const handleCall = (appointment) => {
+  if (appointment.institutionPhone) {
+    window.location.href = `tel:${appointment.institutionPhone}`
+  }
+}
+
 // 取消预约
-const cancelAppointment = async (appointmentId) => {
+const cancelAppointment = async (appointment) => {
   try {
     await showConfirmDialog({
-      title: '取消预约',
-      message: '确定要取消此预约吗？'
+      title: '提示',
+      message: '确定要取消预约吗?'
     })
 
-    const response = await cancelVisit(appointmentId)
-    if (response.code === 200) {
-      showToast('取消成功')
-      // 刷新列表
-      onRefresh()
-    } else {
-      showToast(response.msg || '取消失败')
+    // 模拟取消
+    await new Promise(resolve => setTimeout(resolve, 500))
+
+    showToast('已取消预约')
+
+    // 更新状态
+    const item = appointmentList.value.find(i => i.appointmentId === appointment.appointmentId)
+    if (item) {
+      item.status = '2'
     }
   } catch (error) {
     if (error !== 'cancel') {
-      showToast(error.message || '取消失败')
+      showToast('取消失败')
     }
   }
 }
