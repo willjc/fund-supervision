@@ -95,6 +95,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where review_id = #{reviewId}
     </select>
 
+    <select id="selectInstitutionReviewWithRelationsByReviewId" parameterType="Long" resultMap="InstitutionReviewWithRelationsResult">
+        <include refid="selectInstitutionReviewWithRelationsVo"/>
+        where r.review_id = #{reviewId}
+    </select>
+
     <select id="selectInstitutionReviewByOrderId" parameterType="String" resultMap="InstitutionReviewResult">
         <include refid="selectInstitutionReviewVo"/>
         where order_id = #{orderId}

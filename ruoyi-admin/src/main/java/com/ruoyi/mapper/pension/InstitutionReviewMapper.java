@@ -2,6 +2,7 @@ package com.ruoyi.mapper.pension;
 
 import java.util.List;
 import java.util.Map;
+import org.apache.ibatis.annotations.Param;
 import com.ruoyi.domain.pension.InstitutionReview;
 
 /**
@@ -45,13 +46,21 @@ public interface InstitutionReviewMapper
     public List<InstitutionReview> selectInstitutionReviewWithRelationsList(InstitutionReview institutionReview);
 
     /**
+     * 根据评价ID查询机构评价（关联查询）
+     *
+     * @param reviewId 机构评价主键
+     * @return 机构评价
+     */
+    public InstitutionReview selectInstitutionReviewWithRelationsByReviewId(Long reviewId);
+
+    /**
      * 根据机构ID查询已通过的评价列表
      *
      * @param institutionId 机构ID
      * @param limit 限制数量
      * @return 评价列表
      */
-    public List<InstitutionReview> selectApprovedReviewsByInstitutionId(Long institutionId, Integer limit);
+    public List<InstitutionReview> selectApprovedReviewsByInstitutionId(@Param("institutionId") Long institutionId, @Param("limit") Integer limit);
 
     /**
      * 新增机构评价
@@ -92,7 +101,7 @@ public interface InstitutionReviewMapper
      * @param status 状态（可选）
      * @return 评价数量
      */
-    public int countReviewsByInstitutionId(Long institutionId, Integer status);
+    public int countReviewsByInstitutionId(@Param("institutionId") Long institutionId, @Param("status") Integer status);
 
     /**
      * 计算机构平均评分
@@ -101,10 +110,10 @@ public interface InstitutionReviewMapper
      * @param status 状态（可选，默认只计算已通过的）
      * @return 平均评分
      */
-    public Double calculateAverageRatingByInstitutionId(Long institutionId, Integer status);
+    public Double calculateAverageRatingByInstitutionId(@Param("institutionId") Long institutionId, @Param("status") Integer status);
 
     /**
-     * 批量更新评价审核状态
+     * 批量更新评价审���状态
      *
      * @param reviewIds 评价ID数组
      * @param status 新状态
@@ -112,7 +121,7 @@ public interface InstitutionReviewMapper
      * @param reviewBy 审核人
      * @return 结果
      */
-    public int batchUpdateReviewStatus(Long[] reviewIds, Integer status, String reviewRemark, String reviewBy);
+    public int batchUpdateReviewStatus(@Param("reviewIds") Long[] reviewIds, @Param("status") Integer status, @Param("reviewRemark") String reviewRemark, @Param("reviewBy") String reviewBy);
 
     /**
      * 查询用户的待评价订单列表

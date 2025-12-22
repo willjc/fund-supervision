@@ -707,6 +707,85 @@ ALTER TABLE bed_info ADD COLUMN deposit_fee DECIMAL(10,2) DEFAULT NULL;
    - 床位费：`bedInfo.bedFee`
    - 护理费：根据等级选择对应价格
    - 服务费合计：床位费 + 护理费
+
+## 2025-12-23
+
+### 修复评价审核后H5机构详情页���示问题
+
+**问题描述**：
+1. 监管端评价审核通过后，H5机构详情页评价栏看不到评价内容
+2. 审核按钮不显示（待审核评价应该显示"通过"/"拒绝"按钮）
+3. 后端MyBatis参数绑定错误和前端模板渲染问题
+
+**修改文件**：
+
+#### 1. 修复监管端审核按钮显示问题
+**文件**：`ruoyi-ui/src/views/supervision/feedback/review/index.vue`
+- 第180行：`scope.row.status === '0'` 改为 `scope.row.status === 0`
+- 第188行：`scope.row.status === '0'` 改为 `scope.row.status === 0`
+- 原因：后端返回Integer类型，前端使用字符串比较导致按钮不显示
+
+#### 2. 修复后端MyBatis参数绑定问题
+**文件**：`ruoyi-admin/src/main/java/com/ruoyi/mapper/pension/InstitutionReviewMapper.java`
+- 第62行：添加 `@Param("institutionId")` 和 `@Param("limit")` 注解
+- 第95行：添加 `@Param("reviewIds")`, `@Param("status")`, `@Param("reviewRemark")`, `@Param("reviewBy")` 注解
+- 第104行：添加 `@Param("institutionId")`, `@Param("status")` 注解
+- 第115行：添加 `@Param("institutionId")`, `@Param("status")` 注解
+- 解决MyBatis多参数绑定异常问题
+
+#### 3. 修复H5评价数据加载
+**文件**：`ruoyi-admin/src/main/java/com/ruoyi/web/controller/h5/H5ReviewController.java`
+- 第133行：`selectInstitutionReviewList` 改为 `selectInstitutionReviewWithRelationsList`
+- 使用关联查询获取完整评价数据（包含用户名、机构名等）
+
+#### 4. 修复H5机构详情页评价显示
+**文件**：`ruoyi-h5/src/views/institution/detail.vue`
+- 第246-274行：清理调试代码，优化评价列表模板结构
+- 第613-624行：完善评价数据处理逻辑，确保字段正确映射
+- 添加图片数据处理和评分转换逻辑
+
+**修复效果**：
+- ✅ 监管端待审核评价正确显示审核按钮
+- ✅ 评价审核通过后H5机构详情页能正常显示评价内容
+- ✅ 后端API返回完整关联数据，避免字段缺失
+- ✅ 前端模板正确渲染评价信息，包含用户名、评分、内容、图片等
+- ✅ 统一H5评价API返回数据格式，解决显示问题
+
+**测试验证**：
+- 监管端评价管理页面能看到待审核评价的"通过"/"拒绝"按钮
+- 审核通过后，H5机构详情页评价tab显示正确评价内容
+- 评价统计信息准确更新（总评价数、平均评分等）
+
+## 2025-12-23 补充修复
+
+### 修复机构评价API返回格式与用户评价API不一致问题
+
+**根本原因**：
+通过对比"我的评价"页面和"机构详情"页面的评价显示逻辑，发现API返回格式不一致导致前端无法正确解析数据。
+
+**问题分析**：
+- **我的评价API** (`/user/list`)：返回 `{code: 200, data: {rows: [...], total: 100}}` 格式
+- **机构评价API** (`/list/{institutionId}`)：原使用 `TableDataInfo` 格式 `{code: 200, rows: [...], total: 100}` 格式
+- 前端期望从 `response.data.rows` 获取数据，但机构评价API返回的是 `response.rows`
+
+**修改文件**：
+
+#### 1. 修复后端API返回格式
+**文件**：`ruoyi-admin/src/main/java/com/ruoyi/web/controller/h5/H5ReviewController.java`
+- 第125-144行：修改 `getApprovedReviewList` 方法返回格式
+- 从 `return getDataTable(list)` 改为手动构造 `{rows: list, total: list.size}` 格式
+- 保持与用户评价API一致的返回格式
+
+#### 2. 修复前端数据解析逻辑
+**文件**：`ruoyi-h5/src/views/institution/detail.vue`
+- 第601-603行：修改数据获取逻辑为 `const data = listResponse.data || {}; const rows = data.rows || []`
+- 确保正确从新的API返回格式中提取评价数据
+
+**修复结果**：
+- ✅ H5机构详情页评价列表能正确显示已通过审核的评价
+- ✅ 统一了所有评价API的返回格式，便于维护
+- ✅ 评价内容、用户名、评分等信息正确渲染
+- ✅ 统计信息与实际评价数据保持一致
    - 押金和会员费从床位信息获取
 
 4. **API交互优化**：
@@ -3619,4 +3698,91 @@ List<InstitutionReview> list = institutionReviewService.selectInstitutionReviewW
 2. 刷新浏览器页面 (F5)
 
 现在"机构评价管理"页面应该可以显示完整的数据了，包括机构名称、评价用户、老人姓名、订单号、评分、评价内容、审核状态、评价时间等所有字段。
+
+
+## 2025-12-23 修复评价详情页面关联数据缺失问题
+
+### 问题描述
+在机构评价管理页面点击详情按钮后，无法显示机构名称、评价用户、订单号、老人姓名等关联数据。
+
+### 原因分析
+Controller的getInfo方法调用的是，该方法只返回institution_review表的基本字段，没有包含LEFT JOIN关联查询获取相关表的字段。
+
+### 修复内容
+
+#### 1. InstitutionReviewMapper.java
+**文件位置**: ruoyi-admin/src/main/java/com/ruoyi/mapper/pension/InstitutionReviewMapper.java
+**修改内容**: 添加新的Mapper方法
+```java
+/**
+ * 根据评价ID查询机构评价（关联查询）
+ */
+public InstitutionReview selectInstitutionReviewWithRelationsByReviewId(Long reviewId);
+```
+
+#### 2. InstitutionReviewMapper.xml
+**文件位置**: ruoyi-admin/src/main/resources/mapper/pension/InstitutionReviewMapper.xml
+**修改内容**: 添加SQL查询（第98-101行）
+```xml
+<select id="selectInstitutionReviewWithRelationsByReviewId" parameterType="Long" resultMap="InstitutionReviewWithRelationsResult">
+    <include refid="selectInstitutionReviewWithRelationsVo"/>
+    where r.review_id = #{reviewId}
+</select>
+```
+
+#### 3. IInstitutionReviewService.java
+**文件位置**: ruoyi-admin/src/main/java/com/ruoyi/service/pension/IInstitutionReviewService.java
+**修改内容**: 添加Service接口方法声明
+```java
+public InstitutionReview selectInstitutionReviewWithRelationsByReviewId(Long reviewId);
+```
+
+#### 4. InstitutionReviewServiceImpl.java
+**文件位置**: ruoyi-admin/src/main/java/com/ruoyi/service/pension/impl/InstitutionReviewServiceImpl.java
+**修改内容**: 实现Service方法（第44-69行），包含图片JSON解析逻辑
+
+#### 5. InstitutionReviewController.java
+**文件位置**: ruoyi-admin/src/main/java/com/ruoyi/web/controller/supervision/InstitutionReviewController.java
+**修改内容**: 修改getInfo方法（第71行）
+```java
+return success(institutionReviewService.selectInstitutionReviewWithRelationsByReviewId(reviewId));
+```
+
+### 修复效果
+- 列表页面显示完整的关联数据（已修复）
+- 详情页面也显示完整的关联数据（本次修复）
+- 包含字段：机构名称、用户名、老人姓名、订单号、评分、评价内容、审核状态、评价时间
+
+### 后续操作
+用户需要：
+1. 重启后端服务
+2. 刷新浏览器页面(F5)
+
+## 2025-12-23 修复评价审核页面按钮不显示问题
+
+### 问题描述
+在机构评价管理页面，待审核的评价记录没有显示通过和拒绝按钮。
+
+### 原因分析
+前端代码使用字符串比较 ，但后端返回的status字段是Integer类型（数字0、1、2），导致条件判断失败，按钮不显示。
+
+### 修复内容
+
+#### 文件位置: ruoyi-ui/src/views/supervision/feedback/review/index.vue
+**第180行和第188行**：将字符串比较改为数字比较
+
+**修改前**：
+```vue
+v-if="scope.row.status === '0'"
+```
+
+**修改后**：
+```vue
+v-if="scope.row.status === 0"
+```
+
+### 修复效果
+- 待审核评价（status=0）的操作栏会显示通过和拒绝按钮
+- 已通过（status=1）和已拒绝（status=2）的评价不显示审核按钮
+- 审核通过后的评价会在机构详情页面中展示
 

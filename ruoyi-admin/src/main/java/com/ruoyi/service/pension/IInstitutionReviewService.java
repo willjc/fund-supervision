@@ -20,6 +20,14 @@ public interface IInstitutionReviewService
     public InstitutionReview selectInstitutionReviewByReviewId(Long reviewId);
 
     /**
+     * 根据评价ID查询机构评价（关联查询）
+     *
+     * @param reviewId 机构评价主键
+     * @return 机构评价
+     */
+    public InstitutionReview selectInstitutionReviewWithRelationsByReviewId(Long reviewId);
+
+    /**
      * 根据订单ID查询机构评价
      *
      * @param orderId 订单ID

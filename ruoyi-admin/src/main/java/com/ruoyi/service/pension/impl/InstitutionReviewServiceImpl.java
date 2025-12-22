@@ -42,6 +42,33 @@ public class InstitutionReviewServiceImpl implements IInstitutionReviewService
     }
 
     /**
+     * 根据评价ID查询机构评价（关联查询）
+     *
+     * @param reviewId 机构评价主键
+     * @return 机构评价
+     */
+    @Override
+    public InstitutionReview selectInstitutionReviewWithRelationsByReviewId(Long reviewId)
+    {
+        InstitutionReview review = institutionReviewMapper.selectInstitutionReviewWithRelationsByReviewId(reviewId);
+
+        // 解析图片JSON
+        if (review != null && StringUtils.isNotEmpty(review.getImages())) {
+            try {
+                List<InstitutionReview.ReviewImage> imageList = objectMapper.readValue(
+                    review.getImages(),
+                    new TypeReference<List<InstitutionReview.ReviewImage>>() {}
+                );
+                review.setImageList(imageList);
+            } catch (Exception e) {
+                System.err.println("解析评价图片JSON失败: " + e.getMessage());
+            }
+        }
+
+        return review;
+    }
+
+    /**
      * 根据订单ID查询机构评价
      *
      * @param orderId 订单ID

@@ -123,15 +123,24 @@ public class H5ReviewController extends BaseController
      * 获取��构评价列表（仅显示已通过的）
      */
     @GetMapping("/list/{institutionId}")
-    public TableDataInfo getApprovedReviewList(@PathVariable("institutionId") Long institutionId)
+    public AjaxResult getApprovedReviewList(@PathVariable("institutionId") Long institutionId)
     {
-        startPage();
-        InstitutionReview query = new InstitutionReview();
-        query.setInstitutionId(institutionId);
-        query.setStatus(1); // 只查询已通过的
+        try {
+            InstitutionReview query = new InstitutionReview();
+            query.setInstitutionId(institutionId);
+            query.setStatus(1); // 只查询已通过的
 
-        List<InstitutionReview> list = institutionReviewService.selectInstitutionReviewList(query);
-        return getDataTable(list);
+            List<InstitutionReview> list = institutionReviewService.selectInstitutionReviewWithRelationsList(query);
+
+            // 与用户评价API保持一致的返回格式
+            Map<String, Object> result = new HashMap<>();
+            result.put("rows", list);
+            result.put("total", list.size());
+
+            return AjaxResult.success(result);
+        } catch (Exception e) {
+            return AjaxResult.error("获取评价列表失败: " + e.getMessage());
+        }
     }
 
     /**

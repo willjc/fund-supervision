@@ -228,7 +228,7 @@
             </div>
 
             <!-- 评价统计信息 -->
-            <div v-else-if="reviewStatistics.totalCount > 0" class="rating-breakdown">
+            <div v-if="reviewStatistics.totalCount > 0" class="rating-breakdown">
               <div class="rating-item">
                 <span class="rating-label">综合</span>
                 <van-rate v-model="detail.rating" :size="12" color="#ffd21e" void-icon="star" void-color="#eee" readonly />
@@ -236,40 +236,40 @@
               </div>
             </div>
 
+            <!-- 评价列表 -->
+            <div v-if="reviewList && reviewList.length > 0" class="review-list">
+              <div v-for="(review, index) in reviewList" :key="review.reviewId || index" class="review-item">
+                <div class="review-header">
+                  <van-image
+                    round
+                    width="40"
+                    height="40"
+                    :src="review.avatar || 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'"
+                  />
+                  <div class="review-user">
+                    <div class="user-name">{{ review.userName }}</div>
+                    <van-rate v-model="review.rating" :size="12" color="#ffd21e" void-icon="star" void-color="#eee" readonly />
+                  </div>
+                  <div class="review-date">{{ review.createTime }}</div>
+                </div>
+                <div class="review-content">{{ review.content }}</div>
+                <div v-if="review.images && review.images.length > 0" class="review-images">
+                  <van-image
+                    v-for="(img, imgIndex) in review.images"
+                    :key="imgIndex"
+                    width="80"
+                    height="80"
+                    :src="img"
+                    fit="cover"
+                    @click="previewReviewImage(review.images, imgIndex)"
+                  />
+                </div>
+              </div>
+            </div>
+
             <!-- 暂无评价 -->
             <div v-else-if="!reviewLoading" class="no-reviews">
               <van-empty description="暂无评价" image-size="80" />
-            </div>
-          </div>
-
-          <!-- 评价列表 -->
-          <div v-if="reviewList.length > 0" class="review-list">
-            <div v-for="(review, index) in reviewList" :key="review.reviewId || index" class="review-item">
-              <div class="review-header">
-                <van-image
-                  round
-                  width="40"
-                  height="40"
-                  :src="review.avatar || 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'"
-                />
-                <div class="review-user">
-                  <div class="user-name">{{ review.userName }}</div>
-                  <van-rate v-model="review.rating" :size="12" color="#ffd21e" void-icon="star" void-color="#eee" readonly />
-                </div>
-                <div class="review-date">{{ review.createTime }}</div>
-              </div>
-              <div class="review-content">{{ review.content }}</div>
-              <div v-if="review.images && review.images.length > 0" class="review-images">
-                <van-image
-                  v-for="(img, imgIndex) in review.images"
-                  :key="imgIndex"
-                  width="80"
-                  height="80"
-                  :src="img"
-                  fit="cover"
-                  @click="previewReviewImage(review.images, imgIndex)"
-                />
-              </div>
             </div>
           </div>
         </van-tab>
@@ -586,23 +586,52 @@ const loadReviews = async () => {
   try {
     reviewLoading.value = true
 
-    // 并行加载评价列表和统计信息
+    // 并行调用评价列表和统计API
     const [listResponse, statsResponse] = await Promise.all([
       getReviewList(detail.value.institutionId, 1, 10),
       getReviewStatistics(detail.value.institutionId)
     ])
 
     // 处理评价列表
-    if (listResponse.code === 200 && listResponse.rows) {
-      reviewList.value = listResponse.rows.map(review => ({
-        reviewId: review.reviewId,
-        userName: review.userName || '匿名用户',
-        avatar: '', // 暂时没有头像字段
-        rating: Math.round(review.averageRating || 0), // 将平均评分转换为整数
-        createTime: review.reviewTime || review.createTime, // 使用审核时间或创建时间
-        content: review.content,
-        images: review.images ? JSON.parse(review.images || '[]').map(img => img.url || img) : []
-      }))
+    if (listResponse.code === 200) {
+      const data = listResponse.data || {}
+      const rows = data.rows || []
+
+      if (rows.length > 0) {
+        reviewList.value = rows.map(review => {
+          try {
+            // 解析图片JSON
+            const parsedImages = review.images
+              ? JSON.parse(review.images || '[]').map(img => img.url || img)
+              : []
+
+            return {
+              reviewId: review.reviewId,
+              userName: review.userName || '匿名用户',
+              avatar: '',
+              rating: Math.round(review.averageRating || 0),
+              createTime: review.reviewTime || review.createTime,
+              content: review.content,
+              images: parsedImages
+            }
+          } catch (error) {
+            // 图片解析失败时返回基本信息
+            return {
+              reviewId: review.reviewId,
+              userName: review.userName || '匿名用户',
+              avatar: '',
+              rating: Math.round(review.averageRating || 0),
+              createTime: review.reviewTime || review.createTime,
+              content: review.content,
+              images: []
+            }
+          }
+        })
+      } else {
+        reviewList.value = []
+      }
+    } else {
+      reviewList.value = []
     }
 
     // 处理统计信息

@@ -68,7 +68,7 @@ public class InstitutionReviewController extends BaseController
     @GetMapping(value = "/{reviewId}")
     public AjaxResult getInfo(@PathVariable("reviewId") Long reviewId)
     {
-        return success(institutionReviewService.selectInstitutionReviewByReviewId(reviewId));
+        return success(institutionReviewService.selectInstitutionReviewWithRelationsByReviewId(reviewId));
     }
 
     /**

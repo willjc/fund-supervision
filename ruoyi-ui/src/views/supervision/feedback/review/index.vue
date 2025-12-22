@@ -177,7 +177,7 @@
             v-hasPermi="['supervision:review:query']"
           >详情</el-button>
           <el-button
-            v-if="scope.row.status === '0'"
+            v-if="scope.row.status === 0"
             size="mini"
             type="text"
             icon="el-icon-check"
@@ -185,7 +185,7 @@
             v-hasPermi="['supervision:review:approve']"
           >通过</el-button>
           <el-button
-            v-if="scope.row.status === '0'"
+            v-if="scope.row.status === 0"
             size="mini"
             type="text"
             icon="el-icon-close"
