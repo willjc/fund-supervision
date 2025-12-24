@@ -127,8 +127,8 @@ const loadBanners = async () => {
 // 快捷入口
 const quickEntries = ref([
   { name: 'notice', icon: 'envelop-o', text: '通知公告', path: '/notice/list', color: '#5B8FF9' },
-  { name: 'todo', icon: 'records', text: '待办事项', path: '/todo/list', color: '#FFC107' },
-  { name: 'elder', icon: 'contact', text: '老人信息', path: '/elder/list', color: '#FF6B6B' },
+  { name: 'todo', icon: 'records', text: '待办事项', path: '/user/todo', color: '#FFC107' },
+  { name: 'elder', icon: 'contact', text: '老人信息', path: '/user/elder', color: '#FF6B6B' },
   { name: 'fee', icon: 'balance-list-o', text: '费用查询', path: '/fee/query', color: '#00BCD4' }
 ])
 

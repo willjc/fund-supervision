@@ -91,6 +91,12 @@ const routes = [
     meta: { title: '通知公告', requireAuth: false }
   },
   {
+    path: '/notice/detail/:id',
+    name: 'NoticeDetail',
+    component: () => import('@/views/notice/detail.vue'),
+    meta: { title: '通知详情', requireAuth: false }
+  },
+  {
     path: '/todo/list',
     name: 'TodoList',
     component: () => import('@/views/todo/list.vue'),
