@@ -111,7 +111,7 @@
     </el-row>
 
     <!-- 数据表格 -->
-    <el-table v-loading="loading" :data="accountList" border>
+    <el-table v-loading="loading" :data="accountList" border style="width: 100%">
       <el-table-column label="机构编号" align="center" prop="institutionId" width="100" />
       <el-table-column label="机构名称" align="center" prop="institutionName" width="200" show-overflow-tooltip />
       <el-table-column label="账户类型" align="center" prop="accountType" width="100">
@@ -150,8 +150,8 @@
         </template>
       </el-table-column>
       <el-table-column label="开户日期" align="center" prop="openDate" width="110" />
-      <el-table-column label="最后更新" align="center" prop="updateTime" width="160" />
-      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="260" fixed="right">
+      <el-table-column label="最后更新" align="center" prop="updateTime" min-width="160" />
+      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="260">
         <template slot-scope="scope">
           <el-button size="mini" type="text" icon="el-icon-view" @click="handleDetail(scope.row)">详情</el-button>
           <el-button size="mini" type="text" icon="el-icon-tickets" @click="handleViewTransactions(scope.row)">交易流水</el-button>

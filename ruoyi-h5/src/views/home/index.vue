@@ -20,16 +20,19 @@
 
     <!-- 轮播图 -->
     <div class="banner">
-      <van-swipe class="swipe" :autoplay="3000" indicator-color="white">
+      <van-swipe
+        class="swipe"
+        :autoplay="3000"
+        :show-indicators="true"
+        indicator-color="rgba(255, 255, 255, 0.9)"
+      >
         <van-swipe-item v-for="(banner, index) in banners" :key="index">
-          <div class="banner-item">
-            <van-image
+          <div class="banner-item" @click="onBannerClick(banner)">
+            <img
               :src="banner.imageUrl"
-              fit="cover"
-              height="200"
-              @click="onBannerClick(banner)"
+              alt="banner"
+              class="banner-image"
             />
-            <div class="banner-title">郑州XXXXX养老院</div>
           </div>
         </van-swipe-item>
       </van-swipe>
@@ -37,7 +40,7 @@
 
     <!-- 快捷入口 -->
     <div class="quick-entry">
-      <van-grid :column-num="4" :border="false">
+      <van-grid :column-num="4" :border="false" :clickable="true">
         <van-grid-item
           v-for="item in quickEntries"
           :key="item.name"
@@ -46,7 +49,7 @@
         >
           <template #icon>
             <div class="grid-icon" :style="{ backgroundColor: item.color }">
-              <van-icon :name="item.icon" size="24" color="#fff" />
+              <van-icon :name="item.icon" size="20" color="#fff" />
             </div>
           </template>
         </van-grid-item>
@@ -86,6 +89,7 @@ import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import InstitutionCard from '@/components/InstitutionCard.vue'
 import { getRecommendInstitutions } from '@/api/institution'
+import { getBannerList } from '@/api/banner'
 
 const router = useRouter()
 
@@ -95,27 +99,30 @@ const searchValue = ref('')
 // 未读通知数量
 const unreadCount = ref(3) // 暂时写死,后续对接API
 
-// 轮播图数据 (本地图片路径: /images/banners/banner1.jpg)
-const banners = ref([
-  {
-    id: 1,
-    imageUrl: '/images/banners/banner1.jpg',
-    linkType: 'institution',
-    linkValue: '1'
-  },
-  {
-    id: 2,
-    imageUrl: '/images/banners/banner2.jpg',
-    linkType: 'institution',
-    linkValue: '2'
-  },
-  {
-    id: 3,
-    imageUrl: '/images/banners/banner3.jpg',
-    linkType: 'institution',
-    linkValue: '3'
+// 轮播图数据
+const banners = ref([])
+
+// 加载轮播图
+const loadBanners = async () => {
+  try {
+    const response = await getBannerList({ position: 1 }) // 1-首页
+    if (response.code === 200 && response.data) {
+      banners.value = response.data
+    }
+  } catch (error) {
+    console.error('加载轮播图失败:', error)
+    // 使用默认数据作为备用
+    banners.value = [
+      {
+        id: 1,
+        imageUrl: '/images/banners/banner1.jpg',
+        title: '',
+        linkType: '1',
+        linkValue: '1'
+      }
+    ]
   }
-])
+}
 
 // 快捷入口
 const quickEntries = ref([
@@ -268,9 +275,10 @@ const goToNotice = () => {
 
 // 轮播图点击
 const onBannerClick = (banner) => {
-  if (banner.linkType === 'institution') {
+  // linkType: 1-机构详情 2-外部URL
+  if (banner.linkType === '1') {
     router.push(`/institution/detail/${banner.linkValue}`)
-  } else if (banner.linkType === 'url') {
+  } else if (banner.linkType === '2') {
     window.location.href = banner.linkValue
   }
 }
@@ -347,7 +355,8 @@ const onLoad = () => {
 }
 
 onMounted(() => {
-  // 页面加载时自动加载机构列表
+  // 页面加载时自动加载轮播图和机构列表
+  loadBanners()
   loadInstitutions()
 })
 </script>
@@ -378,48 +387,70 @@ onMounted(() => {
 
 .banner {
   background: #fff;
-  margin-bottom: 10px;
 }
 
 .swipe {
-  height: 200px;
+  height: 180px;
+}
+
+.swipe :deep(.van-swipe__track) {
+  height: 100%;
+}
+
+.swipe :deep(.van-swipe__indicators) {
+  bottom: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+}
+
+.swipe :deep(.van-swipe__indicator) {
+  width: 8px;
+  height: 8px;
+  background-color: rgba(0, 0, 0, 0.4);
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  margin: 0 4px;
+  transition: all 0.3s;
+  opacity: 0.9;
+}
+
+.swipe :deep(.van-swipe__indicator--active) {
+  width: 20px;
+  border-radius: 4px;
+  background-color: #fff;
+  border-color: #fff;
+  opacity: 1;
 }
 
 .banner-item {
-  position: relative;
-  height: 200px;
+  width: 100%;
+  height: 180px;
+  overflow: hidden;
+  background: #f5f5f5;
 }
 
-.banner-title {
-  position: absolute;
-  bottom: 50%;
-  left: 0;
-  right: 0;
-  transform: translateY(50%);
-  text-align: center;
-  color: #333;
-  font-size: 18px;
-  font-weight: bold;
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.85);
-  margin: 0 40px;
-  border-radius: 4px;
+.banner-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .quick-entry {
   background: #fff;
   margin-bottom: 10px;
-  padding: 16px 0;
+  padding: 10px 0;
 }
 
 .grid-icon {
-  width: 48px;
-  height: 48px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 8px;
+  margin: 0 auto 6px;
 }
 
 .recommend-section {
