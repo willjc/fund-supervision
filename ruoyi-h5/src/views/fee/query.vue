@@ -3,26 +3,24 @@
     <van-nav-bar title="费用查询" fixed placeholder left-arrow @click-left="onBack" />
 
     <!-- 筛选栏 -->
-    <div class="filter-bar">
+    <div class="filter-bar" v-if="elderOptions.length > 0">
       <van-dropdown-menu>
         <van-dropdown-item v-model="selectedElder" :options="elderOptions" title="选择老人" />
-        <van-dropdown-item v-model="selectedYear" :options="yearOptions" title="年份" />
-        <van-dropdown-item v-model="selectedMonth" :options="monthOptions" title="月份" />
       </van-dropdown-menu>
     </div>
 
     <!-- 费用统计卡片 -->
     <div class="summary-card">
       <div class="summary-item">
-        <div class="summary-label">本月应缴</div>
+        <div class="summary-label">净额</div>
         <div class="summary-value primary">¥{{ totalAmount }}</div>
       </div>
       <div class="summary-item">
-        <div class="summary-label">已缴费用</div>
+        <div class="summary-label">总收入</div>
         <div class="summary-value success">¥{{ paidAmount }}</div>
       </div>
       <div class="summary-item">
-        <div class="summary-label">待缴费用</div>
+        <div class="summary-label">总支出</div>
         <div class="summary-value danger">¥{{ unpaidAmount }}</div>
       </div>
     </div>
@@ -38,47 +36,53 @@
         <div v-if="feeList.length > 0">
           <div
             v-for="fee in feeList"
-            :key="fee.feeId"
+            :key="fee.recordId"
             class="fee-card"
-            @click="goToDetail(fee.feeId)"
+            @click="goToDetail(fee)"
           >
             <div class="fee-header">
               <div class="fee-type">
                 <van-icon name="bill-o" />
-                <span>{{ getFeeTypeText(fee.feeType) }}</span>
+                <span>{{ getFeeTypeText(fee.expenseType) }}</span>
               </div>
-              <van-tag :type="getStatusType(fee.status)" size="small">
-                {{ getStatusText(fee.status) }}
+              <van-tag :type="getStatusType(fee.transactionType)" size="small">
+                {{ getStatusText(fee.transactionType) }}
               </van-tag>
             </div>
 
             <div class="fee-content">
               <div class="fee-row">
-                <span class="label">账单月份:</span>
-                <span class="value">{{ fee.billMonth }}</span>
+                <span class="label">费用说明:</span>
+                <span class="value">{{ fee.description || '-' }}</span>
               </div>
               <div class="fee-row">
-                <span class="label">费用明细:</span>
-                <span class="value">{{ fee.feeDetail }}</span>
-              </div>
-              <div class="fee-row">
-                <span class="label">生成时间:</span>
+                <span class="label">交易时间:</span>
                 <span class="value">{{ formatDate(fee.createTime) }}</span>
+              </div>
+              <div class="fee-row" v-if="fee.balanceBefore !== null && fee.balanceBefore !== undefined">
+                <span class="label">交易前余额:</span>
+                <span class="value">¥{{ fee.balanceBefore }}</span>
+              </div>
+              <div class="fee-row" v-if="fee.balanceAfter !== null && fee.balanceAfter !== undefined">
+                <span class="label">交易后余额:</span>
+                <span class="value">¥{{ fee.balanceAfter }}</span>
               </div>
             </div>
 
             <div class="fee-footer">
               <div class="fee-amount">
-                <span class="amount-label">应付金额:</span>
-                <span class="amount-value">¥{{ fee.feeAmount }}</span>
+                <span class="amount-label">金额:</span>
+                <span class="amount-value" :class="fee.transactionType === 'income' ? 'income' : 'expense'">
+                  {{ fee.transactionType === 'income' ? '+' : '-' }}¥{{ fee.amount }}
+                </span>
               </div>
               <van-button
-                v-if="fee.status === '0'"
+                v-if="fee.relatedType === 'order' && fee.relatedId"
                 size="small"
                 type="primary"
                 @click.stop="handlePay(fee)"
               >
-                立即缴费
+                查看订单
               </van-button>
             </div>
           </div>
@@ -92,17 +96,18 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { showToast } from 'vant'
+import { showToast, showLoadingToast, closeToast } from 'vant'
 import dayjs from 'dayjs'
+import { getElderList, getExpenseList, getExpenseStatistics } from '@/api/expense'
 
 const router = useRouter()
 
 // 筛选条件
-const selectedElder = ref(1)
-const selectedYear = ref('2025')
-const selectedMonth = ref('01')
+const selectedElder = ref(null)
+const selectedYear = ref(new Date().getFullYear().toString())
+const selectedMonth = ref((new Date().getMonth() + 1).toString().padStart(2, '0'))
 
 // 列表状态
 const loading = ref(false)
@@ -117,11 +122,14 @@ const pageNum = ref(1)
 const pageSize = ref(10)
 
 // 老人选项
-const elderOptions = [
-  { text: '张三', value: 1 },
-  { text: '李四', value: 2 },
-  { text: '王五', value: 3 }
-]
+const elderOptions = ref([])
+
+// 费用统计
+const statistics = ref({
+  totalAmount: 0,
+  paidAmount: 0,
+  unpaidAmount: 0
+})
 
 // 年份选项
 const yearOptions = [
@@ -132,6 +140,7 @@ const yearOptions = [
 
 // 月份选项
 const monthOptions = [
+  { text: '全部', value: '00' },
   { text: '1月', value: '01' },
   { text: '2月', value: '02' },
   { text: '3月', value: '03' },
@@ -146,75 +155,20 @@ const monthOptions = [
   { text: '12月', value: '12' }
 ]
 
-// 模拟费用数据
-const mockFees = [
-  {
-    feeId: 1,
-    feeType: '1',
-    billMonth: '2025-01',
-    feeDetail: '床位费(1500元) + 护理费(2000元) + 伙食费(800元)',
-    feeAmount: 4300.00,
-    status: '0',
-    createTime: '2025-01-01 00:00:00'
-  },
-  {
-    feeId: 2,
-    feeType: '1',
-    billMonth: '2024-12',
-    feeDetail: '床位费(1500元) + 护理费(2000元) + 伙食费(800元)',
-    feeAmount: 4300.00,
-    status: '1',
-    createTime: '2024-12-01 00:00:00'
-  },
-  {
-    feeId: 3,
-    feeType: '2',
-    billMonth: '2024-12',
-    feeDetail: '体检费用',
-    feeAmount: 500.00,
-    status: '1',
-    createTime: '2024-12-15 10:30:00'
-  },
-  {
-    feeId: 4,
-    feeType: '1',
-    billMonth: '2024-11',
-    feeDetail: '床位费(1500元) + 护理费(2000元) + 伙食费(800元)',
-    feeAmount: 4300.00,
-    status: '1',
-    createTime: '2024-11-01 00:00:00'
-  },
-  {
-    feeId: 5,
-    feeType: '3',
-    billMonth: '2024-11',
-    feeDetail: '秋季衣物添置',
-    feeAmount: 600.00,
-    status: '1',
-    createTime: '2024-11-10 14:20:00'
-  }
-]
-
-// 计算总费用
+// 计算属性 - 从统计数据获取
 const totalAmount = computed(() => {
-  const total = mockFees.reduce((sum, fee) => sum + fee.feeAmount, 0)
-  return total.toFixed(2)
+  const total = statistics.value.netAmount || 0
+  return Number(total).toFixed(2)
 })
 
-// 计算已缴费用
 const paidAmount = computed(() => {
-  const paid = mockFees
-    .filter(fee => fee.status === '1')
-    .reduce((sum, fee) => sum + fee.feeAmount, 0)
-  return paid.toFixed(2)
+  const income = statistics.value.totalIncome || 0
+  return Number(income).toFixed(2)
 })
 
-// 计算待缴费用
 const unpaidAmount = computed(() => {
-  const unpaid = mockFees
-    .filter(fee => fee.status === '0')
-    .reduce((sum, fee) => sum + fee.feeAmount, 0)
-  return unpaid.toFixed(2)
+  const expense = statistics.value.totalExpense || 0
+  return Number(expense).toFixed(2)
 })
 
 // 返回上一页
@@ -232,33 +186,88 @@ const resetList = () => {
 // 下拉刷新
 const onRefresh = () => {
   resetList()
+  loadStatistics()
   onLoad()
   refreshing.value = false
 }
 
-// 加载费用列表 (使用模拟数据)
+// 加载老人列表
+const loadElderList = async () => {
+  try {
+    const response = await getElderList()
+    if (response.code === 200 && response.data) {
+      const elders = response.data
+      if (elders.length > 0) {
+        elderOptions.value = elders.map(elder => ({
+          text: elder.elderName,
+          value: elder.elderId
+        }))
+        // 默认选中第一个老人
+        if (!selectedElder.value) {
+          selectedElder.value = elders[0].elderId
+        }
+      } else {
+        elderOptions.value = []
+        showToast('暂无关联的老人信息')
+      }
+    } else {
+      showToast(response.msg || '获取老人列表失败')
+    }
+  } catch (error) {
+    console.error('获取老人列表失败:', error)
+    showToast('获取老人列表失败')
+  }
+}
+
+// 加载费用统计
+const loadStatistics = async () => {
+  if (!selectedElder.value) return
+
+  try {
+    const response = await getExpenseStatistics(selectedElder.value)
+    if (response.code === 200 && response.data) {
+      statistics.value = response.data
+    }
+  } catch (error) {
+    console.error('获取费用统计失败:', error)
+  }
+}
+
+// 加载费用列表
 const onLoad = async () => {
+  if (!selectedElder.value) {
+    finished.value = true
+    return
+  }
+
   try {
     loading.value = true
 
-    // 模拟网络延迟
-    await new Promise(resolve => setTimeout(resolve, 500))
+    const response = await getExpenseList(
+      selectedElder.value,
+      'all', // 全部费用类型
+      'all', // 全部交易类型
+      pageNum.value,
+      pageSize.value
+    )
 
-    // 分页处理
-    const startIndex = (pageNum.value - 1) * pageSize.value
-    const endIndex = startIndex + pageSize.value
-    const list = mockFees.slice(startIndex, endIndex)
+    if (response.code === 200 && response.data) {
+      // 后端返回结构: { total, pageNum, pageSize, pages, list }
+      const list = response.data.list || []
 
-    if (list.length === 0) {
-      finished.value = true
-    } else {
-      feeList.value = [...feeList.value, ...list]
-      pageNum.value++
-
-      // 如果返回数据少于pageSize或已到达最后,说明没有更多了
-      if (list.length < pageSize.value || endIndex >= mockFees.length) {
+      if (list.length === 0) {
         finished.value = true
+      } else {
+        feeList.value = [...feeList.value, ...list]
+        pageNum.value++
+
+        if (list.length < pageSize.value) {
+          finished.value = true
+        }
       }
+    } else {
+      showToast(response.msg || '获取费用列表失败')
+      finished.value = true
     }
   } catch (error) {
     console.error('获取费用列表失败:', error)
@@ -270,49 +279,62 @@ const onLoad = async () => {
 }
 
 // 查看详情
-const goToDetail = (feeId) => {
-  showToast('费用详情页面开发中')
-  // TODO: 跳转到费用详情页
-  // router.push({
-  //   name: 'FeeDetail',
-  //   params: { id: feeId }
-  // })
+const goToDetail = (fee) => {
+  // 如果是订单类型，跳转到订单详情
+  if (fee.relatedType === 'order' && fee.relatedId) {
+    router.push(`/order/detail/${fee.relatedId}`)
+  } else {
+    showToast('该费用暂无详情页面')
+  }
 }
 
 // 立即缴费
 const handlePay = (fee) => {
-  showToast('支付功能开发中')
-  // TODO: 跳转到支付页面
+  // 如果是订单类型，跳转到订单详情进行支付
+  if (fee.relatedType === 'order' && fee.relatedId) {
+    router.push(`/order/detail/${fee.relatedId}`)
+  } else {
+    showToast('该费用暂不支持在线支付')
+  }
 }
+
+// 监听老人选择变化
+watch(selectedElder, () => {
+  resetList()
+  loadStatistics()
+  onLoad()
+})
+
+// 初始化加载
+loadElderList()
 
 // 获取费用类型文本
 const getFeeTypeText = (type) => {
   const typeMap = {
-    '1': '月度费用',
-    '2': '医疗费用',
-    '3': '其他费用'
+    'deposit': '押金',
+    'service': '服务费',
+    'member': '会员费',
+    'other': '其他'
   }
   return typeMap[type] || '其他'
 }
 
 // 获取状态文本
-const getStatusText = (status) => {
-  const statusMap = {
-    '0': '待缴费',
-    '1': '已缴费',
-    '2': '已退款'
+const getStatusText = (transactionType) => {
+  const typeMap = {
+    'income': '收入',
+    'expense': '支出'
   }
-  return statusMap[status] || '未知'
+  return typeMap[transactionType] || '未知'
 }
 
 // 获取状态类型
-const getStatusType = (status) => {
+const getStatusType = (transactionType) => {
   const typeMap = {
-    '0': 'warning',
-    '1': 'success',
-    '2': 'default'
+    'income': 'success',
+    'expense': 'warning'
   }
-  return typeMap[status] || 'default'
+  return typeMap[transactionType] || 'default'
 }
 
 // 格式化日期
@@ -445,6 +467,14 @@ const formatDate = (date) => {
 .amount-value {
   font-size: 20px;
   font-weight: bold;
+  color: #ee0a24;
+}
+
+.amount-value.income {
+  color: #07c160;
+}
+
+.amount-value.expense {
   color: #ee0a24;
 }
 </style>
