@@ -231,6 +231,21 @@ public class PensionInstitution extends BaseEntity
     /** 街道名称多选参数(用于筛选,不映射到数据库) */
     private transient List<String> streetNames;
 
+    /** 是否已开户(不映射到数据库,通过superviseAccount和bankAccount计算) */
+    private transient Boolean hasSupervisionAccount;
+
+    /** 预收服务费余额(不映射到数据库,从account_info统计) */
+    private transient java.math.BigDecimal serviceFeeBalance;
+
+    /** 预收押金余额(不映射到数据库,从account_info统计) */
+    private transient java.math.BigDecimal depositBalance;
+
+    /** 预收会员费余额(不映射到数据库,从account_info统��) */
+    private transient java.math.BigDecimal memberFeeBalance;
+
+    /** 实际入住老人数(不映射到数据库,从elder_check_in统计) */
+    private transient Integer actualElders;
+
     public void setInstitutionId(Long institutionId)
     {
         this.institutionId = institutionId;
@@ -849,5 +864,55 @@ public class PensionInstitution extends BaseEntity
     public void setStreetNames(List<String> streetNames)
     {
         this.streetNames = streetNames;
+    }
+
+    public Boolean getHasSupervisionAccount()
+    {
+        return hasSupervisionAccount;
+    }
+
+    public void setHasSupervisionAccount(Boolean hasSupervisionAccount)
+    {
+        this.hasSupervisionAccount = hasSupervisionAccount;
+    }
+
+    public java.math.BigDecimal getServiceFeeBalance()
+    {
+        return serviceFeeBalance;
+    }
+
+    public void setServiceFeeBalance(java.math.BigDecimal serviceFeeBalance)
+    {
+        this.serviceFeeBalance = serviceFeeBalance;
+    }
+
+    public java.math.BigDecimal getDepositBalance()
+    {
+        return depositBalance;
+    }
+
+    public void setDepositBalance(java.math.BigDecimal depositBalance)
+    {
+        this.depositBalance = depositBalance;
+    }
+
+    public java.math.BigDecimal getMemberFeeBalance()
+    {
+        return memberFeeBalance;
+    }
+
+    public void setMemberFeeBalance(java.math.BigDecimal memberFeeBalance)
+    {
+        this.memberFeeBalance = memberFeeBalance;
+    }
+
+    public Integer getActualElders()
+    {
+        return actualElders;
+    }
+
+    public void setActualElders(Integer actualElders)
+    {
+        this.actualElders = actualElders;
     }
 }

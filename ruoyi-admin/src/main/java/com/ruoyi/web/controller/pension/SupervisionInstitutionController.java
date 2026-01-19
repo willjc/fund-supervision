@@ -1,9 +1,12 @@
 package com.ruoyi.web.controller.pension;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import javax.servlet.http.HttpServletResponse;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -34,6 +37,9 @@ public class SupervisionInstitutionController extends BaseController
     @Autowired
     private IPensionInstitutionService pensionInstitutionService;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     /**
      * 查询养老机构入驻申请列表
      */
@@ -45,6 +51,69 @@ public class SupervisionInstitutionController extends BaseController
         // 不再强制设置status,由前端传递的参数决定
         // 如果前端没有传递status参数,则查询所有状态
         List<PensionInstitution> list = pensionInstitutionService.selectPensionInstitutionList(pensionInstitution);
+
+        // 填充计算字段（开户状态、资金统计、床位数据）
+        for (PensionInstitution institution : list) {
+            Long institutionId = institution.getInstitutionId();
+
+            // 判断是否已开户
+            boolean hasSupervisionAccount = institution.getSuperviseAccount() != null
+                    && !institution.getSuperviseAccount().trim().isEmpty()
+                    && institution.getBankAccount() != null
+                    && !institution.getBankAccount().trim().isEmpty();
+            institution.setHasSupervisionAccount(hasSupervisionAccount);
+
+            // 查询资金统计
+            try {
+                String fundSql = "SELECT COALESCE(SUM(service_balance), 0) as service_balance, " +
+                                 "COALESCE(SUM(deposit_balance), 0) as deposit_balance, " +
+                                 "COALESCE(SUM(member_balance), 0) as member_balance " +
+                                 "FROM account_info WHERE institution_id = ?";
+                Map<String, Object> fundData = jdbcTemplate.queryForMap(fundSql, institutionId);
+                institution.setServiceFeeBalance((BigDecimal) fundData.get("service_balance"));
+                institution.setDepositBalance((BigDecimal) fundData.get("deposit_balance"));
+                institution.setMemberFeeBalance((BigDecimal) fundData.get("member_balance"));
+            } catch (Exception e) {
+                // 查询失败时设置为0
+                institution.setServiceFeeBalance(BigDecimal.ZERO);
+                institution.setDepositBalance(BigDecimal.ZERO);
+                institution.setMemberFeeBalance(BigDecimal.ZERO);
+            }
+
+            // 查询床位数据（从bed_info表统计）
+            try {
+                String bedSql = "SELECT COUNT(*) as total_beds, " +
+                                "SUM(CASE WHEN bed_status = '1' THEN 1 ELSE 0 END) as used_beds " +
+                                "FROM bed_info WHERE institution_id = ?";
+                Map<String, Object> bedData = jdbcTemplate.queryForMap(bedSql, institutionId);
+                Integer totalBeds = ((Number) bedData.get("total_beds")).intValue();
+                Integer usedBeds = ((Number) bedData.get("used_beds")).intValue();
+                // 如果bed_info有数据，使用实际统计；否则使用pension_institution的bed_count
+                if (totalBeds > 0) {
+                    institution.setBedCount(totalBeds.longValue());
+                    institution.setActualElders(usedBeds);
+                } else {
+                    // bed_info无数据时，查询elder_check_in获取入住老人数
+                    try {
+                        String elderSql = "SELECT COUNT(*) FROM elder_check_in WHERE institution_id = ?";
+                        Integer actualElders = jdbcTemplate.queryForObject(elderSql, Integer.class, institutionId);
+                        institution.setActualElders(actualElders != null ? actualElders : 0);
+                    } catch (Exception ex) {
+                        institution.setActualElders(0);
+                    }
+                }
+            } catch (Exception e) {
+                // 查询失败时，尝试从elder_check_in统计
+                try {
+                    String elderSql = "SELECT COUNT(*) FROM elder_check_in WHERE institution_id = ?";
+                    Integer actualElders = jdbcTemplate.queryForObject(elderSql, Integer.class, institutionId);
+                    institution.setActualElders(actualElders != null ? actualElders : 0);
+                } catch (Exception ex) {
+                    institution.setActualElders(0);
+                }
+            }
+        }
+
         return getDataTable(list);
     }
 
@@ -229,7 +298,63 @@ public class SupervisionInstitutionController extends BaseController
             return AjaxResult.error("机构信息不存在");
         }
 
-        // 模拟添加资金监管数据
+        // 判断是否已开户：监管账户和基本账户都有值即为已开户
+        boolean hasSupervisionAccount = institution.getSuperviseAccount() != null
+                && !institution.getSuperviseAccount().trim().isEmpty()
+                && institution.getBankAccount() != null
+                && !institution.getBankAccount().trim().isEmpty();
+
+        // 查询资金统计数据
+        BigDecimal serviceFeeBalance = BigDecimal.ZERO;
+        BigDecimal depositBalance = BigDecimal.ZERO;
+        BigDecimal memberFeeBalance = BigDecimal.ZERO;
+        try {
+            String fundSql = "SELECT COALESCE(SUM(service_balance), 0) as service_balance, " +
+                             "COALESCE(SUM(deposit_balance), 0) as deposit_balance, " +
+                             "COALESCE(SUM(member_balance), 0) as member_balance " +
+                             "FROM account_info WHERE institution_id = ?";
+            Map<String, Object> fundData = jdbcTemplate.queryForMap(fundSql, institutionId);
+            serviceFeeBalance = (BigDecimal) fundData.get("service_balance");
+            depositBalance = (BigDecimal) fundData.get("deposit_balance");
+            memberFeeBalance = (BigDecimal) fundData.get("member_balance");
+        } catch (Exception e) {
+            logger.warn("查询机构资金统计失败: institutionId={}", institutionId, e);
+        }
+
+        // 查询床位数据（从bed_info表统计）
+        Integer approvedBeds = institution.getBedCount() != null ? institution.getBedCount().intValue() : 0;
+        Integer actualElders = 0;
+        try {
+            String bedSql = "SELECT COUNT(*) as total_beds, " +
+                            "SUM(CASE WHEN bed_status = '1' THEN 1 ELSE 0 END) as used_beds " +
+                            "FROM bed_info WHERE institution_id = ?";
+            Map<String, Object> bedData = jdbcTemplate.queryForMap(bedSql, institutionId);
+            Integer totalBeds = ((Number) bedData.get("total_beds")).intValue();
+            Integer usedBeds = ((Number) bedData.get("used_beds")).intValue();
+            // 如果bed_info有数据，使用实际统计
+            if (totalBeds > 0) {
+                approvedBeds = totalBeds;
+                actualElders = usedBeds;
+            } else {
+                // bed_info无数据时，查询elder_check_in获取入住老人数
+                try {
+                    String elderSql = "SELECT COUNT(*) FROM elder_check_in WHERE institution_id = ?";
+                    actualElders = jdbcTemplate.queryForObject(elderSql, Integer.class, institutionId);
+                } catch (Exception ex) {
+                    logger.warn("查询机构老人数失败: institutionId={}", institutionId, ex);
+                }
+            }
+        } catch (Exception e) {
+            // 查询失败时，尝试从elder_check_in统计
+            try {
+                String elderSql = "SELECT COUNT(*) FROM elder_check_in WHERE institution_id = ?";
+                actualElders = jdbcTemplate.queryForObject(elderSql, Integer.class, institutionId);
+            } catch (Exception ex) {
+                logger.warn("查询机构老人数失败: institutionId={}", institutionId, ex);
+            }
+        }
+
+        // 构建返回数据
         java.util.Map<String, Object> data = new java.util.HashMap<>();
         data.put("institutionId", institution.getInstitutionId());
         data.put("institutionName", institution.getInstitutionName());
@@ -237,20 +362,46 @@ public class SupervisionInstitutionController extends BaseController
         data.put("legalPerson", institution.getLegalPerson());
         data.put("contactPerson", institution.getContactPerson());
         data.put("contactPhone", institution.getContactPhone());
+        data.put("contactEmail", institution.getContactEmail());
         data.put("registeredCapital", institution.getRegisteredCapital());
         data.put("registerAddress", institution.getRegisteredAddress());
         data.put("actualAddress", institution.getActualAddress());
         data.put("status", institution.getStatus());
-        data.put("registerTime", new java.util.Date()); // 使用当前时间模拟
-        data.put("approvedBeds", 100 + (int)(Math.random() * 200)); // 模拟床位数
-        data.put("actualElders", 50 + (int)(Math.random() * 150)); // 模拟实际老人数
-        data.put("rating", 4); // 模拟评级
-        data.put("serviceFeeBalance", Math.random() * 1000000); // 模拟服务费余额
-        data.put("depositBalance", Math.random() * 500000); // 模拟押金余额
-        data.put("memberFeeBalance", Math.random() * 200000); // 模拟会员费余额
-        data.put("hasSupervisionAccount", "1".equals(institution.getStatus())); // 已审批的机构默认有监管账户
-        data.put("supervisionBank", "中国银行");
-        data.put("supervisionAccount", "6217" + String.format("%012d", institutionId));
+        data.put("registerTime", institution.getCreateTime());
+        data.put("establishedDate", institution.getEstablishedDate());
+        data.put("bedCount", approvedBeds);
+        data.put("actualElders", actualElders);
+        data.put("rating", institution.getRatingLevel() != null ? institution.getRatingLevel() : 3);
+        data.put("serviceFeeBalance", serviceFeeBalance);
+        data.put("depositBalance", depositBalance);
+        data.put("memberFeeBalance", memberFeeBalance);
+        data.put("hasSupervisionAccount", hasSupervisionAccount);
+        data.put("supervisionBank", hasSupervisionAccount ? institution.getSuperviseAccount() : null);
+        data.put("supervisionAccount", institution.getSuperviseAccount());
+        data.put("bankAccount", institution.getBankAccount());
+
+        // 公示信息字段
+        data.put("recordNumber", institution.getRecordNumber());
+        data.put("organizer", institution.getOrganizer());
+        data.put("fixedAssets", institution.getFixedAssets());
+        data.put("responsibleName", institution.getResponsibleName());
+        data.put("responsiblePhone", institution.getResponsiblePhone());
+        data.put("responsibleIdCard", institution.getResponsibleIdCard());
+        data.put("responsibleAddress", institution.getResponsibleAddress());
+        data.put("businessScope", institution.getBusinessScope());
+        data.put("feeRange", institution.getFeeRange());
+        data.put("priceRangeMin", institution.getPriceRangeMin());
+        data.put("priceRangeMax", institution.getPriceRangeMax());
+        data.put("nursingFeeMin", institution.getNursingFeeMin());
+        data.put("nursingFeeMax", institution.getNursingFeeMax());
+        data.put("bedFeeMin", institution.getBedFeeMin());
+        data.put("bedFeeMax", institution.getBedFeeMax());
+        data.put("mealFeeMin", institution.getMealFeeMin());
+        data.put("mealFeeMax", institution.getMealFeeMax());
+        data.put("careLevels", institution.getCareLevels());
+        data.put("medicalCondition", institution.getMedicalCondition());
+        data.put("freeTrial", institution.getFreeTrial());
+        data.put("remark", institution.getRemark());
 
         return AjaxResult.success(data);
     }
