@@ -39,54 +39,6 @@
       </el-form-item>
     </el-form>
 
-    <!-- 统计卡片 -->
-    <el-row :gutter="20" class="mb8">
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-content">
-            <div class="stat-number">{{ statistics.totalInstitutions || 0 }}</div>
-            <div class="stat-label">总机构数</div>
-            <div class="stat-icon total">
-              <i class="el-icon-office-building"></i>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-content">
-            <div class="stat-number">{{ statistics.normalCount || 0 }}</div>
-            <div class="stat-label">正常运营</div>
-            <div class="stat-icon normal">
-              <i class="el-icon-success"></i>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-content">
-            <div class="stat-number">{{ statistics.warningCount || 0 }}</div>
-            <div class="stat-label">预警监控</div>
-            <div class="stat-icon warning">
-              <i class="el-icon-warning"></i>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-content">
-            <div class="stat-number">{{ statistics.disabledCount || 0 }}</div>
-            <div class="stat-label">停业整顿</div>
-            <div class="stat-icon disabled">
-              <i class="el-icon-remove"></i>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
-
     <!-- 操作按钮 -->
     <el-row :gutter="10" class="mb8">
       <el-col :span="1.5">
@@ -231,12 +183,14 @@
           <el-descriptions :column="2" border>
             <el-descriptions-item label="机构名称">{{ currentInstitution.institutionName }}</el-descriptions-item>
             <el-descriptions-item label="统一信用代码">{{ currentInstitution.creditCode }}</el-descriptions-item>
-            <el-descriptions-item label="法定代表人">{{ currentInstitution.legalPerson }}</el-descriptions-item>
+            <el-descriptions-item label="法定代表人">{{ currentInstitution.legalPerson || '暂无' }}</el-descriptions-item>
             <el-descriptions-item label="联系人">{{ currentInstitution.contactPerson }}</el-descriptions-item>
             <el-descriptions-item label="联系电话">{{ currentInstitution.contactPhone }}</el-descriptions-item>
+            <el-descriptions-item label="联系邮箱">{{ currentInstitution.contactEmail || '暂无' }}</el-descriptions-item>
             <el-descriptions-item label="注册资金">{{ currentInstitution.registeredCapital }}万元</el-descriptions-item>
-            <el-descriptions-item label="注册地址" :span="2">{{ currentInstitution.registeredAddress }}</el-descriptions-item>
-            <el-descriptions-item label="实际经营地址" :span="2">{{ currentInstitution.actualAddress }}</el-descriptions-item>
+            <el-descriptions-item label="成立日期">{{ parseTime(currentInstitution.establishedDate, '{y}-{m}-{d}') || '暂无' }}</el-descriptions-item>
+            <el-descriptions-item label="注册地址" :span="2">{{ currentInstitution.registeredAddress || '暂无' }}</el-descriptions-item>
+            <el-descriptions-item label="实际经营地址" :span="2">{{ currentInstitution.actualAddress || '暂无' }}</el-descriptions-item>
             <el-descriptions-item label="机构状态">
               <dict-tag :options="dict.type.pension_institution_status" :value="currentInstitution.status"/>
             </el-descriptions-item>
@@ -249,7 +203,7 @@
                 :max="5"
               ></el-rate>
             </el-descriptions-item>
-            <el-descriptions-item label="入驻时间">{{ parseTime(currentInstitution.registerTime) }}</el-descriptions-item>
+            <el-descriptions-item label="入驻时间">{{ parseTime(currentInstitution.createTime) }}</el-descriptions-item>
             <el-descriptions-item label="监管账户">
               <span v-if="currentInstitution.hasSupervisionAccount" style="color: #67C23A;">
                 <i class="el-icon-check"></i> 已开户
@@ -258,9 +212,9 @@
                 <i class="el-icon-close"></i> 未开户
               </span>
             </el-descriptions-item>
-            <el-descriptions-item label="床位数">{{ currentInstitution.approvedBeds }}张</el-descriptions-item>
-            <el-descriptions-item label="入住老人数">{{ currentInstitution.actualElders }}人</el-descriptions-item>
-            <el-descriptions-item label="床位使用率">
+            <el-descriptions-item label="床位数">{{ currentInstitution.bedCount || 0 }}张</el-descriptions-item>
+            <el-descriptions-item label="入住老人数">{{ currentInstitution.actualElders || 0 }}人</el-descriptions-item>
+            <el-descriptions-item label="床位使用率" :span="2">
               <el-progress
                 :percentage="getOccupancyRate(currentInstitution)"
                 :color="getOccupancyColor(getOccupancyRate(currentInstitution))"
@@ -318,33 +272,58 @@
             </el-col>
           </el-row>
 
-          <el-descriptions :column="1" border style="margin-top: 20px;">
-            <el-descriptions-item label="监管账户总余额">
+          <el-descriptions :column="2" border style="margin-top: 20px;">
+            <el-descriptions-item label="监管账户总余额" :span="2">
               <span style="color: #409EFF; font-size: 18px; font-weight: bold;">
                 ¥{{ formatMoney((currentInstitution.serviceFeeBalance || 0) + (currentInstitution.depositBalance || 0) + (currentInstitution.memberFeeBalance || 0)) }}
               </span>
             </el-descriptions-item>
-            <el-descriptions-item label="开户银行">{{ currentInstitution.supervisionBank || '暂无信息' }}</el-descriptions-item>
-            <el-descriptions-item label="监管账号">{{ currentInstitution.supervisionAccount || '暂无信息' }}</el-descriptions-item>
-            <el-descriptions-item label="账户状态">
+            <el-descriptions-item label="基本账户">{{ currentInstitution.bankAccount || '暂无信息' }}</el-descriptions-item>
+            <el-descriptions-item label="监管账户">{{ currentInstitution.superviseAccount || '暂无信息' }}</el-descriptions-item>
+            <el-descriptions-item label="账户状态" :span="2">
               <el-tag v-if="currentInstitution.hasSupervisionAccount" type="success">正常监管</el-tag>
               <el-tag v-else type="danger">未开户</el-tag>
             </el-descriptions-item>
           </el-descriptions>
         </el-tab-pane>
 
-        <!-- 业务信息 -->
-        <el-tab-pane label="业务信息" name="business">
-          <el-descriptions :column="1" border>
-            <el-descriptions-item label="业务范围">{{ currentInstitution.businessScope || '暂无信息' }}</el-descriptions-item>
-            <el-descriptions-item label="服务项目">{{ currentInstitution.serviceItems || '暂无信息' }}</el-descriptions-item>
-            <el-descriptions-item label="收费标准">{{ currentInstitution.feeStandard || '暂无信息' }}</el-descriptions-item>
-            <el-descriptions-item label="医护配置">{{ currentInstitution.medicalStaff || '暂无信息' }}</el-descriptions-item>
+        <!-- 公示信息 -->
+        <el-tab-pane label="公示信息" name="publicity">
+          <el-descriptions :column="2" border>
+            <el-descriptions-item label="备案号">{{ currentInstitution.recordNumber || '暂无' }}</el-descriptions-item>
+            <el-descriptions-item label="成立日期">{{ parseTime(currentInstitution.establishedDate, '{y}-{m}-{d}') || '暂无' }}</el-descriptions-item>
+            <el-descriptions-item label="兴办机构">{{ currentInstitution.organizer || '暂无' }}</el-descriptions-item>
+            <el-descriptions-item label="固定资产">{{ currentInstitution.fixedAssets }}万元</el-descriptions-item>
+            <el-descriptions-item label="负责人姓名">{{ currentInstitution.responsibleName || '暂无' }}</el-descriptions-item>
+            <el-descriptions-item label="负责人电话">{{ currentInstitution.responsiblePhone || '暂无' }}</el-descriptions-item>
+            <el-descriptions-item label="负责人身份证" :span="2">{{ currentInstitution.responsibleIdCard || '暂无' }}</el-descriptions-item>
+            <el-descriptions-item label="负责人地址" :span="2">{{ currentInstitution.responsibleAddress || '暂无' }}</el-descriptions-item>
+            <el-descriptions-item label="业务范围" :span="2">{{ currentInstitution.businessScope || '暂无' }}</el-descriptions-item>
+            <el-descriptions-item label="收费区间">{{ currentInstitution.feeRange || '暂无' }}</el-descriptions-item>
+            <el-descriptions-item label="价格区间">¥{{ currentInstitution.priceRangeMin || 0 }} - ¥{{ currentInstitution.priceRangeMax || 0 }}元/月</el-descriptions-item>
+            <el-descriptions-item label="护理费">¥{{ currentInstitution.nursingFeeMin || 0 }} - ¥{{ currentInstitution.nursingFeeMax || 0 }}元/月</el-descriptions-item>
+            <el-descriptions-item label="床位费">¥{{ currentInstitution.bedFeeMin || 0 }} - ¥{{ currentInstitution.bedFeeMax || 0 }}元/月</el-descriptions-item>
+            <el-descriptions-item label="膳食费">¥{{ currentInstitution.mealFeeMin || 0 }} - ¥{{ currentInstitution.mealFeeMax || 0 }}元/月</el-descriptions-item>
+            <el-descriptions-item label="收住类型">{{ currentInstitution.careLevels || '暂无' }}</el-descriptions-item>
+            <el-descriptions-item label="医疗条件">
+              <span v-if="currentInstitution.medicalCondition === '1'">内设医疗机构</span>
+              <span v-else-if="currentInstitution.medicalCondition === '2'">与医疗机构合作</span>
+              <span v-else-if="currentInstitution.medicalCondition === '3'">自营医疗机构</span>
+              <span v-else>无医养结合</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="免费试住">
+              <el-tag v-if="currentInstitution.freeTrial === '1'" type="success" size="small">支持</el-tag>
+              <el-tag v-else type="info" size="small">不支持</el-tag>
+            </el-descriptions-item>
           </el-descriptions>
         </el-tab-pane>
 
-        <!-- 附件材料 -->
-        <el-tab-pane label="附件材料" name="attachments">
+        <!-- 其他信息 -->
+        <el-tab-pane label="其他信息" name="other">
+          <el-descriptions :column="1" border>
+            <el-descriptions-item label="备注">{{ currentInstitution.remark || '暂无' }}</el-descriptions-item>
+          </el-descriptions>
+          <el-divider content-position="left">附件材料</el-divider>
           <el-table :data="attachmentList" border>
             <el-table-column label="附件类型" prop="attachType" width="120" />
             <el-table-column label="文件名称" prop="fileName" min-width="200" />
@@ -388,8 +367,8 @@
         <el-form-item label="实际经营地址" prop="actualAddress">
           <el-input v-model="editForm.actualAddress" type="textarea" placeholder="请输入实际经营地址" />
         </el-form-item>
-        <el-form-item label="床位数" prop="approvedBeds">
-          <el-input-number v-model="editForm.approvedBeds" :min="1" />
+        <el-form-item label="床位数" prop="bedCount">
+          <el-input-number v-model="editForm.bedCount" :min="1" />
         </el-form-item>
         <el-form-item label="机构评级" prop="rating">
           <el-rate v-model="editForm.rating" :max="5" show-text></el-rate>
@@ -404,7 +383,7 @@
 </template>
 
 <script>
-import { listInstitution, getInstitution, updateInstitution, getInstitutionStatistics, approveInstitution, rejectInstitution } from "@/api/supervision/institution";
+import { listInstitution, getInstitution, updateInstitution, approveInstitution, rejectInstitution } from "@/api/supervision/institution";
 import { listAttachment } from "@/api/pension/institution";
 
 export default {
@@ -424,8 +403,6 @@ export default {
       total: 0,
       // 机构表格数据
       institutionList: [],
-      // 统计数据
-      statistics: {},
       // 弹出层标题
       title: "",
       // 是否显示详情弹出层
@@ -465,7 +442,6 @@ export default {
   },
   created() {
     this.getList();
-    this.getStatistics();
   },
   methods: {
     /** 查询机构信息列表 */
@@ -475,12 +451,6 @@ export default {
         this.institutionList = response.rows;
         this.total = response.total;
         this.loading = false;
-      });
-    },
-    /** 查询统计数据 */
-    getStatistics() {
-      getInstitutionStatistics().then(response => {
-        this.statistics = response.data;
       });
     },
     /** 搜索按钮操作 */
@@ -533,7 +503,6 @@ export default {
             this.$modal.msgSuccess("修改成功");
             this.editOpen = false;
             this.getList();
-            this.getStatistics();
           });
         }
       });
@@ -569,7 +538,6 @@ export default {
         return updateInstitution({ ...row, status: '2' });
       }).then(() => {
         this.getList();
-        this.getStatistics();
         this.$modal.msgSuccess("冻结成功");
       }).catch(() => {});
     },
@@ -579,7 +547,6 @@ export default {
         return updateInstitution({ ...row, status: '1' });
       }).then(() => {
         this.getList();
-        this.getStatistics();
         this.$modal.msgSuccess("解除冻结成功");
       }).catch(() => {});
     },
@@ -616,7 +583,6 @@ export default {
         return this.addToBlacklist(institutionIds, value);
       }).then(() => {
         this.getList();
-        this.getStatistics();
         this.$modal.msgSuccess("移入黑名单成功");
       }).catch(() => {});
     },
@@ -637,7 +603,6 @@ export default {
         return this.addToBlacklist([row.institutionId], value);
       }).then(() => {
         this.getList();
-        this.getStatistics();
         this.$modal.msgSuccess("移入黑名单成功");
       }).catch(() => {});
     },
@@ -697,7 +662,6 @@ export default {
         return Promise.all(promises);
       }).then(() => {
         this.getList();
-        this.getStatistics();
         this.$modal.msgSuccess("审批成功");
       }).catch(() => {});
     },
@@ -709,8 +673,8 @@ export default {
     },
     /** 计算床位使用率 */
     getOccupancyRate(row) {
-      if (!row.approvedBeds || row.approvedBeds === 0) return 0;
-      const rate = Math.round((row.actualElders || 0) / row.approvedBeds * 100);
+      if (!row.bedCount || row.bedCount === 0) return 0;
+      const rate = Math.round((row.actualElders || 0) / row.bedCount * 100);
       return Math.min(rate, 100);
     },
     /** 获取床位使用率颜色 */
@@ -733,61 +697,6 @@ export default {
 </script>
 
 <style scoped>
-.stat-card {
-  height: 100px;
-}
-
-.stat-content {
-  position: relative;
-  height: 100%;
-  padding: 20px;
-  display: flex;
-  align-items: center;
-}
-
-.stat-number {
-  font-size: 28px;
-  font-weight: bold;
-  color: #303133;
-}
-
-.stat-label {
-  font-size: 14px;
-  color: #909399;
-  margin-left: 15px;
-}
-
-.stat-icon {
-  position: absolute;
-  right: 20px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  color: white;
-}
-
-.stat-icon.total {
-  background: linear-gradient(135deg, #42A5F5, #66B3FF);
-}
-
-.stat-icon.normal {
-  background: linear-gradient(135deg, #4CAF50, #66BB6A);
-}
-
-.stat-icon.warning {
-  background: linear-gradient(135deg, #FFA726, #FFB74D);
-}
-
-.stat-icon.disabled {
-  background: linear-gradient(135deg, #F56C6C, #F78989);
-}
-
 /* 资金信息卡片样式 */
 .financial-card {
   height: 120px;
