@@ -65,10 +65,11 @@ public class InstitutionManageController extends BaseController
     public TableDataInfo listInstitutionAccounts(PensionInstitution pensionInstitution)
     {
         startPage();
-        // 如果没有指定状态，默认只查询已审核通过的机构(status='1')
-        if (pensionInstitution.getStatus() == null) {
-            pensionInstitution.setStatus("1");
+        // 处理前端传递的状态参数：字符串"null"转换为真正的null
+        if ("null".equals(pensionInstitution.getStatus())) {
+            pensionInstitution.setStatus(null);
         }
+        // 批量导入页面显示所有机构，不限制状态（用户可通过筛选框选择特定状态）
         List<PensionInstitution> list = pensionInstitutionService.selectPensionInstitutionList(pensionInstitution);
 
         // 补充用户名信息
@@ -117,7 +118,7 @@ public class InstitutionManageController extends BaseController
             return AjaxResult.error("统一信用代码已存在: " + pensionInstitution.getCreditCode());
         }
 
-        // 3. 保存机构基本信息(status设为NULL,表示未申请入驻)
+        // 3. 保存机构基本信息(status设为null,表示未申请入驻状态)
         pensionInstitution.setStatus(null);
         pensionInstitution.setCreateBy(getUsername());
         pensionInstitution.setCreateTime(new Date());

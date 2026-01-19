@@ -24,6 +24,7 @@
           <el-option label="停业整顿" value="2" />
           <el-option label="已注销" value="3" />
           <el-option label="预警监控" value="4" />
+          <el-option label="维护待审批" value="6" />
         </el-select>
       </el-form-item>
       <el-form-item label="监管账户" prop="hasSupervisionAccount">
@@ -88,6 +89,17 @@
 
     <!-- 操作按钮 -->
     <el-row :gutter="10" class="mb8">
+      <el-col :span="1.5">
+        <el-button
+          type="success"
+          plain
+          icon="el-icon-check"
+          size="mini"
+          :disabled="multiple"
+          @click="handleApprove"
+          v-hasPermi="['pension:institution:approve']"
+        >审批</el-button>
+      </el-col>
       <el-col :span="1.5">
         <el-button
           type="danger"
@@ -392,7 +404,7 @@
 </template>
 
 <script>
-import { listInstitution, getInstitution, updateInstitution, getInstitutionStatistics } from "@/api/supervision/institution";
+import { listInstitution, getInstitution, updateInstitution, getInstitutionStatistics, approveInstitution, rejectInstitution } from "@/api/supervision/institution";
 import { listAttachment } from "@/api/pension/institution";
 
 export default {
@@ -646,6 +658,48 @@ export default {
     /** 查看附件 */
     handleViewAttachment(row) {
       this.$modal.msgInfo("附件查看功能开发中...");
+    },
+    /** 审批操作 */
+    handleApprove() {
+      const institutionIds = this.ids;
+      if (institutionIds.length === 0) {
+        this.$modal.msgWarning("请选择要审批的机构");
+        return;
+      }
+
+      // 检查选中的机构状态
+      const invalidInstitutions = this.institutionList.filter(item =>
+        institutionIds.includes(item.institutionId) && item.status !== '0' && item.status !== '6'
+      );
+
+      if (invalidInstitutions.length > 0) {
+        const names = invalidInstitutions.map(i => i.institutionName).join('、');
+        this.$modal.msgWarning(`以下机构不是待审批或维护待审批状态，无法审批：${names}`);
+        return;
+      }
+
+      // 检查是否包含维护待审批状态的机构
+      const maintainInstitutions = this.institutionList.filter(item =>
+        institutionIds.includes(item.institutionId) && item.status === '6'
+      );
+
+      let confirmMsg = '是否确认审批通过选中的机构？';
+      if (maintainInstitutions.length > 0) {
+        const maintainNames = maintainInstitutions.map(i => i.institutionName).join('、');
+        confirmMsg = `检测到以下机构处于"维护待审批"状态：\n${maintainNames}\n\n审批通过后，机构信息将更新并恢复"正常运营"状态。\n\n是否继续？`;
+      }
+
+      this.$modal.confirm(confirmMsg).then(() => {
+        return approveInstitution(institutionIds[0]);
+      }).then(() => {
+        // 如果是多个，逐个审批
+        const promises = institutionIds.map(id => approveInstitution(id));
+        return Promise.all(promises);
+      }).then(() => {
+        this.getList();
+        this.getStatistics();
+        this.$modal.msgSuccess("审批成功");
+      }).catch(() => {});
     },
     /** 导出按钮操作 */
     handleExport() {

@@ -87,6 +87,13 @@ export const constantRoutes = [
         meta: { title: '个人中心', icon: 'user' }
       }
     ]
+  },
+  {
+    path: '/bigscreen',
+    component: () => import('@/views/dataScreen/dashboard'),
+    hidden: true,
+    name: 'BigScreen',
+    meta: { title: '数据大屏' }
   }
 ]
 

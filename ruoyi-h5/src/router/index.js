@@ -13,6 +13,12 @@ const routes = [
     meta: { title: '首页', requireAuth: false }
   },
   {
+    path: '/search',
+    name: 'Search',
+    component: () => import('@/views/search/index.vue'),
+    meta: { title: '搜索', requireAuth: false }
+  },
+  {
     path: '/institution',
     name: 'Institution',
     component: () => import('@/views/institution/index.vue'),

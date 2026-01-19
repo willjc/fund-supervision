@@ -164,7 +164,8 @@ onMounted(() => {
 <style scoped>
 .user-favorite-page {
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background-color: #f5f6fc;
+  font-family: 'PingFang SC', '苹方-简', sans-serif;
 }
 
 .favorite-content {
@@ -182,5 +183,39 @@ onMounted(() => {
   top: 12px;
   right: 12px;
   z-index: 10;
+}
+
+.favorite-actions :deep(.van-button) {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: #ff9f9f;
+  color: #ff4d4f;
+  border-radius: 16px;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(255, 77, 79, 0.15);
+  padding: 0 12px;
+  height: 28px;
+  font-size: 12px;
+}
+
+/* 空状态样式 */
+.favorite-content :deep(.van-empty) {
+  padding: 60px 0;
+}
+
+.favorite-content :deep(.van-empty__description) {
+  color: #999;
+  font-size: 14px;
+}
+
+/* 列表样式 */
+.favorite-content :deep(.van-list__finished-text) {
+  color: #999;
+  font-size: 13px;
+  line-height: 50px;
+}
+
+/* 下拉刷新样式 */
+.favorite-content :deep(.van-pull-refresh__track) {
+  min-height: calc(100vh - 46px);
 }
 </style>

@@ -194,10 +194,15 @@ public class SupervisionInstitutionController extends BaseController
         for (Long institutionId : institutionIds) {
             try {
                 PensionInstitution institution = pensionInstitutionService.selectPensionInstitutionByInstitutionId(institutionId);
-                if (institution != null && "0".equals(institution.getStatus())) {
+                // 支持待审批(0)和维护待审批(6)状态
+                if (institution != null && ("0".equals(institution.getStatus()) || "6".equals(institution.getStatus()))) {
+                    boolean isMaintenance = "6".equals(institution.getStatus());
                     institution.setStatus("1");
                     institution.setApproveUser(getUsername());
                     institution.setApproveTime(new java.util.Date());
+                    if (isMaintenance) {
+                        institution.setApproveRemark("维护申请审批通过，机构信息已更新");
+                    }
                     pensionInstitutionService.updatePensionInstitution(institution);
                     successCount++;
                 } else {

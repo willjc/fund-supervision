@@ -213,15 +213,10 @@ const onSubmit = async (values) => {
     if (response.code === 200) {
       showToast('预约成功')
 
-      // 跳转到成功页面
+      // 直接跳转到预约详情页面
       router.replace({
-        name: 'AppointmentSuccess',
-        query: {
-          institutionName: institutionInfo.value.name,
-          visitDate: formData.value.visitDate,
-          visitTime: formData.value.visitTime,
-          visitorName: formData.value.visitorName
-        }
+        name: 'AppointmentDetail',
+        params: { id: response.data.reservationId }
       })
     } else {
       showToast(response.msg || '预约失败')

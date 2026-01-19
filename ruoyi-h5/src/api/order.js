@@ -28,6 +28,18 @@ export function getOrderDetail(orderId) {
 }
 
 /**
+ * 通过订单号获取订单详情
+ * @param {String} orderNo - 订单编号
+ */
+export function getOrderByNo(orderNo) {
+  return request({
+    url: '/h5/getOrderByNo',
+    method: 'get',
+    params: { orderNo }
+  })
+}
+
+/**
  * 提交订单
  * @param {Object} data - 订单数据
  * @param {Number} data.institutionId - 机构ID

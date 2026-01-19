@@ -1,70 +1,76 @@
 <template>
   <div class="home-page">
-    <!-- 搜索栏 -->
-    <div class="search-bar">
-      <van-search
-        v-model="searchValue"
-        shape="round"
-        placeholder="请搜索附近的养老院名称"
-        @search="onSearch"
-      >
-        <template #action>
-          <div class="notice-icon" @click="goToNotice">
-            <van-badge :content="unreadCount" :show-zero="false">
-              <van-icon name="bell-o" size="22" />
-            </van-badge>
-          </div>
-        </template>
-      </van-search>
-    </div>
-
-    <!-- 轮播图 -->
-    <div class="banner">
+    <!-- 轮播图区域 -->
+    <div class="banner-section">
       <van-swipe
-        class="swipe"
+        class="banner-swiper"
         :autoplay="3000"
-        :show-indicators="true"
-        indicator-color="rgba(255, 255, 255, 0.9)"
+        :show-indicators="false"
+        @change="onBannerChange"
       >
-        <van-swipe-item v-for="(banner, index) in banners" :key="index">
-          <div class="banner-item" @click="onBannerClick(banner)">
-            <img
-              :src="banner.imageUrl"
-              alt="banner"
-              class="banner-image"
-            />
-          </div>
+        <van-swipe-item v-for="(banner, index) in bannerList" :key="index">
+          <img class="banner-image" :src="banner.image" mode="widthFix" />
         </van-swipe-item>
       </van-swipe>
-    </div>
 
-    <!-- 快捷入口 -->
-    <div class="quick-entry">
-      <van-grid :column-num="4" :border="false" :clickable="true">
-        <van-grid-item
-          v-for="item in quickEntries"
-          :key="item.name"
-          :text="item.text"
-          @click="onQuickEntryClick(item)"
-        >
-          <template #icon>
-            <div class="grid-icon" :style="{ backgroundColor: item.color }">
-              <van-icon :name="item.icon" size="20" color="#fff" />
-            </div>
-          </template>
-        </van-grid-item>
-      </van-grid>
-    </div>
-
-    <!-- 优选机构 -->
-    <div class="recommend-section">
-      <div class="section-header">
-        <span class="section-title">优选机构</span>
-        <span class="section-more" @click="goToInstitutionList">
-          查看更多>
-        </span>
+      <!-- 自定义指示点 -->
+      <div class="banner-indicators">
+        <div
+          class="indicator-dot"
+          v-for="(item, index) in bannerList"
+          :key="index"
+          :class="{ active: currentBannerIndex === index }"
+        ></div>
       </div>
 
+      <!-- 悬浮搜索栏 -->
+      <div class="search-section" @click="goToSearch">
+        <div class="search-bar">
+          <van-icon name="search" class="search-icon" />
+          <span class="search-placeholder">搜索你想要的机构</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 金刚位（4个） -->
+    <div class="icon-grid">
+      <div
+        class="icon-item"
+        v-for="(item, index) in iconList"
+        :key="index"
+        @click="handleIconClick(item)"
+      >
+        <div class="icon-wrapper" :style="{ backgroundColor: item.color }">
+          <van-icon :name="item.icon" size="24" color="#fff" />
+        </div>
+        <span class="icon-text">{{ item.name }}</span>
+      </div>
+    </div>
+
+    <!-- 通知栏 -->
+    <div class="notice-wrapper">
+      <div class="notice-section"></div>
+      <div class="notice-content">
+        <van-icon name="volume-o" class="notice-icon" />
+        <div class="notice-text-scroll">
+          <span class="notice-label">最新通知：</span>
+          <span class="notice-text">欢迎使用养老机构监管平台，为您提供优质养老服务</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 优选机构列表 -->
+    <div class="listings-section">
+      <!-- 标题和更多按钮 -->
+      <div class="section-header">
+        <div class="section-title">优选机构</div>
+        <div class="section-more" @click="goToInstitutionList">
+          <span class="more-text">更多</span>
+          <van-icon name="arrow" class="more-arrow" />
+        </div>
+      </div>
+
+      <!-- 机构卡片列表 -->
       <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
         <van-list
           v-model:loading="loading"
@@ -72,11 +78,45 @@
           finished-text="没有更多了"
           @load="onLoad"
         >
-          <InstitutionCard
-            v-for="institution in institutionList"
-            :key="institution.institutionId"
-            :institution="institution"
-          />
+          <div
+            class="listing-card"
+            v-for="item in institutionList"
+            :key="item.institutionId"
+            @click="goToDetail(item)"
+          >
+            <img
+              class="listing-image"
+              :src="item.coverImage || defaultImage"
+              mode="aspectFill"
+            />
+            <div class="listing-info">
+              <div class="listing-header">
+                <span class="listing-title">{{ item.institutionName }}</span>
+                <span class="listing-distance">附近</span>
+              </div>
+              <div class="listing-status">
+                <span
+                  class="status-text"
+                  :class="{ available: item.bedCount > 0 }"
+                >
+                  {{ item.bedCount > 0 ? '有床位' : '暂无床位' }}
+                </span>
+                <span class="status-divider">|</span>
+                <span class="status-count">共{{ item.bedCount }}床</span>
+              </div>
+              <span class="listing-address">{{ item.address }}</span>
+              <div class="listing-tags">
+                <span class="tag" v-for="(tag, tagIndex) in item.tags" :key="tagIndex">
+                  {{ tag }}
+                </span>
+              </div>
+              <div class="listing-price">
+                <span class="price-number">{{ item.minPrice }}</span>
+                <span class="price-unit">元</span>
+                <span class="price-suffix">/月起</span>
+              </div>
+            </div>
+          </div>
         </van-list>
       </van-pull-refresh>
     </div>
@@ -87,209 +127,90 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
-import InstitutionCard from '@/components/InstitutionCard.vue'
 import { getRecommendInstitutions } from '@/api/institution'
-import { getBannerList } from '@/api/banner'
 
 const router = useRouter()
 
-// 搜索值
-const searchValue = ref('')
+// 当前轮播图索引
+const currentBannerIndex = ref(0)
 
-// 未读通知数量
-const unreadCount = ref(3) // 暂时写死,后续对接API
-
-// 轮播图数据
-const banners = ref([])
-
-// 加载轮播图
-const loadBanners = async () => {
-  try {
-    const response = await getBannerList({ position: 1 }) // 1-首页
-    if (response.code === 200 && response.data) {
-      banners.value = response.data
-    }
-  } catch (error) {
-    console.error('加载轮播图失败:', error)
-    // 使用默认数据作为备用
-    banners.value = [
-      {
-        id: 1,
-        imageUrl: '/images/banners/banner1.jpg',
-        title: '',
-        linkType: '1',
-        linkValue: '1'
-      }
-    ]
+// 轮播图列表（静态图片）
+const bannerList = ref([
+  {
+    image: 'https://picsum.photos/750/375?random=1'
+  },
+  {
+    image: 'https://picsum.photos/750/375?random=2'
+  },
+  {
+    image: 'https://picsum.photos/750/375?random=3'
   }
-}
-
-// 快捷入口
-const quickEntries = ref([
-  { name: 'notice', icon: 'envelop-o', text: '通知公告', path: '/notice/list', color: '#5B8FF9' },
-  { name: 'todo', icon: 'records', text: '待办事项', path: '/user/todo', color: '#FFC107' },
-  { name: 'elder', icon: 'contact', text: '老人信息', path: '/user/elder', color: '#FF6B6B' },
-  { name: 'fee', icon: 'balance-list-o', text: '费用查询', path: '/fee/query', color: '#00BCD4' }
 ])
 
-// 模拟机构数据
-const mockInstitutions = [
+// 金刚位（4个）
+const iconList = ref([
   {
-    institutionId: 1,
-    institutionName: '郑州市金水区花园口社区养老服务中心',
-    address: '郑州市金水区花园口社区建设路12号',
-    contactPhone: '0371-65432100',
-    bedCount: 100,
-    institutionType: 'service_center',
-    priceRanges: {
-      nursing: { min: 1500, max: 3500 },
-      meal: { min: 500, max: 900 },
-      bed: { min: 400, max: 1500 },
-      diet: { min: 200, max: 800 }
-    }
+    name: '通知公告',
+    icon: 'hotel-o',
+    key: 'notice',
+    color: '#5B8FF9'
   },
   {
-    institutionId: 2,
-    institutionName: '郑州颐养家园养老院',
-    address: '郑州市中原区桐柏路建设路交叉口东200米',
-    contactPhone: '0371-66778899',
-    bedCount: 150,
-    institutionType: 'nursing_home',
-    priceRanges: {
-      nursing: { min: 2000, max: 4000 },
-      meal: { min: 600, max: 1200 },
-      bed: { min: 500, max: 2000 },
-      diet: { min: 300, max: 1000 }
-    }
+    name: '待办事项',
+    icon: 'calendar-o',
+    key: 'todo',
+    color: '#FFC107'
   },
   {
-    institutionId: 3,
-    institutionName: '河南省老干部康养中心',
-    address: '郑州市管城区商城路与未来路交叉口',
-    contactPhone: '0371-88990011',
-    bedCount: 200,
-    institutionType: 'nursing_home',
-    priceRanges: {
-      nursing: { min: 2500, max: 5000 },
-      meal: { min: 800, max: 1500 },
-      bed: { min: 800, max: 2500 },
-      diet: { min: 400, max: 1200 }
-    }
+    name: '老人信息',
+    icon: 'goods-collect-o',
+    key: 'elder',
+    color: '#FF6B6B'
   },
   {
-    institutionId: 4,
-    institutionName: '郑州夕阳红托老所',
-    address: '郑州市二七区大学路航海路向南500米',
-    contactPhone: '0371-55667788',
-    bedCount: 80,
-    institutionType: 'service_center',
-    priceRanges: {
-      nursing: { min: 1200, max: 2800 },
-      meal: { min: 400, max: 800 },
-      bed: { min: 300, max: 1200 },
-      diet: { min: 150, max: 600 }
-    }
-  },
-  {
-    institutionId: 5,
-    institutionName: '郑东新区康乐养老中心',
-    address: '郑州市郑东新区龙子湖北路与平安大道交叉口',
-    contactPhone: '0371-77889900',
-    bedCount: 120,
-    institutionType: 'nursing_home',
-    priceRanges: {
-      nursing: { min: 1800, max: 3800 },
-      meal: { min: 550, max: 1000 },
-      bed: { min: 450, max: 1800 },
-      diet: { min: 250, max: 900 }
-    }
-  },
-  {
-    institutionId: 6,
-    institutionName: '郑州爱心护理院',
-    address: '郑州市惠济区江山路与开元路交叉口',
-    contactPhone: '0371-99001122',
-    bedCount: 90,
-    institutionType: 'nursing_home',
-    priceRanges: {
-      nursing: { min: 1600, max: 3200 },
-      meal: { min: 500, max: 850 },
-      bed: { min: 380, max: 1400 },
-      diet: { min: 200, max: 750 }
-    }
-  },
-  {
-    institutionId: 7,
-    institutionName: '高新区幸福之家养老服务站',
-    address: '郑州市高新区科学大道与瑞达路交叉口',
-    contactPhone: '0371-11223344',
-    bedCount: 60,
-    institutionType: 'service_center',
-    priceRanges: {
-      nursing: { min: 1400, max: 3000 },
-      meal: { min: 450, max: 750 },
-      bed: { min: 350, max: 1300 },
-      diet: { min: 180, max: 650 }
-    }
-  },
-  {
-    institutionId: 8,
-    institutionName: '郑州安康老年公寓',
-    address: '郑州市经开区航海东路与第八大街交叉口',
-    contactPhone: '0371-22334455',
-    bedCount: 110,
-    institutionType: 'nursing_home',
-    priceRanges: {
-      nursing: { min: 1700, max: 3600 },
-      meal: { min: 520, max: 950 },
-      bed: { min: 420, max: 1600 },
-      diet: { min: 220, max: 850 }
-    }
+    name: '费用查询',
+    icon: 'balance-list-o',
+    key: 'fee',
+    color: '#00BCD4'
   }
-]
+])
 
 // 机构列表
 const institutionList = ref([])
 const loading = ref(false)
 const finished = ref(false)
 const refreshing = ref(false)
-const pageNum = ref(1)
-const pageSize = ref(10)
 
-// 搜索
-const onSearch = () => {
-  if (!searchValue.value) {
-    showToast('请输入搜索关键词')
-    return
-  }
-  router.push({
-    path: '/institution',
-    query: { keyword: searchValue.value }
-  })
+const defaultImage = 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
+
+// 轮播图切换
+const onBannerChange = (index) => {
+  currentBannerIndex.value = index
 }
 
-// 跳转通知页面
-const goToNotice = () => {
-  router.push('/notice/list')
-}
-
-// 轮播图点击
-const onBannerClick = (banner) => {
-  // linkType: 1-机构详情 2-外部URL
-  if (banner.linkType === '1') {
-    router.push(`/institution/detail/${banner.linkValue}`)
-  } else if (banner.linkType === '2') {
-    window.location.href = banner.linkValue
+// 金刚位点击
+const handleIconClick = (item) => {
+  switch (item.key) {
+    case 'notice':
+      router.push('/notice/list')
+      break
+    case 'todo':
+      router.push('/user/todo')
+      break
+    case 'elder':
+      router.push('/user/elder')
+      break
+    case 'fee':
+      router.push('/fee/query')
+      break
+    default:
+      console.log('点击图标:', item.name)
   }
 }
 
-// 快捷入口点击
-const onQuickEntryClick = (item) => {
-  if (item.path) {
-    router.push(item.path)
-  } else if (item.action === 'callService') {
-    showToast('客服功能开发中')
-  }
+// 跳转搜索页
+const goToSearch = () => {
+  router.push('/search')
 }
 
 // 跳转机构列表
@@ -297,7 +218,39 @@ const goToInstitutionList = () => {
   router.push('/institution')
 }
 
-// 加载机构列表 (使用真实API)
+// 跳转机构详情
+const goToDetail = (item) => {
+  router.push({
+    name: 'InstitutionDetail',
+    params: { id: item.institutionId }
+  })
+}
+
+// 转换机构数据
+const transformInstitutionData = (institution) => {
+  // 使用生活设施作为标签
+  const tags = institution.lifeFacilities || []
+
+  // 获取床位费范围（如果没有则使用总费用）
+  let minPrice = 0
+  if (institution.priceRanges && institution.priceRanges.bed) {
+    minPrice = institution.priceRanges.bed.min || 0
+  } else if (institution.priceRanges && institution.priceRanges.total) {
+    minPrice = institution.priceRanges.total.min || 0
+  }
+
+  return {
+    institutionId: institution.institutionId,
+    institutionName: institution.institutionName || '未命名机构',
+    bedCount: institution.bedCount || institution.availableBeds || 0,
+    address: institution.address || '地址未填写',
+    coverImage: institution.coverImage || 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg',
+    minPrice: minPrice,
+    tags: tags.slice(0, 3) // 最多显示3个生活设施标签
+  }
+}
+
+// 加载机构列表
 const loadInstitutions = async () => {
   try {
     loading.value = true
@@ -305,37 +258,24 @@ const loadInstitutions = async () => {
     const response = await getRecommendInstitutions()
 
     if (response.code === 200 && response.data) {
-      // 后端已经返回H5期望格式的数据，直接使用
+      // 转换数据格式
+      const transformedList = response.data.map(transformInstitutionData)
+
       if (refreshing.value) {
-        institutionList.value = response.data
+        institutionList.value = transformedList
         refreshing.value = false
       } else {
-        institutionList.value = response.data
+        institutionList.value = transformedList
       }
 
-      // 标记加载完成
       finished.value = true
     } else {
       showToast(response.msg || '获取机构列表失败')
-      // API失败时保留mock数据作为备用方案
-      if (refreshing.value) {
-        institutionList.value = mockInstitutions.slice(0, pageSize.value)
-        refreshing.value = false
-      } else {
-        institutionList.value = mockInstitutions
-      }
       finished.value = true
     }
   } catch (error) {
     console.error('获取机构数据失败:', error)
-    showToast('加载失败，显示示例数据')
-    // 网络错误时使用mock数据
-    if (refreshing.value) {
-      institutionList.value = mockInstitutions.slice(0, pageSize.value)
-      refreshing.value = false
-    } else {
-      institutionList.value = mockInstitutions
-    }
+    showToast('加载失败')
     finished.value = true
   } finally {
     loading.value = false
@@ -344,7 +284,6 @@ const loadInstitutions = async () => {
 
 // 下拉刷新
 const onRefresh = () => {
-  pageNum.value = 1
   finished.value = false
   loadInstitutions()
 }
@@ -355,8 +294,6 @@ const onLoad = () => {
 }
 
 onMounted(() => {
-  // 页面加载时自动加载轮播图和机构列表
-  loadBanners()
   loadInstitutions()
 })
 </script>
@@ -364,114 +301,216 @@ onMounted(() => {
 <style scoped>
 .home-page {
   min-height: 100vh;
-  background-color: #f5f5f5;
-  padding-bottom: 60px;
+  background-color: #f5f6fc;
+  padding-bottom: 20px;
 }
 
-.search-bar {
-  background: #fff;
-  padding: 8px 0;
-}
-
-.search-bar :deep(.van-search__action) {
-  padding: 0 12px;
-  cursor: pointer;
-}
-
-.notice-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.banner {
-  background: #fff;
-}
-
-.swipe {
-  height: 180px;
-}
-
-.swipe :deep(.van-swipe__track) {
-  height: 100%;
-}
-
-.swipe :deep(.van-swipe__indicators) {
-  bottom: 15px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 100;
-}
-
-.swipe :deep(.van-swipe__indicator) {
-  width: 8px;
-  height: 8px;
-  background-color: rgba(0, 0, 0, 0.4);
-  border: 1.5px solid rgba(255, 255, 255, 0.9);
-  border-radius: 50%;
-  margin: 0 4px;
-  transition: all 0.3s;
-  opacity: 0.9;
-}
-
-.swipe :deep(.van-swipe__indicator--active) {
-  width: 20px;
-  border-radius: 4px;
-  background-color: #fff;
-  border-color: #fff;
-  opacity: 1;
-}
-
-.banner-item {
+/* 轮播图区域 */
+.banner-section {
+  position: relative;
   width: 100%;
-  height: 180px;
-  overflow: hidden;
-  background: #f5f5f5;
+  margin-bottom: 10px;
+}
+
+.banner-swiper {
+  width: 100%;
+  height: 125px; /* 250rpx ≈ 125px */
 }
 
 .banner-image {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   display: block;
 }
 
-.quick-entry {
-  background: #fff;
-  margin-bottom: 10px;
-  padding: 10px 0;
+/* 自定义指示点 */
+.banner-indicators {
+  position: absolute;
+  bottom: 24px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 100;
 }
 
-.grid-icon {
-  width: 42px;
-  height: 42px;
+.indicator-dot {
+  width: 5px;
+  height: 5px;
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 50%;
+}
+
+.indicator-dot.active {
+  background: #ffffff;
+}
+
+/* 悬浮搜索栏 */
+.search-section {
+  position: absolute;
+  bottom: -20px;
+  left: 0;
+  right: 0;
+  padding: 0 12px;
+  z-index: 10;
+}
+
+.search-bar {
+  width: 100%;
+  max-width: 351px;
+  height: 40px;
+  border-radius: 10px;
+  opacity: 1;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  padding: 0 15px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  margin: 0 auto;
+  cursor: pointer;
+}
+
+.search-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 10px;
+  color: #999;
+}
+
+.search-placeholder {
+  font-size: 14px;
+  color: #999;
+}
+
+/* 金刚位（4个，1行4列） */
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  padding: 15px 12px;
+  background: #ffffff;
+  margin: 32px 12px 10px;
+  border-radius: 10px;
+  opacity: 1;
+}
+
+.icon-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.icon-wrapper {
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 6px;
+  margin-bottom: 5px;
 }
 
-.recommend-section {
-  background: #fff;
-  padding: 12px 8px;
+.icon-text {
+  font-size: 12px;
+  color: #333333;
+  text-align: center;
+  line-height: 20px;
 }
 
+/* 通知栏 */
+.notice-wrapper {
+  width: 351px;
+  height: 45px;
+  border-radius: 10px;
+  opacity: 1;
+  background: #ffffff;
+  margin: 12px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.notice-section {
+  width: 216px;
+  height: 42px;
+  margin-left: 2px;
+  border-radius: 9px;
+  opacity: 1;
+  background: linear-gradient(90deg, #ebf6ff 0%, rgba(235, 246, 255, 0) 100%);
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+}
+
+.notice-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 18px;
+  position: relative;
+  z-index: 2;
+}
+
+.notice-icon {
+  font-size: 22px;
+  color: #1281ff;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.notice-text-scroll {
+  flex: 1;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.notice-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1281ff;
+  font-family: 'PingFang SC', '苹方-简', sans-serif;
+  flex-shrink: 0;
+}
+
+.notice-text {
+  font-size: 13px;
+  color: #333333;
+  font-family: 'PingFang SC', '苹方-简', sans-serif;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 机构列表区域 */
+.listings-section {
+  padding: 8px 12px 15px;
+}
+
+/* 标题和更多按钮容器 */
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
-  padding: 0 4px;
+  position: relative;
 }
 
 .section-title {
-  font-size: 16px;
-  font-weight: bold;
-  color: #1989fa;
+  font-size: 18px;
+  font-weight: 500;
+  color: #1a1a1a;
   position: relative;
   padding-left: 8px;
+  font-family: 'PingFang SC', '苹方-简', sans-serif;
 }
 
 .section-title::before {
@@ -482,13 +521,165 @@ onMounted(() => {
   transform: translateY(-50%);
   width: 3px;
   height: 16px;
-  background: #1989fa;
+  background: linear-gradient(180deg, #0f73ff 0%, #4fc7ff 100%);
+  border-radius: 2px;
 }
 
 .section-more {
-  font-size: 13px;
-  color: #999;
   display: flex;
   align-items: center;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.section-more .more-text {
+  font-size: 14px;
+  color: #999;
+  margin-right: 2px;
+}
+
+.section-more .more-arrow {
+  font-size: 12px;
+  color: #999;
+}
+
+/* 机构卡片 */
+.listing-card {
+  display: flex;
+  background-color: #fff;
+  padding: 8px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  margin-bottom: 15px;
+  cursor: pointer;
+}
+
+.listing-image {
+  width: 96px;
+  height: 119px;
+  border-radius: 8px;
+  margin-right: 12px;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.listing-info {
+  flex: 1;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.listing-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2px;
+}
+
+.listing-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: #1a1a1a;
+  line-height: 20px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listing-distance {
+  font-size: 12px;
+  color: #999999;
+  line-height: 20px;
+  margin-left: 75px;
+}
+
+.listing-status {
+  display: flex;
+  align-items: center;
+  margin-bottom: 3px;
+}
+
+.status-text {
+  font-size: 12px;
+  color: #999;
+  font-family: 'PingFang SC', '苹方-简', sans-serif;
+}
+
+.status-text.available {
+  color: #207fff;
+  font-weight: 500;
+}
+
+.status-divider {
+  color: #cfcfcf;
+  font-size: 12px;
+  margin: 0 5px;
+}
+
+.status-count {
+  font-size: 12px;
+  color: #999999;
+  font-family: 'PingFang SC', '苹方-简', sans-serif;
+}
+
+.listing-address {
+  font-size: 12px;
+  color: #333333;
+  line-height: 20px;
+  margin-bottom: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listing-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 6px;
+}
+
+.tag {
+  font-size: 10px;
+  color: #4c617d;
+  line-height: 16px;
+  background-color: #f5f5f5;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.listing-price {
+  display: flex;
+  align-items: baseline;
+  margin-top: auto;
+}
+
+.price-number {
+  font-size: 15px;
+  color: #e5252b;
+  font-weight: 700;
+  line-height: 20px;
+  font-family: 'HarmonyOSSansSC', sans-serif;
+}
+
+.price-unit {
+  font-size: 14px;
+  color: #e5252b;
+  font-weight: normal;
+  line-height: 20px;
+  font-family: 'PingFang SC', '苹方-简', sans-serif;
+  margin-left: 2px;
+}
+
+.price-suffix {
+  font-size: 14px;
+  color: #000000;
+  font-weight: normal;
+  line-height: 20px;
+  font-family: 'PingFang SC', '苹方-简', sans-serif;
+  margin-left: 2px;
 }
 </style>

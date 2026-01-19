@@ -340,6 +340,176 @@ public class H5OrderController extends BaseController
     }
 
     /**
+     * 通过订单号获取订单详情
+     * 根据订单编号查询订单详情，用于支付成功页面跳转
+     */
+    @GetMapping("/getOrderByNo")
+    public AjaxResult getOrderByNo(@RequestParam String orderNo)
+    {
+        try {
+            // 获取当前用户ID
+            Long currentUserId = getCurrentUserId();
+            if (currentUserId == null) {
+                return error("用户未登录或身份验证失败");
+            }
+
+            // 验证订单号参数
+            if (!StringUtils.hasText(orderNo)) {
+                return error("订单编号不能为空");
+            }
+
+            // 查询订单信息
+            OrderInfo query = new OrderInfo();
+            query.setOrderNo(orderNo);
+            OrderInfo order = orderInfoService.selectOrderInfoList(query).stream()
+                .findFirst()
+                .orElse(null);
+
+            if (order == null) {
+                return error("订单不存在");
+            }
+
+            // 验证用户是否有权限访问该订单
+            Long orderCreatorId = order.getCreatorUserId();
+            if (orderCreatorId == null || !orderCreatorId.equals(currentUserId)) {
+                // 检查用户是否是该订单的老人的家属
+                ElderFamily familyQuery = new ElderFamily();
+                familyQuery.setUserId(currentUserId);
+                familyQuery.setElderId(order.getElderId());
+                List<ElderFamily> familyList = elderFamilyService.selectElderFamilyList(familyQuery);
+
+                if (familyList == null || familyList.isEmpty()) {
+                    return error("无权访问该订单信息");
+                }
+            }
+
+            // 构建返回数据（与getOrderDetail相同）
+            Map<String, Object> result = new HashMap<>();
+            result.put("orderId", order.getOrderId());
+            result.put("orderNo", order.getOrderNo());
+            result.put("orderType", order.getOrderType());
+            result.put("orderTypeText", getOrderTypeText(order.getOrderType()));
+            result.put("orderStatus", order.getOrderStatus());
+            result.put("orderStatusText", getOrderStatusText(order.getOrderStatus()));
+            result.put("orderAmount", order.getOrderAmount());
+            result.put("createTime", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, order.getCreateTime()));
+
+            // 获取老人信息
+            if (order.getElderId() != null) {
+                ElderInfo elder = elderInfoService.selectElderInfoByElderId(order.getElderId());
+                if (elder != null) {
+                    result.put("elderName", elder.getElderName());
+                    result.put("elderAge", elder.getAge());
+                    result.put("elderGender", elder.getGender());
+                }
+            }
+
+            // 获取机构信息
+            if (order.getInstitutionId() != null) {
+                PensionInstitution institution = institutionService.selectPensionInstitutionByInstitutionId(order.getInstitutionId());
+                if (institution != null) {
+                    result.put("institutionId", institution.getInstitutionId());
+                    result.put("institutionName", institution.getInstitutionName());
+                    result.put("institutionAddress", institution.getActualAddress());
+                    result.put("institutionPhone", institution.getContactPhone());
+
+                    // 获取机构公示信息中的主图
+                    PensionInstitutionPublic publicInfo = institutionPublicService.selectPensionInstitutionPublicByInstitutionId(order.getInstitutionId());
+                    if (publicInfo != null && publicInfo.getMainPicture() != null && !publicInfo.getMainPicture().isEmpty()) {
+                        result.put("institutionCover", publicInfo.getMainPicture());
+                    }
+                }
+            }
+
+            // 构建费用明细 - 从床位和订单信息中提取详细费用
+            java.util.List<Map<String, Object>> feeItems = new java.util.ArrayList<>();
+            BigDecimal bedFee = BigDecimal.ZERO;
+            BigDecimal careFee = BigDecimal.ZERO;
+            BigDecimal depositAmount = BigDecimal.ZERO;
+            BigDecimal memberFee = BigDecimal.ZERO;
+            Integer monthCount = order.getMonthCount() != null ? order.getMonthCount() : 1;
+
+            // 优先从remark字段解析所有费用（因为remark包含完整的费用信息）
+            if (order.getRemark() != null) {
+                try {
+                    String remark = order.getRemark();
+                    // 从remark中解析：床位费：XXXX.XXX元/月
+                    if (remark.contains("床位费：")) {
+                        String[] parts = remark.split("床位费：")[1].split("元/月");
+                        bedFee = new BigDecimal(parts[0].trim());
+                    }
+                    // 从remark中解析：护理费：XXXX.XXX元/月
+                    if (remark.contains("护理费：")) {
+                        String[] parts = remark.split("护理费：")[1].split("元/月");
+                        careFee = new BigDecimal(parts[0].trim());
+                    }
+                    // 从remark中解析：押金：XXXX.XXX元
+                    if (remark.contains("押金：")) {
+                        String[] parts = remark.split("押金：")[1].split("元");
+                        depositAmount = new BigDecimal(parts[0].trim());
+                    }
+                    // 从remark中解析：会员费：XXXX.XXX元
+                    if (remark.contains("会员费：")) {
+                        String[] parts = remark.split("会员费：")[1].split("元");
+                        memberFee = new BigDecimal(parts[0].trim());
+                    }
+                } catch (Exception e) {
+                    logger.warn("解析remark字段失败", e);
+                }
+            }
+
+            // 如果从remark解析失败，则从bed_info表查询
+            if (bedFee.compareTo(BigDecimal.ZERO) == 0 && order.getBedId() != null) {
+                BedInfo bed = bedInfoService.selectBedInfoByBedId(order.getBedId());
+                if (bed != null) {
+                    bedFee = bed.getPrice() != null ? bed.getPrice() : BigDecimal.ZERO;
+                    depositAmount = bed.getDepositFee() != null ? bed.getDepositFee() : BigDecimal.ZERO;
+                    memberFee = bed.getMemberFee() != null ? bed.getMemberFee() : BigDecimal.ZERO;
+                }
+            }
+
+            // 构建费用项数组 - 按照确认订单页的顺序
+            if (bedFee.compareTo(BigDecimal.ZERO) > 0) {
+                Map<String, Object> feeItem = new HashMap<>();
+                feeItem.put("name", "床位费");
+                feeItem.put("amount", bedFee);
+                feeItems.add(feeItem);
+            }
+
+            if (careFee.compareTo(BigDecimal.ZERO) > 0) {
+                Map<String, Object> feeItem = new HashMap<>();
+                feeItem.put("name", "护理费");
+                feeItem.put("amount", careFee);
+                feeItems.add(feeItem);
+            }
+
+            if (depositAmount.compareTo(BigDecimal.ZERO) > 0) {
+                Map<String, Object> feeItem = new HashMap<>();
+                feeItem.put("name", "押金");
+                feeItem.put("amount", depositAmount);
+                feeItems.add(feeItem);
+            }
+
+            if (memberFee.compareTo(BigDecimal.ZERO) > 0) {
+                Map<String, Object> feeItem = new HashMap<>();
+                feeItem.put("name", "会员费");
+                feeItem.put("amount", memberFee);
+                feeItems.add(feeItem);
+            }
+
+            result.put("feeItems", feeItems);
+            result.put("monthCount", monthCount);
+            result.put("discountAmount", order.getDiscountAmount() != null ? order.getDiscountAmount() : BigDecimal.ZERO);
+            result.put("paidAmount", order.getPaidAmount() != null ? order.getPaidAmount() : order.getOrderAmount());
+
+            return success(result);
+        } catch (Exception e) {
+            logger.error("通过订单号获取订单详情失败", e);
+            return error("通过订单号获取订单详情失败：" + e.getMessage());
+        }
+    }
+
+    /**
      * 获取老人列表
      * 查询当前用户关联的老人信息（只返回该用户添加的老人）
      */

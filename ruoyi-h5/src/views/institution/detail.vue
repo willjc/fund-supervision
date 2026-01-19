@@ -19,7 +19,7 @@
     </van-nav-bar>
 
     <div v-if="loading" class="loading-container">
-      <van-loading size="24px">加载�?..</van-loading>
+      <van-loading size="24px">加载中</van-loading>
     </div>
 
     <div v-else class="detail-content">
@@ -284,10 +284,10 @@
           电话
         </van-button>
         <van-button round plain type="warning" @click="bookVisit">
-          预约参观
+          预约
         </van-button>
         <van-button round type="primary" @click="applyEnter">
-          申请入住
+          入住
         </van-button>
       </div>
     </div>
@@ -716,8 +716,9 @@ onMounted(() => {
 <style scoped>
 .institution-detail {
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background-color: #f5f6fc;
   padding-bottom: 60px;
+  font-family: 'PingFang SC', '苹方-简', sans-serif;
 }
 
 .loading-container {
@@ -731,13 +732,29 @@ onMounted(() => {
   background: #fff;
   padding: 16px;
   margin-bottom: 10px;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 
 .title {
   font-size: 18px;
-  font-weight: 600;
-  color: #333;
+  font-weight: 500;
+  color: #1a1a1a;
   margin-bottom: 12px;
+  position: relative;
+  padding-left: 10px;
+}
+
+.title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 16px;
+  background: linear-gradient(180deg, #0f73ff 0%, #4fc7ff 100%);
+  border-radius: 2px;
 }
 
 /* 星级评分区域 */
@@ -757,8 +774,15 @@ onMounted(() => {
 .cert-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
   margin-bottom: 16px;
+}
+
+.cert-tags :deep(.van-tag) {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-weight: 500;
 }
 
 /* 设施图片滑动区域 */
@@ -776,27 +800,27 @@ onMounted(() => {
 
 .facility-type-btn {
   padding: 10px 20px;
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  background: #f8f9fa;
   border-radius: 22px;
   font-size: 14px;
   font-weight: 500;
   color: #666;
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid #e0e6ed;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e9ecef;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .facility-type-btn.active {
-  background: linear-gradient(135deg, #1976d2 0%, #42a5f5 100%);
+  background: linear-gradient(135deg, #1281ff 0%, #4fc7ff 100%);
   color: white;
-  border-color: #1976d2;
-  box-shadow: 0 3px 12px rgba(25, 118, 210, 0.4);
+  border-color: #1281ff;
+  box-shadow: 0 3px 12px rgba(18, 129, 255, 0.3);
   transform: translateY(-1px);
 }
 
 .facility-type-btn:hover:not(.active) {
-  background: linear-gradient(135deg, #f1f3f4 0%, #e2e6ea 100%);
+  background: #f1f3f4;
   transform: translateY(-1px);
 }
 
@@ -813,10 +837,11 @@ onMounted(() => {
 
 /* 修复 facility-swipe 样式 */
 .facility-swipe {
-  background: #f7f8fa;
-  border-radius: 8px;
-  padding: 8px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #f5f6fc 100%);
+  border-radius: 10px;
+  padding: 10px;
   width: 100%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .facility-swipe :deep(.van-swipe-item) {
@@ -910,13 +935,14 @@ onMounted(() => {
 
 .bed-info-box {
   flex: 1;
-  background: #f7f8fa;
+  background: linear-gradient(135deg, #ebf6ff 0%, #f0f9ff 100%);
   border-radius: 12px;
   padding: 12px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  box-shadow: 0 2px 8px rgba(18, 129, 255, 0.1);
 }
 
 .bed-title {
@@ -928,17 +954,18 @@ onMounted(() => {
 .bed-value {
   font-size: 24px;
   font-weight: bold;
-  color: #333;
+  color: #1281ff;
 }
 
 .contact-box {
   flex: 2;
-  background: #f7f8fa;
+  background: linear-gradient(135deg, #fafbfc 0%, #f5f6fc 100%);
   border-radius: 12px;
   padding: 12px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .address-row {
@@ -964,20 +991,41 @@ onMounted(() => {
 
 .contact-icons .van-icon {
   cursor: pointer;
+  color: #1281ff;
+}
+
+.contact-icons .van-icon:active {
+  opacity: 0.7;
 }
 
 /* 月参考价格区(参考列表页样式) */
 .price-section {
-  background: #e8f4fc;
-  border-radius: 8px;
+  background: linear-gradient(135deg, #ebf6ff 0%, #f0f9ff 100%);
+  border-radius: 10px;
   padding: 12px;
   margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(18, 129, 255, 0.08);
 }
 
 .price-header {
-  font-size: 12px;
-  color: #1989fa;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1281ff;
   margin-bottom: 8px;
+  position: relative;
+  padding-left: 8px;
+}
+
+.price-header::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 12px;
+  background: linear-gradient(180deg, #1281ff 0%, #4fc7ff 100%);
+  border-radius: 2px;
 }
 
 .price-grid {
@@ -1000,8 +1048,8 @@ onMounted(() => {
 }
 
 .price-value {
-  color: #1989fa;
-  font-weight: 500;
+  color: #1281ff;
+  font-weight: 600;
   white-space: nowrap;
 }
 
@@ -1023,11 +1071,11 @@ onMounted(() => {
 .facility-icon {
   width: 28px;
   height: 28px;
-  color: #1989fa;
+  color: #1281ff;
 }
 
 .facility-icon.medical {
-  color: #07c160;
+  color: #00d9a5;
 }
 
 .facility-item span {
@@ -1044,7 +1092,7 @@ onMounted(() => {
 .schedule-item {
   display: flex;
   padding: 12px 0;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .schedule-item:last-child {
@@ -1055,7 +1103,7 @@ onMounted(() => {
   width: 80px;
   font-size: 14px;
   font-weight: 500;
-  color: #1989fa;
+  color: #1281ff;
   flex-shrink: 0;
 }
 
@@ -1079,6 +1127,8 @@ onMounted(() => {
   background: #fff;
   padding: 16px;
   margin-bottom: 12px;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 
 .overall-rating {
@@ -1091,7 +1141,7 @@ onMounted(() => {
 .rating-score {
   font-size: 32px;
   font-weight: bold;
-  color: #ff9900;
+  color: #ffb800;
 }
 
 .rating-count {
@@ -1119,18 +1169,21 @@ onMounted(() => {
 
 .rating-score {
   font-size: 14px;
-  color: #ff9900;
+  color: #ffb800;
   font-weight: 500;
 }
 
 /* 评价列表 */
 .review-list {
   background: #fff;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 
 .review-item {
   padding: 16px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .review-item:last-child {
@@ -1206,5 +1259,106 @@ onMounted(() => {
   flex: 1;
   font-size: 13px;
   height: 36px;
+}
+
+.action-bar .van-button--primary {
+  background: linear-gradient(135deg, #1281ff 0%, #4fc7ff 100%);
+  border: none;
+  font-weight: 500;
+}
+
+.action-bar .van-button--warning {
+  background: linear-gradient(135deg, #ffb800 0%, #ffc832 100%);
+  border: none;
+  font-weight: 500;
+}
+
+.action-bar .van-button--plain {
+  border-color: #e0e0e0;
+  color: #666;
+  font-weight: 500;
+}
+
+/* Vant 组件样式覆盖 */
+:deep(.van-tabs__nav) {
+  background: #fff;
+  padding: 0 12px;
+}
+
+:deep(.van-tab) {
+  color: #666;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+:deep(.van-tab--active) {
+  color: #1281ff;
+}
+
+:deep(.van-tabs__line) {
+  display: none;
+}
+
+:deep(.van-cell-group__title) {
+  color: #1a1a1a;
+  font-size: 16px;
+  font-weight: 500;
+  padding: 12px 16px 8px;
+  position: relative;
+  padding-left: 20px;
+}
+
+:deep(.van-cell-group__title) {
+  color: #1a1a1a;
+  font-size: 16px;
+  font-weight: 500;
+  padding: 12px 16px 8px;
+  position: relative;
+  padding-left: 12px;
+}
+
+/* 移除标题前的装饰条和箭头 */
+:deep(.van-cell-group__title::before) {
+  display: none;
+}
+
+:deep(.van-cell-group) {
+  background: #fff;
+  margin: 10px 12px;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* 隐藏cell-group右侧箭头 */
+:deep(.van-cell-group .van-cell__right-icon) {
+  display: none;
+}
+
+:deep(.van-cell::after) {
+  display: none;
+}
+
+/* 修复Tab内容区域下划线 */
+:deep(.van-tabs__content) {
+  background: transparent;
+}
+
+:deep(.van-tab__panel) {
+  background: transparent;
+}
+
+:deep(.van-nav-bar) {
+  background: #fff;
+}
+
+:deep(.van-nav-bar__title) {
+  font-size: 17px;
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+:deep(.van-hairline--bottom::after) {
+  border-color: #f0f0f0;
 }
 </style>

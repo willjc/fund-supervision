@@ -53,54 +53,6 @@
       </el-form-item>
     </el-form>
 
-    <!-- 统计卡片 -->
-    <el-row :gutter="20" class="mb8">
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-content">
-            <div class="stat-number">{{ statistics.totalResidents || 0 }}</div>
-            <div class="stat-label">入住总人数</div>
-            <div class="stat-icon total">
-              <i class="el-icon-user"></i>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-content">
-            <div class="stat-number">￥{{ formatMoney(statistics.totalServiceBalance || 0) }}</div>
-            <div class="stat-label">服务费总余额</div>
-            <div class="stat-icon service">
-              <i class="el-icon-wallet"></i>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-content">
-            <div class="stat-number">￥{{ formatMoney(statistics.totalDepositBalance || 0) }}</div>
-            <div class="stat-label">押金总余额</div>
-            <div class="stat-icon deposit">
-              <i class="el-icon-coin"></i>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-content">
-            <div class="stat-number">￥{{ formatMoney(statistics.totalMemberBalance || 0) }}</div>
-            <div class="stat-label">会员卡总余额</div>
-            <div class="stat-icon member">
-              <i class="el-icon-credit-card"></i>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
-
     <!-- 操作按钮 -->
     <el-row :gutter="10" class="mb8">
       <el-col :span="1.5">
@@ -999,7 +951,7 @@
 </template>
 
 <script>
-import { listResident, getResident, delResident, renewResident, refundResident, applyDepositUse, getResidentStatistics } from "@/api/elder/resident";
+import { listResident, getResident, delResident, renewResident, refundResident, applyDepositUse } from "@/api/elder/resident";
 import { updateElderInfo, setPassword } from "@/api/elder/elderInfo";
 import { listPensionInstitution } from "@/api/pension/institution";
 import { listFamily, addFamily, updateFamily, delFamily } from "@/api/elder/family";
@@ -1025,8 +977,6 @@ export default {
       residentList: [],
       // 养老机构列表
       institutionList: [],
-      // 统计数据
-      statistics: {},
       // 弹出层标题
       title: "",
       // 是否显示详情弹出层
@@ -1244,7 +1194,6 @@ export default {
   created() {
     this.loadInstitutions();
     this.getList();
-    this.getStatistics();
   },
   methods: {
     /** 加载养老机构列表 */
@@ -1260,12 +1209,6 @@ export default {
         this.residentList = response.rows;
         this.total = response.total;
         this.loading = false;
-      });
-    },
-    /** 查询统计数据 */
-    getStatistics() {
-      getResidentStatistics().then(response => {
-        this.statistics = response.data;
       });
     },
     /** 搜索按钮操作 */
@@ -1429,7 +1372,6 @@ export default {
         return delResident(residentIds);
       }).then(() => {
         this.getList();
-        this.getStatistics();
         this.$modal.msgSuccess("删除成功");
       }).catch(() => {});
     },
@@ -1464,7 +1406,6 @@ export default {
             this.$modal.msgSuccess("续费成功");
             this.renewOpen = false;
             this.getList();
-            this.getStatistics();
           });
         }
       });
@@ -1477,7 +1418,6 @@ export default {
             this.$modal.msgSuccess("退费成功");
             this.refundOpen = false;
             this.getList();
-            this.getStatistics();
           });
         }
       });
@@ -1519,7 +1459,6 @@ export default {
       this.$message.success('导入成功');
       this.importOpen = false;
       this.getList();
-      this.getStatistics();
     },
     /** 导入失败 */
     handleImportError(err, file, fileList) {
@@ -1777,61 +1716,6 @@ export default {
 </script>
 
 <style scoped>
-.stat-card {
-  height: 100px;
-}
-
-.stat-content {
-  position: relative;
-  height: 100%;
-  padding: 20px;
-  display: flex;
-  align-items: center;
-}
-
-.stat-number {
-  font-size: 24px;
-  font-weight: bold;
-  color: #303133;
-}
-
-.stat-label {
-  font-size: 14px;
-  color: #909399;
-  margin-left: 15px;
-}
-
-.stat-icon {
-  position: absolute;
-  right: 20px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  color: white;
-}
-
-.stat-icon.total {
-  background: linear-gradient(135deg, #42A5F5, #66B3FF);
-}
-
-.stat-icon.service {
-  background: linear-gradient(135deg, #4CAF50, #66BB6A);
-}
-
-.stat-icon.deposit {
-  background: linear-gradient(135deg, #FF9800, #FFB74D);
-}
-
-.stat-icon.member {
-  background: linear-gradient(135deg, #9C27B0, #BA68C8);
-}
-
 .resident-detail {
   max-height: 500px;
   overflow-y: auto;

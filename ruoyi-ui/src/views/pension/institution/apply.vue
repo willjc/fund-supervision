@@ -3,7 +3,7 @@
     <div class="page-header" style="margin-bottom: 20px;">
       <h2>{{ isEditMode ? '机构信息维护' : '机构入驻申请' }}</h2>
       <p style="color: #666; margin-top: 5px;">
-        {{ isEditMode ? '修改现有机构信息，提交后需要重新��核' : '填写机构基本信息，提交后等待民政部门审批' }}
+        {{ isEditMode ? '修改现有机构信息，提交后需要重新审核' : '填写机构基本信息，提交后等待民政部门审批' }}
       </p>
     </div>
     <el-form ref="applyForm" :model="applyForm" :rules="applyRules" label-width="140px">

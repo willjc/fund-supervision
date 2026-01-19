@@ -36,6 +36,8 @@ import ImagePreview from "@/components/ImagePreview"
 import DictTag from '@/components/DictTag'
 // 字典数据组件
 import DictData from '@/components/DictData'
+// DataV 大屏组件
+import dataV from '@jiaminghi/data-view'
 
 // 全局方法挂载
 Vue.prototype.getDicts = getDicts
@@ -59,6 +61,7 @@ Vue.component('ImagePreview', ImagePreview)
 
 Vue.use(directive)
 Vue.use(plugins)
+Vue.use(dataV)
 DictData.install()
 
 /**

@@ -124,7 +124,12 @@
     </el-row>
 
     <!-- 数据表格 -->
-    <el-table v-loading="loading" :data="transferList" @selection-change="handleSelectionChange">
+    <el-table
+      v-loading="loading"
+      :data="transferList"
+      @selection-change="handleSelectionChange"
+      height="calc(100vh - 470px)"
+      border>
       <el-table-column type="selection" width="55" align="center" />
       <el-table-column label="划拨单号" align="center" prop="transferNo" width="180" />
       <el-table-column label="划拨周期" align="center" prop="transferPeriod" width="120" />
@@ -153,12 +158,12 @@
           <el-tag v-else-if="scope.row.transferStatus === '2'" type="info">已取消</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="创建时间" align="center" prop="createTime" width="160">
+      <el-table-column label="创建时间" align="center" prop="createTime" min-width="160">
         <template slot-scope="scope">
           <span>{{ parseTime(scope.row.createTime, '{y}-{m}-{d} {h}:{i}:{s}') }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="300">
+      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="240" fixed="right">
         <template slot-scope="scope">
           <el-button
             size="mini"

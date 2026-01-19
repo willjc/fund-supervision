@@ -87,10 +87,16 @@ const getShortAddress = (address) => {
 <style scoped>
 .institution-card {
   background: #fff;
-  border-radius: 4px;
+  border-radius: 10px;
   overflow: hidden;
   margin: 0 0 12px;
-  border: 1px solid #e5e5e5;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  font-family: 'PingFang SC', '苹方-简', sans-serif;
+  transition: all 0.2s ease;
+}
+
+.institution-card:active {
+  transform: scale(0.99);
 }
 
 .card-main {
@@ -104,8 +110,8 @@ const getShortAddress = (address) => {
   flex-shrink: 0;
   width: 100px;
   height: 100px;
-  background: #f5f5f5;
-  border-radius: 4px;
+  background: linear-gradient(135deg, #f5f6fc 0%, #e9ecef 100%);
+  border-radius: 8px;
   overflow: hidden;
 }
 
@@ -120,11 +126,12 @@ const getShortAddress = (address) => {
   bottom: 0;
   left: 0;
   right: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(18, 129, 255, 0.7);
   color: #fff;
-  font-size: 12px;
+  font-size: 11px;
   text-align: center;
-  padding: 4px 0;
+  padding: 3px 0;
+  font-weight: 500;
 }
 
 .card-content {
@@ -132,13 +139,13 @@ const getShortAddress = (address) => {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .card-title {
   font-size: 15px;
   font-weight: 500;
-  color: #333;
+  color: #1a1a1a;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -147,14 +154,15 @@ const getShortAddress = (address) => {
 
 .card-meta {
   font-size: 12px;
-  color: #666;
+  color: #1281ff;
   line-height: 1.4;
+  font-weight: 500;
 }
 
 .card-info {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 
 .info-item {
@@ -166,9 +174,9 @@ const getShortAddress = (address) => {
 }
 
 .info-item .van-icon {
-  margin-right: 3px;
+  margin-right: 4px;
   margin-top: 1px;
-  color: #999;
+  color: #1281ff;
   flex-shrink: 0;
 }
 
@@ -178,23 +186,23 @@ const getShortAddress = (address) => {
 }
 
 .card-price {
-  background: #e8f4f8;
-  padding: 10px 12px;
-  border-top: 1px solid #e5e5e5;
+  background: linear-gradient(135deg, #ebf6ff 0%, #f0f9ff 100%);
+  padding: 12px;
+  border-top: none;
 }
 
 .price-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 8px;
+  gap: 8px 12px;
 }
 
 .price-item {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   font-size: 12px;
-  flex: 0 0 calc(50% - 4px);
+  flex: 0 0 calc(50% - 6px);
 }
 
 .price-name {
@@ -205,8 +213,8 @@ const getShortAddress = (address) => {
 }
 
 .price-range {
-  color: #1989fa;
-  font-weight: 500;
+  color: #1281ff;
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

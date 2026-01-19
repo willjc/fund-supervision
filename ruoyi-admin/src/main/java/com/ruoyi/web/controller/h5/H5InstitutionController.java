@@ -367,6 +367,17 @@ public class H5InstitutionController extends BaseController
 
         result.put("coverImage", coverImage);
 
+        // 7. 生活设施 - 解析JSON数组
+        List<String> lifeFacilitiesList = new ArrayList<>();
+        if (publicity.getLifeFacilities() != null && !publicity.getLifeFacilities().trim().isEmpty()) {
+            try {
+                lifeFacilitiesList = JSON.parseArray(publicity.getLifeFacilities(), String.class);
+            } catch (Exception e) {
+                System.out.println("解析生活设施失败: " + publicity.getLifeFacilities());
+            }
+        }
+        result.put("lifeFacilities", lifeFacilitiesList);
+
         return result;
     }
 

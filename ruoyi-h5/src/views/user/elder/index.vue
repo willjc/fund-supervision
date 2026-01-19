@@ -11,40 +11,51 @@
         <div
           v-for="elder in elderList"
           :key="elder.id"
-          class="elder-card"
+          class="elder-item"
         >
-          <div class="elder-main">
-            <van-image
-              round
-              width="60"
-              height="60"
-              :src="elder.avatar"
-              fit="cover"
-            />
-            <div class="elder-info">
-              <div class="elder-name-row">
-                <span class="elder-name">{{ elder.name }}</span>
-                <van-tag :type="getRelationTagType(elder.relation)" size="medium">
-                  {{ elder.relation }}
-                </van-tag>
+          <div class="elder-header">
+            <div class="header-left">
+              <van-image
+                width="60"
+                height="60"
+                :src="elder.avatar"
+                fit="cover"
+                round
+              />
+              <div class="elder-info">
+                <div class="elder-name">{{ elder.name }}</div>
+                <div class="elder-idcard">{{ elder.idCard }}</div>
               </div>
-              <div class="elder-detail">年龄: {{ elder.age }}岁</div>
-              <div class="elder-detail">身份证号: {{ elder.idCard }}</div>
             </div>
           </div>
 
-          <div class="elder-actions">
-            <van-button
-              size="small"
-              type="primary"
-              color="#667eea"
-              @click="handleEdit(elder)"
-            >
+          <div class="elder-detail">
+            <div class="detail-row">
+              <van-icon name="user-o" size="16" />
+              <span>与本人关系: {{ elder.relation }}</span>
+            </div>
+            <div class="detail-row">
+              <van-icon name="calendar-o" size="16" />
+              <span>年龄: {{ elder.age }}岁</span>
+            </div>
+            <div class="detail-row">
+              <van-icon name="location-o" size="16" />
+              <span>居住地址: {{ elder.address || '暂无' }}</span>
+            </div>
+            <div class="detail-row">
+              <van-icon name="phone-o" size="16" />
+              <span>联系电话: {{ elder.contactPhone || '暂无' }}</span>
+            </div>
+          </div>
+
+          <div class="elder-footer">
+            <van-button size="small" @click="handleEdit(elder)">
               修改
             </van-button>
             <van-button
               size="small"
               type="danger"
+              plain
               @click="handleDelete(elder)"
             >
               删除
@@ -114,9 +125,11 @@ const elderList = computed(() => {
   return userStore.elders.map(elder => ({
     id: elder.elderId,
     name: elder.elderName,
-    relation: getRelationText(elder.relationType), // 修复字段映射问题
+    relation: getRelationText(elder.relationType),
     age: elder.age || calculateAge(elder.birthDate),
     idCard: elder.idCard,
+    address: elder.address || elder.liveAddress || '',
+    contactPhone: elder.contactPhone || elder.phoneNumber || elder.phone || '',
     avatar: elder.photoPath || 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
   }))
 })
@@ -145,17 +158,6 @@ const calculateAge = (birthDate) => {
     age--
   }
   return age
-}
-
-// 获取关系标签类型
-const getRelationTagType = (relation) => {
-  const typeMap = {
-    '本人': 'primary',
-    '父亲': 'success',
-    '母亲': 'warning',
-    '其他': 'default'
-  }
-  return typeMap[relation] || 'default'
 }
 
 // 跳转到新增老人页面
@@ -204,54 +206,71 @@ const handleDelete = async (elder) => {
   margin-top: 100px;
 }
 
-/* 老人卡片 */
-.elder-card {
+.elder-item {
   background: #fff;
-  border-radius: 12px;
+  margin: 0 0 12px 0;
+  border-radius: 8px;
   padding: 16px;
-  margin-bottom: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
 
-.elder-main {
+.elder-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.header-left {
   display: flex;
   gap: 12px;
-  margin-bottom: 12px;
+  flex: 1;
 }
 
 .elder-info {
-  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-
-.elder-name-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  justify-content: center;
 }
 
 .elder-name {
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 500;
   color: #333;
 }
 
+.elder-idcard {
+  font-size: 12px;
+  color: #999;
+}
+
 .elder-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0;
+}
+
+.detail-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 13px;
   color: #666;
 }
 
-/* 操作按钮 */
-.elder-actions {
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
+.detail-row .van-icon {
+  color: #999;
 }
 
-.elder-actions .van-button {
-  min-width: 70px;
+.elder-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #f5f5f5;
 }
 
 /* 新增按钮 */
@@ -273,15 +292,16 @@ const handleDelete = async (elder) => {
   font-weight: 500;
   height: 48px;
   box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+  color: #fff;
 }
 
-:deep(.van-button__content) {
+.add-button :deep(.van-button__content) {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-:deep(.van-button__text) {
+.add-button :deep(.van-button__text) {
   color: #fff;
 }
 </style>

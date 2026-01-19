@@ -1,213 +1,202 @@
 <template>
   <div class="collection-page">
+    <!-- 导航栏 -->
     <van-nav-bar title="我的收藏" left-arrow @click-left="$router.back()" fixed placeholder />
 
     <div class="collection-content">
-      <!-- 搜索栏 -->
-      <div class="search-section">
-        <van-search
-          v-model="searchKeyword"
-          placeholder="搜索机构名称"
-          @search="onSearch"
-        />
-      </div>
-
-      <!-- 批量操作栏 -->
-      <div class="batch-section">
-        <van-checkbox v-model="checkAll" @change="onCheckAllChange">全选</van-checkbox>
-        <van-button
-          v-if="selectedIds.length > 0"
-          type="danger"
-          size="small"
-          plain
-          @click="batchDelete"
-        >
-          批量删除({{ selectedIds.length }})
-        </van-button>
-      </div>
-
       <!-- 收藏列表 -->
-      <div class="collection-list">
-        <van-loading v-if="loading" size="24px" style="text-align: center; padding: 20px;">加载中...</van-loading>
-
-        <div
-          v-for="item in filteredList"
-          :key="item.id"
-          class="collection-item"
-          v-show="!loading"
+      <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
+        <van-list
+          v-model:loading="loading"
+          :finished="finished"
+          finished-text="没有更多了"
+          @load="onLoad"
         >
-          <van-checkbox
-            v-model="item.checked"
-            @change="onItemCheck"
-            class="item-checkbox"
-          />
-
-          <div class="item-content" @click="goToDetail(item)">
-            <van-image
-              width="100"
-              height="80"
-              :src="item.coverImage"
-              fit="cover"
-              radius="8"
-            />
-
-            <div class="item-info">
-              <div class="item-name">{{ item.name }}</div>
-              <div class="item-address">
-                <van-icon name="location-o" size="12" />
-                {{ item.address }}
-              </div>
-              <div class="item-meta">
-                <van-tag type="primary" size="medium">{{ item.level }}</van-tag>
-                <span class="item-price">¥{{ item.price }}/月起</span>
+          <!-- 收藏卡片列表 -->
+          <div v-for="item in collectionList" :key="item.id" class="collection-item">
+            <div class="collection-header">
+              <div class="header-left">
+                <van-image
+                  width="60"
+                  height="60"
+                  :src="item.coverImage || defaultImage"
+                  fit="cover"
+                  round
+                />
+                <div class="institution-info">
+                  <div class="institution-name">{{ item.name }}</div>
+                  <div class="institution-address">{{ item.address }}</div>
+                </div>
               </div>
             </div>
+
+            <div class="collection-detail">
+              <div class="detail-row">
+                <van-icon name="clock-o" size="16" />
+                <span>收藏时间: {{ formatTime(item.favoriteTime || item.createTime) }}</span>
+              </div>
+              <div class="detail-row">
+                <van-icon name="gold-coin-o" size="16" />
+                <span>价格区间: {{ item.priceRange || '2000-5000元/月' }}</span>
+              </div>
+              <div class="detail-row">
+                <van-icon name="phone-o" size="16" />
+                <span>联系电话: {{ item.contactPhone || '暂无' }}</span>
+              </div>
+            </div>
+
+            <div class="collection-footer">
+              <van-button size="small" @click="goToDetail(item)">
+                查看详情
+              </van-button>
+              <van-button
+                size="small"
+                type="danger"
+                plain
+                @click="handleDelete(item)"
+              >
+                取消收藏
+              </van-button>
+            </div>
           </div>
+        </van-list>
+      </van-pull-refresh>
 
-          <van-icon
-            name="delete-o"
-            size="20"
-            color="#ee0a24"
-            class="delete-icon"
-            @click="handleDelete(item)"
-          />
-        </div>
-
-        <div v-if="filteredList.length === 0" class="empty-state">
-          <van-empty :description="searchKeyword ? '未找到相关收藏' : '暂无收藏'" />
-        </div>
+      <!-- 空状态 -->
+      <div v-if="!loading && collectionList.length === 0" class="empty-state">
+        <van-empty description="暂无收藏记录">
+          <template #image>
+            <van-icon name="star-o" size="60" color="#ddd" />
+          </template>
+        </van-empty>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast, showConfirmDialog } from 'vant'
 import { getUserFavoriteList, unfavoriteInstitution } from '@/api/institution'
 
 const router = useRouter()
 
-// 搜索关键词
-const searchKeyword = ref('')
-
-// 全选状态
-const checkAll = ref(false)
-
-// 收藏列表
+// 列表相关
 const collectionList = ref([])
 const loading = ref(false)
+const finished = ref(false)
+const refreshing = ref(false)
+const pageNum = ref(1)
+const pageSize = ref(10)
+
+const defaultImage = 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
+
+// 格式化时间
+const formatTime = (time) => {
+  if (!time) return '暂无'
+  try {
+    const date = new Date(time)
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day} ${hours}:${minutes}`
+  } catch (error) {
+    console.error('时间格式化失败:', error)
+    return time
+  }
+}
 
 // 加载收藏列表
-const loadFavoriteList = async () => {
+const loadFavoriteList = async (isRefresh = false) => {
   try {
     loading.value = true
-    const response = await getUserFavoriteList({ pageSize: 100 }) // 加载所有收藏
+
+    const response = await getUserFavoriteList({
+      pageNum: pageNum.value,
+      pageSize: pageSize.value
+    })
 
     if (response.code === 200 && response.rows) {
-      // 转换数据格式 - 后端现在返回完整的机构信息
-      collectionList.value = response.rows.map(item => ({
+      const newList = response.rows.map(item => ({
         id: item.institutionId,
         favoriteId: item.favoriteId,
         name: item.institutionName || '机构名称',
-        coverImage: item.coverImage || 'https://via.placeholder.com/200x160',
-        address: item.address || '地址信息完善中',
-        level: item.institutionType || '养老机构',
-        price: item.price || 2000,
-        checked: false
+        coverImage: item.coverImage || item.images,
+        address: item.address || item.actualAddress || '地址信息完善中',
+        favoriteTime: item.favoriteTime || item.createTime || '',
+        priceRange: item.priceRange
+          ? `${item.priceRangeMin || item.priceRange}-${item.priceRangeMax || item.priceRange}元/月`
+          : (item.price ? `${item.price}元/月起` : '2000-5000元/月'),
+        contactPhone: item.contactPhone || item.contactNumber || item.phone || '暂无'
       }))
+
+      if (isRefresh) {
+        collectionList.value = newList
+      } else {
+        collectionList.value = [...collectionList.value, ...newList]
+      }
+
+      if (newList.length < pageSize.value) {
+        finished.value = true
+      }
     } else {
       showToast(response.msg || '获取收藏列表失败')
+      finished.value = true
     }
   } catch (error) {
     console.error('加载收藏列表失败:', error)
     showToast('加载失败')
-    collectionList.value = []
+    finished.value = true
   } finally {
     loading.value = false
   }
 }
 
-
-// 过滤后的列表
-const filteredList = computed(() => {
-  if (!searchKeyword.value) {
-    return collectionList.value
-  }
-
-  return collectionList.value.filter(item =>
-    item.name.toLowerCase().includes(searchKeyword.value.toLowerCase())
-  )
-})
-
-// 选中的ID列表
-const selectedIds = computed(() => {
-  return collectionList.value.filter(item => item.checked).map(item => item.id)
-})
-
-// 搜索
-const onSearch = () => {
-  // 搜索逻辑已通过computed实现
-}
-
-// 全选切换
-const onCheckAllChange = (checked) => {
-  filteredList.value.forEach(item => {
-    item.checked = checked
+// 下拉刷新
+const onRefresh = () => {
+  pageNum.value = 1
+  finished.value = false
+  collectionList.value = []
+  loadFavoriteList(true).then(() => {
+    refreshing.value = false
   })
 }
 
-// 单项勾选
-const onItemCheck = () => {
-  checkAll.value = filteredList.value.every(item => item.checked)
+// 上拉加载
+const onLoad = () => {
+  if (pageNum.value === 1) {
+    loadFavoriteList()
+  } else {
+    pageNum.value++
+    loadFavoriteList()
+  }
 }
 
 // 单个删除
 const handleDelete = async (item) => {
   try {
     await showConfirmDialog({
-      title: '确认删除',
-      message: `确定要取消收藏 ${item.name} 吗?`
+      title: '取消收藏',
+      message: `确定要取消收藏「${item.name}」吗？`,
+      confirmButtonText: '确定',
+      cancelButtonText: '取消'
     })
 
-    // 调用真实的取消收藏API
     await unfavoriteInstitution(item.id)
 
     const index = collectionList.value.findIndex(i => i.id === item.id)
     if (index > -1) {
       collectionList.value.splice(index, 1)
-      showToast('已取消收藏')
     }
+
+    showToast('已取消收藏')
   } catch (error) {
     if (error !== 'cancel') {
       console.error('取消收藏失败:', error)
       showToast(error.response?.data?.msg || '删除失败')
-    }
-  }
-}
-
-// 批量删除
-const batchDelete = async () => {
-  try {
-    await showConfirmDialog({
-      title: '确认删除',
-      message: `确定要批量删除 ${selectedIds.value.length} 项收藏吗?`
-    })
-
-    // 批量调用取消收藏API
-    const selectedItems = collectionList.value.filter(item => item.checked)
-    const deletePromises = selectedItems.map(item => unfavoriteInstitution(item.id))
-
-    await Promise.all(deletePromises)
-
-    collectionList.value = collectionList.value.filter(item => !item.checked)
-    checkAll.value = false
-    showToast('删除成功')
-  } catch (error) {
-    if (error !== 'cancel') {
-      console.error('批量删除失败:', error)
-      showToast('删除失败')
     }
   }
 }
@@ -230,109 +219,92 @@ onMounted(() => {
 .collection-page {
   min-height: 100vh;
   background-color: #f5f5f5;
-  padding-bottom: 20px;
 }
 
 .collection-content {
-  padding-top: 0;
-}
-
-/* 搜索区域 */
-.search-section {
-  background: #fff;
-  padding: 8px 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-/* 批量操作栏 */
-.batch-section {
-  background: #fff;
-  padding: 12px 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin: 12px;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-}
-
-.batch-section :deep(.van-checkbox__label) {
-  font-size: 14px;
-  color: #333;
-}
-
-/* 收藏列表 */
-.collection-list {
-  padding: 0 12px;
-  min-height: 400px;
+  padding-bottom: 20px;
 }
 
 .collection-item {
   background: #fff;
-  border-radius: 12px;
-  padding: 12px;
+  margin: 12px;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.collection-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   margin-bottom: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f5f5f5;
 }
 
-.item-checkbox {
-  flex-shrink: 0;
-}
-
-.item-content {
-  flex: 1;
+.header-left {
   display: flex;
   gap: 12px;
-  cursor: pointer;
+  flex: 1;
 }
 
-.item-info {
-  flex: 1;
+.institution-info {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  justify-content: center;
 }
 
-.item-name {
+.institution-name {
   font-size: 15px;
   font-weight: 500;
   color: #333;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
 }
 
-.item-address {
-  font-size: 13px;
-  color: #666;
+.institution-address {
+  font-size: 12px;
+  color: #999;
+}
+
+.collection-detail {
   display: flex;
-  align-items: center;
-  gap: 4px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0;
 }
 
-.item-meta {
+.detail-row {
   display: flex;
   align-items: center;
   gap: 8px;
+  font-size: 13px;
+  color: #666;
 }
 
-.item-price {
-  font-size: 14px;
-  color: #ff6b00;
-  font-weight: 500;
+.detail-row .van-icon {
+  color: #999;
 }
 
-.delete-icon {
-  flex-shrink: 0;
-  cursor: pointer;
+.collection-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #f5f5f5;
 }
 
+/* 空状态 */
 .empty-state {
-  padding: 100px 0;
+  padding: 100px 20px;
+  text-align: center;
+}
+
+:deep(.van-empty) {
+  padding: 0;
+}
+
+:deep(.van-empty__description) {
+  color: #999;
+  font-size: 14px;
+  margin-top: 16px;
 }
 </style>

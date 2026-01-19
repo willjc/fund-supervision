@@ -11,6 +11,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **架构模式**: 四端协同（民政监管端 + 养老机构端 + 小程序端 + 数据统计平台）
 - **开发策略**: 单模块开发（所有后端代码放在ruoyi-admin模块），功能导向，快速迭代
 
+## 数据库操作规范 (极其重要! 必须遵守!)
+
+**🔴 强制要求：所有数据库查询和操作必须使用 MCP MySQL 工具**
+
+- ✅ **必须使用**: `mcp__mysql__*` 系列工具进行数据库操作
+- ❌ **严禁使用**: Bash 执行 `mysql` 命令行工具
+- ❌ **严禁使用**: 其他任何直接连接数据库的方式
+
+### MCP 工具使用步骤
+
+1. **连接数据库**: 使用 `mcp__mysql__connect_db`
+2. **查询数据**: 使用 `mcp__mysql__query` (SELECT)
+3. **修改数据**: 使用 `mcp__mysql__execute` (INSERT/UPDATE/DELETE)
+4. **查看表结构**: 使用 `mcp__mysql__describe_table`
+5. **列出所有表**: 使用 `mcp__mysql__list_tables`
+
+
 ## 数据库配置
 
 **开发环境数据库连接信息**：
@@ -24,6 +41,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **说明**：
 - 使用 MySQL MCP 工具时，直接连接到此数据库
 - 配置文件位置：`ruoyi-admin/src/main/resources/application-druid.yml`
+
+## 核心开发原则 (必须遵守)
+
+### 1. 测试规则
+**重要**: 永远不要执行任何测试命令 (包括前端和后端)。所有测试由用户负责。
+- ❌ 不要运行: `npm run test`, `mvn test`, `npm run dev` 等任何测试/运行命令
+- ✅ 只负责: 代码编写、修改、文档更新
+
 
 ## 常用开发命令
 

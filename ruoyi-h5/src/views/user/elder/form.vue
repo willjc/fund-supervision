@@ -583,21 +583,94 @@ onMounted(() => {
 <style scoped>
 .elder-form-page {
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background: linear-gradient(180deg, #f8f9fc 0%, #f5f6fa 100%);
   padding-bottom: 80px;
 }
 
 .form-content {
-  padding: 12px 0 20px;
+  padding: 16px 12px 20px;
 }
 
-.van-cell-group {
-  margin-bottom: 12px;
+/* 导航栏 */
+:deep(.van-nav-bar) {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+:deep(.van-nav-bar__title) {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+:deep(.van-nav-bar .van-icon) {
+  color: #fff;
+}
+
+:deep(.van-hairline--bottom::after) {
+  border: none;
+}
+
+/* 卡片组 */
+:deep(.van-cell-group) {
+  margin-bottom: 16px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+:deep(.van-cell-group__title) {
+  padding: 16px 16px 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  background: transparent;
+}
+
+/* 表单字段 */
+:deep(.van-cell) {
+  padding: 16px;
+  background: #fff;
+  font-size: 15px;
+}
+
+:deep(.van-cell::after) {
+  border-color: #f0f0f0;
+}
+
+:deep(.van-field__label) {
+  color: #666;
+  font-weight: 500;
+  width: 90px;
+}
+
+:deep(.van-field__control) {
+  color: #333;
+  font-size: 15px;
+}
+
+:deep(.van-field__control::placeholder) {
+  color: #ccc;
+}
+
+:deep(.van-field__error-message) {
+  color: #ff4d4f;
+  font-size: 12px;
+}
+
+/* 只读字段样式 */
+:deep(.van-field[readonly]) {
+  background: #fafafa;
+}
+
+:deep(.van-field[readonly] .van-field__control) {
+  color: #333;
 }
 
 /* 图片上传 */
 .upload-item {
-  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: #fff;
+  margin-bottom: 0;
 }
 
 .upload-item:last-child {
@@ -607,30 +680,49 @@ onMounted(() => {
 .upload-label {
   font-size: 14px;
   font-weight: 500;
-  color: #333;
-  margin-bottom: 8px;
+  color: #666;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.upload-label::before {
+  content: '';
+  width: 3px;
+  height: 14px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 2px;
 }
 
 .upload-section {
-  padding: 16px;
+  padding: 0;
 }
 
 .upload-placeholder {
-  width: 80px;
-  height: 80px;
-  background: #f7f8fa;
-  border: 1px dashed #dcdee0;
-  border-radius: 8px;
+  width: 100px;
+  height: 100px;
+  background: linear-gradient(135deg, #f8f9fc 0%, #f0f2f8 100%);
+  border: 2px dashed #d0d7e6;
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.upload-placeholder:active {
+  transform: scale(0.95);
+  background: linear-gradient(135deg, #eef1f8 0%, #e8ebf4 100%);
 }
 
 .upload-text {
   font-size: 12px;
   color: #999;
+  font-weight: 500;
 }
 
 :deep(.van-uploader__wrapper) {
@@ -640,12 +732,26 @@ onMounted(() => {
 }
 
 :deep(.van-uploader__preview) {
-  width: 80px;
-  height: 80px;
+  width: 100px;
+  height: 100px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 :deep(.van-uploader__preview-image) {
-  border-radius: 8px;
+  border-radius: 12px;
+}
+
+:deep(.van-uploader__preview-delete) {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+:deep(.van-uploader__preview-delete-icon) {
+  font-size: 12px;
 }
 
 /* 提交按钮 */
@@ -654,15 +760,55 @@ onMounted(() => {
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 12px 16px;
-  background: #fff;
-  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.08);
+  padding: 16px 20px;
+  background: linear-gradient(to top, #fff 80%, rgba(255, 255, 255, 0.9));
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
   z-index: 100;
 }
 
-:deep(.van-button--primary) {
+:deep(.submit-section .van-button) {
+  height: 50px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 25px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border: none;
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  transition: all 0.3s ease;
+}
+
+:deep(.submit-section .van-button:active) {
+  transform: translateY(1px);
   box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+}
+
+/* 选择器样式优化 */
+:deep(.van-picker) {
+  border-radius: 16px 16px 0 0;
+}
+
+:deep(.van-picker__toolbar) {
+  padding: 16px;
+  background: #f8f9fc;
+}
+
+:deep(.van-picker__title) {
+  font-weight: 600;
+  color: #333;
+}
+
+:deep(.van-picker__confirm) {
+  color: #667eea;
+  font-weight: 600;
+}
+
+:deep(.van-picker__cancel) {
+  color: #999;
+}
+
+/* 必填星号 */
+:deep(.van-field--required .van-field__label::before) {
+  color: #ff4d4f;
+  margin-right: 2px;
 }
 </style>

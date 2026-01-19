@@ -304,3 +304,31 @@ export function getReleaseStatistics() {
     method: 'get'
   })
 }
+
+// ========== 机构入驻审批 & 维护审批 ==========
+
+// 审批通过机构入驻申请（支持待审批0和维护待审批6）
+export function approveInstitution(institutionId) {
+  return request({
+    url: '/pension/supervision/institution/approval/approve/' + institutionId,
+    method: 'put'
+  })
+}
+
+// 审批驳回机构入驻申请（支持待审批0和维护待审批6）
+export function rejectInstitution(institutionId, data) {
+  return request({
+    url: '/pension/supervision/institution/approval/reject/' + institutionId,
+    method: 'put',
+    data: data
+  })
+}
+
+// 批量审批通过
+export function batchApproveInstitution(institutionIds) {
+  return request({
+    url: '/pension/supervision/institution/approval/batchApprove',
+    method: 'put',
+    data: institutionIds
+  })
+}

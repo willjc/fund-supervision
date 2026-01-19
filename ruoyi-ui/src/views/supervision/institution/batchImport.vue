@@ -64,7 +64,9 @@
       </el-form-item>
       <el-form-item label="入驻状态" prop="status">
         <el-select v-model="queryParams.status" placeholder="请选择入驻状态" clearable size="small">
-          <el-option label="未申请" value="" />
+          <el-option label="全部" value="" />
+          <el-option label="未申请" value="null" />
+          <el-option label="草稿" value="4" />
           <el-option label="待审批" value="0" />
           <el-option label="已入驻" value="1" />
           <el-option label="已驳回" value="2" />
@@ -101,7 +103,8 @@
       <el-table-column label="关联账号" align="center" prop="remark" width="120" />
       <el-table-column label="入驻状态" align="center" width="100">
         <template slot-scope="scope">
-          <el-tag v-if="scope.row.status === '4'" type="info">草稿</el-tag>
+          <el-tag v-if="scope.row.status === null || scope.row.status === ''" type="info">未申请</el-tag>
+          <el-tag v-else-if="scope.row.status === '4'" type="info">草稿</el-tag>
           <el-tag v-else-if="scope.row.status === '0'" type="warning">待审批</el-tag>
           <el-tag v-else-if="scope.row.status === '1'" type="success">已入驻</el-tag>
           <el-tag v-else-if="scope.row.status === '2'" type="danger">已驳回</el-tag>

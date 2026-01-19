@@ -41,6 +41,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { showToast, showLoadingToast, closeToast } from 'vant'
+import { getOrderByNo } from '@/api/order'
 
 const router = useRouter()
 const route = useRoute()
@@ -54,11 +56,39 @@ const formatAmount = (amount) => {
 }
 
 // 查看订单详情
-const viewOrderDetail = () => {
-  router.push({
-    name: 'OrderDetail',
-    params: { id: orderNo.value }
-  })
+const viewOrderDetail = async () => {
+  if (!orderNo.value) {
+    showToast('订单编号不存在')
+    return
+  }
+
+  try {
+    showLoadingToast({
+      message: '加载中...',
+      forbidClick: true,
+      duration: 0
+    })
+
+    // 通过订单号获取订单信息
+    const response = await getOrderByNo(orderNo.value)
+
+    closeToast()
+
+    if (response && response.code === 200 && response.data) {
+      // 使用订单ID跳转到详情页
+      const orderId = response.data.orderId
+      router.push({
+        name: 'OrderDetail',
+        params: { id: orderId }
+      })
+    } else {
+      showToast(response?.msg || '获取订单信息失败')
+    }
+  } catch (error) {
+    closeToast()
+    console.error('获取订单信息失败:', error)
+    showToast(error.response?.data?.msg || '获取订单信息失败')
+  }
 }
 
 // 返回首页
