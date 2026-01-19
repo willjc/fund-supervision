@@ -122,9 +122,11 @@ const confirmPayment = async () => {
   })
 
   try {
-    // 调用后端支付接口
+    // 调用后端支付接口，传递支付方式
     const orderId = route.params.orderId
-    const response = await processPayment(orderId)
+    const response = await processPayment(orderId, {
+      paymentMethod: selectedPaymentMethod.value
+    })
 
     closeToast()
 

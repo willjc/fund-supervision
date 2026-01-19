@@ -39,9 +39,11 @@ import com.ruoyi.domain.PensionInstitutionPublic;
 import com.ruoyi.domain.pension.AccountInfo;
 import com.ruoyi.domain.pension.DepositApply;
 import com.ruoyi.domain.pension.ExpenseRecord;
+import com.ruoyi.domain.PaymentRecord;
 import com.ruoyi.service.pension.IAccountInfoService;
 import com.ruoyi.service.pension.IDepositApplyService;
 import com.ruoyi.service.pension.IExpenseRecordService;
+import com.ruoyi.service.IPaymentRecordService;
 
 /**
  * H5订单Controller
@@ -84,6 +86,9 @@ public class H5OrderController extends BaseController
 
     @Autowired
     private IExpenseRecordService expenseRecordService;
+
+    @Autowired
+    private IPaymentRecordService paymentRecordService;
 
     /**
      * 获取订单列表
@@ -709,10 +714,10 @@ public class H5OrderController extends BaseController
 
     /**
      * 处理支付请求
-     * 模拟支付接口，默认支付成功
+     * 接收支付方式参数，创建支付记录
      */
     @PostMapping("/payment/process/{orderId}")
-    public AjaxResult processPayment(@PathVariable Long orderId) {
+    public AjaxResult processPayment(@PathVariable Long orderId, @RequestParam(required = false) String paymentMethod) {
         try {
             // 获取当前用户ID
             Long currentUserId = getCurrentUserId();
@@ -742,6 +747,22 @@ public class H5OrderController extends BaseController
                 return error("订单已取消");
             }
 
+            // 默认支付方式为现金
+            if (!StringUtils.hasText(paymentMethod)) {
+                paymentMethod = "现金";
+            }
+
+            // 支付方式映射：前端传的是英文，需要转换为中文
+            String paymentMethodText = paymentMethod;
+            if ("alipay".equals(paymentMethod)) {
+                paymentMethod = "支付宝";
+            } else if ("wechat".equals(paymentMethod)) {
+                paymentMethod = "微信";
+            }
+
+            // 生成支付流水号
+            String paymentNo = "PAY" + System.currentTimeMillis() + (int)(Math.random() * 1000);
+
             // 模拟支付处理
             try {
                 // 模拟支付接口调用延迟
@@ -751,7 +772,27 @@ public class H5OrderController extends BaseController
                 order.setOrderStatus("1"); // 1-已支付
                 order.setPaymentTime(new Date());
                 order.setPaidAmount(order.getOrderAmount());
+                order.setPaymentMethod(paymentMethod); // 更新支付方式
                 orderInfoService.updateOrderInfo(order);
+
+                // 创建支付记录
+                PaymentRecord paymentRecord = new PaymentRecord();
+                paymentRecord.setPaymentNo(paymentNo);
+                paymentRecord.setOrderId(order.getOrderId());
+                paymentRecord.setOrderNo(order.getOrderNo());
+                paymentRecord.setElderId(order.getElderId());
+                paymentRecord.setInstitutionId(order.getInstitutionId());
+                paymentRecord.setPaymentAmount(order.getOrderAmount());
+                paymentRecord.setPaymentMethod(paymentMethod);
+                paymentRecord.setPaymentStatus("1"); // 1-成功
+                paymentRecord.setPaymentTime(new Date());
+                paymentRecord.setTransactionId(paymentNo); // 暂时使用流水号作为第三方交易号
+                paymentRecord.setOperator(currentUserId.toString());
+                paymentRecord.setElderName(order.getElderName() != null ? order.getElderName() : "未知老人");
+                paymentRecord.setInstitutionName(order.getInstitutionId() != null ?
+                    getInstitutionName(order.getInstitutionId()) : "未知机构");
+
+                paymentRecordService.insertPaymentRecord(paymentRecord);
 
                 // 处理账户信息
                 boolean accountUpdated = false;
@@ -1287,6 +1328,21 @@ public class H5OrderController extends BaseController
             default:
                 return "未知";
         }
+    }
+
+    /**
+     * 根据机构ID获取机构名称
+     */
+    private String getInstitutionName(Long institutionId) {
+        try {
+            PensionInstitution institution = institutionService.selectPensionInstitutionByInstitutionId(institutionId);
+            if (institution != null) {
+                return institution.getInstitutionName();
+            }
+        } catch (Exception e) {
+            logger.warn("获取机构名称失败，institutionId=" + institutionId, e);
+        }
+        return "未知机构";
     }
 
     /**

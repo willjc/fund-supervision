@@ -122,10 +122,12 @@ export function getOrderStats(elderId) {
 /**
  * 处理支付请求
  * @param {Number} orderId - 订单ID
+ * @param {Object} config - 配置参数，如 { paymentMethod: 'alipay' }
  */
-export function processPayment(orderId) {
+export function processPayment(orderId, config) {
   return request({
     url: `/h5/payment/process/${orderId}`,
-    method: 'post'
+    method: 'post',
+    params: config
   })
 }
