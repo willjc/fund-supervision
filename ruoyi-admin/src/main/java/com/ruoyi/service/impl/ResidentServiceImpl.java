@@ -17,6 +17,7 @@ import com.ruoyi.domain.OrderInfo;
 import com.ruoyi.domain.OrderItem;
 import com.ruoyi.domain.PaymentRecord;
 import com.ruoyi.domain.RenewDTO;
+import com.ruoyi.domain.vo.ElderCurrentPriceVO;
 import com.ruoyi.domain.vo.ResidentVO;
 import com.ruoyi.domain.pension.AccountInfo;
 import com.ruoyi.domain.pension.ExpenseRecord;
@@ -91,7 +92,16 @@ public class ResidentServiceImpl implements IResidentService
         ResidentVO residentVO = residentMapper.selectResidentDetail(elderId);
         if (residentVO != null) {
             // 查询订单列表
-            residentVO.setOrders(residentMapper.selectOrdersByElderId(elderId));
+            List<OrderInfo> orders = residentMapper.selectOrdersByElderId(elderId);
+
+            // 填充每个订单的订单明细
+            if (orders != null && !orders.isEmpty()) {
+                for (OrderInfo order : orders) {
+                    List<OrderItem> items = orderItemMapper.selectOrderItemsByOrderId(order.getOrderId());
+                    order.setOrderItems(items);
+                }
+            }
+            residentVO.setOrders(orders);
 
             // 查询老人照片（从elder_info表）
             ElderInfo elderInfo = elderInfoMapper.selectElderInfoByElderId(elderId);
@@ -147,11 +157,21 @@ public class ResidentServiceImpl implements IResidentService
             throw new RuntimeException("未找到床位分配信息");
         }
 
-        // 4. 计算订单金额
-        // 应收总计 = 月服务费 × 续费月数 + 补交押金 + 补交会员费
+        // 判断是否为用户端支付
+        boolean isOnlinePayment = "online".equals(renewDTO.getPaymentMethod());
+
+        // 4. 获取老人当前有效价格（在创建订单之前获取，避免查询到正在创建的订单）
+        // 优先使用审核时修改的价格，如果没有则使用床位表的原始价格
+        ElderCurrentPriceVO currentPrice = getCurrentPrice(renewDTO.getElderId());
+        BigDecimal currentBedFee = currentPrice.getBedFee() != null ? currentPrice.getBedFee() : BigDecimal.ZERO;
+        BigDecimal currentCareFee = currentPrice.getCareFee() != null ? currentPrice.getCareFee() : BigDecimal.ZERO;
+        BigDecimal monthlyServiceFee = currentBedFee.add(currentCareFee); // 当前月服务费 = 床位费 + 护理费
+
+        // 5. 计算订单金额
+        // 应收总计 = (床位费 + 护理费) × 续费月数 + 补交押金 + 补交会员费
         BigDecimal serviceFeeTotal = BigDecimal.ZERO;
         if (renewDTO.getMonthCount() != null && renewDTO.getMonthCount() > 0) {
-            serviceFeeTotal = bedAllocation.getMonthlyFee().multiply(new BigDecimal(renewDTO.getMonthCount()));
+            serviceFeeTotal = monthlyServiceFee.multiply(new BigDecimal(renewDTO.getMonthCount()));
         }
 
         BigDecimal depositAmount = renewDTO.getDepositAmount() != null ? renewDTO.getDepositAmount() : BigDecimal.ZERO;
@@ -177,19 +197,29 @@ public class ResidentServiceImpl implements IResidentService
         orderInfo.setElderId(renewDTO.getElderId());
         orderInfo.setInstitutionId(existingOrder.getInstitutionId());
         orderInfo.setOrderAmount(finalAmount); // 订单金额 = 实收总计
-        orderInfo.setPaidAmount(finalAmount); // 续费直接支付
         orderInfo.setOriginalAmount(calculatedTotal); // 原始金额 = 应收总计
         orderInfo.setDiscountAmount(discountAmount); // 优惠金额
-        orderInfo.setOrderStatus("1"); // 1-已支付
-        orderInfo.setPaymentMethod(renewDTO.getPaymentMethod());
-        orderInfo.setPaymentTime(DateUtils.getNowDate());
+
+        // 用户端支付时状态为待支付(0)，其他支付方式直接已支付(1)
+        if (isOnlinePayment) {
+            orderInfo.setOrderStatus("0"); // 待支付，用户在H5端支付
+            orderInfo.setPaymentMethod("online"); // 用户端支付
+        } else {
+            orderInfo.setOrderStatus("1"); // 已支付
+            orderInfo.setPaidAmount(finalAmount);
+            orderInfo.setPaymentMethod(renewDTO.getPaymentMethod());
+            orderInfo.setPaymentTime(DateUtils.getNowDate());
+        }
+
         orderInfo.setOrderDate(new Date());
         orderInfo.setBillingCycle("月度");
         orderInfo.setRemark(renewDTO.getRemark());
         orderInfo.setCreateTime(DateUtils.getNowDate());
         orderInfo.setCreateBy(SecurityUtils.getUsername());
+        orderInfo.setCreatorUserId(userId); // 设置创建者ID，用于H5端支付验证
 
-        // 7. 如果续费月数>0,需要设置服务日期和月数,并更新到期日期
+        // 7. 如果续费月数>0,需要设置服务日期和月数
+        // 注意：用户端支付时，不更新到期日期，等用户支付成功后再更新
         if (renewDTO.getMonthCount() != null && renewDTO.getMonthCount() > 0) {
             // 计算服务起始日期(从当前到期日期开始,如果没有则从今天开始)
             Date serviceStartDate = bedAllocation.getDueDate();
@@ -208,31 +238,73 @@ public class ResidentServiceImpl implements IResidentService
             orderInfo.setServiceEndDate(serviceEndDate);
             orderInfo.setMonthCount(renewDTO.getMonthCount());
 
-            // 更新床位分配的到期日期
-            bedAllocation.setDueDate(serviceEndDate);
-            bedAllocation.setUpdateTime(DateUtils.getNowDate());
-            bedAllocation.setUpdateBy(SecurityUtils.getUsername());
-            bedAllocationMapper.updateBedAllocation(bedAllocation);
+            // 只有非用户端支付才立即更新到期日期
+            if (!isOnlinePayment) {
+                // 更新床位分配的到期日期
+                bedAllocation.setDueDate(serviceEndDate);
+                bedAllocation.setUpdateTime(DateUtils.getNowDate());
+                bedAllocation.setUpdateBy(SecurityUtils.getUsername());
+                bedAllocationMapper.updateBedAllocation(bedAllocation);
+            }
         }
 
         orderInfoMapper.insertOrderInfo(orderInfo);
         Long orderId = orderInfo.getOrderId();
 
         // 8. 创建订单明细(支持多个明细项)
-        // 8.1 如果有服务费续费
+        // 8.1 如果有服务费续费，分别创建床位费和护理费明细
         if (renewDTO.getMonthCount() != null && renewDTO.getMonthCount() > 0 && serviceFeeTotal.compareTo(BigDecimal.ZERO) > 0) {
-            OrderItem serviceItem = new OrderItem();
-            serviceItem.setOrderId(orderId);
-            serviceItem.setOrderNo(orderNo);
-            serviceItem.setItemType("service_fee");
-            serviceItem.setItemName("月服务费");
-            serviceItem.setItemDescription(renewDTO.getMonthCount() + "个月服务费");
-            serviceItem.setUnitPrice(bedAllocation.getMonthlyFee());
-            serviceItem.setQuantity(renewDTO.getMonthCount().longValue());
-            serviceItem.setTotalAmount(serviceFeeTotal);
-            serviceItem.setCreateTime(DateUtils.getNowDate());
-            serviceItem.setCreateBy(SecurityUtils.getUsername());
-            orderItemMapper.insertOrderItem(serviceItem);
+            // 使用前面已获取的当前价格明细（床位费和护理费分开）
+            BigDecimal bedFee = currentBedFee;
+            BigDecimal careFee = currentCareFee;
+
+            // 创建床位费明细
+            if (bedFee.compareTo(BigDecimal.ZERO) > 0) {
+                OrderItem bedItem = new OrderItem();
+                bedItem.setOrderId(orderId);
+                bedItem.setOrderNo(orderNo);
+                bedItem.setItemType("bed_fee");
+                bedItem.setItemName("床位费");
+                bedItem.setItemDescription("床位费" + renewDTO.getMonthCount() + "个月");
+                bedItem.setUnitPrice(bedFee);
+                bedItem.setQuantity(renewDTO.getMonthCount().longValue());
+                bedItem.setTotalAmount(bedFee.multiply(new BigDecimal(renewDTO.getMonthCount())));
+                bedItem.setServicePeriod(renewDTO.getMonthCount() + "个月");
+                bedItem.setCreateTime(DateUtils.getNowDate());
+                bedItem.setCreateBy(SecurityUtils.getUsername());
+
+                // 如果价格被修改过，保存原始价格
+                if (currentPrice.getBedFeeModified() != null && currentPrice.getBedFeeModified() && currentPrice.getBedFeeOriginal() != null) {
+                    bedItem.setIsPriceModified("1");
+                    bedItem.setOriginalUnitPrice(currentPrice.getBedFeeOriginal());
+                }
+
+                orderItemMapper.insertOrderItem(bedItem);
+            }
+
+            // 创建护理费明细
+            if (careFee.compareTo(BigDecimal.ZERO) > 0) {
+                OrderItem careItem = new OrderItem();
+                careItem.setOrderId(orderId);
+                careItem.setOrderNo(orderNo);
+                careItem.setItemType("care_fee");
+                careItem.setItemName("护理费");
+                careItem.setItemDescription("护理费" + renewDTO.getMonthCount() + "个月");
+                careItem.setUnitPrice(careFee);
+                careItem.setQuantity(renewDTO.getMonthCount().longValue());
+                careItem.setTotalAmount(careFee.multiply(new BigDecimal(renewDTO.getMonthCount())));
+                careItem.setServicePeriod(renewDTO.getMonthCount() + "个月");
+                careItem.setCreateTime(DateUtils.getNowDate());
+                careItem.setCreateBy(SecurityUtils.getUsername());
+
+                // 如果价格被修改过，保存原始价格
+                if (currentPrice.getCareFeeModified() != null && currentPrice.getCareFeeModified() && currentPrice.getCareFeeOriginal() != null) {
+                    careItem.setIsPriceModified("1");
+                    careItem.setOriginalUnitPrice(currentPrice.getCareFeeOriginal());
+                }
+
+                orderItemMapper.insertOrderItem(careItem);
+            }
         }
 
         // 8.2 如果有押金补缴
@@ -246,6 +318,7 @@ public class ResidentServiceImpl implements IResidentService
             depositItem.setUnitPrice(depositAmount);
             depositItem.setQuantity(1L);
             depositItem.setTotalAmount(depositAmount);
+            depositItem.setServicePeriod("一次性");
             depositItem.setCreateTime(DateUtils.getNowDate());
             depositItem.setCreateBy(SecurityUtils.getUsername());
             orderItemMapper.insertOrderItem(depositItem);
@@ -262,108 +335,112 @@ public class ResidentServiceImpl implements IResidentService
             memberItem.setUnitPrice(memberFee);
             memberItem.setQuantity(1L);
             memberItem.setTotalAmount(memberFee);
+            memberItem.setServicePeriod("一次性");
             memberItem.setCreateTime(DateUtils.getNowDate());
             memberItem.setCreateBy(SecurityUtils.getUsername());
             orderItemMapper.insertOrderItem(memberItem);
         }
 
-        // 9. 创建支付记录
-        PaymentRecord paymentRecord = new PaymentRecord();
-        paymentRecord.setPaymentNo("PAY" + System.currentTimeMillis()); // 支付流水号
-        paymentRecord.setOrderId(orderId);
-        paymentRecord.setElderId(renewDTO.getElderId());
-        paymentRecord.setInstitutionId(existingOrder.getInstitutionId());
-        paymentRecord.setPaymentAmount(finalAmount); // 支付金额 = 实收总计
-        paymentRecord.setPaymentMethod(renewDTO.getPaymentMethod()); // 支付方式
-        paymentRecord.setPaymentStatus("1"); // 支付状态:1-成功
-        paymentRecord.setPaymentTime(DateUtils.getNowDate()); // 支付时间
-        paymentRecord.setOperator(SecurityUtils.getUsername()); // 操作人
-        paymentRecord.setRemark("续费支付");
-        paymentRecord.setCreateTime(DateUtils.getNowDate());
-        paymentRecord.setCreateBy(SecurityUtils.getUsername());
-        paymentRecordMapper.insertPaymentRecord(paymentRecord);
+        // 9. 以下操作仅对非用户端支付执行
+        if (!isOnlinePayment) {
+            // 9.1 创建支付记录
+            PaymentRecord paymentRecord = new PaymentRecord();
+            paymentRecord.setPaymentNo("PAY" + System.currentTimeMillis()); // 支付流水号
+            paymentRecord.setOrderId(orderId);
+            paymentRecord.setElderId(renewDTO.getElderId());
+            paymentRecord.setInstitutionId(existingOrder.getInstitutionId());
+            paymentRecord.setPaymentAmount(finalAmount); // 支付金额 = 实收总计
+            paymentRecord.setPaymentMethod(renewDTO.getPaymentMethod()); // 支付方式
+            paymentRecord.setPaymentStatus("1"); // 支付状态:1-成功
+            paymentRecord.setPaymentTime(DateUtils.getNowDate()); // 支付时间
+            paymentRecord.setOperator(SecurityUtils.getUsername()); // 操作人
+            paymentRecord.setRemark("续费支付");
+            paymentRecord.setCreateTime(DateUtils.getNowDate());
+            paymentRecord.setCreateBy(SecurityUtils.getUsername());
+            paymentRecordMapper.insertPaymentRecord(paymentRecord);
 
-        // 10. 更新账户余额（如果有充值金额）
-        if (finalAmount.compareTo(BigDecimal.ZERO) > 0) {
-            // 查询或创建账户
-            AccountInfo account = accountInfoMapper.selectAccountInfoByElderId(renewDTO.getElderId());
-            if (account == null) {
-                // 创建新账户
-                account = new AccountInfo();
-                account.setElderId(renewDTO.getElderId());
-                account.setServiceBalance(BigDecimal.ZERO);
-                account.setDepositBalance(BigDecimal.ZERO);
-                account.setMemberBalance(BigDecimal.ZERO);
-                account.setTotalBalance(BigDecimal.ZERO);
-                account.setCreateTime(DateUtils.getNowDate());
-                account.setCreateBy(SecurityUtils.getUsername());
-                accountInfoMapper.insertAccountInfo(account);
+            // 9.2 更新账户余额（如果有充值金额）
+            if (finalAmount.compareTo(BigDecimal.ZERO) > 0) {
+                // 查询或创建账户
+                AccountInfo account = accountInfoMapper.selectAccountInfoByElderId(renewDTO.getElderId());
+                if (account == null) {
+                    // 创建新账户
+                    account = new AccountInfo();
+                    account.setElderId(renewDTO.getElderId());
+                    account.setServiceBalance(BigDecimal.ZERO);
+                    account.setDepositBalance(BigDecimal.ZERO);
+                    account.setMemberBalance(BigDecimal.ZERO);
+                    account.setTotalBalance(BigDecimal.ZERO);
+                    account.setCreateTime(DateUtils.getNowDate());
+                    account.setCreateBy(SecurityUtils.getUsername());
+                    accountInfoMapper.insertAccountInfo(account);
+                }
+
+                // 计算更新前的余额
+                BigDecimal oldServiceBalance = account.getServiceBalance() != null ? account.getServiceBalance() : BigDecimal.ZERO;
+                BigDecimal oldDepositBalance = account.getDepositBalance() != null ? account.getDepositBalance() : BigDecimal.ZERO;
+                BigDecimal oldMemberBalance = account.getMemberBalance() != null ? account.getMemberBalance() : BigDecimal.ZERO;
+
+                // 计算各项金额
+                BigDecimal serviceAmount = serviceFeeTotal;
+                BigDecimal renewDepositAmount = renewDTO.getDepositAmount() != null ? renewDTO.getDepositAmount() : BigDecimal.ZERO;
+                BigDecimal memberAmount = renewDTO.getMemberFee() != null ? renewDTO.getMemberFee() : BigDecimal.ZERO;
+
+                // 更新账户余额
+                account.setServiceBalance(oldServiceBalance.add(serviceAmount));
+                account.setDepositBalance(oldDepositBalance.add(renewDepositAmount));
+                account.setMemberBalance(oldMemberBalance.add(memberAmount));
+                account.setTotalBalance(account.getServiceBalance().add(account.getDepositBalance()));
+                account.setUpdateTime(DateUtils.getNowDate());
+                account.setUpdateBy(SecurityUtils.getUsername());
+                accountInfoMapper.updateAccountInfo(account);
             }
 
-            // 计算更新前的余额
-            BigDecimal oldServiceBalance = account.getServiceBalance() != null ? account.getServiceBalance() : BigDecimal.ZERO;
-            BigDecimal oldDepositBalance = account.getDepositBalance() != null ? account.getDepositBalance() : BigDecimal.ZERO;
-            BigDecimal oldMemberBalance = account.getMemberBalance() != null ? account.getMemberBalance() : BigDecimal.ZERO;
+            // 9.3 生成费用记录
+            if (finalAmount.compareTo(BigDecimal.ZERO) > 0) {
+                // 服务费充值记录
+                if (serviceFeeTotal.compareTo(BigDecimal.ZERO) > 0) {
+                    ExpenseRecord serviceRecord = new ExpenseRecord();
+                    serviceRecord.setElderId(renewDTO.getElderId());
+                    serviceRecord.setExpenseType("service");
+                    serviceRecord.setTransactionType("income");
+                    serviceRecord.setAmount(serviceFeeTotal);
+                    serviceRecord.setDescription("续费充值：" + renewDTO.getMonthCount() + "个月服务费");
+                    serviceRecord.setRelatedId(orderId);
+                    serviceRecord.setCreateTime(DateUtils.getNowDate());
+                    serviceRecord.setCreateBy(SecurityUtils.getUsername());
+                    expenseRecordMapper.insertExpenseRecord(serviceRecord);
+                }
 
-            // 计算各项金额
-            BigDecimal serviceAmount = serviceFeeTotal;
-            BigDecimal renewDepositAmount = renewDTO.getDepositAmount() != null ? renewDTO.getDepositAmount() : BigDecimal.ZERO;
-            BigDecimal memberAmount = renewDTO.getMemberFee() != null ? renewDTO.getMemberFee() : BigDecimal.ZERO;
+                // 押金补缴记录
+                BigDecimal depositRecordAmount = renewDTO.getDepositAmount() != null ? renewDTO.getDepositAmount() : BigDecimal.ZERO;
+                if (depositRecordAmount.compareTo(BigDecimal.ZERO) > 0) {
+                    ExpenseRecord depositRecord = new ExpenseRecord();
+                    depositRecord.setElderId(renewDTO.getElderId());
+                    depositRecord.setExpenseType("deposit");
+                    depositRecord.setTransactionType("income");
+                    depositRecord.setAmount(depositRecordAmount);
+                    depositRecord.setDescription("押金补缴");
+                    depositRecord.setRelatedId(orderId);
+                    depositRecord.setCreateTime(DateUtils.getNowDate());
+                    depositRecord.setCreateBy(SecurityUtils.getUsername());
+                    expenseRecordMapper.insertExpenseRecord(depositRecord);
+                }
 
-            // 更新账户余额
-            account.setServiceBalance(oldServiceBalance.add(serviceAmount));
-            account.setDepositBalance(oldDepositBalance.add(renewDepositAmount));
-            account.setMemberBalance(oldMemberBalance.add(memberAmount));
-            account.setTotalBalance(account.getServiceBalance().add(account.getDepositBalance()));
-            account.setUpdateTime(DateUtils.getNowDate());
-            account.setUpdateBy(SecurityUtils.getUsername());
-            accountInfoMapper.updateAccountInfo(account);
-        }
-
-        // 11. 生成费用记录
-        if (finalAmount.compareTo(BigDecimal.ZERO) > 0) {
-            // 服务费充值记录
-            if (serviceFeeTotal.compareTo(BigDecimal.ZERO) > 0) {
-                ExpenseRecord serviceRecord = new ExpenseRecord();
-                serviceRecord.setElderId(renewDTO.getElderId());
-                serviceRecord.setExpenseType("service");
-                serviceRecord.setTransactionType("income");
-                serviceRecord.setAmount(serviceFeeTotal);
-                serviceRecord.setDescription("续费充值：" + renewDTO.getMonthCount() + "个月服务费");
-                serviceRecord.setRelatedId(orderId);
-                serviceRecord.setCreateTime(DateUtils.getNowDate());
-                serviceRecord.setCreateBy(SecurityUtils.getUsername());
-                expenseRecordMapper.insertExpenseRecord(serviceRecord);
-            }
-
-            // 押金补缴记录
-            BigDecimal depositRecordAmount = renewDTO.getDepositAmount() != null ? renewDTO.getDepositAmount() : BigDecimal.ZERO;
-            if (depositRecordAmount.compareTo(BigDecimal.ZERO) > 0) {
-                ExpenseRecord depositRecord = new ExpenseRecord();
-                depositRecord.setElderId(renewDTO.getElderId());
-                depositRecord.setExpenseType("deposit");
-                depositRecord.setTransactionType("income");
-                depositRecord.setAmount(depositRecordAmount);
-                depositRecord.setDescription("押金补缴");
-                depositRecord.setRelatedId(orderId);
-                depositRecord.setCreateTime(DateUtils.getNowDate());
-                depositRecord.setCreateBy(SecurityUtils.getUsername());
-                expenseRecordMapper.insertExpenseRecord(depositRecord);
-            }
-
-            // 会员费补缴记录
-            BigDecimal memberAmount = renewDTO.getMemberFee() != null ? renewDTO.getMemberFee() : BigDecimal.ZERO;
-            if (memberAmount.compareTo(BigDecimal.ZERO) > 0) {
-                ExpenseRecord memberRecord = new ExpenseRecord();
-                memberRecord.setElderId(renewDTO.getElderId());
-                memberRecord.setExpenseType("member");
-                memberRecord.setTransactionType("income");
-                memberRecord.setAmount(memberAmount);
-                memberRecord.setDescription("会员费补缴");
-                memberRecord.setRelatedId(orderId);
-                memberRecord.setCreateTime(DateUtils.getNowDate());
-                memberRecord.setCreateBy(SecurityUtils.getUsername());
-                expenseRecordMapper.insertExpenseRecord(memberRecord);
+                // 会员费补缴记录
+                BigDecimal memberAmount = renewDTO.getMemberFee() != null ? renewDTO.getMemberFee() : BigDecimal.ZERO;
+                if (memberAmount.compareTo(BigDecimal.ZERO) > 0) {
+                    ExpenseRecord memberRecord = new ExpenseRecord();
+                    memberRecord.setElderId(renewDTO.getElderId());
+                    memberRecord.setExpenseType("member");
+                    memberRecord.setTransactionType("income");
+                    memberRecord.setAmount(memberAmount);
+                    memberRecord.setDescription("会员费补缴");
+                    memberRecord.setRelatedId(orderId);
+                    memberRecord.setCreateTime(DateUtils.getNowDate());
+                    memberRecord.setCreateBy(SecurityUtils.getUsername());
+                    expenseRecordMapper.insertExpenseRecord(memberRecord);
+                }
             }
         }
 
@@ -379,6 +456,154 @@ public class ResidentServiceImpl implements IResidentService
     public Map<String, Object> getResidentStatistics()
     {
         return residentMapper.selectResidentStatistics();
+    }
+
+    /**
+     * 获取老人当前有效价格
+     * 优先从最近已支付订单中获取修改后的价格
+     *
+     * @param elderId 老人ID
+     * @return 当前价格信息
+     */
+    @Override
+    public ElderCurrentPriceVO getCurrentPrice(Long elderId)
+    {
+        ElderCurrentPriceVO priceVO = new ElderCurrentPriceVO();
+        priceVO.setElderId(elderId);
+
+        // 1. 查询床位分配信息，获取原始月服务费
+        BedAllocation bedAllocation = bedAllocationMapper.selectBedAllocationByElderId(elderId);
+        BigDecimal originalMonthlyFee = bedAllocation != null && bedAllocation.getMonthlyFee() != null
+            ? bedAllocation.getMonthlyFee() : BigDecimal.ZERO;
+
+        // 2. 查询最近已支付的订单（获取修改后的价格）
+        OrderInfo queryOrder = new OrderInfo();
+        queryOrder.setElderId(elderId);
+        queryOrder.setOrderStatus("1"); // 已支付
+        List<OrderInfo> paidOrders = orderInfoMapper.selectOrderInfoList(queryOrder);
+
+        BigDecimal currentBedFee = null;
+        BigDecimal currentCareFee = null;
+        BigDecimal currentDeposit = null;
+        BigDecimal currentMemberFee = null;
+        BigDecimal bedFeeOriginal = null;
+        BigDecimal careFeeOriginal = null;
+        BigDecimal depositOriginal = null;
+        BigDecimal memberFeeOriginal = null;
+        Boolean bedFeeModified = false;
+        Boolean careFeeModified = false;
+        Boolean depositModified = false;
+        Boolean memberFeeModified = false;
+        String lastPaymentTime = null;
+
+        // 遍历订单，获取最近一次支付的价格信息
+        if (paidOrders != null && !paidOrders.isEmpty()) {
+            // 按优先级排序：
+            // 1. 优先选择有价格变更记录的订单（订单明细中is_price_modified='1'的订单）
+            // 2. 如果都有或都没有价格变更记录，则按支���时间降序排序
+            paidOrders.sort((o1, o2) -> {
+                // 首先按支付时间降序排序
+                int timeCompare = compareByPaymentTime(o1, o2);
+                if (timeCompare != 0) {
+                    return timeCompare;
+                }
+                // 支付时间相同，按订单ID降序排序（ID越大越新）
+                return o2.getOrderId().compareTo(o1.getOrderId());
+            });
+
+            // 查找有价格变更记录的最新订单
+            OrderInfo lastPaidOrder = null;
+            for (OrderInfo order : paidOrders) {
+                List<OrderItem> items = orderItemMapper.selectOrderItemsByOrderId(order.getOrderId());
+                if (items != null && !items.isEmpty()) {
+                    boolean hasPriceModified = items.stream()
+                        .anyMatch(item -> "1".equals(item.getIsPriceModified()));
+                    if (hasPriceModified) {
+                        lastPaidOrder = order;
+                        break;
+                    }
+                }
+            }
+            // 如果没有找到有价格变更记录的订单，使用第一个（支付时间最新的）
+            if (lastPaidOrder == null) {
+                lastPaidOrder = paidOrders.get(0);
+            }
+            if (lastPaidOrder.getPaymentTime() != null) {
+                lastPaymentTime = DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, lastPaidOrder.getPaymentTime());
+            }
+
+            // 获取订单明细
+            List<OrderItem> items = orderItemMapper.selectOrderItemsByOrderId(lastPaidOrder.getOrderId());
+            if (items != null) {
+                for (OrderItem item : items) {
+                    if ("bed_fee".equals(item.getItemType())) {
+                        currentBedFee = item.getUnitPrice();
+                        if ("1".equals(item.getIsPriceModified()) && item.getOriginalUnitPrice() != null) {
+                            bedFeeOriginal = item.getOriginalUnitPrice();
+                            bedFeeModified = true;
+                        }
+                    } else if ("care_fee".equals(item.getItemType())) {
+                        currentCareFee = item.getUnitPrice();
+                        if ("1".equals(item.getIsPriceModified()) && item.getOriginalUnitPrice() != null) {
+                            careFeeOriginal = item.getOriginalUnitPrice();
+                            careFeeModified = true;
+                        }
+                    } else if ("deposit".equals(item.getItemType())) {
+                        currentDeposit = item.getUnitPrice();
+                        if ("1".equals(item.getIsPriceModified()) && item.getOriginalUnitPrice() != null) {
+                            depositOriginal = item.getOriginalUnitPrice();
+                            depositModified = true;
+                        }
+                    } else if ("member_fee".equals(item.getItemType())) {
+                        currentMemberFee = item.getUnitPrice();
+                        if ("1".equals(item.getIsPriceModified()) && item.getOriginalUnitPrice() != null) {
+                            memberFeeOriginal = item.getOriginalUnitPrice();
+                            memberFeeModified = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. 如果没有找到订单价格，使用床位分配表的月服务费作为默认值
+        if (currentBedFee == null && currentCareFee == null) {
+            // 没有历史订单，使用床位分配表的月服务费
+            // 这里需要拆分床位费和护理费，暂时按默认比例拆分（床位费60%，护理费40%）
+            if (originalMonthlyFee.compareTo(BigDecimal.ZERO) > 0) {
+                currentBedFee = originalMonthlyFee.multiply(new BigDecimal("0.6"));
+                currentCareFee = originalMonthlyFee.multiply(new BigDecimal("0.4"));
+            }
+        }
+
+        // 4. 设置返回值
+        priceVO.setBedFee(currentBedFee != null ? currentBedFee : BigDecimal.ZERO);
+        priceVO.setBedFeeOriginal(bedFeeOriginal);
+        priceVO.setBedFeeModified(bedFeeModified);
+
+        priceVO.setCareFee(currentCareFee != null ? currentCareFee : BigDecimal.ZERO);
+        priceVO.setCareFeeOriginal(careFeeOriginal);
+        priceVO.setCareFeeModified(careFeeModified);
+
+        priceVO.setDepositFee(currentDeposit != null ? currentDeposit : BigDecimal.ZERO);
+        priceVO.setDepositFeeOriginal(depositOriginal);
+        priceVO.setDepositFeeModified(depositModified);
+
+        priceVO.setMemberFee(currentMemberFee != null ? currentMemberFee : BigDecimal.ZERO);
+        priceVO.setMemberFeeOriginal(memberFeeOriginal);
+        priceVO.setMemberFeeModified(memberFeeModified);
+
+        // 计算月服务费总计
+        BigDecimal monthlyTotal = BigDecimal.ZERO;
+        if (priceVO.getBedFee() != null) {
+            monthlyTotal = monthlyTotal.add(priceVO.getBedFee());
+        }
+        if (priceVO.getCareFee() != null) {
+            monthlyTotal = monthlyTotal.add(priceVO.getCareFee());
+        }
+        priceVO.setMonthlyFeeTotal(monthlyTotal);
+        priceVO.setLastPaymentTime(lastPaymentTime);
+
+        return priceVO;
     }
 
     /**
@@ -427,5 +652,22 @@ public class ResidentServiceImpl implements IResidentService
 
         // 4. 删除老人信息
         return elderInfoMapper.deleteElderInfoByElderId(residentId);
+    }
+
+    /**
+     * 按支付时间比较两个订单（降序）
+     * 支付时间为null的排在后面
+     */
+    private int compareByPaymentTime(OrderInfo o1, OrderInfo o2) {
+        if (o1.getPaymentTime() == null && o2.getPaymentTime() == null) {
+            return 0;
+        }
+        if (o1.getPaymentTime() == null) {
+            return 1; // o1的支付时间为null，排后面
+        }
+        if (o2.getPaymentTime() == null) {
+            return -1; // o2的支付时间为null，排后面
+        }
+        return o2.getPaymentTime().compareTo(o1.getPaymentTime()); // 降序排序
     }
 }

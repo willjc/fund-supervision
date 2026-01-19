@@ -28,7 +28,7 @@ public class RenewDTO
     /** 实收总计 */
     private BigDecimal finalAmount;
 
-    /** 支付方式: cash-现金, card-刷卡, scan-扫码 */
+    /** 支付方式: cash-现金, card-刷卡, scan-扫码, online-用户端支付(H5) */
     private String paymentMethod;
 
     /** 备注 */

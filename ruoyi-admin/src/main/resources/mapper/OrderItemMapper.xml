@@ -12,6 +12,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="itemType"    column="item_type"    />
         <result property="itemDescription"    column="item_description"    />
         <result property="unitPrice"    column="unit_price"    />
+        <result property="originalUnitPrice"    column="original_unit_price"    />
+        <result property="isPriceModified"    column="is_price_modified"    />
         <result property="quantity"    column="quantity"    />
         <result property="totalAmount"    column="total_amount"    />
         <result property="servicePeriod"    column="service_period"    />
@@ -23,7 +25,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectOrderItemVo">
-        select item_id, order_id, order_no, item_name, item_type, item_description, unit_price, quantity, total_amount, service_period, create_by, create_time, update_by, update_time, remark from order_item
+        select item_id, order_id, order_no, item_name, item_type, item_description, unit_price, original_unit_price, is_price_modified, quantity, total_amount, service_period, create_by, create_time, update_by, update_time, remark from order_item
     </sql>
 
     <select id="selectOrderItemList" parameterType="OrderItem" resultMap="OrderItemResult">
@@ -57,6 +59,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="itemType != null and itemType != ''">item_type,</if>
             <if test="itemDescription != null">item_description,</if>
             <if test="unitPrice != null">unit_price,</if>
+            <if test="originalUnitPrice != null">original_unit_price,</if>
+            <if test="isPriceModified != null">is_price_modified,</if>
             <if test="quantity != null">quantity,</if>
             <if test="totalAmount != null">total_amount,</if>
             <if test="servicePeriod != null and servicePeriod != ''">service_period,</if>
@@ -73,6 +77,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="itemType != null and itemType != ''">#{itemType},</if>
             <if test="itemDescription != null">#{itemDescription},</if>
             <if test="unitPrice != null">#{unitPrice},</if>
+            <if test="originalUnitPrice != null">#{originalUnitPrice},</if>
+            <if test="isPriceModified != null">#{isPriceModified},</if>
             <if test="quantity != null">#{quantity},</if>
             <if test="totalAmount != null">#{totalAmount},</if>
             <if test="servicePeriod != null and servicePeriod != ''">#{servicePeriod},</if>
@@ -93,6 +99,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="itemType != null and itemType != ''">item_type = #{itemType},</if>
             <if test="itemDescription != null">item_description = #{itemDescription},</if>
             <if test="unitPrice != null">unit_price = #{unitPrice},</if>
+            <if test="originalUnitPrice != null">original_unit_price = #{originalUnitPrice},</if>
+            <if test="isPriceModified != null">is_price_modified = #{isPriceModified},</if>
             <if test="quantity != null">quantity = #{quantity},</if>
             <if test="totalAmount != null">total_amount = #{totalAmount},</if>
             <if test="servicePeriod != null and servicePeriod != ''">service_period = #{servicePeriod},</if>

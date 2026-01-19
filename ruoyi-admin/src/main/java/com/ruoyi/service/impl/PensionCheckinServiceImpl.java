@@ -339,19 +339,27 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
     /**
      * 根据护理等级获取护理费
      * @param bed 床位信息
-     * @param careLevel 护理等级（1自理 2半护理 3全护理）
+     * @param careLevel 护理等级（支持中文：自理/半护理/全护理 或 数字：1/2/3）
      * @return 护理费
      */
     private BigDecimal getCareFeeByLevel(com.ruoyi.domain.BedInfo bed, String careLevel) {
+        if (careLevel == null) {
+            return bed.getSelfCarePrice() != null ? bed.getSelfCarePrice() : new BigDecimal("500");
+        }
+
+        // 支持中文和数字两种格式
         switch (careLevel) {
-            case "1": // 自理
+            case "1":
+            case "自理":
                 return bed.getSelfCarePrice() != null ? bed.getSelfCarePrice() : new BigDecimal("500");
-            case "2": // 半护理
+            case "2":
+            case "半护理":
                 return bed.getHalfCarePrice() != null ? bed.getHalfCarePrice() : new BigDecimal("800");
-            case "3": // 全护理
+            case "3":
+            case "全护理":
                 return bed.getFullCarePrice() != null ? bed.getFullCarePrice() : new BigDecimal("1200");
             default:
-                return new BigDecimal("500"); // 默认自理价格
+                return bed.getSelfCarePrice() != null ? bed.getSelfCarePrice() : new BigDecimal("500");
         }
     }
 

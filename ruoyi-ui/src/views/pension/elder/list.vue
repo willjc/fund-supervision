@@ -369,7 +369,50 @@
             <i class="el-icon-document"></i> 订单记录
             <span style="font-size: 12px; color: #909399; font-weight: normal;">(共{{ (residentDetail.orders || []).length }}条)</span>
           </h4>
-          <el-table :data="residentDetail.orders || []" border style="width: 100%" max-height="300">
+          <el-table :data="residentDetail.orders || []" border style="width: 100%" max-height="300" :expand-row-keys="expandedOrderKeys" @expand-change="handleOrderExpand" row-key="orderId">
+            <el-table-column type="expand">
+              <template slot-scope="scope">
+                <div style="padding: 10px; background-color: #f9f9f9;">
+                  <!-- 价格变更汇总 -->
+                  <div v-if="getOrderPriceModified(scope.row).length > 0" style="margin-bottom: 15px; padding: 10px; background-color: #fff7e6; border: 1px solid #ffd591; border-radius: 4px">
+                    <div style="color: #e6a23c; font-weight: bold; margin-bottom: 5px">
+                      <i class="el-icon-warning"></i> 价格变更记录
+                    </div>
+                    <div v-for="item in getOrderPriceModified(scope.row)" :key="item.itemId" style="font-size: 12px; color: #606266; margin-bottom: 3px">
+                      {{ item.itemName }}：¥{{ item.originalUnitPrice }} → ¥{{ item.unitPrice }}
+                      <span style="color: #f56c6c; margin-left: 10px">
+                        差额：{{ (item.unitPrice - item.originalUnitPrice) >= 0 ? '+' : '' }}{{ (item.unitPrice - item.originalUnitPrice).toFixed(2) }}元
+                      </span>
+                    </div>
+                  </div>
+                  <!-- 订单明细表格 -->
+                  <el-table :data="scope.row.orderItems || []" size="small" border>
+                    <el-table-column prop="itemName" label="项目名称" width="120" />
+                    <el-table-column label="单价" width="150">
+                      <template slot-scope="itemScope">
+                        <div v-if="itemScope.row.isPriceModified === '1' && itemScope.row.originalUnitPrice">
+                          <span style="color: #909399; text-decoration: line-through; font-size: 12px;">¥{{ itemScope.row.originalUnitPrice }}</span>
+                          <span style="color: #E6A23C; font-weight: bold; margin: 0 4px;">→</span>
+                          <span style="color: #ee0a24; font-weight: bold;">¥{{ itemScope.row.unitPrice }}</span>
+                          <el-tag type="warning" size="mini" style="margin-left: 5px">已修改</el-tag>
+                        </div>
+                        <div v-else>
+                          <span style="color: #E6A23C; font-weight: bold;">¥{{ itemScope.row.unitPrice }}</span>
+                        </div>
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="quantity" label="数量" width="60" align="center" />
+                    <el-table-column prop="totalAmount" label="小计" width="100">
+                      <template slot-scope="itemScope">
+                        <span style="color: #E6A23C; font-weight: bold;">¥{{ formatMoney(itemScope.row.totalAmount) }}</span>
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="servicePeriod" label="服务周期" width="100" />
+                    <el-table-column prop="itemDescription" label="描述" show-overflow-tooltip />
+                  </el-table>
+                </div>
+              </template>
+            </el-table-column>
             <el-table-column prop="orderNo" label="订单号" width="170"></el-table-column>
             <el-table-column label="订单类型" width="90">
               <template slot-scope="scope">
@@ -415,6 +458,8 @@
                 <el-tag v-else-if="scope.row && scope.row.orderStatus === '1'" type="success">已支付</el-tag>
                 <el-tag v-else-if="scope.row && scope.row.orderStatus === '2'" type="info">已取消</el-tag>
                 <el-tag v-else-if="scope.row && scope.row.orderStatus === '3'" type="danger">已退款</el-tag>
+                <el-tag v-else-if="scope.row && scope.row.orderStatus === '4'" type="primary">待审核</el-tag>
+                <el-tag v-else-if="scope.row && scope.row.orderStatus === '5'" type="warning">待付款</el-tag>
                 <el-tag v-else type="info">-</el-tag>
               </template>
             </el-table-column>
@@ -505,81 +550,69 @@
         <el-divider content-position="left">
           <i class="el-icon-wallet"></i> 费用设置
         </el-divider>
-        <el-row :gutter="20">
-          <el-col :span="8">
-            <el-form-item label="床位费">
-              <el-input-number
-                v-model="renewForm.bedFee"
-                :min="0"
-                :precision="2"
-                style="width: 100%;"
-                disabled />
-              <span style="margin-left: 10px; color: #909399;">元/月</span>
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="护理费">
-              <el-input-number
-                v-model="renewForm.careFee"
-                :min="0"
-                :precision="2"
-                style="width: 100%;"
-                disabled />
-              <span style="margin-left: 10px; color: #909399;">元/月</span>
-              <div style="font-size: 12px; color: #E6A23C; margin-top: 4px;" v-if="renewForm.careLevelText">
-                ({{ renewForm.careLevelText }})
+
+        <!-- 当前价格展示卡片 -->
+        <el-card shadow="never" style="margin-bottom: 15px; background: #f5f7fa;">
+          <div slot="header" style="font-size: 14px; color: #606266; padding: 0;">
+            <i class="el-icon-price-tag"></i> 当前价格（元/月）
+          </div>
+          <el-row :gutter="16">
+            <el-col :span="8">
+              <div class="fee-item">
+                <div class="fee-label">床位费</div>
+                <div class="fee-value">¥{{ formatMoney(renewForm.bedFee) }}</div>
               </div>
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="月服务费">
-              <el-input-number
-                v-model="renewForm.monthlyFee"
-                :min="0"
-                :precision="2"
-                style="width: 100%;"
-                @change="calculateRenewTotal"
-                disabled />
-              <span style="margin-left: 10px; color: #909399;">元/月</span>
-              <div style="font-size: 12px; color: #409EFF; margin-top: 4px;">
-                *床位费 + 护理费
+            </el-col>
+            <el-col :span="8">
+              <div class="fee-item">
+                <div class="fee-label">护理费</div>
+                <div class="fee-value">¥{{ formatMoney(renewForm.careFee) }}</div>
+                <div class="fee-extra" v-if="renewForm.careLevelText">{{ renewForm.careLevelText }}</div>
               </div>
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="20">
-          <el-col :span="8">
+            </el-col>
+            <el-col :span="8">
+              <div class="fee-item">
+                <div class="fee-label">月服务费</div>
+                <div class="fee-value primary">¥{{ formatMoney(renewForm.monthlyFee) }}</div>
+                <div class="fee-extra">床位费 + 护理费</div>
+              </div>
+            </el-col>
+          </el-row>
+        </el-card>
+
+        <!-- 续费配置 -->
+        <el-row :gutter="16">
+          <el-col :span="12">
             <el-form-item label="续费月数" prop="monthCount">
               <el-input-number
                 v-model="renewForm.monthCount"
                 :min="0"
                 :max="120"
                 :precision="0"
-                style="width: 100%;"
+                style="width: 160px;"
                 @change="calculateRenewTotal" />
-              <span style="margin-left: 10px; color: #909399;">个月</span>
+              <span style="margin-left: 8px; color: #909399;">个月</span>
             </el-form-item>
           </el-col>
-          <el-col :span="8">
+          <el-col :span="12">
             <el-form-item label="服务费小计">
-              <el-input
-                :value="formatMoney(renewServiceFeeTotal)"
-                disabled
-                style="width: 100%;" />
-              <span style="margin-left: 10px; color: #909399;">元</span>
+              <span style="font-size: 16px; font-weight: bold; color: #409EFF;">¥{{ formatMoney(renewServiceFeeTotal) }}</span>
+              <span style="margin-left: 8px; color: #909399; font-size: 12px;">
+                (¥{{ formatMoney(renewForm.monthlyFee) }} × {{ renewForm.monthCount }}个月)
+              </span>
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row :gutter="20">
+        <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="补交押金金额" prop="depositAmount">
+            <el-form-item label="补交押金" prop="depositAmount">
               <el-input-number
                 v-model="renewForm.depositAmount"
                 :min="0"
                 :precision="2"
-                style="width: 100%;"
+                style="width: 160px;"
                 @change="calculateRenewTotal" />
-              <span style="margin-left: 10px; color: #909399;">元</span>
+              <span style="margin-left: 8px; color: #909399;">元</span>
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -588,49 +621,102 @@
                 v-model="renewForm.memberFee"
                 :min="0"
                 :precision="2"
-                style="width: 100%;"
+                style="width: 160px;"
                 @change="calculateRenewTotal" />
-              <span style="margin-left: 10px; color: #909399;">元</span>
+              <span style="margin-left: 8px; color: #909399;">元</span>
             </el-form-item>
           </el-col>
         </el-row>
 
+        <!-- 价格变更记录 -->
+        <el-alert
+          v-if="hasPriceModified"
+          type="warning"
+          :closable="false"
+          style="margin-bottom: 15px;">
+          <template slot="title">
+            <i class="el-icon-warning"></i> 价格变更记录
+            <span style="margin-left: 10px; font-size: 12px; opacity: 0.8;">最近支付时间: {{ currentPrice.lastPaymentTime || '无' }}</span>
+          </template>
+          <div slot="default" style="margin-top: 10px;">
+            <!-- 第一行 -->
+            <el-row :gutter="10" style="margin-bottom: 8px;">
+              <el-col :span="12" v-if="currentPrice.bedFeeModified">
+                <div class="price-change-item">
+                  <span class="price-label">床位费</span>
+                  <span class="price-old">¥{{ formatMoney(currentPrice.bedFeeOriginal) }}</span>
+                  <i class="el-icon-right" style="margin: 0 6px;"></i>
+                  <span class="price-new">¥{{ formatMoney(currentPrice.bedFee) }}</span>
+                </div>
+              </el-col>
+              <el-col :span="12" v-if="currentPrice.careFeeModified">
+                <div class="price-change-item">
+                  <span class="price-label">护理费</span>
+                  <span class="price-old">¥{{ formatMoney(currentPrice.careFeeOriginal) }}</span>
+                  <i class="el-icon-right" style="margin: 0 6px;"></i>
+                  <span class="price-new">¥{{ formatMoney(currentPrice.careFee) }}</span>
+                </div>
+              </el-col>
+            </el-row>
+            <!-- 第二行 -->
+            <el-row :gutter="10">
+              <el-col :span="12" v-if="currentPrice.depositFeeModified">
+                <div class="price-change-item">
+                  <span class="price-label">押金</span>
+                  <span class="price-old">¥{{ formatMoney(currentPrice.depositFeeOriginal) }}</span>
+                  <i class="el-icon-right" style="margin: 0 6px;"></i>
+                  <span class="price-new">¥{{ formatMoney(currentPrice.depositFee) }}</span>
+                </div>
+              </el-col>
+              <el-col :span="12" v-if="currentPrice.memberFeeModified">
+                <div class="price-change-item">
+                  <span class="price-label">会员费</span>
+                  <span class="price-old">¥{{ formatMoney(currentPrice.memberFeeOriginal) }}</span>
+                  <i class="el-icon-right" style="margin: 0 6px;"></i>
+                  <span class="price-new">¥{{ formatMoney(currentPrice.memberFee) }}</span>
+                </div>
+              </el-col>
+            </el-row>
+          </div>
+        </el-alert>
+
         <!-- 费用汇总 -->
-        <el-card shadow="never" class="fee-summary" style="margin-bottom: 20px;">
-          <div slot="header">
+        <el-card shadow="never" style="margin-bottom: 15px;">
+          <div slot="header" style="font-size: 14px; color: #606266;">
             <i class="el-icon-s-finance"></i> 费用汇总
           </div>
-          <el-descriptions :column="2" border>
-            <el-descriptions-item label="床位费">¥{{ formatMoney(renewForm.bedFee) }}/月</el-descriptions-item>
-            <el-descriptions-item label="护理费">¥{{ formatMoney(renewForm.careFee) }}/月 ({{ renewForm.careLevelText }})</el-descriptions-item>
-            <el-descriptions-item label="月服务费">¥{{ formatMoney(renewForm.monthlyFee) }} × {{ renewForm.monthCount }}个月</el-descriptions-item>
-            <el-descriptions-item label="服务费小计">¥{{ formatMoney(renewServiceFeeTotal) }}</el-descriptions-item>
-            <el-descriptions-item label="补交押金">¥{{ formatMoney(renewForm.depositAmount) }}</el-descriptions-item>
-            <el-descriptions-item label="补交会员费">¥{{ formatMoney(renewForm.memberFee) }}</el-descriptions-item>
-            <el-descriptions-item label="应收总计" :span="2">
-              <span style="font-size: 18px; font-weight: bold; color: #409EFF;">¥{{ formatMoney(renewCalculatedTotal) }}</span>
-            </el-descriptions-item>
-            <el-descriptions-item label="实收总计" :span="2">
-              <el-input-number
-                v-model="renewForm.finalAmount"
-                :min="0"
-                :precision="2"
-                controls-position="right"
-                style="width: 200px;" />
-              <span style="margin-left: 10px; color: #909399;">元（可手动调整优惠）</span>
-              <span v-if="renewDiscountAmount > 0" style="margin-left: 10px; color: #67C23A;">
-                已优惠: ¥{{ formatMoney(renewDiscountAmount) }}
-              </span>
-            </el-descriptions-item>
-            <el-descriptions-item label="新到期日期" :span="2" v-if="renewForm.monthCount > 0">
-              <span style="font-size: 16px; font-weight: bold; color: #67C23A;">
-                {{ parseTime(renewForm.newDueDate, '{y}-{m}-{d}') }}
-              </span>
-              <span style="margin-left: 10px; color: #909399;">
-                (延长{{ renewForm.monthCount }}个月)
-              </span>
-            </el-descriptions-item>
-          </el-descriptions>
+          <el-row :gutter="16">
+            <el-col :span="12">
+              <div class="summary-item">
+                <span class="summary-label">应收总计</span>
+                <span class="summary-value blue">¥{{ formatMoney(renewCalculatedTotal) }}</span>
+              </div>
+            </el-col>
+            <el-col :span="12">
+              <div class="summary-item">
+                <span class="summary-label">实收总计</span>
+                <el-input-number
+                  v-model="renewForm.finalAmount"
+                  :min="0"
+                  :precision="2"
+                  :controls-position="false"
+                  size="small"
+                  style="width: 140px;" />
+                <span style="margin-left: 8px; color: #909399; font-size: 12px;">元</span>
+                <el-tag v-if="renewDiscountAmount > 0" type="success" size="mini" style="margin-left: 8px;">
+                  已优惠 ¥{{ formatMoney(renewDiscountAmount) }}
+                </el-tag>
+              </div>
+            </el-col>
+          </el-row>
+          <el-divider style="margin: 12px 0;"></el-divider>
+          <div v-if="renewForm.monthCount > 0" style="text-align: center;">
+            <span style="color: #909399;">新到期日期</span>
+            <span style="margin: 0 10px; font-size: 18px; font-weight: bold; color: #67C23A;">
+              {{ parseTime(renewForm.newDueDate, '{y}-{m}-{d}') }}
+            </span>
+            <el-tag type="info" size="small">延长 {{ renewForm.monthCount }} 个月</el-tag>
+          </div>
         </el-card>
 
         <!-- 支付方式 -->
@@ -647,6 +733,9 @@
             </el-radio>
             <el-radio label="scan">
               <i class="el-icon-mobile-phone"></i> 扫码支付
+            </el-radio>
+            <el-radio label="online">
+              <i class="el-icon-user"></i> 用户端支付
             </el-radio>
           </el-radio-group>
         </el-form-item>
@@ -951,7 +1040,7 @@
 </template>
 
 <script>
-import { listResident, getResident, delResident, renewResident, refundResident, applyDepositUse } from "@/api/elder/resident";
+import { listResident, getResident, delResident, renewResident, refundResident, applyDepositUse, getCurrentPrice } from "@/api/elder/resident";
 import { updateElderInfo, setPassword } from "@/api/elder/elderInfo";
 import { listPensionInstitution } from "@/api/pension/institution";
 import { listFamily, addFamily, updateFamily, delFamily } from "@/api/elder/family";
@@ -1023,6 +1112,8 @@ export default {
         orders: [],
         payments: []
       },
+      // 展开的订单ID列表
+      expandedOrderKeys: [],
       // 查询参数
       queryParams: {
         pageNum: 1,
@@ -1051,6 +1142,23 @@ export default {
         finalAmount: 0,
         paymentMethod: 'cash',
         remark: null
+      },
+      // 当前价格信息
+      currentPrice: {
+        bedFee: 0,
+        bedFeeOriginal: null,
+        bedFeeModified: false,
+        careFee: 0,
+        careFeeOriginal: null,
+        careFeeModified: false,
+        depositFee: 0,
+        depositFeeOriginal: null,
+        depositFeeModified: false,
+        memberFee: 0,
+        memberFeeOriginal: null,
+        memberFeeModified: false,
+        monthlyFeeTotal: 0,
+        lastPaymentTime: null
       },
       // 退费表单参数
       refundForm: {
@@ -1189,6 +1297,11 @@ export default {
     // 续费优惠金额 = 应收总计 - 实收总计
     renewDiscountAmount() {
       return Math.max(0, this.renewCalculatedTotal - (this.renewForm.finalAmount || 0));
+    },
+    // 是否有价格变更记录
+    hasPriceModified() {
+      return this.currentPrice.bedFeeModified || this.currentPrice.careFeeModified ||
+             this.currentPrice.depositFeeModified || this.currentPrice.memberFeeModified;
     }
   },
   created() {
@@ -1272,30 +1385,34 @@ export default {
     /** 续费按钮操作 */
     handleRenew(row) {
       const elderId = row.elderId;
-      getResident(elderId).then(response => {
-        const data = response.data;
+      // 并发获取老人详情和当前价格
+      Promise.all([
+        getResident(elderId),
+        getCurrentPrice(elderId)
+      ]).then(([residentRes, priceRes]) => {
+        const data = residentRes.data;
+        const priceData = priceRes.data;
 
-        // 从订单数据中获取床位费和护理费
-        let bedFee = 0;
-        let careFee = 0;
-        let careLevelText = '未选择';
-
-        if (data.orders && data.orders.length > 0) {
-          const latestOrder = data.orders[0]; // 假设第一个订单是最新订单
-          if (latestOrder.orderItems) {
-            const bedItem = latestOrder.orderItems.find(item => item.itemType === 'bed_fee');
-            const careItem = latestOrder.orderItems.find(item => item.itemType === 'care_fee');
-
-            if (bedItem) {
-              bedFee = parseFloat(bedItem.totalAmount) || 0;
-            }
-            if (careItem) {
-              careFee = parseFloat(careItem.totalAmount) || 0;
-            }
-          }
-        }
+        // 保存当前价格信息用于显示
+        this.currentPrice = {
+          bedFee: priceData.bedFee || 0,
+          bedFeeOriginal: priceData.bedFeeOriginal,
+          bedFeeModified: priceData.bedFeeModified || false,
+          careFee: priceData.careFee || 0,
+          careFeeOriginal: priceData.careFeeOriginal,
+          careFeeModified: priceData.careFeeModified || false,
+          depositFee: priceData.depositFee || 0,
+          depositFeeOriginal: priceData.depositFeeOriginal,
+          depositFeeModified: priceData.depositFeeModified || false,
+          memberFee: priceData.memberFee || 0,
+          memberFeeOriginal: priceData.memberFeeOriginal,
+          memberFeeModified: priceData.memberFeeModified || false,
+          monthlyFeeTotal: priceData.monthlyFeeTotal || 0,
+          lastPaymentTime: priceData.lastPaymentTime
+        };
 
         // 获取护理等级文本
+        let careLevelText = '未选择';
         if (data.careLevel) {
           switch (data.careLevel) {
             case '1':
@@ -1316,9 +1433,9 @@ export default {
           elderId: data.elderId,
           elderName: data.elderName,
           bedInfo: data.bedInfo || '-',
-          monthlyFee: data.monthlyFee || 0,
-          bedFee: bedFee,
-          careFee: careFee,
+          monthlyFee: this.currentPrice.monthlyFeeTotal || 0,
+          bedFee: this.currentPrice.bedFee || 0,
+          careFee: this.currentPrice.careFee || 0,
           careLevelText: careLevelText,
           serviceBalance: data.serviceBalance || 0,
           depositBalance: data.depositBalance || 0,
@@ -1329,6 +1446,7 @@ export default {
           monthCount: 0,
           depositAmount: 0,
           memberFee: 0,
+          finalAmount: 0,
           paymentMethod: 'cash',
           remark: null
         };
@@ -1710,6 +1828,19 @@ export default {
       const bedFee = parseFloat(this.getBedFee()) || 0;
       const careFee = parseFloat(this.getCareFee()) || 0;
       return this.formatMoney(bedFee + careFee);
+    },
+    // 获取订单中被修改价格的项目
+    getOrderPriceModified(order) {
+      if (!order || !order.orderItems) return [];
+      return order.orderItems.filter(item => item.isPriceModified === '1' && item.originalUnitPrice);
+    },
+    // 处理订单展开/折叠
+    handleOrderExpand(row, expandedRows) {
+      if (expandedRows.length > 0) {
+        this.expandedOrderKeys = [row.orderId];
+      } else {
+        this.expandedOrderKeys = [];
+      }
     }
   }
 };
@@ -1755,5 +1886,100 @@ export default {
   width: 100%;
   height: 100%;
   background: #f5f7fa;
+}
+
+/* 续费弹窗费用设置样式 */
+.fee-item {
+  text-align: center;
+  padding: 12px 8px;
+  border-radius: 4px;
+  background: #fff;
+  transition: all 0.3s;
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.fee-item:hover {
+  background: #fff9f0;
+}
+
+.fee-label {
+  font-size: 13px;
+  color: #909399;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.fee-value {
+  font-size: 20px;
+  font-weight: bold;
+  color: #303133;
+  flex-shrink: 0;
+}
+
+.fee-value.primary {
+  color: #409EFF;
+}
+
+.fee-extra {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+
+/* 价格变更记录样式 */
+.price-change-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  background: #fef0e6;
+  border-radius: 4px;
+}
+
+.price-label {
+  font-size: 14px;
+  color: #606266;
+  font-weight: 500;
+  min-width: 50px;
+}
+
+.price-old {
+  font-size: 14px;
+  color: #909399;
+  text-decoration: line-through;
+  margin-left: auto;
+}
+
+.price-new {
+  font-size: 14px;
+  color: #E6A23C;
+  font-weight: bold;
+}
+
+/* 费用汇总样式 */
+.summary-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.summary-label {
+  font-size: 14px;
+  color: #606266;
+  margin-right: 16px;
+  min-width: 80px;
+}
+
+.summary-value {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.summary-value.blue {
+  color: #409EFF;
 }
 </style>

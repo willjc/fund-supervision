@@ -38,9 +38,16 @@
             <dict-tag :options="dict.type.item_type" :value="scope.row.itemType"/>
           </template>
         </el-table-column>
-        <el-table-column prop="unitPrice" label="单价" width="100">
+        <el-table-column label="单价" width="180">
           <template slot-scope="scope">
-            ¥{{ scope.row.unitPrice }}
+            <div v-if="scope.row.isPriceModified === '1' && scope.row.originalUnitPrice">
+              <span style="color: #909399; text-decoration: line-through">¥{{ scope.row.originalUnitPrice }}</span>
+              <span style="color: #E6A23C; font-weight: bold"> → ¥{{ scope.row.unitPrice }}</span>
+              <el-tag type="warning" size="mini" style="margin-left: 5px">已修改</el-tag>
+            </div>
+            <div v-else>
+              <span style="color: #E6A23C; font-weight: bold">¥{{ scope.row.unitPrice }}</span>
+            </div>
           </template>
         </el-table-column>
         <el-table-column prop="quantity" label="数量" width="80"/>
@@ -52,6 +59,19 @@
         <el-table-column prop="servicePeriod" label="服务周期" width="150"/>
         <el-table-column prop="itemDescription" label="描述" show-overflow-tooltip/>
       </el-table>
+
+      <!-- 价格变更汇总 -->
+      <div v-if="hasPriceModified" style="margin-top: 15px; padding: 10px; background-color: #fff7e6; border: 1px solid #ffd591; border-radius: 4px">
+        <div style="color: #e6a23c; font-weight: bold; margin-bottom: 5px">
+          <i class="el-icon-warning"></i> 价格变更记录
+        </div>
+        <div v-for="item in modifiedItems" :key="item.itemId" style="font-size: 12px; color: #606266; margin-bottom: 3px">
+          {{ item.itemName }}：¥{{ item.originalUnitPrice }} → ¥{{ item.unitPrice }}
+          <span style="color: #f56c6c; margin-left: 10px">
+            差额：{{ (item.unitPrice - item.originalUnitPrice) >= 0 ? '+' : '' }}{{ (item.unitPrice - item.originalUnitPrice).toFixed(2) }}元
+          </span>
+        </div>
+      </div>
 
       <el-divider content-position="left">支付记录</el-divider>
       <el-table :data="paymentRecords" style="width: 100%">
@@ -103,6 +123,16 @@ export default {
       orderItems: [],
       paymentRecords: []
     };
+  },
+  computed: {
+    // 是否有价格修改
+    hasPriceModified() {
+      return this.orderItems.some(item => item.isPriceModified === '1');
+    },
+    // 获取被修改的项目列表
+    modifiedItems() {
+      return this.orderItems.filter(item => item.isPriceModified === '1' && item.originalUnitPrice);
+    }
   },
   methods: {
     show(orderId) {

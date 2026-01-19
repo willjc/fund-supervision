@@ -18,18 +18,6 @@
         </van-field>
 
         <van-field
-          v-model="formData.abilityLevel"
-          label="老人能力等级"
-          readonly
-          required
-          @click="showAbilityPicker = true"
-        >
-          <template #button>
-            <van-icon name="arrow-down" />
-          </template>
-        </van-field>
-
-        <van-field
           :model-value="bedTypeText"
           label="入住床位类型"
           readonly
@@ -119,15 +107,6 @@
       />
     </van-popup>
 
-    <!-- 能力等级选择器 -->
-    <van-popup v-model:show="showAbilityPicker" position="bottom">
-      <van-picker
-        :columns="abilityOptions"
-        @confirm="onAbilityConfirm"
-        @cancel="showAbilityPicker = false"
-      />
-    </van-popup>
-
     <!-- 房间类型选择器 -->
     <van-popup v-model:show="showRoomPicker" position="bottom">
       <van-picker
@@ -163,7 +142,6 @@ const route = useRoute()
 const formData = ref({
   elderId: null,
   elderName: '',
-  abilityLevel: '自理',
   roomType: '1',
   careLevel: '自理',
   months: 1,
@@ -172,7 +150,6 @@ const formData = ref({
 
 // 选择器显示状态
 const showElderPicker = ref(false)
-const showAbilityPicker = ref(false)
 const showRoomPicker = ref(false)
 const showCareLevelPicker = ref(false)
 
@@ -199,13 +176,6 @@ const elderOptions = ref([
 
 // 老人列表数据
 const elderList = ref([])
-
-const abilityOptions = [
-  { text: '自理（300元/月）', value: '自理', price: 300 },
-  { text: '半自理（800元/月）', value: '半自理', price: 800 },
-  { text: '不能自理（1500元/月）', value: '不能自理', price: 1500 },
-  { text: '特护（2500元/月）', value: '特护', price: 2500 }
-]
 
 // 护理等级选项（用于费用计算）
 const careLevelOptions = [
@@ -373,10 +343,7 @@ const onElderConfirm = (value) => {
   formData.value.elderName = selected.value
   formData.value.elderId = selected.elderId
 
-  // 根据老人信息设置能力等级和护理等级
-  if (selected.abilityLevel) {
-    formData.value.abilityLevel = selected.abilityLevel
-  }
+  // 根据老人信息设置护理等级
   if (selected.careLevel) {
     // 将数据库的护理等级代码映射到文字
     const careLevelMap = {
@@ -388,12 +355,6 @@ const onElderConfirm = (value) => {
   }
 
   showElderPicker.value = false
-}
-
-// 能力等级确认
-const onAbilityConfirm = (value) => {
-  formData.value.abilityLevel = value.selectedOptions[0].value
-  showAbilityPicker.value = false
 }
 
 // 房间类型确认
@@ -431,10 +392,6 @@ const submitOrder = async () => {
     showToast('请选择入住老人')
     return
   }
-  if (!formData.value.abilityLevel) {
-    showToast('请选择能力等级')
-    return
-  }
   if (!formData.value.roomType) {
     showToast('请选择房间类型')
     return
@@ -455,7 +412,6 @@ const submitOrder = async () => {
       institutionId: parseInt(route.params.institutionId),
       elderId: formData.value.elderId, // 使用真实的老人ID
       elderName: formData.value.elderName,
-      abilityLevel: formData.value.abilityLevel,
       careLevel: formData.value.careLevel, // 护理等级
       roomType: formData.value.roomType,
       monthCount: formData.value.months, // 后端期望的参数名是monthCount
@@ -465,22 +421,18 @@ const submitOrder = async () => {
     // 调用真实的订单提交API
     const response = await submitOrderApi(orderData)
 
-    // 获取返回的订单信息
-    const { orderId, orderNo } = response.data
-
-    showToast('订单提交成功')
-
-    // 跳转到收银台
-    router.push({
-      name: 'PaymentCashier',
-      params: { orderId: orderId },
-      query: {
-        orderNo: orderNo,
-        amount: totalAmount.value,
-        elderName: formData.value.elderName,
-        institutionId: route.params.institutionId
-      }
+    // 提交成功，显示提示信息
+    showToast({
+      message: '订单提交成功，请等待管理员审核',
+      duration: 2000
     })
+
+    // 跳转到订单列表页面
+    setTimeout(() => {
+      router.push({
+        name: 'Order'
+      })
+    }, 2000)
   } catch (error) {
     console.error('提交订单失败:', error)
 

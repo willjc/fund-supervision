@@ -92,7 +92,7 @@ public class H5OrderController extends BaseController
 
     /**
      * 获取订单列表
-     * 根据当前登录用户查询该用户创建的所有订单
+     * 根据当前登录用户关联的老人查询订单（家属或老人本人）
      */
     @GetMapping("/order/list")
     public AjaxResult getOrderList(@RequestParam(required = false) Long elderId,
@@ -107,22 +107,70 @@ public class H5OrderController extends BaseController
                 return error("用户未登录或身份验证失败");
             }
 
-            // 构建查询条件 - 直接根据当前用户ID查询订单
-            OrderInfo query = new OrderInfo();
-            query.setCreatorUserId(currentUserId);
+            // 获取当前用户关联的老人ID列表（通过elder_family表）
+            ElderFamily familyQuery = new ElderFamily();
+            familyQuery.setUserId(currentUserId);
+            List<ElderFamily> familyList = elderFamilyService.selectElderFamilyList(familyQuery);
 
-            // 如果前端传入了elderId参数，同时按老人ID筛选
+            if (familyList == null || familyList.isEmpty()) {
+                // 用户没有关联任何老人，返回空结果
+                Map<String, Object> result = new java.util.HashMap<>();
+                result.put("rows", new java.util.ArrayList<>());
+                result.put("total", 0);
+                result.put("pageNum", pageNum);
+                result.put("pageSize", pageSize);
+                return success(result);
+            }
+
+            // 构建用户可访问的老人ID列表
+            List<Long> accessibleElderIds = new java.util.ArrayList<>();
+            for (ElderFamily family : familyList) {
+                if (family.getElderId() != null && "0".equals(family.getStatus())) {
+                    accessibleElderIds.add(family.getElderId());
+                }
+            }
+
+            // 如果前端传入了elderId参数，验证是否有权访问该老人
             if (elderId != null && elderId > 0) {
-                query.setElderId(elderId);
+                if (!accessibleElderIds.contains(elderId)) {
+                    return error("无权访问该老人的订单");
+                }
+                // 只查询指定老人的订单
+                accessibleElderIds.clear();
+                accessibleElderIds.add(elderId);
             }
 
-            // 如果提供了订单状态，按状态查询
-            if (orderStatus != null && !orderStatus.isEmpty() && !"all".equals(orderStatus)) {
-                query.setOrderStatus(orderStatus);
+            // 查询这些老人的所有订单
+            List<OrderInfo> orderList = new java.util.ArrayList<>();
+            for (Long eid : accessibleElderIds) {
+                OrderInfo query = new OrderInfo();
+                query.setElderId(eid);
+                List<OrderInfo> elderOrders = orderInfoService.selectOrderInfoList(query);
+                if (elderOrders != null) {
+                    orderList.addAll(elderOrders);
+                }
             }
 
-            // 查询订单列表
-            List<OrderInfo> orderList = orderInfoService.selectOrderInfoList(query);
+            // 如果提供了订单状态，过滤订单
+            if ("pending".equals(orderStatus)) {
+                // pending 表示待付款，包括状态 '0'（续费订单待支付）和 '5'（入驻订单审核通过待付款）
+                List<OrderInfo> pendingOrders = new java.util.ArrayList<>();
+                for (OrderInfo order : orderList) {
+                    String status = order.getOrderStatus();
+                    if ("0".equals(status) || "5".equals(status)) {
+                        pendingOrders.add(order);
+                    }
+                }
+                orderList = pendingOrders;
+            } else if (orderStatus != null && !orderStatus.isEmpty() && !"all".equals(orderStatus)) {
+                List<OrderInfo> filteredOrders = new java.util.ArrayList<>();
+                for (OrderInfo order : orderList) {
+                    if (orderStatus.equals(order.getOrderStatus())) {
+                        filteredOrders.add(order);
+                    }
+                }
+                orderList = filteredOrders;
+            }
 
             // 分页处理
             int startIndex = (pageNum - 1) * pageSize;
@@ -341,6 +389,50 @@ public class H5OrderController extends BaseController
         } catch (Exception e) {
             logger.error("获取订单详情失败", e);
             return error("获取订单详情失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取订单明细
+     * 根据订单ID查询订单明细，包含价格变更信息
+     */
+    @GetMapping("/order/{orderId}/items")
+    public AjaxResult getOrderItems(@PathVariable Long orderId)
+    {
+        try {
+            // 获取当前用户ID
+            Long currentUserId = getCurrentUserId();
+            if (currentUserId == null) {
+                return error("用户未登录或身份验证失败");
+            }
+
+            // 查询订单信息，验证权限
+            OrderInfo order = orderInfoService.selectOrderInfoByOrderId(orderId);
+            if (order == null) {
+                return error("订单不存在");
+            }
+
+            // 验证用户是否有权限访问该订单
+            Long orderCreatorId = order.getCreatorUserId();
+            if (orderCreatorId == null || !orderCreatorId.equals(currentUserId)) {
+                // 检查用户是否是该订单的老人的家属
+                ElderFamily familyQuery = new ElderFamily();
+                familyQuery.setUserId(currentUserId);
+                familyQuery.setElderId(order.getElderId());
+                List<ElderFamily> familyList = elderFamilyService.selectElderFamilyList(familyQuery);
+
+                if (familyList == null || familyList.isEmpty()) {
+                    return error("无权访问该订单信息");
+                }
+            }
+
+            // 查询订单明细
+            List<OrderItem> items = orderItemService.selectOrderItemsByOrderId(orderId);
+
+            return success(items);
+        } catch (Exception e) {
+            logger.error("获取订单明细失败", e);
+            return error("获取订单明细失败：" + e.getMessage());
         }
     }
 
@@ -672,23 +764,20 @@ public class H5OrderController extends BaseController
             logger.info("查询到订单信息：订单号={}，状态={}，创建者={}，金额={}",
                 order.getOrderNo(), order.getOrderStatus(), order.getCreatorUserId(), order.getOrderAmount());
 
-            // 验证订单是否为当前用户的订单
-            Long orderCreatorId = order.getCreatorUserId();
-            if (orderCreatorId == null) {
-                // 如果订单没有创建者ID，设置为当前用户并允许取消
-                logger.warn("订单{}没有创建者ID，设置为当前用户{}", orderId, currentUserId);
-                order.setCreatorUserId(currentUserId);
-            } else if (!currentUserId.equals(orderCreatorId)) {
-                logger.error("取消订单失败：无权限操作该订单，订单ID={}，当前用户={}，订单创建者={}",
-                    orderId, currentUserId, orderCreatorId);
+            // 验证订单权限 - 验证当前用户是否有权操作该订单关联的老人
+            // 通过elder_family表验证用户是否为老人的家属或本人
+            if (order.getElderId() != null && !hasElderAccess(currentUserId, order.getElderId())) {
+                logger.error("取消订单失败：无权限操作该订单，订单ID={}，当前用户={}，老人ID={}",
+                    orderId, currentUserId, order.getElderId());
                 return error("无权限操作该订单");
             }
 
             // 验证订单状态是否可以取消
             String currentStatus = order.getOrderStatus();
-            if (!"0".equals(currentStatus)) {
+            // 只有待审核(4)和待付款(5)的订单才能取消
+            if (!"0".equals(currentStatus) && !"4".equals(currentStatus) && !"5".equals(currentStatus)) {
                 logger.error("取消订单失败：订单状态不允许取消，订单ID={}，当前状态={}", orderId, currentStatus);
-                return error("只有待付款的订单才能取消");
+                return error("只有待审核或待付款的订单才能取消");
             }
 
             // 更新订单状态为已取消
@@ -731,20 +820,21 @@ public class H5OrderController extends BaseController
                 return error("订单不存在");
             }
 
-            // 验证订单权限 - 只能支付自己创建的订单
-            if (order.getCreatorUserId() == null) {
-                return error("订单数据异常，缺少创建者信息");
-            }
-            if (!currentUserId.equals(order.getCreatorUserId())) {
+            // 验证订单权限 - 验证当前用户是否有权操作该订单关联的老人
+            // 通过elder_family表验证用户是否为老人的家属或本人
+            if (order.getElderId() != null && !hasElderAccess(currentUserId, order.getElderId())) {
                 return error("无权操作该订单");
             }
-
             // 检查订单状态
             if ("1".equals(order.getOrderStatus())) {
                 return error("订单已支付");
             }
             if ("2".equals(order.getOrderStatus())) {
-                return error("订单已取消");
+                return error("���单已取消");
+            }
+            // 允许状态为 '0'（续费订单待支付）或 '5'（入驻订单审核通过待付款）的订单支付
+            if (!"0".equals(order.getOrderStatus()) && !"5".equals(order.getOrderStatus())) {
+                return error("订单状态异常，无法支付");
             }
 
             // 默认支付方式为现金
@@ -1125,11 +1215,17 @@ public class H5OrderController extends BaseController
                     latestOrder = orderList.stream()
                         .max((o1, o2) -> o1.getOrderId().compareTo(o2.getOrderId()))
                         .orElse(null);
+
+                    // 将订单状态设置为待审核（4），等待管理员审核
+                    if (latestOrder != null) {
+                        latestOrder.setOrderStatus("4"); // 4-待审核
+                        orderInfoService.updateOrderInfo(latestOrder);
+                    }
                 }
 
                 Map<String, Object> responseData = new HashMap<>();
                 responseData.put("success", true);
-                responseData.put("message", "订单提交成功");
+                responseData.put("message", "订单提交成功，请等待管理员审核");
 
                 if (latestOrder != null) {
                     responseData.put("orderId", latestOrder.getOrderId());
@@ -1186,19 +1282,27 @@ public class H5OrderController extends BaseController
     /**
      * 根据护理等级获取护理费
      * @param bed 床位信息
-     * @param careLevel 护理等级（自理/半护理/全护理）
+     * @param careLevel 护理等级（支持中文：自理/半护理/全护理 或 数字：1/2/3）
      * @return 护理费
      */
     private BigDecimal getCareFeeByLevel(BedInfo bed, String careLevel) {
+        if (careLevel == null) {
+            return bed.getSelfCarePrice() != null ? bed.getSelfCarePrice() : new BigDecimal("500");
+        }
+
+        // 支持中文和数字两种格式
         switch (careLevel) {
+            case "1":
             case "自理":
                 return bed.getSelfCarePrice() != null ? bed.getSelfCarePrice() : new BigDecimal("500");
+            case "2":
             case "半护理":
                 return bed.getHalfCarePrice() != null ? bed.getHalfCarePrice() : new BigDecimal("800");
+            case "3":
             case "全护理":
                 return bed.getFullCarePrice() != null ? bed.getFullCarePrice() : new BigDecimal("1200");
             default:
-                return new BigDecimal("500"); // 默认自理价格
+                return bed.getSelfCarePrice() != null ? bed.getSelfCarePrice() : new BigDecimal("500");
         }
     }
 
@@ -1325,6 +1429,10 @@ public class H5OrderController extends BaseController
                 return "已取消";
             case "3":
                 return "已退款";
+            case "4":
+                return "等待机构审核";
+            case "5":
+                return "待付款";
             default:
                 return "未知";
         }

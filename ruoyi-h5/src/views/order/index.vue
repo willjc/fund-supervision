@@ -14,7 +14,8 @@
     <!-- 订单状态Tab -->
     <van-tabs v-model:active="activeTab" @change="onTabChange" sticky>
       <van-tab title="全部" name="all" />
-      <van-tab title="待付款" name="0" />
+      <van-tab title="待审核" name="4" />
+      <van-tab title="待付款" name="pending" />
       <van-tab title="已支付" name="1" />
       <van-tab title="已取消" name="2" />
       <van-tab title="退款" name="3" />
@@ -55,7 +56,12 @@
                 </div>
                 <div class="info-row">
                   <span class="label">订单类型:</span>
-                  <span class="value">{{ getOrderTypeText(order.orderType) }}</span>
+                  <span class="value">
+                    {{ getOrderTypeText(order.orderType) }}
+                    <van-tag v-if="order.orderType === '2'" type="primary" size="mini" style="margin-left: 6px;">
+                      续费订单
+                    </van-tag>
+                  </span>
                 </div>
                 <div class="info-row">
                   <span class="label">下单时间:</span>
@@ -71,7 +77,7 @@
             <!-- 订单操作 -->
             <div class="order-footer">
               <van-button
-                v-if="order.orderStatus === '0'"
+                v-if="order.orderStatus === '4'"
                 size="small"
                 plain
                 @click.stop="handleCancel(order)"
@@ -79,7 +85,7 @@
                 取消订单
               </van-button>
               <van-button
-                v-if="order.orderStatus === '0'"
+                v-if="order.orderStatus === '0' || order.orderStatus === '5'"
                 size="small"
                 type="primary"
                 @click.stop="handlePay(order)"
@@ -271,6 +277,7 @@ const onLoad = async () => {
     }
 
     // 如果选择了订单状态（非"全部"），添加到参数中
+    // pending 表示待付款，包括状态 '0'（续费订单待支付）和 '5'（入驻订单审核通过待付款）
     if (activeTab.value !== 'all') {
       params.orderStatus = activeTab.value
     }
@@ -418,7 +425,9 @@ const getStatusText = (status) => {
     '0': '待付款',
     '1': '已支付',
     '2': '已取消',
-    '3': '退款中'
+    '3': '退款中',
+    '4': '待审核',
+    '5': '待付款'
   }
   return statusMap[status] || '未知状态'
 }
@@ -426,13 +435,10 @@ const getStatusText = (status) => {
 // 获取订单类型文本
 const getOrderTypeText = (type) => {
   const typeMap = {
-    '1': '床位费',
-    '2': '护理费',
-    '3': '餐饮费',
-    '4': '医疗费',
-    '5': '其他'
+    '1': '入驻订单',
+    '2': '续费订单'
   }
-  return typeMap[type] || '其他'
+  return typeMap[type] || '其他订单'
 }
 
 // 格式化日期

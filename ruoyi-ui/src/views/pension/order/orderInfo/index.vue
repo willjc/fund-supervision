@@ -129,7 +129,7 @@
           <span>{{ parseTime(scope.row.createTime) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="220">
+      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="260">
         <template slot-scope="scope">
           <el-button
             size="mini"
@@ -143,13 +143,22 @@
             icon="el-icon-edit"
             @click="handleUpdate(scope.row)"
             v-hasPermi="['order:info:edit']"
+            v-if="scope.row.orderStatus !== '1'"
           >修改</el-button>
+          <el-button
+            size="mini"
+            type="text"
+            icon="el-icon-check"
+            @click="handleAudit(scope.row)"
+            v-if="scope.row.orderStatus === '4'"
+            v-hasPermi="['order:info:audit']"
+          >审核</el-button>
           <el-button
             size="mini"
             type="text"
             icon="el-icon-money"
             @click="handlePay(scope.row)"
-            v-if="scope.row.orderStatus === '0'"
+            v-if="scope.row.orderStatus === '5'"
             v-hasPermi="['order:info:pay']"
           >支付</el-button>
           <el-button
@@ -157,7 +166,7 @@
             type="text"
             icon="el-icon-close"
             @click="handleCancel(scope.row)"
-            v-if="scope.row.orderStatus === '0'"
+            v-if="scope.row.orderStatus === '4' || scope.row.orderStatus === '5'"
             v-hasPermi="['order:info:cancel']"
           >取消</el-button>
           <el-button
@@ -489,16 +498,20 @@
     <!-- 生成订单对话框 -->
     <generate-order-dialog ref="generateOrderDialog" @success="getList" />
 
+    <!-- 审核对话框 -->
+    <audit-dialog ref="auditDialog" @success="getList" />
+
   </div>
 </template>
 
 <script>
-import { listOrder, getOrder, delOrder, addOrder, updateOrder, payOrder, cancelOrder, exportOrder } from "@/api/order/orderInfo";
+import { listOrder, getOrder, delOrder, addOrder, updateOrder, payOrder, cancelOrder, exportOrder, approveOrder, rejectOrder } from "@/api/order/orderInfo";
 import { listResident, getResident, renewResident } from "@/api/elder/resident";
 import { listPensionInstitution } from "@/api/pension/institution";
 import OrderDetail from './components/OrderDetail'
 import PaymentDialog from './components/PaymentDialog'
 import GenerateOrderDialog from './components/GenerateOrderDialog'
+import AuditDialog from './components/AuditDialog'
 
 export default {
   name: "OrderInfo",
@@ -506,7 +519,8 @@ export default {
   components: {
     OrderDetail,
     PaymentDialog,
-    GenerateOrderDialog
+    GenerateOrderDialog,
+    AuditDialog
   },
   data() {
     return {
@@ -866,6 +880,10 @@ export default {
     /** 生成订单 */
     handleGenerateOrder() {
       this.$refs.generateOrderDialog.show();
+    },
+    /** 审核订单 */
+    handleAudit(row) {
+      this.$refs.auditDialog.show(row.orderId);
     },
     /** 批量支付 */
     handleBatchPay() {

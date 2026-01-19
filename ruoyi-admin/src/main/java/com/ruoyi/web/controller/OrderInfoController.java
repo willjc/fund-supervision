@@ -42,8 +42,10 @@ public class OrderInfoController extends BaseController
     public TableDataInfo list(OrderInfo orderInfo)
     {
         startPage();
-        // 数据权限过滤: 只查询当前用户关联的机构的订单
-        orderInfo.setCurrentUserId(getUserId());
+        // 数据权限过滤: admin超级管理员可以看到所有订单，其他用户只能看到关联机构的订单
+        if (!getUserId().equals(1L)) {
+            orderInfo.setCurrentUserId(getUserId());
+        }
         List<OrderInfo> list = orderInfoService.selectOrderInfoList(orderInfo);
         return getDataTable(list);
     }
@@ -134,6 +136,31 @@ public class OrderInfoController extends BaseController
     public AjaxResult generateOrders(@PathVariable("checkInId") Long checkInId)
     {
         return toAjax(orderInfoService.generateOrdersByCheckIn(checkInId));
+    }
+
+    /**
+     * 审核通过订单
+     * 管理员审核订单，可同时修改订单信息
+     */
+    @PreAuthorize("@ss.hasPermi('order:info:audit')")
+    @Log(title = "审核订单", businessType = BusinessType.UPDATE)
+    @PutMapping("/approve")
+    public AjaxResult approve(@RequestBody OrderInfo orderInfo)
+    {
+        orderInfo.setOrderStatus("5"); // 5-审核通过
+        return toAjax(orderInfoService.updateOrderInfo(orderInfo));
+    }
+
+    /**
+     * 审核拒绝订单
+     */
+    @PreAuthorize("@ss.hasPermi('order:info:audit')")
+    @Log(title = "审核拒绝订单", businessType = BusinessType.UPDATE)
+    @PutMapping("/reject")
+    public AjaxResult reject(@RequestBody OrderInfo orderInfo)
+    {
+        orderInfo.setOrderStatus("2"); // 2-已取消（审核拒绝）
+        return toAjax(orderInfoService.updateOrderInfo(orderInfo));
     }
 
     /**

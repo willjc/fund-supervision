@@ -3,6 +3,7 @@ package com.ruoyi.service;
 import java.util.List;
 import java.util.Map;
 import com.ruoyi.domain.RenewDTO;
+import com.ruoyi.domain.vo.ElderCurrentPriceVO;
 import com.ruoyi.domain.vo.ResidentVO;
 
 /**
@@ -37,6 +38,14 @@ public interface IResidentService
      * @return 结果
      */
     public int renewResident(RenewDTO renewDTO, Long userId);
+
+    /**
+     * 获取老人当前有效价格
+     *
+     * @param elderId 老人ID
+     * @return 当前价格信息
+     */
+    public ElderCurrentPriceVO getCurrentPrice(Long elderId);
 
     /**
      * 查询入住人统计数据

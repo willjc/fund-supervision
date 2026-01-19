@@ -2,6 +2,9 @@ package com.ruoyi.domain;
 
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.List;
+
+import com.ruoyi.domain.OrderItem;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
@@ -131,6 +134,17 @@ public class OrderInfo extends BaseEntity
     /** 未付金额 */
     @Excel(name = "未付金额")
     private BigDecimal unpaidAmount;
+
+    /** 订单明细列表 */
+    private List<OrderItem> orderItems;
+
+    public List<OrderItem> getOrderItems() {
+        return orderItems;
+    }
+
+    public void setOrderItems(List<OrderItem> orderItems) {
+        this.orderItems = orderItems;
+    }
 
     public void setOrderId(Long orderId)
     {

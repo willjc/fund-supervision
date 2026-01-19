@@ -85,3 +85,11 @@ export function getResidentStatistics() {
     method: 'get'
   })
 }
+
+// 获取老人当前有效价格
+export function getCurrentPrice(elderId) {
+  return request({
+    url: '/pension/resident/currentPrice/' + elderId,
+    method: 'get'
+  })
+}

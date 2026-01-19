@@ -16,8 +16,8 @@
         <van-icon :name="getStatusIcon(order.orderStatus)" size="48" :color="getStatusColor(order.orderStatus)" />
         <div class="status-text">{{ getStatusText(order.orderStatus) }}</div>
 
-        <!-- 倒计时 -->
-        <div v-if="order.orderStatus === '0' && countdown > 0" class="countdown-bar">
+        <!-- 倒计时：仅入驻订单显示 -->
+        <div v-if="order.orderType === '1' && (order.orderStatus === '0' || order.orderStatus === '5') && countdown > 0" class="countdown-bar">
           <van-count-down :time="countdown" format="mm分ss秒" @finish="onCountdownFinish">
             <template #default="timeData">
               <span class="countdown-text">剩余支付时间: </span>
@@ -25,8 +25,12 @@
             </template>
           </van-count-down>
         </div>
-        <div v-else-if="order.orderStatus === '0'" class="status-tip">
+        <div v-else-if="order.orderType === '1' && (order.orderStatus === '0' || order.orderStatus === '5')" class="status-tip">
           请尽快完成支付,超时订单将自动取消
+        </div>
+        <!-- 续费订单提示 -->
+        <div v-else-if="order.orderType === '2' && (order.orderStatus === '0' || order.orderStatus === '5')" class="status-tip" style="background-color: #e6f7ff; border: 1px solid #91d5ff;">
+          续费订单可随时支付，无时间限制
         </div>
       </div>
 
@@ -63,14 +67,35 @@
       <!-- 费用明细 -->
       <van-cell-group title="费用明细" inset>
         <div class="fee-table">
-          <div class="fee-row" v-for="(item, index) in order.feeItems || []" :key="index">
-            <span class="fee-name">{{ item.name }}</span>
-            <span class="fee-value">¥{{ formatAmount(item.amount) }}</span>
+          <!-- 显示订单明细 -->
+          <div class="fee-row" v-for="(item, index) in orderItems" :key="index">
+            <div class="fee-item-content">
+              <span class="fee-name">{{ item.itemName }}</span>
+              <span v-if="item.isPriceModified === '1' && item.originalUnitPrice" class="price-change-tag">
+                <span class="original-price">¥{{ item.originalUnitPrice }}</span>
+                <span class="arrow">→</span>
+                <span class="new-price">¥{{ item.unitPrice }}</span>
+              </span>
+              <span v-else class="fee-value">¥{{ item.unitPrice }}</span>
+              <span class="fee-desc" v-if="item.itemDescription">{{ item.itemDescription }}</span>
+            </div>
+            <div class="fee-item-right">
+              <span class="fee-quantity">×{{ item.quantity }}</span>
+              <span class="fee-total">¥{{ formatAmount(item.totalAmount) }}</span>
+            </div>
           </div>
-          <div v-if="order.monthCount" class="fee-row month-info">
-            <span class="fee-name">缴费月数</span>
-            <span class="fee-value">{{ order.monthCount }}个月</span>
+
+          <!-- 价格变更汇总 -->
+          <div v-if="hasPriceModified" class="price-change-summary">
+            <div class="summary-title">⚠️ 价格已调整</div>
+            <div v-for="item in modifiedItems" :key="item.itemId" class="summary-item">
+              {{ item.itemName }}：¥{{ item.originalUnitPrice }} → ¥{{ item.unitPrice }}
+              <span class="price-diff" :class="(item.unitPrice - item.originalUnitPrice) >= 0 ? 'increase' : 'decrease'">
+                {{ (item.unitPrice - item.originalUnitPrice) >= 0 ? '+' : '' }}{{ (item.unitPrice - item.originalUnitPrice).toFixed(2) }}元
+              </span>
+            </div>
           </div>
+
           <div class="fee-row total">
             <span class="fee-name">订单总额</span>
             <span class="fee-value">¥{{ formatAmount(order.orderAmount) }}</span>
@@ -99,10 +124,10 @@
 
       <!-- 底部操作按钮 -->
       <div class="action-bar">
-        <van-button v-if="order.orderStatus === '0'" block plain @click="handleCancel">
+        <van-button v-if="order.orderStatus === '0' || order.orderStatus === '5'" block plain @click="handleCancel">
           取消订单
         </van-button>
-        <van-button v-if="order.orderStatus === '0'" block type="primary" @click="handlePay">
+        <van-button v-if="order.orderStatus === '0' || order.orderStatus === '5'" block type="primary" @click="handlePay">
           立即支付
         </van-button>
         <van-button v-if="order.orderStatus === '1'" block type="primary" @click="handleReview">
@@ -119,18 +144,29 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { showToast, showConfirmDialog } from 'vant'
 import dayjs from 'dayjs'
-import { getOrderDetail as getOrderDetailApi, processPayment } from '@/api/order'
+import { getOrderDetail as getOrderDetailApi, processPayment, getOrderItems } from '@/api/order'
 
 const router = useRouter()
 const route = useRoute()
 
 const loading = ref(true)
 const order = ref(null)
+const orderItems = ref([]) // 订单明细列表
 const countdown = ref(0) // 倒计时毫秒数
+
+// 是否有价格修改
+const hasPriceModified = computed(() => {
+  return orderItems.value.some(item => item.isPriceModified === '1')
+})
+
+// 获取被修改的项目列表
+const modifiedItems = computed(() => {
+  return orderItems.value.filter(item => item.isPriceModified === '1' && item.originalUnitPrice)
+})
 
 // 模拟订单数据
 const mockOrderDetail = {
@@ -170,14 +206,19 @@ const loadOrderDetail = async () => {
       return
     }
 
-    // 调用真实API获取订单详情
-    const response = await getOrderDetailApi(orderId)
+    // 并发调用获取订单详情和订单明细
+    const [detailRes, itemsRes] = await Promise.allSettled([
+      getOrderDetailApi(orderId),
+      getOrderItems(orderId)
+    ])
 
-    if (response && response.code === 200 && response.data) {
-      order.value = response.data
+    // 处理订单详情
+    if (detailRes.status === 'fulfilled' && detailRes.value && detailRes.value.code === 200 && detailRes.value.data) {
+      order.value = detailRes.value.data
 
-      // 如果是待支付状态,计算倒计时(15分钟)
-      if (order.value.orderStatus === '0') {
+      // 只有入驻订单(orderType='1')且待支付状态才计算倒计时(15分钟)
+      // 续费订单(orderType='2')不需要倒计时，可以随时支付
+      if (order.value.orderType === '1' && (order.value.orderStatus === '0' || order.value.orderStatus === '5')) {
         const createTime = dayjs(order.value.createTime)
         const expireTime = createTime.add(15, 'minute')
         const now = dayjs()
@@ -188,12 +229,23 @@ const loadOrderDetail = async () => {
         }
       }
     } else {
-      const errorMsg = response?.msg || '获取订单详情失败'
+      const errorMsg = detailRes.status === 'rejected' ? detailRes.reason?.message : (detailRes.value?.msg || '获取订单详情失败')
       showToast(errorMsg)
       setTimeout(() => {
         router.back()
       }, 1500)
+      loading.value = false
+      return
     }
+
+    // 处理订单明细
+    if (itemsRes.status === 'fulfilled' && itemsRes.value && itemsRes.value.code === 200) {
+      orderItems.value = itemsRes.value.data || []
+    } else {
+      console.warn('获取订单明细失败，使用空数组')
+      orderItems.value = []
+    }
+
   } catch (error) {
     console.error('获取订单详情失败:', error)
     let errorMsg = '获取订单详情失败'
@@ -286,7 +338,9 @@ const getStatusText = (status) => {
     '0': '等待付款',
     '1': '支付成功',
     '2': '订单已取消',
-    '3': '退款中'
+    '3': '退款中',
+    '4': '等待机构审核',
+    '5': '等待付款'
   }
   return statusMap[status] || '未知状态'
 }
@@ -297,7 +351,9 @@ const getStatusIcon = (status) => {
     '0': 'clock-o',
     '1': 'checked',
     '2': 'close',
-    '3': 'refund-o'
+    '3': 'refund-o',
+    '4': 'todo-list-o',
+    '5': 'clock-o'
   }
   return iconMap[status] || 'info-o'
 }
@@ -308,7 +364,9 @@ const getStatusColor = (status) => {
     '0': '#ff976a',
     '1': '#07c160',
     '2': '#969799',
-    '3': '#ee0a24'
+    '3': '#ee0a24',
+    '4': '#1989fa',
+    '5': '#ff976a'
   }
   return colorMap[status] || '#323233'
 }
@@ -520,5 +578,94 @@ onMounted(() => {
 
 .action-bar .van-button {
   flex: 1;
+}
+
+/* 价格变更相关样式 */
+.fee-item-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.fee-desc {
+  font-size: 12px;
+  color: #999;
+  margin-top: 2px;
+}
+
+.fee-item-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.fee-quantity {
+  color: #999;
+  font-size: 13px;
+}
+
+.fee-total {
+  color: #E6A23C;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.price-change-tag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.price-change-tag .original-price {
+  color: #999;
+  text-decoration: line-through;
+  font-size: 12px;
+}
+
+.price-change-tag .arrow {
+  color: #999;
+  font-size: 12px;
+}
+
+.price-change-tag .new-price {
+  color: #ee0a24;
+  font-weight: 500;
+}
+
+.price-change-summary {
+  margin-top: 12px;
+  padding: 12px;
+  background-color: #fff7e6;
+  border: 1px solid #ffd591;
+  border-radius: 6px;
+}
+
+.price-change-summary .summary-title {
+  color: #e6a23c;
+  font-weight: 500;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.price-change-summary .summary-item {
+  font-size: 12px;
+  color: #606266;
+  padding: 4px 0;
+}
+
+.price-change-summary .price-diff {
+  margin-left: 10px;
+  font-weight: 500;
+}
+
+.price-change-summary .price-diff.increase {
+  color: #f56c6c;
+}
+
+.price-change-summary .price-diff.decrease {
+  color: #67c23a;
 }
 </style>

@@ -2,12 +2,17 @@ package com.ruoyi.service.impl;
 
 import java.util.List;
 import java.util.Date;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.math.BigDecimal;
 import com.ruoyi.common.utils.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.ruoyi.mapper.OrderInfoMapper;
+import com.ruoyi.mapper.OrderItemMapper;
 import com.ruoyi.domain.OrderInfo;
+import com.ruoyi.domain.OrderItem;
 import com.ruoyi.domain.ElderCheckIn;
 import com.ruoyi.service.IOrderInfoService;
 import com.ruoyi.service.IElderCheckInService;
@@ -23,6 +28,9 @@ public class OrderInfoServiceImpl implements IOrderInfoService
 {
     @Autowired
     private OrderInfoMapper orderInfoMapper;
+
+    @Autowired
+    private OrderItemMapper orderItemMapper;
 
     @Autowired
     private IElderCheckInService elderCheckInService;
@@ -81,7 +89,128 @@ public class OrderInfoServiceImpl implements IOrderInfoService
     public int updateOrderInfo(OrderInfo orderInfo)
     {
         orderInfo.setUpdateTime(DateUtils.getNowDate());
+
+        // 如果是审核通过操作（状态变为5），需要更新订单明细中的价格
+        if ("5".equals(orderInfo.getOrderStatus()) && orderInfo.getRemark() != null) {
+            updateOrderItemPricesOnAudit(orderInfo);
+        }
+
         return orderInfoMapper.updateOrderInfo(orderInfo);
+    }
+
+    /**
+     * 审核通过时更新订单明细价格
+     * 从remark字段解析新价格，更新到order_item表
+     *
+     * @param orderInfo 订单信息
+     */
+    private void updateOrderItemPricesOnAudit(OrderInfo orderInfo) {
+        List<OrderItem> items = orderItemMapper.selectOrderItemsByOrderId(orderInfo.getOrderId());
+        if (items == null || items.isEmpty()) {
+            return;
+        }
+
+        String remark = orderInfo.getRemark();
+
+        // 解析新价格
+        BigDecimal newBedFee = parsePriceFromRemark(remark, "床位费");
+        BigDecimal newCareFee = parsePriceFromRemark(remark, "护理费");
+        BigDecimal newDepositFee = parsePriceFromRemark(remark, "押金");
+        BigDecimal newMemberFee = parsePriceFromRemark(remark, "会员费");
+        Integer newMonthCount = parseMonthCountFromRemark(remark);
+
+        for (OrderItem item : items) {
+            BigDecimal newPrice = null;
+            boolean priceChanged = false;
+
+            // 根据item_type确定新价格
+            if ("bed_fee".equals(item.getItemType()) && newBedFee != null) {
+                newPrice = newBedFee;
+                priceChanged = true;
+            } else if ("care_fee".equals(item.getItemType()) && newCareFee != null) {
+                newPrice = newCareFee;
+                priceChanged = true;
+            } else if ("deposit".equals(item.getItemType()) && newDepositFee != null) {
+                newPrice = newDepositFee;
+                priceChanged = true;
+            } else if ("member_fee".equals(item.getItemType()) && newMemberFee != null) {
+                newPrice = newMemberFee;
+                priceChanged = true;
+            }
+
+            // 如果价格发生变化，更新订单明细
+            if (priceChanged && newPrice != null) {
+                // 保存原始单价（如果还没保存过）
+                if (item.getOriginalUnitPrice() == null) {
+                    item.setOriginalUnitPrice(item.getUnitPrice());
+                }
+
+                // 更新新单价
+                item.setUnitPrice(newPrice);
+
+                // 重新计算总额
+                int quantity = item.getQuantity() != null ? item.getQuantity().intValue() : 1;
+                // 如果是床位费或护理费，且修改了月数，需要更新数量
+                if ((newMonthCount != null && newMonthCount > 0) &&
+                    ("bed_fee".equals(item.getItemType()) || "care_fee".equals(item.getItemType()))) {
+                    quantity = newMonthCount;
+                    item.setQuantity((long) quantity);
+                }
+                item.setTotalAmount(newPrice.multiply(new BigDecimal(quantity)));
+
+                // 标记价格已修改
+                item.setIsPriceModified("1");
+                item.setUpdateBy(orderInfo.getUpdateBy());
+                item.setUpdateTime(DateUtils.getNowDate());
+
+                orderItemMapper.updateOrderItem(item);
+            }
+        }
+    }
+
+    /**
+     * 从remark中解析价格
+     *
+     * @param remark 费用说明
+     * @param feeType 费用类型（床位费、护理费、押金、会员费）
+     * @return 解析出的价格
+     */
+    private BigDecimal parsePriceFromRemark(String remark, String feeType) {
+        if (remark == null || !remark.contains(feeType + "：")) {
+            return null;
+        }
+        Pattern pattern = Pattern.compile(feeType + "：([\\d.]+)元");
+        Matcher matcher = pattern.matcher(remark);
+        if (matcher.find()) {
+            try {
+                return new BigDecimal(matcher.group(1));
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 从remark中解析缴费月数
+     *
+     * @param remark 费用说明
+     * @return 缴费月数
+     */
+    private Integer parseMonthCountFromRemark(String remark) {
+        if (remark == null || !remark.contains("缴费月数：")) {
+            return null;
+        }
+        Pattern pattern = Pattern.compile("缴费月数：(\\d+)个月");
+        Matcher matcher = pattern.matcher(remark);
+        if (matcher.find()) {
+            try {
+                return Integer.parseInt(matcher.group(1));
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
     }
 
     /**

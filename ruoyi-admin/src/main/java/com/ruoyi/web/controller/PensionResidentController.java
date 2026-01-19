@@ -17,6 +17,7 @@ import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.domain.RenewDTO;
+import com.ruoyi.domain.vo.ElderCurrentPriceVO;
 import com.ruoyi.domain.vo.ResidentVO;
 import com.ruoyi.service.IResidentService;
 
@@ -41,8 +42,10 @@ public class PensionResidentController extends BaseController
     public TableDataInfo list(ResidentVO queryVO)
     {
         startPage();
-        // 数据权限过滤: 只查询当前用户关联的机构的入住人
-        queryVO.setCurrentUserId(getUserId());
+        // 数据权限过滤: admin超级管理员可以看到所有机构的入住人，其他用户只能看到关联机构的入住人
+        if (!getUserId().equals(1L)) {
+            queryVO.setCurrentUserId(getUserId());
+        }
         List<ResidentVO> list = residentService.selectResidentList(queryVO);
         return getDataTable(list);
     }
@@ -55,6 +58,16 @@ public class PensionResidentController extends BaseController
     public AjaxResult getDetail(@PathVariable("elderId") Long elderId)
     {
         return AjaxResult.success(residentService.selectResidentDetail(elderId));
+    }
+
+    /**
+     * 获取老人当前有效价格
+     */
+    @PreAuthorize("@ss.hasPermi('elder:resident:query')")
+    @GetMapping("/currentPrice/{elderId}")
+    public AjaxResult getCurrentPrice(@PathVariable("elderId") Long elderId)
+    {
+        return AjaxResult.success(residentService.getCurrentPrice(elderId));
     }
 
     /**

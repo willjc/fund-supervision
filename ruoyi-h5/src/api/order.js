@@ -131,3 +131,14 @@ export function processPayment(orderId, config) {
     params: config
   })
 }
+
+/**
+ * 获取订单明细
+ * @param {Number} orderId - 订单ID
+ */
+export function getOrderItems(orderId) {
+  return request({
+    url: `/h5/order/${orderId}/items`,
+    method: 'get'
+  })
+}

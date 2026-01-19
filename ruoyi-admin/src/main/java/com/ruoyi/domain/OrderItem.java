@@ -44,6 +44,14 @@ public class OrderItem extends BaseEntity
     @Excel(name = "单价")
     private BigDecimal unitPrice;
 
+    /** 原始单价(元) - 审核修改前保存 */
+    @Excel(name = "原始单价")
+    private BigDecimal originalUnitPrice;
+
+    /** 价格是否被修改过 0-否 1-是 */
+    @Excel(name = "价格是否修改", readConverterExp = "0=否,1=是")
+    private String isPriceModified;
+
     /** 数量 */
     @Excel(name = "数量")
     private Long quantity;
@@ -119,6 +127,27 @@ public class OrderItem extends BaseEntity
     {
         return unitPrice;
     }
+
+    public void setOriginalUnitPrice(BigDecimal originalUnitPrice)
+    {
+        this.originalUnitPrice = originalUnitPrice;
+    }
+
+    public BigDecimal getOriginalUnitPrice()
+    {
+        return originalUnitPrice;
+    }
+
+    public void setIsPriceModified(String isPriceModified)
+    {
+        this.isPriceModified = isPriceModified;
+    }
+
+    public String getIsPriceModified()
+    {
+        return isPriceModified;
+    }
+
     public void setQuantity(Long quantity)
     {
         this.quantity = quantity;
@@ -157,6 +186,8 @@ public class OrderItem extends BaseEntity
             .append("itemType", getItemType())
             .append("itemDescription", getItemDescription())
             .append("unitPrice", getUnitPrice())
+            .append("originalUnitPrice", getOriginalUnitPrice())
+            .append("isPriceModified", getIsPriceModified())
             .append("quantity", getQuantity())
             .append("totalAmount", getTotalAmount())
             .append("servicePeriod", getServicePeriod())

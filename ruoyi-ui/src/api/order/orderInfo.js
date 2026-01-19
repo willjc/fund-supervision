@@ -84,3 +84,21 @@ export function exportOrder(query) {
     params: query
   })
 }
+
+// 审核通过订单
+export function approveOrder(data) {
+  return request({
+    url: '/order/info/approve',
+    method: 'put',
+    data: data
+  })
+}
+
+// 审核拒绝订单
+export function rejectOrder(data) {
+  return request({
+    url: '/order/info/reject',
+    method: 'put',
+    data: data
+  })
+}
