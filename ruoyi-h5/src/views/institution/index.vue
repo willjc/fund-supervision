@@ -13,151 +13,43 @@
 
     <!-- 筛选栏 -->
     <div class="filter-bar">
-      <van-dropdown-menu>
-        <van-dropdown-item title="区域街道" ref="areaFilterRef">
-          <div class="filter-content-enhanced">
-            <!-- 选中状态提示 -->
-            <div class="selected-summary" v-if="filterParams.areaCodes.length > 0 || filterParams.streetNames.length > 0">
-              <van-notice-bar
-                :text="`已选择 ${filterParams.areaCodes.length} 个区域，${filterParams.streetNames.length} 个街道`"
-                color="#1989fa"
-                background="#ecf5ff"
-                :scrollable="false"
-              />
-            </div>
+      <div class="filter-tabs">
+        <!-- 区域街道 -->
+        <div
+          class="filter-tab"
+          :class="{ 'has-badge': filterParams.areaCodes.length > 0 || filterParams.streetNames.length > 0 }"
+          @click="showAreaPanel = true"
+        >
+          <van-icon name="location-o" />
+          <span>区域街道</span>
+          <span class="filter-badge" v-if="filterParams.areaCodes.length > 0 || filterParams.streetNames.length > 0">
+            {{ filterParams.areaCodes.length + filterParams.streetNames.length }}
+          </span>
+        </div>
 
-            <!-- 区域选择 -->
-            <div class="filter-section-enhanced">
-              <div class="section-header">
-                <van-icon name="location-o" />
-                <span class="section-title">所属区域</span>
-                <span class="section-count">({{ filterParams.areaCodes.length }}/{{ districtOptions.length }})</span>
-              </div>
-              <div class="filter-options-grid">
-                <div
-                  v-for="item in districtOptions"
-                  :key="item.value"
-                  class="area-item"
-                  :class="{ 'selected': filterParams.areaCodes.includes(item.value) }"
-                  @click="toggleArea(item.value)"
-                >
-                  <span class="area-text">{{ item.text }}</span>
-                  <van-icon v-if="filterParams.areaCodes.includes(item.value)" name="success" class="check-icon" />
-                </div>
-              </div>
-            </div>
+        <div class="filter-tab-divider"></div>
 
-            <!-- 街道选择 -->
-            <div class="filter-section-enhanced" v-if="filterParams.areaCodes.length > 0">
-              <div class="section-header">
-                <van-icon name="home-o" />
-                <span class="section-title">所属街道</span>
-                <span class="section-count">({{ filterParams.streetNames.length }}/{{ getAvailableStreets().length }})</span>
-              </div>
-              <div class="street-container">
-                <div class="street-tip">
-                  <van-icon name="info-o" size="14" />
-                  <span>可选择多个街道进行精准筛选</span>
-                </div>
-                <div class="filter-options-scroll">
-                  <div
-                    v-for="street in getAvailableStreets()"
-                    :key="street"
-                    class="street-item"
-                    :class="{ 'selected': filterParams.streetNames.includes(street) }"
-                    @click="toggleStreet(street)"
-                  >
-                    <span class="street-text">{{ street }}</span>
-                    <van-icon v-if="filterParams.streetNames.includes(street)" name="success" class="check-icon" />
-                  </div>
-                </div>
-              </div>
-            </div>
+        <!-- 筛选 -->
+        <div
+          class="filter-tab"
+          :class="{ 'has-badge': getFilterCount() > 0 }"
+          @click="showFilterPanel = true"
+        >
+          <van-icon name="filter-o" />
+          <span>筛选</span>
+          <span class="filter-badge" v-if="getFilterCount() > 0">
+            {{ getFilterCount() }}
+          </span>
+        </div>
 
-            <!-- 操作按钮 -->
-            <div class="filter-actions-enhanced">
-              <van-button
-                plain
-                type="info"
-                size="small"
-                @click="resetAreaFilter"
-                icon="replay"
-              >
-                重置
-              </van-button>
-              <van-button
-                type="primary"
-                size="small"
-                @click="confirmAreaFilter"
-                icon="success"
-              >
-                确定 {{ (filterParams.areaCodes.length > 0 || filterParams.streetNames.length > 0) ? `(${filterParams.areaCodes.length + filterParams.streetNames.length})` : '' }}
-              </van-button>
-            </div>
-          </div>
-        </van-dropdown-item>
-        <van-dropdown-item title="筛选" ref="filterRef">
-          <div class="filter-content">
-            <div class="filter-section">
-              <div class="filter-title">机构性质</div>
-              <div class="filter-options">
-                <van-tag
-                  v-for="item in natureOptions"
-                  :key="item.value"
-                  :type="filterParams.institutionNature === item.value ? 'primary' : 'default'"
-                  @click="selectNature(item.value)"
-                >
-                  {{ item.text }}
-                </van-tag>
-              </div>
-            </div>
-            <div class="filter-section">
-              <div class="filter-title">收住类型</div>
-              <div class="filter-options">
-                <van-tag
-                  v-for="item in careLevelOptions"
-                  :key="item.value"
-                  :type="filterParams.careLevels.includes(item.value) ? 'primary' : 'default'"
-                  @click="toggleCareLevel(item.value)"
-                >
-                  {{ item.text }}
-                </van-tag>
-              </div>
-            </div>
-            <div class="filter-section">
-              <div class="filter-title">医疗条件</div>
-              <div class="filter-options">
-                <van-tag
-                  v-for="item in medicalOptions"
-                  :key="item.value"
-                  :type="filterParams.medicalCondition === item.value ? 'primary' : 'default'"
-                  @click="selectMedical(item.value)"
-                >
-                  {{ item.text }}
-                </van-tag>
-              </div>
-            </div>
-            <div class="filter-section">
-              <div class="filter-title">机构星级</div>
-              <div class="filter-options">
-                <van-tag
-                  v-for="item in ratingOptions"
-                  :key="item.value"
-                  :type="filterParams.ratingLevel === item.value ? 'primary' : 'default'"
-                  @click="selectRating(item.value)"
-                >
-                  {{ item.text }}
-                </van-tag>
-              </div>
-            </div>
-            <div class="filter-actions">
-              <van-button size="small" @click="resetFilter">重置</van-button>
-              <van-button type="primary" size="small" @click="confirmFilter">确定</van-button>
-            </div>
-          </div>
-        </van-dropdown-item>
-        <van-dropdown-item v-model="sortType" :options="sortOptions" @change="onFilterChange" />
-      </van-dropdown-menu>
+        <div class="filter-tab-divider"></div>
+
+        <!-- 排序 -->
+        <div class="filter-tab" @click="showSortPanel = true">
+          <van-icon name="exchange" />
+          <span>{{ getSortShortText() }}</span>
+        </div>
+      </div>
     </div>
 
     <!-- 机构列表 -->
@@ -169,54 +61,75 @@
           finished-text="没有更多了"
           @load="onLoad"
         >
-          <div
-            v-for="institution in institutionList"
-            :key="institution.institutionId"
-            class="institution-card"
-            @click="goToDetail(institution.institutionId)"
-          >
-            <div class="card-main">
-              <div class="card-image">
-                <van-image
-                  :src="institution.coverImage || defaultImage"
-                  fit="cover"
-                  width="80"
-                  height="80"
-                />
-                <div class="image-label">机构图片</div>
-              </div>
-              <div class="card-content">
-                <div class="card-title">{{ institution.institutionName }}</div>
-                <div class="card-info">
-                  床位数：{{ institution.availableBeds || 0 }}/{{ institution.totalBeds || 0 }}(可定床位数/总床位数)
+          <!-- 机构列表项（卡片+价格区域） -->
+          <template v-for="institution in institutionList" :key="institution.institutionId">
+            <!-- 统一样式的机构卡片 -->
+            <div
+              class="listing-card"
+              @click="goToDetail(institution.institutionId)"
+            >
+              <img
+                class="listing-image"
+                :src="institution.coverImage || defaultImage"
+                mode="aspectFill"
+              />
+              <div class="listing-info">
+                <div class="listing-header">
+                  <span class="listing-title">{{ institution.institutionName }}</span>
+                  <span class="listing-nature" :class="getNatureClass(institution.institutionNature)">
+                    {{ getNatureText(institution.institutionNature) }}
+                  </span>
                 </div>
-                <div class="card-address">
-                  详细地址: <van-icon name="location-o" /> {{ institution.address }}
+                <div class="listing-status">
+                  <span
+                    class="status-text"
+                    :class="{ available: institution.availableBeds > 0 }"
+                  >
+                    {{ institution.availableBeds > 0 ? '有床位' : '暂无床位' }}
+                  </span>
+                  <span class="status-divider">|</span>
+                  <span class="status-count">共{{ institution.totalBeds || institution.bedCount || 0 }}床</span>
+                </div>
+                <span class="listing-address">{{ institution.address }}</span>
+                <div class="listing-tags" v-if="institution.lifeFacilities && institution.lifeFacilities.length > 0">
+                  <span class="tag" v-for="(tag, tagIndex) in institution.lifeFacilities.slice(0, 3)" :key="tagIndex">
+                    {{ tag }}
+                  </span>
+                </div>
+                <div class="listing-price" v-if="institution.priceRanges">
+                  <span class="price-number">{{ institution.priceRanges.bed?.min || institution.priceRanges.total?.min || 0 }}</span>
+                  <span class="price-unit">元</span>
+                  <span class="price-suffix">/月起</span>
                 </div>
               </div>
             </div>
-            <div class="card-price">
+
+            <!-- 月参考价格区域 -->
+            <div
+              class="price-detail-card"
+              v-if="institution.priceRanges"
+            >
               <div class="price-header">月参考价格</div>
               <div class="price-grid">
                 <div class="price-item">
                   <span class="price-label">总费用:</span>
-                  <span class="price-value">¥{{ institution.priceRanges?.total?.min || institution.priceRangeMin }} ~ ¥{{ institution.priceRanges?.total?.max || institution.priceRangeMax }}</span>
+                  <span class="price-value">¥{{ institution.priceRanges.total?.min || 0 }} ~ ¥{{ institution.priceRanges.total?.max || 0 }}</span>
                 </div>
                 <div class="price-item">
                   <span class="price-label">床位费:</span>
-                  <span class="price-value">¥{{ institution.priceRanges?.bed?.min || 500 }} ~ ¥{{ institution.priceRanges?.bed?.max || 800 }}</span>
+                  <span class="price-value">¥{{ institution.priceRanges.bed?.min || 0 }} ~ ¥{{ institution.priceRanges.bed?.max || 0 }}</span>
                 </div>
                 <div class="price-item">
                   <span class="price-label">护理费:</span>
-                  <span class="price-value">¥{{ institution.priceRanges?.nursing?.min || 800 }} ~ ¥{{ institution.priceRanges?.nursing?.max || 2000 }}</span>
+                  <span class="price-value">¥{{ institution.priceRanges.nursing?.min || 0 }} ~ ¥{{ institution.priceRanges.nursing?.max || 0 }}</span>
                 </div>
                 <div class="price-item">
                   <span class="price-label">膳食费:</span>
-                  <span class="price-value">¥{{ institution.priceRanges?.diet?.min || 600 }} ~ ¥{{ institution.priceRanges?.diet?.max || 1200 }}</span>
+                  <span class="price-value">¥{{ institution.priceRanges.diet?.min || 0 }} ~ ¥{{ institution.priceRanges.diet?.max || 0 }}</span>
                 </div>
               </div>
             </div>
-          </div>
+          </template>
         </van-list>
       </van-pull-refresh>
 
@@ -226,6 +139,208 @@
         description="暂无符合条件的机构"
       />
     </div>
+
+    <!-- 侧边筛选面板 -->
+    <van-popup
+      v-model:show="showFilterPanel"
+      position="right"
+      :style="{ width: '85%', height: '100%' }"
+    >
+      <div class="filter-panel">
+        <div class="filter-panel-header">
+          <span class="filter-panel-title">筛选条件</span>
+          <van-icon name="cross" @click="showFilterPanel = false" />
+        </div>
+
+        <div class="filter-panel-content">
+          <!-- 机构性质 -->
+          <div class="filter-section-panel">
+            <div class="filter-section-title">
+              <van-icon name="shop-o" />
+              机构性质
+            </div>
+            <van-radio-group v-model="filterParams.institutionNature">
+              <van-radio
+                v-for="item in natureOptions"
+                :key="item.value"
+                :name="item.value"
+                class="filter-radio-item"
+              >
+                {{ item.text }}
+              </van-radio>
+            </van-radio-group>
+          </div>
+
+          <!-- 收住类型 -->
+          <div class="filter-section-panel">
+            <div class="filter-section-title">
+              <van-icon name="user-o" />
+              收住类型
+            </div>
+            <van-checkbox-group v-model="filterParams.careLevels">
+              <van-checkbox
+                v-for="item in careLevelOptions"
+                :key="item.value"
+                :name="item.value"
+                class="filter-checkbox-item"
+              >
+                {{ item.text }}
+              </van-checkbox>
+            </van-checkbox-group>
+          </div>
+
+          <!-- 医疗条件 -->
+          <div class="filter-section-panel">
+            <div class="filter-section-title">
+              <van-icon name="medicine-o" />
+              医疗条件
+            </div>
+            <van-radio-group v-model="filterParams.medicalCondition">
+              <van-radio
+                v-for="item in medicalOptions"
+                :key="item.value"
+                :name="item.value"
+                class="filter-radio-item"
+              >
+                {{ item.text }}
+              </van-radio>
+            </van-radio-group>
+          </div>
+
+          <!-- 机构星级 -->
+          <div class="filter-section-panel">
+            <div class="filter-section-title">
+              <van-icon name="star-o" />
+              机构星级
+            </div>
+            <van-radio-group v-model="filterParams.ratingLevel">
+              <van-radio
+                v-for="item in ratingOptions"
+                :key="item.value"
+                :name="item.value"
+                class="filter-radio-item"
+              >
+                {{ item.text }}
+              </van-radio>
+            </van-radio-group>
+          </div>
+
+          <!-- 价格区间 -->
+          <div class="filter-section-panel">
+            <div class="filter-section-title">
+              <van-icon name="gold-coin-o" />
+              价格区间
+            </div>
+            <van-radio-group v-model="filterParams.priceRange">
+              <van-radio
+                v-for="item in priceRangeOptions"
+                :key="item.value"
+                :name="item.value"
+                class="filter-radio-item"
+              >
+                {{ item.text }}
+              </van-radio>
+            </van-radio-group>
+          </div>
+        </div>
+
+        <div class="filter-panel-footer">
+          <van-button block @click="resetFilter">重置</van-button>
+          <van-button block type="primary" @click="confirmFilter">
+            确定 {{ getFilterCount() > 0 ? `(${getFilterCount()})` : '' }}
+          </van-button>
+        </div>
+      </div>
+    </van-popup>
+
+    <!-- 区域街道侧边面板 -->
+    <van-popup
+      v-model:show="showAreaPanel"
+      position="right"
+      :style="{ width: '85%', height: '100%' }"
+    >
+      <div class="filter-panel">
+        <div class="filter-panel-header">
+          <span class="filter-panel-title">区域街道</span>
+          <van-icon name="cross" @click="showAreaPanel = false" />
+        </div>
+
+        <div class="filter-panel-content">
+          <!-- 区域选择 -->
+          <div class="filter-section-panel">
+            <div class="filter-section-title">
+              <van-icon name="location-o" />
+              所属区域（可多选）
+            </div>
+            <div class="area-grid">
+              <div
+                v-for="item in districtOptions"
+                :key="item.value"
+                class="area-grid-item"
+                :class="{ 'selected': filterParams.areaCodes.includes(item.value) }"
+                @click="toggleArea(item.value)"
+              >
+                {{ item.text }}
+              </div>
+            </div>
+          </div>
+
+          <!-- 街道选择 -->
+          <div class="filter-section-panel" v-if="filterParams.areaCodes.length > 0">
+            <div class="filter-section-title">
+              <van-icon name="home-o" />
+              所属街道（可多选）
+            </div>
+            <div class="street-list">
+              <div
+                v-for="street in getAvailableStreets()"
+                :key="street"
+                class="street-list-item"
+                :class="{ 'selected': filterParams.streetNames.includes(street) }"
+                @click="toggleStreet(street)"
+              >
+                {{ street }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-panel-footer">
+          <van-button block @click="resetAreaFilter">重置</van-button>
+          <van-button block type="primary" @click="confirmAreaFilterFromPanel">
+            确定 {{ (filterParams.areaCodes.length > 0 || filterParams.streetNames.length > 0) ? `(${filterParams.areaCodes.length + filterParams.streetNames.length})` : '' }}
+          </van-button>
+        </div>
+      </div>
+    </van-popup>
+
+    <!-- 排序侧边面板 -->
+    <van-popup
+      v-model:show="showSortPanel"
+      position="right"
+      :style="{ width: '70%', height: '100%' }"
+    >
+      <div class="filter-panel">
+        <div class="filter-panel-header">
+          <span class="filter-panel-title">价格排序</span>
+          <van-icon name="cross" @click="showSortPanel = false" />
+        </div>
+
+        <div class="filter-panel-content">
+          <van-radio-group v-model="sortType">
+            <van-radio
+              v-for="item in sortOptions"
+              :key="item.value"
+              :name="item.value"
+              class="filter-radio-item-large"
+              @click="confirmSort"
+            >
+              {{ item.text }}
+            </van-radio>
+          </van-radio-group>
+        </div>
+      </div>
+    </van-popup>
 
     <!-- 底部导航 -->
     <van-tabbar v-model="activeTab" fixed>
@@ -252,6 +367,11 @@ const activeTab = ref(1)
 // 搜索值
 const searchValue = ref('')
 
+// 筛选面板显示
+const showFilterPanel = ref(false)
+const showAreaPanel = ref(false)
+const showSortPanel = ref(false)
+
 // 排序类型
 const sortType = ref('')
 const sortOptions = [
@@ -268,31 +388,12 @@ const filterParams = ref({
   careLevels: [],
   medicalCondition: '',
   ratingLevel: null,
-  institutionName: ''
+  institutionName: '',
+  priceRange: ''        // 价格区间
 })
 
 // 筛选面板引用
-const filterRef = ref(null)
-const areaFilterRef = ref(null)
-
-// 下拉选项数据
-const districtOptions = ref([
-  { text: '中原区', value: '410102' },
-  { text: '二七区', value: '410103' },
-  { text: '管城回族区', value: '410104' },
-  { text: '金水区', value: '410105' },
-  { text: '上街区', value: '410106' },
-  { text: '惠济区', value: '410108' },
-  { text: '中牟县', value: '410122' },
-  { text: '巩义市', value: '410181' },
-  { text: '荥阳市', value: '410182' },
-  { text: '新密市', value: '410183' },
-  { text: '新郑市', value: '410184' },
-  { text: '登封市', value: '410185' },
-  { text: '经济技术开发区', value: '410171' },
-  { text: '高新技术产业开发区', value: '410172' },
-  { text: '郑东新区', value: '410173' }
-])
+// areaFilterRef 已移除，改为侧边面板
 
 // 区域街道数据映射
 const areaStreetMap = ref({
@@ -312,6 +413,24 @@ const areaStreetMap = ref({
   '410172': ['石佛镇', '沟赵乡', '梧桐办事处', '枫杨办事处', '双桥办事处'],
   '410173': ['如意湖街道办事处', '博学路街道办事处', '龙子湖街道办事处', '商都路街道办事处', '龙湖办事处', '祭城路街道办事处', '金光路街道办事处']
 })
+
+const districtOptions = ref([
+  { text: '中原区', value: '410102' },
+  { text: '二七区', value: '410103' },
+  { text: '管城回族区', value: '410104' },
+  { text: '金水区', value: '410105' },
+  { text: '上街区', value: '410106' },
+  { text: '惠济区', value: '410108' },
+  { text: '中牟县', value: '410122' },
+  { text: '巩义市', value: '410181' },
+  { text: '荥阳市', value: '410182' },
+  { text: '新密市', value: '410183' },
+  { text: '新郑市', value: '410184' },
+  { text: '登封市', value: '410185' },
+  { text: '经济技术开发区', value: '410171' },
+  { text: '高新技术产业开发区', value: '410172' },
+  { text: '郑东新区', value: '410173' }
+])
 
 const natureOptions = ref([
   { text: '全部', value: '' },
@@ -343,12 +462,50 @@ const ratingOptions = ref([
   { text: '五星', value: 5 }
 ])
 
+const priceRangeOptions = ref([
+  { text: '全部', value: '' },
+  { text: '1500元以下', value: '0-1500' },
+  { text: '1500-3000元', value: '1500-3000' },
+  { text: '3000-5000元', value: '3000-5000' },
+  { text: '5000元以上', value: '5000-999999' }
+])
+
 // 列表数据
 const institutionList = ref([])
 const loading = ref(false)
 const finished = ref(false)
 const refreshing = ref(false)
 
+// 获取筛选条件数量
+const getFilterCount = () => {
+  let count = 0
+  if (filterParams.value.institutionNature) count++
+  if (filterParams.value.careLevels.length > 0) count++
+  if (filterParams.value.medicalCondition) count++
+  if (filterParams.value.ratingLevel !== null) count++
+  if (filterParams.value.priceRange) count++
+  return count
+}
+
+// 获取机构性质文字
+const getNatureText = (nature) => {
+  const map = {
+    '1': '民办',
+    '2': '公办',
+    '3': '公建民营'
+  }
+  return map[nature] || ''
+}
+
+// 获取机构性质样式类
+const getNatureClass = (nature) => {
+  const map = {
+    '1': 'nature-private',
+    '2': 'nature-public',
+    '3': 'nature-ppp'
+  }
+  return map[nature] || 'nature-private'
+}
 
 // 区域街道筛选方法
 const toggleArea = (areaCode) => {
@@ -386,33 +543,7 @@ const resetAreaFilter = () => {
   filterParams.value.streetNames = []
 }
 
-const confirmAreaFilter = () => {
-  areaFilterRef.value?.toggle()
-  onFilterChange()
-}
-
 // 筛选方法
-const selectNature = (value) => {
-  filterParams.value.institutionNature = filterParams.value.institutionNature === value ? '' : value
-}
-
-const toggleCareLevel = (value) => {
-  const index = filterParams.value.careLevels.indexOf(value)
-  if (index > -1) {
-    filterParams.value.careLevels.splice(index, 1)
-  } else {
-    filterParams.value.careLevels.push(value)
-  }
-}
-
-const selectMedical = (value) => {
-  filterParams.value.medicalCondition = filterParams.value.medicalCondition === value ? '' : value
-}
-
-const selectRating = (value) => {
-  filterParams.value.ratingLevel = filterParams.value.ratingLevel === value ? null : value
-}
-
 const resetFilter = () => {
   filterParams.value.areaCodes = []
   filterParams.value.streetNames = []
@@ -420,10 +551,43 @@ const resetFilter = () => {
   filterParams.value.careLevels = []
   filterParams.value.medicalCondition = ''
   filterParams.value.ratingLevel = null
+  filterParams.value.priceRange = ''
 }
 
 const confirmFilter = () => {
-  filterRef.value?.toggle()
+  showFilterPanel.value = false
+  onFilterChange()
+}
+
+// 获取排序文字
+const getSortText = () => {
+  const map = {
+    '': '价格排序',
+    'priceAsc': '价格从低到高',
+    'priceDesc': '价格从高到低'
+  }
+  return map[sortType.value] || '价格排序'
+}
+
+// 获取排序简短文字
+const getSortShortText = () => {
+  const map = {
+    '': '排序',
+    'priceAsc': '价格↑',
+    'priceDesc': '价格↓'
+  }
+  return map[sortType.value] || '排序'
+}
+
+// 确认排序
+const confirmSort = () => {
+  showSortPanel.value = false
+  onFilterChange()
+}
+
+// 区域街道面板确认
+const confirmAreaFilterFromPanel = () => {
+  showAreaPanel.value = false
   onFilterChange()
 }
 
@@ -449,7 +613,7 @@ const loadInstitutions = async () => {
     // 构建查询参数
     const params = {
       pageNum: 1,
-      pageSize: 50, // 加载更多数据
+      pageSize: 50,
       institutionName: filterParams.value.institutionName || undefined,
       areaCodes: filterParams.value.areaCodes.length > 0 ? filterParams.value.areaCodes : undefined,
       streetNames: filterParams.value.streetNames.length > 0 ? filterParams.value.streetNames : undefined
@@ -459,18 +623,17 @@ const loadInstitutions = async () => {
     const response = await getInstitutionList(params)
 
     if (response.code === 200 && response.rows) {
-      // 后端已返回H5期望格式的数据，直接使用
       let processedList = response.rows.map(item => ({
         institutionId: item.institutionId,
         institutionName: item.institutionName,
         areaCode: item.areaCode,
         street: item.street,
-        institutionNature: item.institutionType,
-        careLevels: '1,2,3', // 默认值
-        medicalCondition: '1', // 默认值
-        ratingLevel: 5, // 默认值
-        priceRangeMin: item.priceRanges?.total?.min || 1500,
-        priceRangeMax: item.priceRanges?.total?.max || 3500,
+        institutionNature: item.institutionNature || item.institutionType || '1',
+        careLevels: item.careLevels || '1,2,3',
+        medicalCondition: item.medicalCondition || '1',
+        ratingLevel: item.ratingLevel || 3,
+        priceRangeMin: item.priceRanges?.total?.min || item.priceRangeMin || 1500,
+        priceRangeMax: item.priceRanges?.total?.max || item.priceRangeMax || 3500,
         bedCount: item.bedCount || 50,
         address: item.address || '地址信息完善中',
         coverImage: item.coverImage || '',
@@ -481,7 +644,8 @@ const loadInstitutions = async () => {
           bed: { min: 500, max: 800 },
           nursing: { min: 800, max: 2000 },
           diet: { min: 600, max: 1200 }
-        }
+        },
+        lifeFacilities: item.lifeFacilities || []
       }))
 
       // 前端筛选：按机构性质筛选
@@ -492,7 +656,7 @@ const loadInstitutions = async () => {
       // 按收住类型筛选
       if (filterParams.value.careLevels.length > 0) {
         processedList = processedList.filter(item => {
-          const itemLevels = item.careLevels.split(',')
+          const itemLevels = (item.careLevels || '').split(',')
           return filterParams.value.careLevels.some(level => itemLevels.includes(level))
         })
       }
@@ -505,6 +669,15 @@ const loadInstitutions = async () => {
       // 按星级筛选
       if (filterParams.value.ratingLevel) {
         processedList = processedList.filter(item => item.ratingLevel >= filterParams.value.ratingLevel)
+      }
+
+      // 按价格区间筛选
+      if (filterParams.value.priceRange) {
+        const [min, max] = filterParams.value.priceRange.split('-').map(Number)
+        processedList = processedList.filter(item => {
+          const price = item.priceRanges?.total?.min || item.priceRangeMin || 0
+          return price >= min && price <= max
+        })
       }
 
       // 排序
@@ -555,14 +728,15 @@ onMounted(() => {
 <style scoped>
 .institution-page {
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background-color: #f5f6fc;
   padding-bottom: 60px;
 }
 
+/* 搜索栏 */
 .search-bar {
   display: flex;
   align-items: center;
-  padding: 10px;
+  padding: 10px 12px;
   background: #fff;
   gap: 10px;
 }
@@ -576,121 +750,241 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
+/* 筛选栏 */
 .filter-bar {
   background: #fff;
   border-bottom: 1px solid #eee;
+  /* padding: 12px; */
 }
 
-.filter-content {
-  padding: 16px;
-}
-
-.filter-section {
-  margin-bottom: 16px;
-}
-
-.filter-title {
-  font-size: 14px;
-  font-weight: 500;
-  margin-bottom: 8px;
-  color: #333;
-}
-
-.filter-options {
+.filter-tabs {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  align-items: center;
+  background: #f5f5f5;
+  border-radius: 8px;
+  padding: 4px;
 }
 
-.filter-options .van-tag {
+.filter-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  color: #666;
+  font-size: 14px;
+}
+
+.filter-tab .van-icon {
+  font-size: 16px;
+  margin-right: 4px;
+}
+
+.filter-tab span {
+  font-size: 14px;
+}
+
+.filter-tab.has-badge {
+  color: #1989fa;
+}
+
+.filter-tab:active {
+  background: rgba(25, 137, 250, 0.1);
+  border-radius: 6px;
+}
+
+.filter-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  background: #1989fa;
+  color: #fff;
+  font-size: 10px;
+  border-radius: 8px;
+  margin-left: 4px;
+}
+
+.filter-tab-divider {
+  width: 1px;
+  height: 16px;
+  background: #ddd;
+}
+
+/* 机构列表 */
+.institution-list {
+  padding: 8px 12px 15px;
+}
+
+/* 统一样式的机构卡片（参考首页） */
+.listing-card {
+  display: flex;
+  background-color: #fff;
+  padding: 8px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  margin-bottom: 10px;
   cursor: pointer;
 }
 
-.filter-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #eee;
-}
-
-.institution-list {
-  padding: 10px;
-}
-
-.institution-card {
-  background: #fff;
-  border-radius: 4px;
-  margin-bottom: 10px;
-  overflow: hidden;
-}
-
-.card-main {
-  display: flex;
-  padding: 12px;
-  gap: 12px;
-}
-
-.card-image {
-  position: relative;
+.listing-image {
+  width: 96px;
+  height: 119px;
+  border-radius: 8px;
+  margin-right: 12px;
   flex-shrink: 0;
-  width: 80px;
-  height: 80px;
-  background: #f5f5f5;
+  object-fit: cover;
 }
 
-.image-label {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: rgba(0, 0, 0, 0.5);
-  color: #fff;
-  font-size: 10px;
-  text-align: center;
-  padding: 2px 0;
-}
-
-.card-content {
+.listing-info {
   flex: 1;
-  min-width: 0;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
 }
 
-.card-title {
-  font-size: 14px;
+.listing-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2px;
+}
+
+.listing-title {
+  font-size: 16px;
   font-weight: 500;
-  color: #333;
-  margin-bottom: 6px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  color: #1a1a1a;
+  line-height: 20px;
+  flex: 1;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.card-info {
-  font-size: 12px;
-  color: #666;
-  margin-bottom: 4px;
+/* 机构性质标签 */
+.listing-nature {
+  font-size: 10px;
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+  flex-shrink: 0;
 }
 
-.card-address {
-  font-size: 12px;
-  color: #999;
+/* .nature-private {
+  background: linear-gradient(135deg, #5B8FF9 0%, #3d7bd9 100%);
+} */
+
+.nature-public {
+  background: linear-gradient(135deg, #07c160 0%, #06ad56 100%);
+}
+
+.nature-ppp {
+  background: linear-gradient(135deg, #ff976a 0%, #f37b1d 100%);
+}
+
+.listing-status {
   display: flex;
   align-items: center;
-  gap: 2px;
+  margin-bottom: 3px;
 }
 
-.card-price {
+.status-text {
+  font-size: 12px;
+  color: #999;
+}
+
+.status-text.available {
+  color: #207fff;
+  font-weight: 500;
+}
+
+.status-divider {
+  color: #cfcfcf;
+  font-size: 12px;
+  margin: 0 5px;
+}
+
+.status-count {
+  font-size: 12px;
+  color: #999;
+}
+
+.listing-address {
+  font-size: 12px;
+  color: #333;
+  line-height: 20px;
+  margin-bottom: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listing-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 6px;
+}
+
+.tag {
+  font-size: 10px;
+  color: #4c617d;
+  line-height: 16px;
+  background-color: #f5f5f5;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.listing-price {
+  display: flex;
+  align-items: baseline;
+  margin-top: auto;
+}
+
+.price-number {
+  font-size: 15px;
+  color: #e5252b;
+  font-weight: 700;
+  line-height: 20px;
+}
+
+.price-unit {
+  font-size: 14px;
+  color: #e5252b;
+  font-weight: normal;
+  line-height: 20px;
+  margin-left: 2px;
+}
+
+.price-suffix {
+  font-size: 12px;
+  color: #999;
+  font-weight: normal;
+  line-height: 20px;
+  margin-left: 2px;
+}
+
+/* 月参考价格区域 */
+.price-detail-card {
   background: #e8f4fc;
+  border-radius: 8px;
   padding: 10px 12px;
+  margin-bottom: 10px;
+  margin-top: -8px;
 }
 
 .price-header {
   font-size: 12px;
   color: #1989fa;
   margin-bottom: 8px;
+  font-weight: 500;
 }
 
 .price-grid {
@@ -709,6 +1003,7 @@ onMounted(() => {
 
 .price-value {
   color: #1989fa;
+  margin-left: 4px;
 }
 
 /* 增强的筛选样式 */
@@ -899,6 +1194,151 @@ onMounted(() => {
   font-weight: 500;
 }
 
+/* 侧边筛选面板 */
+.filter-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #f5f5f5;
+}
+
+.filter-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: #fff;
+  border-bottom: 1px solid #eee;
+}
+
+.filter-panel-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #323233;
+}
+
+.filter-panel-header .van-icon {
+  font-size: 20px;
+  color: #969799;
+  cursor: pointer;
+}
+
+.filter-panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.filter-section-panel {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.filter-section-title {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #323233;
+  margin-bottom: 12px;
+}
+
+.filter-section-title .van-icon {
+  color: #1989fa;
+  margin-right: 8px;
+  font-size: 16px;
+}
+
+.filter-radio-item,
+.filter-checkbox-item {
+  padding: 10px 0;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.filter-radio-item:last-child,
+.filter-checkbox-item:last-child {
+  border-bottom: none;
+}
+
+.filter-panel-footer {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  background: #fff;
+  border-top: 1px solid #eee;
+}
+
+.filter-panel-footer .van-button {
+  flex: 1;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+/* 区域街道面板样式 */
+.area-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  /* gap: 8px; */
+}
+
+.area-grid-item {
+  padding: 12px 8px;
+  text-align: center;
+  border: 1px solid #ebedf0;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 13px;
+}
+
+.area-grid-item:hover {
+  border-color: #1989fa;
+  background: #f0f8ff;
+}
+
+.area-grid-item.selected {
+  border-color: #1989fa;
+  background: #ecf5ff;
+  color: #1989fa;
+  font-weight: 500;
+}
+
+.street-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.street-list-item {
+  padding: 12px 16px;
+  border: 1px solid #ebedf0;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+
+.street-list-item:hover {
+  border-color: #1989fa;
+  background: #f0f8ff;
+}
+
+.street-list-item.selected {
+  border-color: #1989fa;
+  background: #ecf5ff;
+  color: #1989fa;
+  font-weight: 500;
+}
+
+.filter-radio-item-large {
+  padding: 16px 0;
+  font-size: 15px;
+}
+
 /* 响应式调整 */
 @media (max-width: 375px) {
   .filter-options-grid {
@@ -912,32 +1352,5 @@ onMounted(() => {
   .street-text {
     font-size: 12px;
   }
-}
-
-/* 动画效果 */
-.area-item,
-.street-item {
-  position: relative;
-  overflow: hidden;
-}
-
-.area-item::after,
-.street-item::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0;
-  height: 0;
-  border-radius: 50%;
-  background: rgba(25, 137, 250, 0.1);
-  transform: translate(-50%, -50%);
-  transition: width 0.3s ease, height 0.3s ease;
-}
-
-.area-item:active::after,
-.street-item:active::after {
-  width: 100px;
-  height: 100px;
 }
 </style>

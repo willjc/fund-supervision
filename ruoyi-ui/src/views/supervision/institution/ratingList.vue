@@ -66,18 +66,6 @@
       <el-table-column type="selection" width="55" align="center" />
       <el-table-column label="机构名称" align="center" prop="institutionName" :show-overflow-tooltip="true" />
       <el-table-column label="统一信用代码" align="center" prop="creditCode" width="180" />
-      <el-table-column label="评级等级" align="center" prop="ratingLevel" width="100">
-        <template slot-scope="scope">
-          <el-rate
-            v-model="scope.row.ratingLevel"
-            disabled
-            show-score
-            text-color="#ff9900"
-            score-template="{value}星"
-          >
-          </el-rate>
-        </template>
-      </el-table-column>
       <el-table-column label="总分" align="center" prop="totalScore" width="80">
         <template slot-scope="scope">
           <span class="text-success font-bold">{{ scope.row.totalScore }}</span>
@@ -103,7 +91,6 @@
           <span>{{ parseTime(scope.row.expireDate, '{y}-{m}-{d}') }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="评级机构" align="center" prop="ratingOrg" width="120" />
       <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="200">
         <template slot-scope="scope">
           <el-button
@@ -256,7 +243,8 @@
         <el-descriptions-item label="统一信用代码">{{ detailData.creditCode }}</el-descriptions-item>
         <el-descriptions-item label="评级等级">
           <el-rate
-            v-model="detailData.ratingLevel"
+            :value="Number(detailData.ratingLevel) || 0"
+            :max="5"
             disabled
             show-score
             text-color="#ff9900"
@@ -269,7 +257,6 @@
         </el-descriptions-item>
         <el-descriptions-item label="评级日期">{{ parseTime(detailData.ratingDate) }}</el-descriptions-item>
         <el-descriptions-item label="有效期至">{{ parseTime(detailData.expireDate) }}</el-descriptions-item>
-        <el-descriptions-item label="评级机构">{{ detailData.ratingOrg }}</el-descriptions-item>
         <el-descriptions-item label="评级状态">
           <el-tag v-if="detailData.ratingStatus === '1'" type="success">有效</el-tag>
           <el-tag v-else type="danger">已过期</el-tag>
