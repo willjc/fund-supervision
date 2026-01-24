@@ -98,7 +98,7 @@
         </template>
       </el-table-column>
       <el-table-column label="年龄" align="center" prop="age" width="60" />
-      <el-table-column label="身份证号" align="center" prop="idCard" width="150" />
+      <el-table-column label="身份证号" align="center" prop="idCard" width="180" />
       <el-table-column label="联系电话" align="center" prop="phone" width="120" />
       <el-table-column label="房间号-床位号" align="center" prop="bedInfo" width="120" />
       <el-table-column label="所属机构" align="center" prop="institutionName" width="150" show-overflow-tooltip />

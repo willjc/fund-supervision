@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
@@ -28,21 +27,16 @@ public class H5BannerController extends BaseController
 
     /**
      * 获取幻灯片列表（H5端）
-     * @param position 位置：1-首页 2-机构页
      * @return 幻灯片列表
      */
     @GetMapping("/list")
-    public AjaxResult list(@RequestParam(required = false) Integer position)
+    public AjaxResult list()
     {
         try
         {
             SysBanner query = new SysBanner();
             // 只查询启用状态的幻灯片
             query.setStatus("0"); // 0-正常 1-停用
-            if (position != null)
-            {
-                query.setPosition(String.valueOf(position));
-            }
 
             List<SysBanner> bannerList = bannerService.selectBannerList(query);
 

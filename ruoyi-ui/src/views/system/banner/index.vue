@@ -9,12 +9,6 @@
           @keyup.enter.native="handleQuery"
         />
       </el-form-item>
-      <el-form-item label="位置" prop="position">
-        <el-select v-model="queryParams.position" placeholder="请选择位置" clearable>
-          <el-option label="首页" value="1" />
-          <el-option label="机构页" value="2" />
-        </el-select>
-      </el-form-item>
       <el-form-item label="状态" prop="status">
         <el-select v-model="queryParams.status" placeholder="请选择状态" clearable>
           <el-option label="正常" value="0" />
@@ -70,17 +64,11 @@
       <el-table-column label="标题" align="center" prop="title" width="150" :show-overflow-tooltip="true" />
       <el-table-column label="链接类型" align="center" prop="linkType" width="100">
         <template slot-scope="scope">
-          <el-tag v-if="scope.row.linkType === '1'" type="success">机构详情</el-tag>
-          <el-tag v-else type="info">外部URL</el-tag>
+          <el-tag v-if="scope.row.linkType === '1'" type="success">内部链接</el-tag>
+          <el-tag v-else type="info">外部链接</el-tag>
         </template>
       </el-table-column>
       <el-table-column label="链接值" align="center" prop="linkValue" :show-overflow-tooltip="true" />
-      <el-table-column label="位置" align="center" prop="position" width="100">
-        <template slot-scope="scope">
-          <el-tag v-if="scope.row.position === '1'" type="primary">首页</el-tag>
-          <el-tag v-else type="warning">机构页</el-tag>
-        </template>
-      </el-table-column>
       <el-table-column label="排序" align="center" prop="sort" width="80" />
       <el-table-column label="状态" align="center" prop="status" width="80">
         <template slot-scope="scope">
@@ -135,28 +123,21 @@
         </el-form-item>
         <el-form-item label="链接类型" prop="linkType">
           <el-radio-group v-model="form.linkType">
-            <el-radio label="1">机构详情</el-radio>
-            <el-radio label="2">外部URL</el-radio>
+            <el-radio label="1">内部链接</el-radio>
+            <el-radio label="2">外部链接</el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="链接值" prop="linkValue">
           <el-input
             v-if="form.linkType === '1'"
-            v-model.number="form.linkValue"
-            placeholder="请输入机构ID"
-            type="number"
+            v-model="form.linkValue"
+            placeholder="请输入内部地址，如 /page/ceshi"
           />
           <el-input
             v-else
             v-model="form.linkValue"
-            placeholder="请输入URL地址"
+            placeholder="请输入完整URL，如 https://example.com"
           />
-        </el-form-item>
-        <el-form-item label="位置" prop="position">
-          <el-radio-group v-model="form.position">
-            <el-radio label="1">首页</el-radio>
-            <el-radio label="2">机构页</el-radio>
-          </el-radio-group>
         </el-form-item>
         <el-form-item label="排序" prop="sort">
           <el-input-number v-model="form.sort" :min="0" :max="9999" controls-position="right" style="width: 150px" />
@@ -215,7 +196,6 @@ export default {
         pageNum: 1,
         pageSize: 10,
         title: undefined,
-        position: undefined,
         status: undefined
       },
       // 表单参数
@@ -230,12 +210,6 @@ export default {
         ],
         linkType: [
           { required: true, message: "请选择链接类型", trigger: "change" }
-        ],
-        linkValue: [
-          { required: true, message: "请输入链接值", trigger: "blur" }
-        ],
-        position: [
-          { required: true, message: "请选择位置", trigger: "change" }
         ],
         sort: [
           { required: true, message: "排序不能为空", trigger: "blur" }
@@ -272,7 +246,6 @@ export default {
         imageUrl: undefined,
         linkType: "1",
         linkValue: undefined,
-        position: "1",
         sort: 0,
         status: "0",
         remark: undefined

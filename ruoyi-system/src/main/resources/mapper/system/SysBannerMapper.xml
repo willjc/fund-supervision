@@ -10,7 +10,6 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="imageUrl"       column="image_url"       />
         <result property="linkType"       column="link_type"       />
         <result property="linkValue"      column="link_value"      />
-        <result property="position"       column="position"        />
         <result property="sort"           column="sort"            />
         <result property="status"         column="status"          />
         <result property="createBy"       column="create_by"       />
@@ -21,7 +20,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectBannerVo">
-        select banner_id, title, image_url, link_type, link_value, position, sort, status, create_by, create_time, update_by, update_time, remark
+        select banner_id, title, image_url, link_type, link_value, sort, status, create_by, create_time, update_by, update_time, remark
         from sys_banner
     </sql>
 
@@ -36,9 +35,6 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="title != null and title != ''">
                 AND title like concat('%', #{title}, '%')
             </if>
-            <if test="position != null and position != ''">
-                AND position = #{position}
-            </if>
             <if test="status != null and status != ''">
                 AND status = #{status}
             </if>
@@ -52,7 +48,6 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="imageUrl != null and imageUrl != '' ">image_url, </if>
             <if test="linkType != null and linkType != '' ">link_type, </if>
             <if test="linkValue != null and linkValue != '' ">link_value, </if>
-            <if test="position != null and position != '' ">position, </if>
             <if test="sort != null">sort, </if>
             <if test="status != null and status != '' ">status, </if>
             <if test="remark != null and remark != ''">remark,</if>
@@ -63,7 +58,6 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="imageUrl != null and imageUrl != ''">#{imageUrl}, </if>
             <if test="linkType != null and linkType != ''">#{linkType}, </if>
             <if test="linkValue != null and linkValue != ''">#{linkValue}, </if>
-            <if test="position != null and position != ''">#{position}, </if>
             <if test="sort != null">#{sort}, </if>
             <if test="status != null and status != ''">#{status}, </if>
             <if test="remark != null and remark != ''">#{remark},</if>
@@ -79,7 +73,6 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="imageUrl != null and imageUrl != ''">image_url = #{imageUrl}, </if>
             <if test="linkType != null and linkType != ''">link_type = #{linkType}, </if>
             <if test="linkValue != null">link_value = #{linkValue}, </if>
-            <if test="position != null and position != ''">position = #{position}, </if>
             <if test="sort != null">sort = #{sort}, </if>
             <if test="status != null and status != ''">status = #{status}, </if>
             <if test="remark != null">remark = #{remark}, </if>

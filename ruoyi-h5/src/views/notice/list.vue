@@ -23,7 +23,7 @@
             </div>
 
             <div class="notice-content">
-              {{ notice.noticeContent }}
+              {{ stripHtmlTags(notice.noticeContent) }}
             </div>
 
             <div class="notice-footer">
@@ -119,6 +119,17 @@ const getNoticeTypeText = (type) => {
     '2': '公告'
   }
   return typeMap[type] || '其他'
+}
+
+// 去除HTML标签，提取纯文本（用于列表页显示）
+const stripHtmlTags = (html) => {
+  if (!html) return ''
+  // 创建临时div元素来解析HTML并提取纯文本
+  const tmp = document.createElement('div')
+  tmp.innerHTML = html
+  const text = tmp.textContent || tmp.innerText || ''
+  // 截取前50个字符作为摘要
+  return text.length > 50 ? text.substring(0, 50) + '...' : text
 }
 
 // 格式化日期

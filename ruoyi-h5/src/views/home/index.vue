@@ -8,8 +8,8 @@
         :show-indicators="false"
         @change="onBannerChange"
       >
-        <van-swipe-item v-for="(banner, index) in bannerList" :key="index">
-          <img class="banner-image" :src="banner.image" mode="widthFix" />
+        <van-swipe-item v-for="(banner, index) in bannerList" :key="index" @click="handleBannerClick(banner)">
+          <img class="banner-image" :src="banner.imageUrl || banner.image" mode="widthFix" />
         </van-swipe-item>
       </van-swipe>
 
@@ -52,9 +52,11 @@
       <div class="notice-section"></div>
       <div class="notice-content">
         <van-icon name="volume-o" class="notice-icon" />
-        <div class="notice-text-scroll">
-          <span class="notice-label">最新通知：</span>
-          <span class="notice-text">欢迎使用养老机构监管平台，为您提供优质养老服务</span>
+        <span class="notice-label">最新通知：</span>
+        <div class="notice-scroll-container">
+          <div class="notice-scroll-content">
+            <span class="notice-text" @click="goToNoticeDetail">{{ noticeText || '暂无通知' }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -92,7 +94,7 @@
             <div class="listing-info">
               <div class="listing-header">
                 <span class="listing-title">{{ item.institutionName }}</span>
-                <span class="listing-distance">附近</span>
+                <!-- <span class="listing-distance">附近</span> -->
               </div>
               <div class="listing-status">
                 <span
@@ -128,24 +130,19 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { getRecommendInstitutions } from '@/api/institution'
+import { getBannerList } from '@/api/banner'
+import { getNoticeDetail } from '@/api/notice'
 
 const router = useRouter()
 
 // 当前轮播图索引
 const currentBannerIndex = ref(0)
 
-// 轮播图列表（静态图片）
-const bannerList = ref([
-  {
-    image: 'https://picsum.photos/750/375?random=1'
-  },
-  {
-    image: 'https://picsum.photos/750/375?random=2'
-  },
-  {
-    image: 'https://picsum.photos/750/375?random=3'
-  }
-])
+// 轮播图列表（从后端获取）
+const bannerList = ref([])
+
+// 通知文本
+const noticeText = ref('')
 
 // 金刚位（4个）
 const iconList = ref([
@@ -188,6 +185,54 @@ const onBannerChange = (index) => {
   currentBannerIndex.value = index
 }
 
+// 幻灯片点击处理
+const handleBannerClick = (banner) => {
+  if (!banner.linkValue) {
+    return
+  }
+  if (banner.linkType === '1') {
+    // 内部链接
+    router.push(banner.linkValue)
+  } else {
+    // 外部链接，跳转到外部URL
+    window.location.href = banner.linkValue
+  }
+}
+
+// 去除HTML标签，提取纯文本
+const stripHtmlTags = (html) => {
+  if (!html) return ''
+  // 创建临时div元素来解析HTML
+  const tmp = document.createElement('div')
+  tmp.innerHTML = html
+  return tmp.textContent || tmp.innerText || ''
+}
+
+// 加载幻灯片
+const loadBanners = async () => {
+  try {
+    const response = await getBannerList()
+    if (response.code === 200 && response.data) {
+      bannerList.value = response.data
+    }
+  } catch (error) {
+    console.error('获取幻灯片失败:', error)
+  }
+}
+
+// 加载通知
+const loadNotice = async () => {
+  try {
+    const response = await getNoticeDetail(1)
+    if (response.code === 200 && response.data) {
+      // 去除HTML标签，只显示纯文本
+      noticeText.value = stripHtmlTags(response.data.noticeContent)
+    }
+  } catch (error) {
+    console.error('获取通知失败:', error)
+  }
+}
+
 // 金刚位点击
 const handleIconClick = (item) => {
   switch (item.key) {
@@ -210,7 +255,7 @@ const handleIconClick = (item) => {
 
 // 跳转搜索页
 const goToSearch = () => {
-  router.push('/search')
+  router.push('/institution')
 }
 
 // 跳转机构列表
@@ -224,6 +269,11 @@ const goToDetail = (item) => {
     name: 'InstitutionDetail',
     params: { id: item.institutionId }
   })
+}
+
+// 跳转通知详情
+const goToNoticeDetail = () => {
+  router.push('/notice/detail/1')
 }
 
 // 转换机构数据
@@ -294,6 +344,8 @@ const onLoad = () => {
 }
 
 onMounted(() => {
+  loadBanners()
+  loadNotice()
   loadInstitutions()
 })
 </script>
@@ -373,8 +425,7 @@ onMounted(() => {
 }
 
 .search-icon {
-  width: 16px;
-  height: 16px;
+  font-size: 14px;
   margin-right: 10px;
   color: #999;
 }
@@ -465,29 +516,48 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-.notice-text-scroll {
-  flex: 1;
-  white-space: nowrap;
-  display: flex;
-  align-items: center;
-  overflow: hidden;
-}
-
 .notice-label {
   font-size: 13px;
   font-weight: 500;
   color: #1281ff;
   font-family: 'PingFang SC', '苹方-简', sans-serif;
   flex-shrink: 0;
+  height: 22px;
+  line-height: 22px;
+}
+
+.notice-scroll-container {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.notice-scroll-content {
+  display: inline-block;
+  white-space: nowrap;
+  padding-left: 100%;
+  animation: scroll-left 20s linear infinite;
 }
 
 .notice-text {
   font-size: 13px;
   color: #333333;
   font-family: 'PingFang SC', '苹方-简', sans-serif;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: inline-block;
+  height: 0.96667rem;
+  line-height: 0.38667rem;
+  cursor: pointer;
+  /* height: 22px;
+  line-height: 22px; */
+}
+
+@keyframes scroll-left {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
 }
 
 /* 机构列表区域 */

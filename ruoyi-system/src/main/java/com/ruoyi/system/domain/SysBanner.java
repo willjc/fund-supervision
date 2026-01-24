@@ -25,14 +25,11 @@ public class SysBanner extends BaseEntity
     /** 图片URL */
     private String imageUrl;
 
-    /** 链接类型：1-机构详情 2-外部URL */
+    /** 链接类型：1-内部 2-外部 */
     private String linkType;
 
-    /** 链接值（机构ID或URL） */
+    /** 链接值（内部路径或外部URL） */
     private String linkValue;
-
-    /** 位置：1-首页 2-机构页 */
-    private String position;
 
     /** 排序号 */
     private Integer sort;
@@ -95,16 +92,6 @@ public class SysBanner extends BaseEntity
         return linkValue;
     }
 
-    public void setPosition(String position)
-    {
-        this.position = position;
-    }
-
-    public String getPosition()
-    {
-        return position;
-    }
-
     public void setSort(Integer sort)
     {
         this.sort = sort;
@@ -133,7 +120,6 @@ public class SysBanner extends BaseEntity
             .append("imageUrl", getImageUrl())
             .append("linkType", getLinkType())
             .append("linkValue", getLinkValue())
-            .append("position", getPosition())
             .append("sort", getSort())
             .append("status", getStatus())
             .append("createBy", getCreateBy())
