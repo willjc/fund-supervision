@@ -1,9 +1,13 @@
 <template>
   <div class="login-page">
+    <!-- 背景装饰 -->
+    <div class="bg-decoration">
+      <div class="circle circle-1"></div>
+      <div class="circle circle-2"></div>
+    </div>
+
     <van-nav-bar
       title="登录"
-      left-arrow
-      @click-left="$router.back()"
       fixed
       placeholder
     />
@@ -11,12 +15,9 @@
     <div class="login-content">
       <!-- Logo -->
       <div class="logo-section">
-        <van-image
-          width="80"
-          height="80"
-          src="https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg"
-          round
-        />
+        <div class="logo-wrapper">
+          <van-icon name="user-circle-o" size="48" color="#fff" />
+        </div>
         <div class="app-name">养老机构监管平台</div>
         <div class="app-desc">家属端</div>
       </div>
@@ -28,26 +29,11 @@
           <van-field
             v-model="loginForm.account"
             name="account"
-            label="账号"
             placeholder="请输入手机号或身份证号"
             clearable
-            :rules="[
-              { required: true, message: '请输入手机号或身份证号' },
-              {
-                validator: (value) => {
-                  if (!value) return false;
-                  // 验证手机号格式
-                  if (/^1[3-9]\d{9}$/.test(value)) return true;
-                  // 验证身份证号格式
-                  if (/^[1-9]\d{5}(18|19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{3}[\dXx]$/.test(value)) return true;
-                  return false;
-                },
-                message: '请输入正确的手机号或身份证号'
-              }
-            ]"
           >
             <template #left-icon>
-              <van-icon name="user-o" />
+              <van-icon name="user-o" size="18" color="#999" />
             </template>
           </van-field>
 
@@ -56,24 +42,13 @@
             v-model="loginForm.password"
             type="password"
             name="password"
-            label="密码"
             placeholder="请输入密码"
             clearable
-            :rules="[
-              { required: true, message: '请输入密码' }
-            ]"
           >
             <template #left-icon>
-              <van-icon name="lock" />
+              <van-icon name="lock" size="18" color="#999" />
             </template>
           </van-field>
-
-          <!-- 验证码登录切换 -->
-          <div class="switch-login-type">
-            <van-button type="primary" plain size="small" @click="switchLoginType">
-              {{ loginType === 'password' ? '验证码登录' : '密码登录' }}
-            </van-button>
-          </div>
 
           <!-- 登录按钮 -->
           <div class="submit-btn">
@@ -82,15 +57,10 @@
               type="primary"
               native-type="submit"
               :loading="loading"
+              round
             >
               登录
             </van-button>
-          </div>
-
-          <!-- 其他操作 -->
-          <div class="other-actions">
-            <span @click="goToRegister">注册账号</span>
-            <span @click="goToForgetPassword">忘记密码</span>
           </div>
 
           <!-- 登录方式提示 -->
@@ -117,18 +87,11 @@ const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 
-const loginType = ref('password')
 const loading = ref(false)
 const loginForm = ref({
   account: '',
   password: ''
 })
-
-// 切换登录方式
-const switchLoginType = () => {
-  loginType.value = loginType.value === 'password' ? 'code' : 'password'
-  showToast('验证码登录功能开发中')
-}
 
 // 登录处理
 const handleLogin = async () => {
@@ -160,7 +123,7 @@ const handleLogin = async () => {
         message: `${loginTypeText}登录成功`,
         onClose: () => {
           // 跳转到重定向地址或首页
-          const redirect = route.query.redirect || '/home'
+          const redirect = route.query.redirect || '/user'
           router.replace(redirect)
         }
       })
@@ -173,96 +136,205 @@ const handleLogin = async () => {
     loading.value = false
   }
 }
-
-// 跳转注册
-const goToRegister = () => {
-  showToast('注册功能开发中')
-}
-
-// 跳转忘记密码
-const goToForgetPassword = () => {
-  showToast('忘记密码功能开发中')
-}
 </script>
 
 <style scoped>
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-20px) rotate(5deg);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.05);
+  }
+}
+
 .login-page {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  position: relative;
+  overflow: hidden;
 }
 
+/* 背景装饰圆圈 */
+.bg-decoration {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  overflow: 0;
+}
+
+.bg-decoration .circle {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  animation: pulse 8s ease-in-out infinite;
+}
+
+.circle-1 {
+  width: 400px;
+  height: 400px;
+  top: -100px;
+  right: -100px;
+  animation-delay: 0s;
+}
+
+.circle-2 {
+  width: 300px;
+  height: 300px;
+  bottom: -50px;
+  left: -50px;
+  animation-delay: 2s;
+}
+
+/* 导航栏 */
+:deep(.van-nav-bar) {
+  background: transparent;
+}
+
+:deep(.van-nav-bar__title) {
+  color: #fff;
+}
+
+:deep(.van-nav-bar .van-icon) {
+  color: #fff;
+}
+
+/* 内容区域 */
 .login-content {
-  padding: 40px 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 16px;
+  position: relative;
+  z-index: 1;
 }
 
+/* Logo区域 */
 .logo-section {
   text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 24px;
   color: #fff;
+}
+
+.logo-wrapper {
+  width: 80px;
+  height: 80px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
 .app-name {
   font-size: 24px;
   font-weight: bold;
-  margin-top: 16px;
+  margin-bottom: 8px;
 }
 
 .app-desc {
   font-size: 14px;
-  margin-top: 8px;
   opacity: 0.9;
 }
 
+/* 登录表单 */
 .login-form {
-  background: #fff;
-  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
   padding: 20px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(20px);
 }
 
-.switch-login-type {
-  text-align: right;
-  margin-top: 12px;
-  margin-bottom: 12px;
+:deep(.van-field) {
+  padding: 10px 0;
+  background: transparent;
 }
 
-.submit-btn {
-  margin-top: 24px;
-}
-
-.other-actions {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 20px;
+:deep(.van-field__control) {
+  background: #f5f7fa;
+  border-radius: 12px;
+  padding: 0 16px;
+  height: 50px;
+  line-height: 1.5;
   font-size: 14px;
-  color: #666;
 }
 
-.other-actions span {
-  cursor: pointer;
+:deep(.van-field__left-icon) {
+  margin-right: 10px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
-.other-actions span:hover {
-  color: #1989fa;
+:deep(.van-cell__value) {
+  background: #f5f7fa;
+  border-radius: 12px;
+  padding: 0 16px;
+  height: 50px;
 }
 
+:deep(.van-field__control) input {
+  background: #f5f7fa;
+}
+
+:deep(.van-cell:after) {
+  display: none;
+}
+
+/* 登录按钮 */
+.submit-btn {
+  margin-top: 16px;
+}
+
+:deep(.van-button--primary) {
+  height: 48px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+:deep(.van-button--primary:active) {
+  opacity: 0.9;
+}
+
+/* 登录提示 */
 .login-tips {
-  margin-top: 20px;
+  margin-top: 16px;
   padding: 12px;
-  background-color: rgba(255, 255, 255, 0.9);
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 12px;
   font-size: 12px;
   color: #666;
 }
 
 .tips-title {
-  font-weight: bold;
+  font-weight: 600;
   color: #333;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .tip-item {
-  line-height: 1.5;
-  margin-bottom: 4px;
+  line-height: 1.6;
+  margin-bottom: 2px;
 }
 </style>

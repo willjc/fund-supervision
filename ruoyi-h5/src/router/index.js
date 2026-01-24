@@ -142,7 +142,14 @@ const routes = [
     path: '/user',
     name: 'User',
     component: () => import('@/views/user/index.vue'),
-    meta: { title: '我的', requireAuth: false }
+    meta: { title: '我的', requireAuth: true }
+  },
+  // 个人资料
+  {
+    path: '/user/profile',
+    name: 'UserProfile',
+    component: () => import('@/views/user/profile.vue'),
+    meta: { title: '个人资料', requireAuth: false }
   },
   // 老人信息
   {

@@ -67,3 +67,44 @@ export function changePassword(data) {
     data
   })
 }
+
+/**
+ * 更新用户信息
+ * @param {Object} data 用户信息
+ */
+export function updateUserInfo(data) {
+  return request({
+    url: '/h5/user/profile',
+    method: 'put',
+    data
+  })
+}
+
+/**
+ * 上传用户头像
+ * @param {File} file 头像文件
+ */
+export function uploadAvatar(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request({
+    url: '/h5/user/avatar',
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
+/**
+ * 手机号脱敏显示
+ * @param {String} phone 手机号
+ */
+export function maskPhone(phone) {
+  if (!phone) return '未绑定'
+  if (phone.length === 11) {
+    return phone.substring(0, 3) + '****' + phone.substring(7)
+  }
+  return phone
+}

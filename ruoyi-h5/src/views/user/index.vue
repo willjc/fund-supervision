@@ -3,53 +3,60 @@
     <!-- 顶部用户信息区 -->
     <div class="user-header">
       <div class="header-decoration"></div>
-      <div class="user-info">
+      <div class="user-info" @click="goToProfile">
         <van-image
           round
-          width="60"
-          height="60"
+          width="64"
+          height="64"
           :src="userAvatar"
           fit="cover"
           class="user-avatar"
         />
         <div class="user-details">
-          <div class="user-name">{{ userInfo.name || '张丽丽' }}</div>
-          <div class="user-phone">{{ userInfo.phone || '15612345678' }}</div>
+          <div class="user-name">{{ userInfo.name || '用户' }}</div>
+          <div class="user-phone">{{ maskedPhone }}</div>
+        </div>
+        <van-icon name="arrow" class="user-arrow" />
+      </div>
+    </div>
+
+    <!-- 快捷菜单列表 -->
+    <div class="menu-list-card">
+      <div class="menu-item" @click="goToTodo">
+        <div class="menu-left">
+          <div class="menu-icon" style="--icon-color: #FFC107;">
+            <van-icon name="star-o" size="18" color="#fff" />
+          </div>
+          <span class="menu-text">待办事项</span>
+        </div>
+        <div class="menu-right">
+          <span class="menu-count">{{ todoCount > 0 ? todoCount : 0 }}</span>
+          <van-icon name="arrow" class="menu-arrow" />
         </div>
       </div>
 
-      <!-- 快捷统计区 -->
-      <div class="quick-stats">
-        <div class="stat-item" @click="goToTodo">
-          <div class="stat-icon-wrapper" style="--icon-color: #FFC107;">
-            <van-icon name="star-o" size="24" color="#fff" />
-            <van-badge
-              v-if="todoCount > 0"
-              :content="todoCount"
-              class="stat-badge"
-              :max="99"
-            />
+      <div class="menu-item" @click="goToElder">
+        <div class="menu-left">
+          <div class="menu-icon" style="--icon-color: #FF6B6B;">
+            <van-icon name="friends-o" size="18" color="#fff" />
           </div>
-          <div class="stat-label">待办事项</div>
+          <span class="menu-text">老人信息</span>
         </div>
-
-        <div class="stat-item" @click="goToElder">
-          <div class="stat-icon-wrapper" style="--icon-color: #FF6B6B;">
-            <van-icon name="friends-o" size="24" color="#fff" />
-            <van-badge
-              :content="elderCount"
-              class="stat-badge"
-              :max="99"
-            />
-          </div>
-          <div class="stat-label">老人信息</div>
+        <div class="menu-right">
+          <span class="menu-count">{{ elderCount }}人</span>
+          <van-icon name="arrow" class="menu-arrow" />
         </div>
+      </div>
 
-        <div class="stat-item" @click="goToExpense">
-          <div class="stat-icon-wrapper" style="--icon-color: #00BCD4;">
-            <van-icon name="credit-pay" size="24" color="#fff" />
+      <div class="menu-item" @click="goToExpense">
+        <div class="menu-left">
+          <div class="menu-icon" style="--icon-color: #00BCD4;">
+            <van-icon name="balance-list-o" size="18" color="#fff" />
           </div>
-          <div class="stat-label">我的费用</div>
+          <span class="menu-text">我的费用</span>
+        </div>
+        <div class="menu-right">
+          <van-icon name="arrow" class="menu-arrow" />
         </div>
       </div>
     </div>
@@ -153,6 +160,16 @@ const userInfo = computed(() => ({
 
 const userAvatar = ref('https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg')
 
+// 手机号脱敏
+const maskedPhone = computed(() => {
+  const phone = userInfo.value.phone
+  if (!phone) return '未绑定手机'
+  if (phone.length === 11) {
+    return phone.substring(0, 3) + '****' + phone.substring(7)
+  }
+  return phone
+})
+
 // 统计数据
 const todoCount = ref(0)
 const elderCount = computed(() => userStore.elders?.length || 0)
@@ -167,6 +184,11 @@ const loadTodoCount = async () => {
   } catch (error) {
     console.error('获取待办数量失败', error)
   }
+}
+
+// 跳转个人资料
+const goToProfile = () => {
+  router.push('/user/profile')
 }
 
 // 跳转待办事项
@@ -257,7 +279,7 @@ onMounted(() => {
 .user-header {
   position: relative;
   background: linear-gradient(180deg, #0f73ff 0%, #4fc7ff 100%);
-  padding: 30px 16px 24px;
+  padding: 50px 24px 24px 16px;
   color: #fff;
   overflow: hidden;
 }
@@ -276,9 +298,14 @@ onMounted(() => {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 24px;
+  gap: 14px;
+  cursor: pointer;
   z-index: 1;
+  transition: opacity 0.2s ease;
+}
+
+.user-info:active {
+  opacity: 0.8;
 }
 
 .user-avatar {
@@ -292,68 +319,84 @@ onMounted(() => {
 .user-name {
   font-size: 20px;
   font-weight: 600;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   font-family: 'PingFang SC', '苹方-简', sans-serif;
 }
 
 .user-phone {
-  font-size: 13px;
+  font-size: 14px;
   opacity: 0.9;
 }
 
-/* 快捷统计区 */
-.quick-stats {
-  position: relative;
-  display: flex;
-  justify-content: space-around;
-  gap: 16px;
-  z-index: 1;
+.user-arrow {
+  font-size: 18px;
+  opacity: 0.8;
 }
 
-.stat-item {
+/* 快捷菜单列表卡片 */
+.menu-list-card {
+  background: #fff;
+  margin: 12px;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.menu-item {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid #f5f5f5;
   cursor: pointer;
-  transition: transform 0.2s ease;
-  flex: 1;
+  transition: background 0.2s ease;
 }
 
-.stat-item:active {
-  transform: scale(0.95);
+.menu-item:last-child {
+  border-bottom: none;
 }
 
-/* 图标容器 */
-.stat-icon-wrapper {
-  position: relative;
-  width: 52px;
-  height: 52px;
+.menu-item:active {
+  background: #f8f8f8;
+}
+
+.menu-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.menu-icon {
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--icon-color);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.stat-item:active .stat-icon-wrapper {
-  transform: scale(0.95);
-}
-
-.stat-label {
-  font-size: 13px;
-  opacity: 0.95;
+.menu-text {
+  font-size: 15px;
+  color: #333;
   font-weight: 500;
 }
 
-/* 徽章样式 */
-.stat-badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  box-shadow: 0 2px 8px rgba(238, 10, 36, 0.3);
+.menu-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.menu-count {
+  font-size: 13px;
+  color: #999;
+}
+
+.menu-arrow {
+  font-size: 14px;
+  color: #c8c9cc;
 }
 
 /* 区块卡片 */
@@ -512,17 +555,12 @@ onMounted(() => {
 
 /* 响应式优化 */
 @media (max-width: 360px) {
-  .quick-stats {
-    gap: 12px;
+  .user-header {
+    padding: 35px 12px 16px;
   }
 
-  .stat-icon-wrapper {
-    width: 46px;
-    height: 46px;
-  }
-
-  .stat-label {
-    font-size: 12px;
+  .menu-item {
+    padding: 14px 12px;
   }
 }
 </style>
