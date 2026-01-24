@@ -2,6 +2,7 @@
   <div class="user-page">
     <!-- 顶部用户信息区 -->
     <div class="user-header">
+      <div class="header-decoration"></div>
       <div class="user-info">
         <van-image
           round
@@ -9,6 +10,7 @@
           height="60"
           :src="userAvatar"
           fit="cover"
+          class="user-avatar"
         />
         <div class="user-details">
           <div class="user-name">{{ userInfo.name || '张丽丽' }}</div>
@@ -19,8 +21,8 @@
       <!-- 快捷统计区 -->
       <div class="quick-stats">
         <div class="stat-item" @click="goToTodo">
-          <div class="stat-icon-wrapper todo-icon">
-            <van-icon name="star-o" size="26" />
+          <div class="stat-icon-wrapper" style="--icon-color: #FFC107;">
+            <van-icon name="star-o" size="24" color="#fff" />
             <van-badge
               v-if="todoCount > 0"
               :content="todoCount"
@@ -32,8 +34,8 @@
         </div>
 
         <div class="stat-item" @click="goToElder">
-          <div class="stat-icon-wrapper elder-icon">
-            <van-icon name="friends-o" size="26" />
+          <div class="stat-icon-wrapper" style="--icon-color: #FF6B6B;">
+            <van-icon name="friends-o" size="24" color="#fff" />
             <van-badge
               :content="elderCount"
               class="stat-badge"
@@ -44,8 +46,8 @@
         </div>
 
         <div class="stat-item" @click="goToExpense">
-          <div class="stat-icon-wrapper expense-icon">
-            <van-icon name="credit-pay" size="26" />
+          <div class="stat-icon-wrapper" style="--icon-color: #00BCD4;">
+            <van-icon name="credit-pay" size="24" color="#fff" />
           </div>
           <div class="stat-label">我的费用</div>
         </div>
@@ -56,23 +58,34 @@
     <div class="section-card">
       <div class="section-header">
         <span class="section-title">我的订单</span>
-        <span class="section-more" @click="goToOrders">查看全部 <van-icon name="arrow" /></span>
+        <span class="section-more" @click="goToOrders">
+          <span class="more-text">更多</span>
+          <van-icon name="arrow" class="more-arrow" />
+        </span>
       </div>
       <div class="order-status-list">
         <div class="status-item" @click="goToOrders('pending')">
-          <van-icon name="pending-payment" size="28" color="#ff6b00" />
+          <div class="status-icon-wrapper" style="--icon-color: #ff6b00;">
+            <van-icon name="pending-payment" size="20" color="#fff" />
+          </div>
           <div class="status-label">待付款</div>
         </div>
         <div class="status-item" @click="goToOrders('paid')">
-          <van-icon name="paid" size="28" color="#07c160" />
+          <div class="status-icon-wrapper" style="--icon-color: #07c160;">
+            <van-icon name="paid" size="20" color="#fff" />
+          </div>
           <div class="status-label">已付款</div>
         </div>
         <div class="status-item" @click="goToOrders('cancelled')">
-          <van-icon name="close" size="28" color="#999" />
+          <div class="status-icon-wrapper" style="--icon-color: #999999;">
+            <van-icon name="close" size="20" color="#fff" />
+          </div>
           <div class="status-label">已取消</div>
         </div>
         <div class="status-item" @click="goToOrders('refund')">
-          <van-icon name="refund-o" size="28" color="#1989fa" />
+          <div class="status-icon-wrapper" style="--icon-color: #1989fa;">
+            <van-icon name="refund-o" size="20" color="#fff" />
+          </div>
           <div class="status-label">退款</div>
         </div>
       </div>
@@ -80,22 +93,32 @@
 
     <!-- 常用工具 -->
     <div class="section-card">
-      <div class="section-title">常用工具</div>
+      <div class="section-header">
+        <span class="section-title">常用工具</span>
+      </div>
       <div class="tool-list">
         <div class="tool-item" @click="goToAppointment">
-          <van-icon name="orders-o" size="28" color="#667eea" />
+          <div class="tool-icon-wrapper" style="--icon-color: #5B8FF9;">
+            <van-icon name="orders-o" size="22" color="#fff" />
+          </div>
           <div class="tool-label">我的预约</div>
         </div>
         <div class="tool-item" @click="goToCollection">
-          <van-icon name="star-o" size="28" color="#667eea" />
+          <div class="tool-icon-wrapper" style="--icon-color: #FFC107;">
+            <van-icon name="star-o" size="22" color="#fff" />
+          </div>
           <div class="tool-label">我的收藏</div>
         </div>
         <div class="tool-item" @click="goToEvaluation">
-          <van-icon name="comment-o" size="28" color="#667eea" />
+          <div class="tool-icon-wrapper" style="--icon-color: #FF6B6B;">
+            <van-icon name="comment-o" size="22" color="#fff" />
+          </div>
           <div class="tool-label">我的评价</div>
         </div>
         <div class="tool-item" @click="goToComplaint">
-          <van-icon name="warning-o" size="28" color="#667eea" />
+          <div class="tool-icon-wrapper" style="--icon-color: #764ba2;">
+            <van-icon name="warning-o" size="22" color="#fff" />
+          </div>
           <div class="tool-label">我要投诉</div>
         </div>
       </div>
@@ -103,16 +126,10 @@
 
     <!-- 退出登录 -->
     <div class="logout-section">
-      <van-button
-        block
-        round
-        type="danger"
-        plain
-        @click="handleLogout"
-        icon="sign-out"
-      >
-        退出登录
-      </van-button>
+      <div class="logout-btn" @click="handleLogout">
+        <van-icon name="sign-out" size="18" />
+        <span>退出登录</span>
+      </div>
     </div>
   </div>
 </template>
@@ -232,22 +249,40 @@ onMounted(() => {
 <style scoped>
 .user-page {
   min-height: 100vh;
-  background-color: #f5f5f5;
-  padding-bottom: 60px;
+  background-color: #f5f6fc;
+  padding-bottom: 20px;
 }
 
 /* 顶部用户信息区 */
 .user-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 20px 16px 24px;
+  position: relative;
+  background: linear-gradient(180deg, #0f73ff 0%, #4fc7ff 100%);
+  padding: 30px 16px 24px;
   color: #fff;
+  overflow: hidden;
+}
+
+.header-decoration {
+  position: absolute;
+  top: -50px;
+  right: -50px;
+  width: 150px;
+  height: 150px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
 }
 
 .user-info {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
   margin-bottom: 24px;
+  z-index: 1;
+}
+
+.user-avatar {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .user-details {
@@ -256,25 +291,26 @@ onMounted(() => {
 
 .user-name {
   font-size: 20px;
-  font-weight: bold;
+  font-weight: 600;
   margin-bottom: 4px;
+  font-family: 'PingFang SC', '苹方-简', sans-serif;
 }
 
 .user-phone {
-  font-size: 14px;
+  font-size: 13px;
   opacity: 0.9;
 }
 
 /* 快捷统计区 */
 .quick-stats {
+  position: relative;
   display: flex;
   justify-content: space-around;
-  padding: 0 20px;
   gap: 16px;
+  z-index: 1;
 }
 
 .stat-item {
-  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -291,41 +327,25 @@ onMounted(() => {
 /* 图标容器 */
 .stat-icon-wrapper {
   position: relative;
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.25);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  background: var(--icon-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   transition: all 0.3s ease;
 }
 
-.stat-icon-wrapper:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-}
-
-/* 不同类型图标的背景色 */
-.todo-icon {
-  background: linear-gradient(135deg, rgba(255, 193, 7, 0.3) 0%, rgba(255, 152, 0, 0.3) 100%);
-}
-
-.elder-icon {
-  background: linear-gradient(135deg, rgba(76, 175, 80, 0.3) 0%, rgba(56, 142, 60, 0.3) 100%);
-}
-
-.expense-icon {
-  background: linear-gradient(135deg, rgba(33, 150, 243, 0.3) 0%, rgba(25, 118, 210, 0.3) 100%);
+.stat-item:active .stat-icon-wrapper {
+  transform: scale(0.95);
 }
 
 .stat-label {
   font-size: 13px;
   opacity: 0.95;
   font-weight: 500;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 /* 徽章样式 */
@@ -334,47 +354,15 @@ onMounted(() => {
   top: -4px;
   right: -4px;
   box-shadow: 0 2px 8px rgba(238, 10, 36, 0.3);
-  animation: badge-pulse 2s ease-in-out infinite;
-}
-
-/* 徽章脉冲动画 */
-@keyframes badge-pulse {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.1);
-  }
-}
-
-/* 响应式优化 */
-@media (max-width: 360px) {
-  .quick-stats {
-    gap: 12px;
-    padding: 0 12px;
-  }
-
-  .stat-icon-wrapper {
-    width: 48px;
-    height: 48px;
-  }
-
-  .stat-icon-wrapper :deep(.van-icon) {
-    font-size: 22px;
-  }
-
-  .stat-label {
-    font-size: 12px;
-  }
 }
 
 /* 区块卡片 */
 .section-card {
   background: #fff;
   margin: 12px;
-  padding: 16px;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  padding: 16px 12px;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 
 .section-header {
@@ -382,21 +370,46 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
+  padding-left: 4px;
 }
 
 .section-title {
   font-size: 16px;
   font-weight: 500;
-  color: #333;
+  color: #1a1a1a;
+  position: relative;
+  padding-left: 10px;
+  font-family: 'PingFang SC', '苹方-简', sans-serif;
+}
+
+.section-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 14px;
+  background: linear-gradient(180deg, #0f73ff 0%, #4fc7ff 100%);
+  border-radius: 2px;
 }
 
 .section-more {
-  font-size: 13px;
-  color: #999;
   display: flex;
   align-items: center;
-  gap: 2px;
   cursor: pointer;
+  padding: 4px 0;
+}
+
+.section-more .more-text {
+  font-size: 13px;
+  color: #999;
+  margin-right: 2px;
+}
+
+.section-more .more-arrow {
+  font-size: 12px;
+  color: #999;
 }
 
 /* 订单状态列表 */
@@ -411,18 +424,33 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.status-item:active {
+  transform: scale(0.95);
+}
+
+.status-icon-wrapper {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--icon-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .status-label {
-  font-size: 13px;
-  color: #666;
+  font-size: 12px;
+  color: #333;
 }
 
 /* 工具列表 */
 .tool-list {
   display: flex;
   justify-content: space-around;
-  margin-top: 16px;
 }
 
 .tool-item {
@@ -431,27 +459,70 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   cursor: pointer;
+  padding: 8px;
+  transition: transform 0.2s ease;
+}
+
+.tool-item:active {
+  transform: scale(0.95);
+}
+
+.tool-icon-wrapper {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--icon-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .tool-label {
-  font-size: 13px;
-  color: #666;
+  font-size: 12px;
+  color: #333;
 }
 
 /* 退出登录区域 */
 .logout-section {
-  margin: 16px 12px;
+  margin: 12px;
   padding: 0;
 }
 
-.logout-section .van-button {
+.logout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   height: 46px;
+  background: #fff;
+  color: #ee0a24;
   font-size: 15px;
   font-weight: 500;
-  border: 1px solid #ee0a24;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
-.logout-section .van-button:active {
+.logout-btn:active {
   opacity: 0.8;
+  transform: scale(0.98);
+}
+
+/* 响应式优化 */
+@media (max-width: 360px) {
+  .quick-stats {
+    gap: 12px;
+  }
+
+  .stat-icon-wrapper {
+    width: 46px;
+    height: 46px;
+  }
+
+  .stat-label {
+    font-size: 12px;
+  }
 }
 </style>
