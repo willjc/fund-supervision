@@ -50,7 +50,8 @@
       "mcp__mysql__show_statement",
       "mcp__mysql__describe_table",
       "mcp__mysql__list_tables",
-      "mcp__mysql__connect_db"
+      "mcp__mysql__connect_db",
+      "mcp__mysql__execute"
     ],
     "deny": [],
     "ask": []

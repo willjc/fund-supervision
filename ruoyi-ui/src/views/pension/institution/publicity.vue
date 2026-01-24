@@ -332,6 +332,20 @@
           <div class="upload-tip">建议上传机构环境、设施照片，最多5张</div>
         </el-form-item>
 
+        <el-form-item label="VR全景图片">
+          <el-upload
+            action="/system/common/upload"
+            list-type="picture-card"
+            :on-preview="handlePictureCardPreview"
+            :on-remove="handleVrImageRemove"
+            :on-success="handleVrImageUploadSuccess"
+            :file-list="vrPicture"
+            :limit="1">
+            <i class="el-icon-plus"></i>
+          </el-upload>
+          <div class="upload-tip">建议上传360°全景图片，最多1张</div>
+        </el-form-item>
+
         <!-- 公示状态 -->
         <el-divider content-position="left">公示状态</el-divider>
         <el-form-item label="是否公示" prop="isPublic">
@@ -417,6 +431,7 @@ export default {
         ]
       },
       environmentPictures: [],
+      vrPicture: [],
       dialogImageUrl: '',
       dialogVisible: false,
       // 新增设施数据变量
@@ -529,7 +544,18 @@ export default {
             parkFacilities: data.parkFacilities,
             lifeFacilities: data.lifeFacilities,
             medicalFacilities: data.medicalFacilities,
-            dailyServices: data.dailyServices
+            dailyServices: data.dailyServices,
+            vrImage: data.vrImage
+          }
+
+          // 处理VR全景图片
+          if (data.vrImage) {
+            this.vrPicture = [{
+              name: 'VR全景图片',
+              url: data.vrImage
+            }]
+          } else {
+            this.vrPicture = []
           }
 
           // 处理图片列表
@@ -608,6 +634,7 @@ export default {
             roomFacilities: this.form.roomFacilities,
             basicFacilities: this.form.basicFacilities,
             parkFacilities: this.form.parkFacilities,
+            vrImage: this.form.vrImage,
             lifeFacilities: this.selectedLifeFacilities.length > 0 ? JSON.stringify(this.selectedLifeFacilities) : null,
             medicalFacilities: this.selectedMedicalFacilities.length > 0 ? JSON.stringify(this.selectedMedicalFacilities) : null,
             dailyServices: this.dailyServices.length > 0 ? JSON.stringify(this.dailyServices.filter(service => service.time && service.content)) : null
@@ -676,6 +703,17 @@ export default {
     handleParkFacilityRemove(file, fileList) {
       this.parkFacilityPictures = fileList
       this.form.parkFacilities = JSON.stringify(fileList.map(item => item.url))
+    },
+
+    // VR全景图片处理方法
+    handleVrImageUploadSuccess(response, file, fileList) {
+      this.vrPicture = fileList
+      this.form.vrImage = fileList.length > 0 ? fileList[0].url : ''
+      this.$message.success('VR全景图片上传成功')
+    },
+    handleVrImageRemove(file, fileList) {
+      this.vrPicture = fileList
+      this.form.vrImage = fileList.length > 0 ? fileList[0].url : ''
     },
 
     // 每日服务管理方法

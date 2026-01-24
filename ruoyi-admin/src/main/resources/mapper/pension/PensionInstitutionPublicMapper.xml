@@ -14,6 +14,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="buildingArea"    column="building_area"    />
         <result property="environmentImgs"    column="environment_imgs"    />
         <result property="mainPicture"    column="main_picture"    />
+        <result property="vrImage"    column="vr_image"    />
         <result property="rating"    column="rating"    />
         <result property="feeRangeMin"    column="fee_range_min"    />
         <result property="feeRangeMax"    column="fee_range_max"    />
@@ -60,6 +61,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             p.building_area,
             p.environment_imgs,
             p.main_picture,
+            p.vr_image,
             p.rating,
             p.fee_range_min,
             p.fee_range_max,
@@ -135,6 +137,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="buildingArea != null">building_area,</if>
             <if test="environmentImgs != null">environment_imgs,</if>
             <if test="mainPicture != null">main_picture,</if>
+            <if test="vrImage != null">vr_image,</if>
             <if test="rating != null">rating,</if>
             <if test="feeRangeMin != null">fee_range_min,</if>
             <if test="feeRangeMax != null">fee_range_max,</if>
@@ -166,6 +169,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="buildingArea != null">#{buildingArea},</if>
             <if test="environmentImgs != null">#{environmentImgs},</if>
             <if test="mainPicture != null">#{mainPicture},</if>
+            <if test="vrImage != null">#{vrImage},</if>
             <if test="rating != null">#{rating},</if>
             <if test="feeRangeMin != null">#{feeRangeMin},</if>
             <if test="feeRangeMax != null">#{feeRangeMax},</if>
@@ -201,6 +205,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="buildingArea != null">building_area = #{buildingArea},</if>
             <if test="environmentImgs != null">environment_imgs = #{environmentImgs},</if>
             <if test="mainPicture != null">main_picture = #{mainPicture},</if>
+            <if test="vrImage != null">vr_image = #{vrImage},</if>
             <if test="rating != null">rating = #{rating},</if>
             <if test="feeRangeMin != null">fee_range_min = #{feeRangeMin},</if>
             <if test="feeRangeMax != null">fee_range_max = #{feeRangeMax},</if>

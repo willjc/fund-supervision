@@ -114,3 +114,14 @@ export function getDictData(dictType) {
     method: 'get'
   })
 }
+
+/**
+ * 获取机构图片分类列表
+ * @param {Number} institutionId 机构ID
+ */
+export function getInstitutionImages(institutionId) {
+  return request({
+    url: `/h5/institution/${institutionId}/images`,
+    method: 'get'
+  })
+}

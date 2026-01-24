@@ -9,7 +9,9 @@ import org.springframework.web.bind.annotation.*;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.domain.PensionInstitution;
+import com.ruoyi.domain.PensionInstitutionPublic;
 import com.ruoyi.service.IPensionInstitutionService;
+import com.ruoyi.service.IPensionInstitutionPublicService;
 
 /**
  * 机构公示信息Controller
@@ -23,6 +25,9 @@ public class InstitutionPublicityController extends BaseController
 {
     @Autowired
     private IPensionInstitutionService pensionInstitutionService;
+
+    @Autowired
+    private IPensionInstitutionPublicService pensionInstitutionPublicService;
 
     /**
      * 获取机构公示信息
@@ -83,6 +88,30 @@ public class InstitutionPublicityController extends BaseController
 
             // 机构图片（JSON格式存储）
             data.put("coverImages", institution.getCoverImages());
+
+            // 查询公示信息表数据
+            PensionInstitutionPublic publicity = pensionInstitutionPublicService.selectPensionInstitutionPublicByInstitutionId(institution.getInstitutionId());
+            if (publicity != null) {
+                // 设施图片
+                data.put("roomFacilities", publicity.getRoomFacilities());
+                data.put("basicFacilities", publicity.getBasicFacilities());
+                data.put("parkFacilities", publicity.getParkFacilities());
+                // VR全景图片
+                data.put("vrImage", publicity.getVrImage());
+                // 生活设施和医疗设施
+                data.put("lifeFacilities", publicity.getLifeFacilities());
+                data.put("medicalFacilities", publicity.getMedicalFacilities());
+                // 每日服务安排
+                data.put("dailyServices", publicity.getDailyServices());
+            } else {
+                data.put("roomFacilities", null);
+                data.put("basicFacilities", null);
+                data.put("parkFacilities", null);
+                data.put("vrImage", null);
+                data.put("lifeFacilities", null);
+                data.put("medicalFacilities", null);
+                data.put("dailyServices", null);
+            }
 
             // 其他信息暂时使用默认值
             data.put("actualElders", 168);
@@ -159,10 +188,56 @@ public class InstitutionPublicityController extends BaseController
                 institution.setActualAddress(params.get("address").toString());
             }
 
-            // 保存到数据库
+            // 保存机构基础信息到数据库
             int result = pensionInstitutionService.updatePensionInstitution(institution);
 
-            if (result > 0) {
+            // 同时更新��示信息表（pension_institution_public）
+            PensionInstitutionPublic publicity = pensionInstitutionPublicService.selectPensionInstitutionPublicByInstitutionId(institutionId);
+
+            if (publicity == null) {
+                // 如果不存在公示信息，创建新记录
+                publicity = new PensionInstitutionPublic();
+                publicity.setInstitutionId(institutionId);
+            }
+
+            // 更新设施图片
+            if (params.containsKey("roomFacilities")) {
+                publicity.setRoomFacilities(params.get("roomFacilities") != null ? params.get("roomFacilities").toString() : null);
+            }
+            if (params.containsKey("basicFacilities")) {
+                publicity.setBasicFacilities(params.get("basicFacilities") != null ? params.get("basicFacilities").toString() : null);
+            }
+            if (params.containsKey("parkFacilities")) {
+                publicity.setParkFacilities(params.get("parkFacilities") != null ? params.get("parkFacilities").toString() : null);
+            }
+
+            // 更新VR全景图片
+            if (params.containsKey("vrImage")) {
+                publicity.setVrImage(params.get("vrImage") != null ? params.get("vrImage").toString() : null);
+            }
+
+            // 更新生活设施和医疗设施
+            if (params.containsKey("lifeFacilities")) {
+                publicity.setLifeFacilities(params.get("lifeFacilities") != null ? params.get("lifeFacilities").toString() : null);
+            }
+            if (params.containsKey("medicalFacilities")) {
+                publicity.setMedicalFacilities(params.get("medicalFacilities") != null ? params.get("medicalFacilities").toString() : null);
+            }
+
+            // 更新每日服务安排
+            if (params.containsKey("dailyServices")) {
+                publicity.setDailyServices(params.get("dailyServices") != null ? params.get("dailyServices").toString() : null);
+            }
+
+            // 保存公示信息到数据库
+            int publicityResult;
+            if (publicity.getPublicId() != null) {
+                publicityResult = pensionInstitutionPublicService.updatePensionInstitutionPublic(publicity);
+            } else {
+                publicityResult = pensionInstitutionPublicService.insertPensionInstitutionPublic(publicity);
+            }
+
+            if (result > 0 && publicityResult > 0) {
                 return success("公示信息保存成功");
             } else {
                 return error("保存失败");

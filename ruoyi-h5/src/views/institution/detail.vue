@@ -23,151 +23,101 @@
     </div>
 
     <div v-else class="detail-content">
-      <!-- 基本信息 -->
-      <div class="info-card">
-        <div class="title">{{ detail.name }}</div>
+      <!-- 顶部图片区域 -->
+      <div class="header-section" @click="handleHeaderClick">
+        <van-image class="header-bg" :src="headerImage" fit="cover" />
+        <div class="header-overlay"></div>
 
-        <!-- 星级评分区域 -->
-        <div class="rating-section">
-          <van-rate v-model="detail.rating" :size="14" color="#ffd21e" void-icon="star" void-color="#eee" readonly />
-          <span class="rating-info">{{ detail.establishDate }}</span>
-          <span class="rating-info">建筑面积{{ detail.buildingArea }}m²</span>
-        </div>
-
-        <!-- 认证标签 -->
-        <div v-if="detail.certificationTags && detail.certificationTags.length > 0" class="cert-tags">
-          <van-tag
-            v-for="tag in detail.certificationTags"
-            :key="tag"
-            plain
-            color="#FF6B00"
-            text-color="#FF6B00"
-            size="medium"
+        <!-- 图片类型切换 -->
+        <div class="image-tabs">
+          <div
+            class="image-tab-item"
+            :class="{ active: activeImageTab === item.key }"
+            v-for="item in imageTabs"
+            :key="item.key"
+            @click.stop="switchImageTab(item.key)"
           >
-            {{ tag }}
-          </van-tag>
-        </div>
-
-        <!-- 设施图片滑动区域 -->
-        <div class="facility-images-section">
-          <!-- 设施类型选择按钮 -->
-          <div class="facility-type-selector">
-            <div
-              v-if="detail.roomFacilities && detail.roomFacilities.length > 0"
-              class="facility-type-btn"
-              :class="{ active: selectedFacilityType === 'room' }"
-              @click="selectFacilityType('room')"
-            >
-              房间设施
-            </div>
-            <div
-              v-if="detail.basicFacilities && detail.basicFacilities.length > 0"
-              class="facility-type-btn"
-              :class="{ active: selectedFacilityType === 'basic' }"
-              @click="selectFacilityType('basic')"
-            >
-              基础设施
-            </div>
-            <div
-              v-if="detail.parkFacilities && detail.parkFacilities.length > 0"
-              class="facility-type-btn"
-              :class="{ active: selectedFacilityType === 'park' }"
-              @click="selectFacilityType('park')"
-            >
-              园址设施
-            </div>
-          </div>
-
-          <!-- 显示当前选中类型的设施图片 -->
-          <div v-if="selectedFacilityType === 'room' && detail.roomFacilities && detail.roomFacilities.length > 0" class="facility-swipe-container">
-            <van-swipe
-              :width="120"
-              :loop="false"
-              :show-indicators="false"
-              class="facility-swipe"
-            >
-              <van-swipe-item v-for="(facility, index) in detail.roomFacilities" :key="index" @click="previewFacilityImage(facility.image)">
-                <div class="facility-image-item">
-                  <van-image :src="facility.image" fit="cover" width="100" height="80" />
-                  <div class="facility-name">{{ facility.name }}</div>
-                </div>
-              </van-swipe-item>
-            </van-swipe>
-          </div>
-
-          <div v-if="selectedFacilityType === 'basic' && detail.basicFacilities && detail.basicFacilities.length > 0" class="facility-swipe-container">
-            <van-swipe
-              :width="120"
-              :loop="false"
-              :show-indicators="false"
-              class="facility-swipe"
-            >
-              <van-swipe-item v-for="(facility, index) in detail.basicFacilities" :key="index" @click="previewFacilityImage(facility.image)">
-                <div class="facility-image-item">
-                  <van-image :src="facility.image" fit="cover" width="100" height="80" />
-                  <div class="facility-name">{{ facility.name }}</div>
-                </div>
-              </van-swipe-item>
-            </van-swipe>
-          </div>
-
-          <div v-if="selectedFacilityType === 'park' && detail.parkFacilities && detail.parkFacilities.length > 0" class="facility-swipe-container">
-            <van-swipe
-              :width="120"
-              :loop="false"
-              :show-indicators="false"
-              class="facility-swipe"
-            >
-              <van-swipe-item v-for="(facility, index) in detail.parkFacilities" :key="index" @click="previewFacilityImage(facility.image)">
-                <div class="facility-image-item">
-                  <van-image :src="facility.image" fit="cover" width="100" height="80" />
-                  <div class="facility-name">{{ facility.name }}</div>
-                </div>
-              </van-swipe-item>
-            </van-swipe>
+            <span class="image-tab-text" :class="{ active: activeImageTab === item.key }">{{ item.name }}</span>
           </div>
         </div>
 
-        <!-- 床位信息和地址电话栏 -->
-        <div class="bed-contact-section">
-          <!-- 床位信息 -->
-          <div class="bed-info-box">
-            <div class="bed-title">床位数</div>
-            <div class="bed-value">{{ detail.availableBeds }}/{{ detail.totalBeds }}</div>
-          </div>
+        <!-- 查看全部按钮 -->
+        <div class="view-all-btn" @click.stop="viewAllImages">
+          <span class="view-all-text">查看全部</span>
+          <van-icon name="arrow" class="view-all-arrow" />
+        </div>
+      </div>
 
-          <!-- 地址电话栏 -->
-          <div class="contact-box">
-            <div class="address-row">
-              <span class="address-text">{{ detail.address }}</span>
-              <div class="contact-icons">
-                <van-icon name="location-o" size="20" color="#4A9EFF" @click="showToast('地图功能开发中')" />
-                <van-icon name="phone-o" size="20" color="#4A9EFF" @click="showToast('电话:' + detail.contactPhone)" />
-              </div>
-            </div>
+      <!-- 机构信息卡片 -->
+      <div class="institution-info-card">
+        <div class="institution-info-header">
+          <span class="institution-title">{{ detail.name }}</span>
+          <div class="institution-price">
+            <span class="price-number">{{ detail.priceRangeMin || 1000 }}</span>
+            <span class="price-unit">元/月起</span>
           </div>
         </div>
 
-        <!-- 月参考价格区(参考列表页样式) -->
-        <div class="price-section">
-          <div class="price-header">月参考价格</div>
-          <div class="price-grid">
-            <div class="price-item">
-              <span class="price-label">总费用</span>
-              <span class="price-value">¥{{ detail.priceRanges?.total?.min || 1500 }} ~ ¥{{ detail.priceRanges?.total?.max || 3500 }}</span>
+        <!-- 机构详细信息 -->
+        <div class="institution-detail-card">
+          <div class="institution-detail-item">
+            <div class="detail-value">
+              <span class="detail-number">{{ detail.buildingArea || 0 }}</span>
+              <span class="detail-unit">m²</span>
             </div>
-            <div class="price-item">
-              <span class="price-label">床位费</span>
-              <span class="price-value">¥{{ detail.priceRanges?.bed?.min || 500 }} ~ ¥{{ detail.priceRanges?.bed?.max || 800 }}</span>
+            <span class="detail-label">建筑面积</span>
+          </div>
+          <div class="institution-detail-item">
+            <span class="detail-value-text">{{ detail.bedCount || 0 }}</span>
+            <span class="detail-label">床位数</span>
+          </div>
+          <div class="institution-detail-item">
+            <span class="detail-value-text">{{ detail.registeredCapital || 0 }}万</span>
+            <span class="detail-label">注册资本</span>
+          </div>
+          <div class="institution-detail-item">
+            <span class="detail-value-text">{{ detail.establishDate || '-' }}</span>
+            <span class="detail-label">成立时间</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 收住对象和地址信息 -->
+      <div class="location-card">
+        <div class="location-content">
+          <div class="location-left">
+            <div class="location-header">
+              <van-icon name="user-o" class="location-icon" />
+              <span class="location-name">收住对象</span>
             </div>
-            <div class="price-item">
-              <span class="price-label">护理费</span>
-              <span class="price-value">¥{{ detail.priceRanges?.nursing?.min || 800 }} ~ ¥{{ detail.priceRanges?.nursing?.max || 2000 }}</span>
-            </div>
-            <div class="price-item">
-              <span class="price-label">膳食费</span>
-              <span class="price-value">¥{{ detail.priceRanges?.diet?.min || 600 }} ~ ¥{{ detail.priceRanges?.diet?.max || 1200 }}</span>
-            </div>
+            <div class="location-text">{{ detail.acceptElderType || detail.careLevelsText || '暂无信息' }}</div>
+          </div>
+        </div>
+        <div class="address-row">
+          <van-icon name="location-o" class="location-icon" />
+          <span class="address-text">{{ detail.address || detail.actualAddress || '地址信息完善中' }}</span>
+        </div>
+      </div>
+
+      <!-- 月参考价格区 -->
+      <div class="price-section">
+        <div class="price-header">月参考价格</div>
+        <div class="price-grid">
+          <div class="price-item">
+            <span class="price-label">总费用</span>
+            <span class="price-value">¥{{ detail.priceRanges?.total?.min || 1500 }} ~ ¥{{ detail.priceRanges?.total?.max || 3500 }}</span>
+          </div>
+          <div class="price-item">
+            <span class="price-label">床位费</span>
+            <span class="price-value">¥{{ detail.priceRanges?.bed?.min || 500 }} ~ ¥{{ detail.priceRanges?.bed?.max || 800 }}</span>
+          </div>
+          <div class="price-item">
+            <span class="price-label">护理费</span>
+            <span class="price-value">¥{{ detail.priceRanges?.nursing?.min || 800 }} ~ ¥{{ detail.priceRanges?.nursing?.max || 2000 }}</span>
+          </div>
+          <div class="price-item">
+            <span class="price-label">膳食费</span>
+            <span class="price-value">¥{{ detail.priceRanges?.diet?.min || 600 }} ~ ¥{{ detail.priceRanges?.diet?.max || 1200 }}</span>
           </div>
         </div>
       </div>
@@ -295,12 +245,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showToast, showDialog, showImagePreview } from 'vant'
 import { getInstitutionDetail, favoriteInstitution, unfavoriteInstitution, checkFavorite } from '@/api/institution'
-import { getReviewList, getReviewStatistics, getLatestReviews } from '@/api/review'
-import { useUserStore } from '@/store/modules/user'
+import { getReviewList, getReviewStatistics } from '@/api/review'
 import { getToken } from '@/utils/auth'
 
 const route = useRoute()
@@ -308,152 +257,92 @@ const router = useRouter()
 
 const loading = ref(false)
 const activeTab = ref('intro')
-const selectedFacilityType = ref('room') // 默认选中房间设施
+const activeImageTab = ref('main') // 默认选中主图
+const selectedFacilityType = ref('room')
+
+// 图片类型标签
+const imageTabs = ref([
+  { key: 'vr', name: 'VR' },
+  { key: 'main', name: '主图' },
+  { key: 'environment', name: '环境' },
+  { key: 'room', name: '房间' },
+  { key: 'basic', name: '设施' },
+  { key: 'park', name: '园址' }
+])
+
+// 各类型图片数据
+const imageData = ref({
+  vr: [],
+  main: [],
+  environment: [],
+  room: [],
+  basic: [],
+  park: []
+})
+
+// 顶部显示的图片
+const headerImage = ref('/images/default-institution.png')
 
 // 评价相关数据
 const reviewList = ref([])
 const reviewStatistics = ref({})
 const reviewLoading = ref(false)
 
-// 模拟机构详情数据
-const mockDetail = {
-  institutionId: 1,
-  name: '郑州市金水区花园口社区养老服务中心',
-  institutionType: '养老院',
-  address: '郑州市金水区花园口镇花园路133号',
-  contactPhone: '0371-12345678',
-  description: '本机构是经郑州市民政局批准成立的综合性养老服务机构，占地面积5000平方米，建筑面积3000平方米。拥有专业的护理团队和完善的医疗设施，致力于为老年人提供优质的养老服务。机构环境优美，设施齐全，交通便利，是老年人安享晚年的理想之所。',
-  images: [
-    '/images/banners/banner1.jpg',
-    '/images/banners/banner2.jpg',
-    '/images/banners/banner3.jpg'
-  ],
-  // 添加价格范围数据，与列表页保持一致
-  priceRanges: {
-    total: { min: 2800, max: 3500 },
-    bed: { min: 800, max: 1500 },
-    nursing: { min: 1200, max: 2800 },
-    diet: { min: 600, max: 800 }
-  },
-  videos: [], // 视频列表
-  totalBeds: 50,
-  availableBeds: 8,
-  buildingArea: 1000, // 建筑面积
-  establishDate: '2024年01月', // 建立日期
-  certificationTags: ['公办养老', '自理', '失智', '失能', '内设医疗机构', '试点机构无忧退款'], // 认证标签
-  monthlyPrice: '2800-3500', // 月参考价格
-  isFavorite: false, // 是否收藏
-  // 三个设施卡片数据
-  roomFacilities: [
-    { name: '单人间', image: 'https://via.placeholder.com/300x200/4A90E2/FFFFFF?text=单人间' },
-    { name: '双人间', image: 'https://via.placeholder.com/300x200/7ED321/FFFFFF?text=双人间' },
-    { name: '三人间', image: 'https://via.placeholder.com/300x200/F5A623/FFFFFF?text=三人间' },
-    { name: '套房', image: 'https://via.placeholder.com/300x200/BD10E0/FFFFFF?text=套房' },
-    { name: 'VIP房', image: 'https://via.placeholder.com/300x200/FF6B6B/FFFFFF?text=VIP房' },
-    { name: '夫妻房', image: 'https://via.placeholder.com/300x200/4ECDC4/FFFFFF?text=夫妻房' },
-    { name: '护理房', image: 'https://via.placeholder.com/300x200/95E1D3/FFFFFF?text=护理房' },
-    { name: '观察房', image: 'https://via.placeholder.com/300x200/F38181/FFFFFF?text=观察房' },
-    { name: '康复房', image: 'https://via.placeholder.com/300x200/AA96DA/FFFFFF?text=康复房' },
-    { name: '临终关怀房', image: 'https://via.placeholder.com/300x200/FCBAD3/FFFFFF?text=临终关怀房' },
-    { name: '豪华单间', image: 'https://via.placeholder.com/300x200/C7CEEA/FFFFFF?text=豪华单间' },
-    { name: '标准双间', image: 'https://via.placeholder.com/300x200/B5EAD7/FFFFFF?text=标准双间' },
-    { name: '家庭套房', image: 'https://via.placeholder.com/300x200/FF9FF3/FFFFFF?text=家庭套房' },
-    { name: '无障碍房', image: 'https://via.placeholder.com/300x200/54A0FF/FFFFFF?text=无障碍房' },
-    { name: '隔离病房', image: 'https://via.placeholder.com/300x200/48C9B0/FFFFFF?text=隔离病房' }
-  ],
-  basicFacilities: [
-    { name: '餐厅', image: 'https://via.placeholder.com/300x200/4A90E2/FFFFFF?text=餐厅' },
-    { name: '活动室', image: 'https://via.placeholder.com/300x200/7ED321/FFFFFF?text=活动室' },
-    { name: '阅览室', image: 'https://via.placeholder.com/300x200/F5A623/FFFFFF?text=阅览室' },
-    { name: '棋牌室', image: 'https://via.placeholder.com/300x200/BD10E0/FFFFFF?text=棋牌室' },
-    { name: '健身房', image: 'https://via.placeholder.com/300x200/FF6B6B/FFFFFF?text=健身房' },
-    { name: '理发室', image: 'https://via.placeholder.com/300x200/4ECDC4/FFFFFF?text=理发室' },
-    { name: '洗衣房', image: 'https://via.placeholder.com/300x200/95E1D3/FFFFFF?text=洗衣房' },
-    { name: '接待室', image: 'https://via.placeholder.com/300x200/F38181/FFFFFF?text=接待室' },
-    { name: '会议室', image: 'https://via.placeholder.com/300x200/AA96DA/FFFFFF?text=会议室' },
-    { name: '多功能厅', image: 'https://via.placeholder.com/300x200/FCBAD3/FFFFFF?text=多功能厅' },
-    { name: '医务室', image: 'https://via.placeholder.com/300x200/C7CEEA/FFFFFF?text=医务室' },
-    { name: '药房', image: 'https://via.placeholder.com/300x200/B5EAD7/FFFFFF?text=药房' },
-    { name: '理疗室', image: 'https://via.placeholder.com/300x200/FF9FF3/FFFFFF?text=理疗室' },
-    { name: '餐厅包间', image: 'https://via.placeholder.com/300x200/54A0FF/FFFFFF?text=餐厅包间' }
-  ],
-  parkFacilities: [
-    { name: '花园', image: 'https://via.placeholder.com/300x200/90EE90/FFFFFF?text=花园' },
-    { name: '健身广场', image: 'https://via.placeholder.com/300x200/87CEEB/FFFFFF?text=健身广场' },
-    { name: '休闲区', image: 'https://via.placeholder.com/300x200/DDA0DD/FFFFFF?text=休闲区' },
-    { name: '步道', image: 'https://via.placeholder.com/300x200/F0E68C/FFFFFF?text=步道' },
-    { name: '垂钓区', image: 'https://via.placeholder.com/300x200/20B2AA/FFFFFF?text=垂钓区' },
-    { name: '观景区', image: 'https://via.placeholder.com/300x200/FFB6C1/FFFFFF?text=观景区' },
-    { name: '太极广场', image: 'https://via.placeholder.com/300x200/FFA07A/FFFFFF?text=太极广场' },
-    { name: '棋牌区', image: 'https://via.placeholder.com/300x200/98D8C8/FFFFFF?text=棋牌区' },
-    { name: '荷花池', image: 'https://via.placeholder.com/300x200/F7DC6F/FFFFFF?text=荷花池' },
-    { name: '竹林', image: 'https://via.placeholder.com/300x200/82E0AA/FFFFFF?text=竹林' },
-    { name: '儿童乐园', image: 'https://via.placeholder.com/300x200/85C1E2/FFFFFF?text=儿童乐园' },
-    { name: '烧烤区', image: 'https://via.placeholder.com/300x200/F8B739/FFFFFF?text=烧烤区' }
-  ],
-  priceList: [
-    { name: '试住费', min: 1500, max: 3500 },
-    { name: '休假费', min: 500, max: 500 },
-    { name: '服务费', min: 400, max: 1500 },
-    { name: '膳食费', min: 600, max: 1500 }
-  ],
-  dailyServices: [
-    { time: '06:30', content: '晨间护理、测量生命体征' },
-    { time: '07:00', content: '早餐时间' },
-    { time: '08:30', content: '晨间活动、健身操' },
-    { time: '10:00', content: '上午茶点、休闲活动' },
-    { time: '11:30', content: '午餐时间' },
-    { time: '12:30', content: '午休时间' },
-    { time: '14:30', content: '下午活动、文娱节目' },
-    { time: '17:00', content: '晚餐时间' },
-    { time: '18:30', content: '晚间散步、娱乐活动' },
-    { time: '21:00', content: '晚间护理、就寝准备' }
-  ],
-  lifeFacilities: [
-    { icon: 'home-o', name: '独立卫浴' },
-    { icon: 'clock-o', name: '紧急呼叫' },
-    { icon: 'shopping-cart-o', name: '洗衣服务' },
-    { icon: 'friends-o', name: '活动室' }
-  ],
-  medicalFacilities: [
-    { icon: 'medal-o', name: '医疗站' },
-    { icon: 'cluster-o', name: '康复室' },
-    { icon: 'manager-o', name: '理疗室' },
-    { icon: 'chart-trending-o', name: '健康监测' }
-  ],
-  rating: 4.5,
-  reviewCount: 128,
-  ratingEnvironment: 4.8,
-  ratingService: 4.6,
-  ratingPrice: 4.2,
-  reviews: [
-    {
-      userName: '李先生',
-      avatar: '',
-      rating: 5,
-      createTime: '2025-01-10',
-      content: '整体不错，饮食营养均衡，医护人员��专业。唯一的建议是希望能增加一些户外活动区',
-      images: []
-    },
-    {
-      userName: '王女士',
-      avatar: '',
-      rating: 5,
-      createTime: '2025-01-05',
-      content: '非常满意！父亲在这里住了半年，身体状况明显改善。工作人员都很有爱心，把老人照顾得很好。',
-      images: [
-        'https://via.placeholder.com/100x100/F5A623/FFFFFF?text=图'
-      ]
-    }
-  ]
+const detail = ref({})
+
+// 获取图片完整URL
+const getImageUrl = (url) => {
+  if (!url) return '/images/default-institution.png'
+
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url
+  }
+
+  const baseUrl = process.env.VUE_APP_BASE_API || ''
+  if (url.indexOf(baseUrl) !== -1) {
+    return url
+  }
+
+  return baseUrl + (url.startsWith('/') ? url : '/' + url)
 }
 
-const detail = ref({})
+// 切换图片标签
+const switchImageTab = (key) => {
+  activeImageTab.value = key
+
+  const images = imageData.value[key] || []
+  if (images.length > 0) {
+    headerImage.value = getImageUrl(images[0])
+  } else {
+    headerImage.value = '/images/default-institution.png'
+  }
+}
+
+// 处理顶部图片区域点击
+const handleHeaderClick = () => {
+  if (activeImageTab.value === 'vr' && imageData.value.vr.length > 0) {
+    const vrUrl = encodeURIComponent(imageData.value.vr[0])
+    router.push({
+      name: 'InstitutionVR',
+      params: { id: route.params.id },
+      query: { vrUrl }
+    })
+  } else if (activeImageTab.value === 'vr') {
+    showToast('暂无VR资源')
+  }
+}
+
+// 查看全部图片
+const viewAllImages = () => {
+  router.push({
+    name: 'InstitutionImages',
+    params: { id: route.params.id }
+  })
+}
 
 // 收藏切换
 const toggleFavorite = async () => {
   try {
-    // 检查是否已登录
     const token = getToken()
     if (!token) {
       await showDialog({
@@ -462,7 +351,6 @@ const toggleFavorite = async () => {
         confirmButtonText: '去登录',
         cancelButtonText: '取消'
       }).then(() => {
-        // 跳转到登录页
         router.push({
           path: '/login',
           query: { redirect: route.fullPath }
@@ -474,7 +362,6 @@ const toggleFavorite = async () => {
     }
 
     if (detail.value.isFavorite) {
-      // 已收藏，询问是否取消收藏
       await showDialog({
         title: '取消收藏',
         message: `确定要取消收藏「${detail.value.name}」吗？`,
@@ -482,29 +369,24 @@ const toggleFavorite = async () => {
         cancelButtonText: '取消'
       })
 
-      // 调用取消收藏API
       await unfavoriteInstitution(detail.value.institutionId)
       detail.value.isFavorite = false
       showToast('已取消收藏')
     } else {
-      // 未收藏，直接收藏
       await favoriteInstitution(detail.value.institutionId)
       detail.value.isFavorite = true
       showToast('收藏成功')
     }
   } catch (error) {
     if (error.message && error.message.includes('cancel')) {
-      // 用户取消了对话框操作，不显示错误
       return
     }
     console.error('收藏操作失败:', error)
 
-    // 处理特定的错误信息
     const errorMsg = error.response?.data?.msg || error.message || '操作失败'
 
     if (errorMsg.includes('已经收藏') || errorMsg.includes('已收藏')) {
       showToast('您已经收藏过该机构了')
-      // 同步收藏状态
       detail.value.isFavorite = true
     } else {
       showToast(errorMsg)
@@ -515,37 +397,20 @@ const toggleFavorite = async () => {
 // 检查收藏状态
 const checkFavoriteStatus = async () => {
   try {
-    console.log('检查收藏状态 institutionId:', detail.value.institutionId)
     const response = await checkFavorite(detail.value.institutionId)
-    console.log('收藏状态检查结果', response)
     if (response.code === 200) {
       detail.value.isFavorite = response.data.isFavorited
-      console.log('设置收藏状态为:', detail.value.isFavorite)
     }
   } catch (error) {
     console.error('检查收藏状态失败', error)
-    // 默认未收藏
     detail.value.isFavorite = false
   }
 }
 
-// 预览单个设施图片
-const previewFacilityImage = (image) => {
+// 预览评价图片
+const previewReviewImage = (images, startIndex = 0) => {
   showImagePreview({
-    images: [image],
-    closeable: true
-  })
-}
-
-// 切换设施类型
-const selectFacilityType = (type) => {
-  selectedFacilityType.value = type
-}
-
-// 轮播图点击放大(已去掉轮播图，保留以防万一)
-const previewImages = (startIndex) => {
-  showImagePreview({
-    images: detail.value.images,
+    images: images,
     startPosition: startIndex,
     closeable: true
   })
@@ -559,14 +424,6 @@ const onClickLeft = () => {
 // 分享
 const onShare = () => {
   showToast('分享功能开发中')
-}
-
-// 免费试住
-const freeTrial = () => {
-  router.push({
-    name: 'FreeTrialApply',
-    params: { institutionId: route.params.id }
-  })
 }
 
 // 电话咨询
@@ -597,13 +454,11 @@ const loadReviews = async () => {
   try {
     reviewLoading.value = true
 
-    // 并行调用评价列表和统计API
     const [listResponse, statsResponse] = await Promise.all([
       getReviewList(detail.value.institutionId, 1, 10),
       getReviewStatistics(detail.value.institutionId)
     ])
 
-    // 处理评价列表
     if (listResponse.code === 200) {
       const data = listResponse.data || {}
       const rows = data.rows || []
@@ -611,7 +466,6 @@ const loadReviews = async () => {
       if (rows.length > 0) {
         reviewList.value = rows.map(review => {
           try {
-            // 解析图片JSON
             const parsedImages = review.images
               ? JSON.parse(review.images || '[]').map(img => img.url || img)
               : []
@@ -626,7 +480,6 @@ const loadReviews = async () => {
               images: parsedImages
             }
           } catch (error) {
-            // 图片解析失败时返回基本信息
             return {
               reviewId: review.reviewId,
               userName: review.userName || '匿名用户',
@@ -645,29 +498,32 @@ const loadReviews = async () => {
       reviewList.value = []
     }
 
-    // 处理统计信息
     if (statsResponse.code === 200 && statsResponse.data) {
       reviewStatistics.value = statsResponse.data
-      // 更新详情页的评分信息
       detail.value.rating = reviewStatistics.value.averageRating || 4.5
       detail.value.reviewCount = reviewStatistics.value.totalCount || reviewList.value.length
     }
 
   } catch (error) {
     console.error('加载评价数据失败:', error)
-    // 不显示错误提示，静默失败
   } finally {
     reviewLoading.value = false
   }
 }
 
-// 预览评价图片
-const previewReviewImage = (images, startIndex = 0) => {
-  showImagePreview({
-    images: images,
-    startPosition: startIndex,
-    closeable: true
-  })
+// 护理等级转文字
+const careLevelsMap = {
+  '1': '自理',
+  '2': '半护理',
+  '3': '全护理',
+  '4': '失能',
+  '5': '失智'
+}
+
+const getCareLevelsText = (careLevels) => {
+  if (!careLevels) return ''
+  const levels = careLevels.split(',')
+  return levels.map(level => careLevelsMap[level] || level).join('、')
 }
 
 // 加载详情
@@ -675,30 +531,43 @@ const loadDetail = async () => {
   try {
     loading.value = true
 
-    // 调用真实API获取机构详情
     const response = await getInstitutionDetail(route.params.id)
 
-    // 确保必要字段有默认值
     detail.value = {
       ...response.data,
-      // 确保机构ID字段存在
       institutionId: response.data.institutionId || response.data.id || route.params.id,
-      isFavorite: false, // 默认未收藏
-      rating: response.data.rating || 4.5, // 默认评分
-      reviews: response.data.reviews || [], // 默认空评价列表
-      // 确保设施数据为数组
+      isFavorite: false,
+      rating: response.data.rating || 4.5,
+      reviews: response.data.reviews || [],
       roomFacilities: response.data.roomFacilities || [],
       basicFacilities: response.data.basicFacilities || [],
       parkFacilities: response.data.parkFacilities || [],
       lifeFacilities: response.data.lifeFacilities || [],
       medicalFacilities: response.data.medicalFacilities || [],
-      dailyServices: response.data.dailyServices || []
+      dailyServices: response.data.dailyServices || [],
+      // 添加护理等级文字
+      careLevelsText: getCareLevelsText(response.data.careLevels)
     }
 
-    // 加载详情后检查收藏状态
-    await checkFavoriteStatus()
+    // 处理图片分类数据
+    if (response.data.imageCategories) {
+      response.data.imageCategories.forEach(category => {
+        if (Object.prototype.hasOwnProperty.call(imageData.value, category.key)) {
+          imageData.value[category.key] = category.images || []
+        }
+      })
+    }
 
-    // 加载评价数据
+    // 设置默认顶部图片
+    if (imageData.value.main.length > 0) {
+      headerImage.value = getImageUrl(imageData.value.main[0])
+      activeImageTab.value = 'main'
+    } else if (imageData.value.vr.length > 0) {
+      headerImage.value = getImageUrl(imageData.value.vr[0])
+      activeImageTab.value = 'vr'
+    }
+
+    await checkFavoriteStatus()
     await loadReviews()
   } catch (error) {
     console.error('加载机构详情失败:', error)
@@ -728,282 +597,245 @@ onMounted(() => {
   height: 300px;
 }
 
-.info-card {
-  background: #fff;
-  padding: 16px;
-  margin-bottom: 10px;
-  border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+/* ========== 顶部图片区域 ========== */
+.header-section {
+  width: 100%;
+  height: 200px;
+  position: relative;
+  overflow: hidden;
 }
 
-.title {
-  font-size: 18px;
+.header-bg {
+  width: 100%;
+  height: 100%;
+}
+
+.header-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.image-tabs {
+  position: absolute;
+  bottom: 50px;
+  left: 12px;
+  display: flex;
+  padding: 2px 2px;
+  border-radius: 4px;
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+}
+
+.image-tab-item {
+  padding: 0 8px;
+  border-radius: 3px;
+  height: 20px;
+  line-height: 20px;
+}
+
+.image-tab-item.active {
+  background: linear-gradient(0deg, #38a9ff 0%, #0f73ff 100%);
+  backdrop-filter: blur(6px);
+}
+
+.image-tab-text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  font-weight: normal;
+}
+
+.image-tab-text.active {
+  color: #ffffff;
+}
+
+.view-all-btn {
+  position: absolute;
+  bottom: 50px;
+  right: 12px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+}
+
+.view-all-text {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 11px;
+}
+
+.view-all-arrow {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+}
+
+/* ========== 机构信息卡片 ========== */
+.institution-info-card {
+  width: calc(100% - 24px);
+  border-radius: 10px;
+  background: #ffffff;
+  margin: -30px auto 12px;
+  padding: 14px;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
+}
+
+.institution-info-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.institution-title {
+  font-size: 16px;
   font-weight: 500;
   color: #1a1a1a;
-  margin-bottom: 12px;
-  position: relative;
-  padding-left: 10px;
 }
 
-.title::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 16px;
-  background: linear-gradient(180deg, #0f73ff 0%, #4fc7ff 100%);
-  border-radius: 2px;
-}
-
-/* 星级评分区域 */
-.rating-section {
+.institution-price {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
+  align-items: baseline;
 }
 
-.rating-info {
-  font-size: 12px;
-  color: #666;
+.price-number {
+  height: 24px;
+  color: #e5252b;
+  font-size: 22px;
+  font-weight: 600;
 }
 
-/* 认证标签 */
-.cert-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.cert-tags :deep(.van-tag) {
-  font-size: 12px;
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-weight: 500;
-}
-
-/* 设施图片滑动区域 */
-.facility-images-section {
-  margin-bottom: 16px;
-}
-
-/* 设施类型选择按钮 */
-.facility-type-selector {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 16px;
-  padding: 0 4px;
-}
-
-.facility-type-btn {
-  padding: 10px 20px;
-  background: #f8f9fa;
-  border-radius: 22px;
+.price-unit {
+  height: 20px;
+  color: #e5252b;
   font-size: 14px;
-  font-weight: 500;
-  color: #666;
-  cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid #e9ecef;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
-.facility-type-btn.active {
-  background: linear-gradient(135deg, #1281ff 0%, #4fc7ff 100%);
-  color: white;
-  border-color: #1281ff;
-  box-shadow: 0 3px 12px rgba(18, 129, 255, 0.3);
-  transform: translateY(-1px);
-}
-
-.facility-type-btn:hover:not(.active) {
-  background: #f1f3f4;
-  transform: translateY(-1px);
-}
-
-.facility-type-btn:active {
-  transform: scale(0.96) translateY(0);
-}
-
-/* 设施滑动容器 */
-.facility-swipe-container {
-  width: 100%;
-  overflow: hidden;
-  position: relative;
-}
-
-/* 修复 facility-swipe 样式 */
-.facility-swipe {
-  background: linear-gradient(135deg, #f8f9fa 0%, #f5f6fc 100%);
-  border-radius: 10px;
+/* 机构详细信息卡片 */
+.institution-detail-card {
   padding: 10px;
-  width: 100%;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border-radius: 5px;
+  background: #f7f9fa;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
 }
 
-.facility-swipe :deep(.van-swipe-item) {
-  width: 120px;
-  flex-shrink: 0;
+.institution-detail-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.facility-title {
+.detail-value {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+}
+
+.detail-number {
+  color: #333333;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.detail-unit {
+  color: #333333;
+  font-size: 13px;
+}
+
+.detail-value-text {
+  color: #333333;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.detail-label {
+  color: #888888;
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+/* ========== 收住对象和地址信息 ========== */
+.location-card {
+  width: calc(100% - 24px);
+  border-radius: 10px;
+  background: #ffffff;
+  margin: 0 auto 12px;
+  padding: 14px;
+  box-sizing: border-box;
+}
+
+.location-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.location-left {
+  flex: 1;
+}
+
+.location-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.location-icon {
+  color: #1281ff;
+  font-size: 14px;
+  margin-right: 6px;
+}
+
+.location-name {
   font-size: 14px;
   font-weight: 500;
-  color: #333;
-  margin-bottom: 8px;
+  color: #1a1a1a;
 }
 
-.facility-image-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  width: 120px;
-  margin-right: 8px;
-}
-
-.facility-name {
-  font-size: 12px;
-  color: #666;
-  text-align: center;
-  margin-top: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100px;
-}
-
-/* 设施水平布局容器 */
-.facility-row {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.facility-column {
-  flex: 1;
-  min-width: 0;
-}
-
-.facility-column .facility-image-group {
-  margin-bottom: 0 !important;
-}
-
-/* 原三个设施卡片样式保留但不显示 */
-.facility-cards {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.facility-card {
-  background: linear-gradient(135deg, #4A9EFF 0%, #67B5FF 100%);
-  border-radius: 8px;
-  padding: 12px 8px;
-  text-align: center;
-  color: white;
-  box-shadow: 0 2px 8px rgba(74, 158, 255, 0.3);
-  cursor: pointer;
-  transition: transform 0.2s;
-}
-
-.facility-card:active {
-  transform: scale(0.95);
-}
-
-.card-title {
+.location-text {
   font-size: 13px;
-  margin-bottom: 4px;
-  font-weight: 500;
-}
-
-.card-count {
-  font-size: 12px;
-  opacity: 0.9;
-}
-
-/* 床位和地址联合区域 */
-.bed-contact-section {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.bed-info-box {
-  flex: 1;
-  background: linear-gradient(135deg, #ebf6ff 0%, #f0f9ff 100%);
-  border-radius: 12px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  box-shadow: 0 2px 8px rgba(18, 129, 255, 0.1);
-}
-
-.bed-title {
-  font-size: 13px;
-  color: #999;
-  margin-bottom: 8px;
-}
-
-.bed-value {
-  font-size: 24px;
-  font-weight: bold;
-  color: #1281ff;
-}
-
-.contact-box {
-  flex: 2;
-  background: linear-gradient(135deg, #fafbfc 0%, #f5f6fc 100%);
-  border-radius: 12px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  color: #666666;
+  line-height: 1.5;
 }
 
 .address-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.address-row .location-icon {
+  margin-right: 6px;
 }
 
 .address-text {
-  font-size: 13px;
-  color: #333;
-  line-height: 1.5;
   flex: 1;
-  min-width: 0; /* 允许文字换行 */
+  font-size: 13px;
+  color: #333333;
 }
 
-.contact-icons {
-  display: flex;
-  gap: 16px;
-  justify-content: center;
-}
-
-.contact-icons .van-icon {
-  cursor: pointer;
-  color: #1281ff;
-}
-
-.contact-icons .van-icon:active {
-  opacity: 0.7;
-}
-
-/* 月参考价格区(参考列表页样式) */
+/* ========== 月参考价格区 ========== */
 .price-section {
+  width: calc(100% - 24px);
   background: linear-gradient(135deg, #ebf6ff 0%, #f0f9ff 100%);
   border-radius: 10px;
   padding: 12px;
-  margin-bottom: 12px;
+  margin: 0 auto 12px;
   box-shadow: 0 2px 8px rgba(18, 129, 255, 0.08);
 }
 
@@ -1012,20 +844,6 @@ onMounted(() => {
   font-weight: 500;
   color: #1281ff;
   margin-bottom: 8px;
-  position: relative;
-  padding-left: 8px;
-}
-
-.price-header::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 12px;
-  background: linear-gradient(180deg, #1281ff 0%, #4fc7ff 100%);
-  border-radius: 2px;
 }
 
 .price-grid {
@@ -1039,7 +857,6 @@ onMounted(() => {
   align-items: center;
   gap: 3px;
   font-size: 12px;
-  flex: 0 0 calc(50% - 3px);
 }
 
 .price-label {
@@ -1053,6 +870,7 @@ onMounted(() => {
   white-space: nowrap;
 }
 
+/* ========== 其他原有样式 ========== */
 /* 设施网格 */
 .facility-grid {
   display: grid;
@@ -1167,12 +985,6 @@ onMounted(() => {
   color: #666;
 }
 
-.rating-score {
-  font-size: 14px;
-  color: #ffb800;
-  font-weight: 500;
-}
-
 /* 评价列表 */
 .review-list {
   background: #fff;
@@ -1228,7 +1040,6 @@ onMounted(() => {
   flex-wrap: wrap;
 }
 
-/* 评价加载状态 */
 .review-loading {
   display: flex;
   justify-content: center;
@@ -1236,7 +1047,6 @@ onMounted(() => {
   color: #999;
 }
 
-/* 无评价状态 */
 .no-reviews {
   padding: 20px;
 }
@@ -1304,22 +1114,6 @@ onMounted(() => {
   font-size: 16px;
   font-weight: 500;
   padding: 12px 16px 8px;
-  position: relative;
-  padding-left: 20px;
-}
-
-:deep(.van-cell-group__title) {
-  color: #1a1a1a;
-  font-size: 16px;
-  font-weight: 500;
-  padding: 12px 16px 8px;
-  position: relative;
-  padding-left: 12px;
-}
-
-/* 移除标题前的装饰条和箭头 */
-:deep(.van-cell-group__title::before) {
-  display: none;
 }
 
 :deep(.van-cell-group) {
@@ -1330,7 +1124,6 @@ onMounted(() => {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 
-/* 隐藏cell-group右侧箭头 */
 :deep(.van-cell-group .van-cell__right-icon) {
   display: none;
 }
@@ -1339,7 +1132,6 @@ onMounted(() => {
   display: none;
 }
 
-/* 修复Tab内容区域下划线 */
 :deep(.van-tabs__content) {
   background: transparent;
 }

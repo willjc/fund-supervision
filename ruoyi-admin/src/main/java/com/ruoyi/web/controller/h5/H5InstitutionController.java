@@ -22,12 +22,15 @@ import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.domain.PensionInstitution;
 import com.ruoyi.domain.PensionInstitutionPublic;
 import com.ruoyi.domain.InstitutionRating;
+import com.ruoyi.domain.pension.PensionInstitutionAttach;
 import com.ruoyi.service.IPensionInstitutionService;
 import com.ruoyi.service.IPensionInstitutionPublicService;
 import com.ruoyi.service.IBedInfoService;
 import com.ruoyi.service.IFacilityIconConfigService;
 import com.ruoyi.service.IInstitutionRatingService;
+import com.ruoyi.mapper.pension.PensionInstitutionAttachMapper;
 import com.ruoyi.domain.FacilityIconConfig;
+import com.ruoyi.web.controller.h5.vo.InstitutionImageCategoryVO;
 
 /**
  * H5养老机构Controller
@@ -52,6 +55,9 @@ public class H5InstitutionController extends BaseController
 
     @Autowired
     private IInstitutionRatingService ratingService;
+
+    @Autowired
+    private PensionInstitutionAttachMapper pensionInstitutionAttachMapper;
 
     /**
      * 查询养老机构列表 (H5端,不需要权限)
@@ -220,6 +226,85 @@ public class H5InstitutionController extends BaseController
 
             return AjaxResult.success(convertedList);
         }
+    }
+
+    /**
+     * 获取机构图片分类列表 (H5端)
+     *
+     * @param institutionId 机构ID
+     * @return 图片分类列表
+     */
+    @GetMapping("/{institutionId}/images")
+    public AjaxResult getInstitutionImages(@PathVariable("institutionId") Long institutionId)
+    {
+        List<Map<String, Object>> groupedAttachments = pensionInstitutionAttachMapper.selectAttachmentsGroupByType(institutionId);
+
+        // 构建图片分类数据
+        List<InstitutionImageCategoryVO> imageCategories = new ArrayList<>();
+
+        // 判断attach表是否有数据
+        boolean hasAttachData = groupedAttachments != null && !groupedAttachments.isEmpty();
+
+        if (hasAttachData) {
+            // 从attach表获取
+            addImageCategory(imageCategories, groupedAttachments, PensionInstitutionAttach.TYPE_VR, "VR", "vr");
+            addImageCategory(imageCategories, groupedAttachments, PensionInstitutionAttach.TYPE_MAIN, "主图", "main");
+            addImageCategory(imageCategories, groupedAttachments, PensionInstitutionAttach.TYPE_ENVIRONMENT, "环境", "environment");
+            addImageCategory(imageCategories, groupedAttachments, PensionInstitutionAttach.TYPE_ROOM, "房间", "room");
+            addImageCategory(imageCategories, groupedAttachments, PensionInstitutionAttach.TYPE_BASIC, "设施", "basic");
+            addImageCategory(imageCategories, groupedAttachments, PensionInstitutionAttach.TYPE_PARK, "园址", "park");
+        } else {
+            // 从publicity表字段获取（兼容管理端上传的图片）
+            // 查询机构的公示信息
+            PensionInstitutionPublic queryPublicity = new PensionInstitutionPublic();
+            queryPublicity.setInstitutionId(institutionId);
+            queryPublicity.setIsPublished("1");
+            List<PensionInstitutionPublic> publicityList = pensionInstitutionPublicService.selectPensionInstitutionPublicList(queryPublicity);
+            PensionInstitutionPublic publicity = publicityList.isEmpty() ? null : publicityList.get(0);
+
+            if (publicity != null) {
+                imageCategories.add(new InstitutionImageCategoryVO("vr", "VR", parseCommaSeparatedImages(publicity.getVrImage())));
+                imageCategories.add(new InstitutionImageCategoryVO("main", "主图", parseCommaSeparatedImages(publicity.getMainPicture())));
+                imageCategories.add(new InstitutionImageCategoryVO("environment", "环境", parseCommaSeparatedImages(publicity.getEnvironmentImgs())));
+                imageCategories.add(new InstitutionImageCategoryVO("room", "房间", parseCommaSeparatedImages(publicity.getRoomFacilities())));
+                imageCategories.add(new InstitutionImageCategoryVO("basic", "设施", parseCommaSeparatedImages(publicity.getBasicFacilities())));
+                imageCategories.add(new InstitutionImageCategoryVO("park", "园址", parseCommaSeparatedImages(publicity.getParkFacilities())));
+            } else {
+                // 没有任何图片数据
+                imageCategories.add(new InstitutionImageCategoryVO("vr", "VR", new ArrayList<>()));
+                imageCategories.add(new InstitutionImageCategoryVO("main", "主图", new ArrayList<>()));
+                imageCategories.add(new InstitutionImageCategoryVO("environment", "环境", new ArrayList<>()));
+                imageCategories.add(new InstitutionImageCategoryVO("room", "房间", new ArrayList<>()));
+                imageCategories.add(new InstitutionImageCategoryVO("basic", "设施", new ArrayList<>()));
+                imageCategories.add(new InstitutionImageCategoryVO("park", "园址", new ArrayList<>()));
+            }
+        }
+
+        return AjaxResult.success(imageCategories);
+    }
+
+    /**
+     * 添加图片分类
+     */
+    private void addImageCategory(List<InstitutionImageCategoryVO> categories,
+                                  List<Map<String, Object>> groupedAttachments,
+                                  String attachType, String name, String key)
+    {
+        List<String> images = new ArrayList<>();
+        for (Map<String, Object> group : groupedAttachments) {
+            if (attachType.equals(group.get("attachType"))) {
+                String imagesStr = (String) group.get("images");
+                if (imagesStr != null && !imagesStr.isEmpty()) {
+                    String[] imageArray = imagesStr.split(",");
+                    for (String image : imageArray) {
+                        if (image != null && !image.trim().isEmpty()) {
+                            images.add(image.trim());
+                        }
+                    }
+                }
+            }
+        }
+        categories.add(new InstitutionImageCategoryVO(key, name, images));
     }
 
     /**
@@ -607,9 +692,63 @@ public class H5InstitutionController extends BaseController
             result.put("buildingArea", publicity.getBuildingArea());
         }
 
+        // 添加图片分类数据
+        // 优先从pension_institution_attach表获取，如果没有则从publicity表字段获取
+        List<Map<String, Object>> groupedAttachments = pensionInstitutionAttachMapper.selectAttachmentsGroupByType(institution.getInstitutionId());
+        List<InstitutionImageCategoryVO> imageCategories = new ArrayList<>();
+
+        // 判断attach表是否有数据
+        boolean hasAttachData = groupedAttachments != null && !groupedAttachments.isEmpty();
+
+        if (hasAttachData) {
+            // 从attach表获取
+            addImageCategory(imageCategories, groupedAttachments, PensionInstitutionAttach.TYPE_VR, "VR", "vr");
+            addImageCategory(imageCategories, groupedAttachments, PensionInstitutionAttach.TYPE_MAIN, "主图", "main");
+            addImageCategory(imageCategories, groupedAttachments, PensionInstitutionAttach.TYPE_ENVIRONMENT, "环境", "environment");
+            addImageCategory(imageCategories, groupedAttachments, PensionInstitutionAttach.TYPE_ROOM, "房间", "room");
+            addImageCategory(imageCategories, groupedAttachments, PensionInstitutionAttach.TYPE_BASIC, "设施", "basic");
+            addImageCategory(imageCategories, groupedAttachments, PensionInstitutionAttach.TYPE_PARK, "园址", "park");
+        } else if (publicity != null) {
+            // 从publicity表字段获取（兼容管理端上传的图片）
+            imageCategories.add(new InstitutionImageCategoryVO("vr", "VR", parseCommaSeparatedImages(publicity.getVrImage())));
+            imageCategories.add(new InstitutionImageCategoryVO("main", "主图", parseCommaSeparatedImages(publicity.getMainPicture())));
+            imageCategories.add(new InstitutionImageCategoryVO("environment", "环境", parseCommaSeparatedImages(publicity.getEnvironmentImgs())));
+            imageCategories.add(new InstitutionImageCategoryVO("room", "房间", parseCommaSeparatedImages(publicity.getRoomFacilities())));
+            imageCategories.add(new InstitutionImageCategoryVO("basic", "设施", parseCommaSeparatedImages(publicity.getBasicFacilities())));
+            imageCategories.add(new InstitutionImageCategoryVO("park", "园址", parseCommaSeparatedImages(publicity.getParkFacilities())));
+        } else {
+            // 没有任何图片数据
+            imageCategories.add(new InstitutionImageCategoryVO("vr", "VR", new ArrayList<>()));
+            imageCategories.add(new InstitutionImageCategoryVO("main", "主图", new ArrayList<>()));
+            imageCategories.add(new InstitutionImageCategoryVO("environment", "环境", new ArrayList<>()));
+            imageCategories.add(new InstitutionImageCategoryVO("room", "房间", new ArrayList<>()));
+            imageCategories.add(new InstitutionImageCategoryVO("basic", "设施", new ArrayList<>()));
+            imageCategories.add(new InstitutionImageCategoryVO("park", "园址", new ArrayList<>()));
+        }
+        result.put("imageCategories", imageCategories);
+
+        // 机构基础信息（用于详情页卡片展示）
+        result.put("registeredCapital", institution.getRegisteredCapital()); // 注册资金
+        result.put("bedCount", institution.getBedCount()); // 床位数
+        result.put("careLevels", institution.getCareLevels()); // 收住对象类型
+
+        // 收住对象���型解析（从publicity表的accept_elder_type获取）
+        if (publicity != null && publicity.getAcceptElderType() != null && !publicity.getAcceptElderType().trim().isEmpty()) {
+            result.put("acceptElderType", parseAcceptElderType(publicity.getAcceptElderType()));
+        } else {
+            result.put("acceptElderType", "");
+        }
+
+        // 成立时间格式化
+        if (institution.getEstablishedDate() != null) {
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
+            result.put("establishDate", sdf.format(institution.getEstablishedDate()));
+        } else {
+            result.put("establishDate", "");
+        }
+
         // 默认值
         result.put("rating", 4.5);
-        result.put("establishDate", "2024年"); // 可从机构表获取
 
         // **通过床位管理系统精确计算总床位和可用床位，确保与列表页面数据一致**
         try {
@@ -764,6 +903,22 @@ public class H5InstitutionController extends BaseController
     }
 
     /**
+     * 解析逗号分隔的图片字符串为列表
+     */
+    private List<String> parseCommaSeparatedImages(String imagesStr) {
+        List<String> result = new ArrayList<>();
+        if (!StringUtils.hasText(imagesStr)) return result;
+
+        String[] imageArray = imagesStr.split(",");
+        for (String image : imageArray) {
+            if (image != null && !image.trim().isEmpty()) {
+                result.add(image.trim());
+            }
+        }
+        return result;
+    }
+
+    /**
      * 解析每日服务安排，返回对象数组
      */
     private List<Map<String, Object>> parseDailyServices(String jsonStr) {
@@ -841,4 +996,47 @@ public class H5InstitutionController extends BaseController
     }
 
     // 硬编码图标方法已被动态配置替代
+
+    /**
+     * 解析收住对象类型，转换为中文
+     * accept_elder_type格式: self_care,semi_disabled,disabled,dementia
+     */
+    private String parseAcceptElderType(String acceptElderType) {
+        if (!StringUtils.hasText(acceptElderType)) {
+            return "";
+        }
+
+        String[] types = acceptElderType.split(",");
+        StringBuilder result = new StringBuilder();
+
+        for (String type : types) {
+            String trimmedType = type.trim();
+            String chinese = "";
+
+            switch (trimmedType) {
+                case "self_care":
+                    chinese = "自理";
+                    break;
+                case "semi_disabled":
+                    chinese = "半失能";
+                    break;
+                case "disabled":
+                    chinese = "失能";
+                    break;
+                case "dementia":
+                    chinese = "失智";
+                    break;
+                default:
+                    chinese = trimmedType;
+                    break;
+            }
+
+            if (result.length() > 0 && !chinese.isEmpty()) {
+                result.append("、");
+            }
+            result.append(chinese);
+        }
+
+        return result.toString();
+    }
 }

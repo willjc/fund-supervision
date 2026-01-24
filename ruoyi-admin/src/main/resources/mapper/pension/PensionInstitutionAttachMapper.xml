@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.mapper.pension.PensionInstitutionAttachMapper">
+
+    <resultMap type="PensionInstitutionAttach" id="PensionInstitutionAttachResult">
+        <result property="attachId"       column="attach_id"       />
+        <result property="institutionId"  column="institution_id"  />
+        <result property="attachType"     column="attach_type"     />
+        <result property="attachName"     column="attach_name"     />
+        <result property="attachPath"     column="attach_path"     />
+        <result property="fileSize"       column="file_size"       />
+        <result property="fileType"       column="file_type"       />
+        <result property="createBy"       column="create_by"       />
+        <result property="createTime"     column="create_time"     />
+    </resultMap>
+
+    <sql id="selectPensionInstitutionAttachVo">
+        select attach_id, institution_id, attach_type, attach_name, attach_path, file_size, file_type, create_by, create_time
+        from pension_institution_attach
+    </sql>
+
+    <select id="selectPensionInstitutionAttachList" parameterType="PensionInstitutionAttach" resultMap="PensionInstitutionAttachResult">
+        <include refid="selectPensionInstitutionAttachVo"/>
+        <where>
+            <if test="institutionId != null "> and institution_id = #{institutionId}</if>
+            <if test="attachType != null  and attachType != ''"> and attach_type = #{attachType}</if>
+            <if test="attachName != null  and attachName != ''"> and attach_name like concat('%', #{attachName}, '%')</if>
+            <if test="fileType != null  and fileType != ''"> and file_type = #{fileType}</if>
+        </where>
+        order by create_time desc
+    </select>
+
+    <select id="selectPensionInstitutionAttachByAttachId" parameterType="Long" resultMap="PensionInstitutionAttachResult">
+        <include refid="selectPensionInstitutionAttachVo"/>
+        where attach_id = #{attachId}
+    </select>
+
+    <select id="selectByInstitutionIdAndType" resultMap="PensionInstitutionAttachResult">
+        <include refid="selectPensionInstitutionAttachVo"/>
+        where institution_id = #{institutionId}
+        <if test="attachType != null">
+            and attach_type = #{attachType}
+        </if>
+        order by create_time desc
+    </select>
+
+    <select id="selectAttachmentsGroupByType" resultType="java.util.Map">
+        select
+            attach_type as attachType,
+            GROUP_CONCAT(attach_path ORDER BY create_time DESC SEPARATOR ',') as images
+        from pension_institution_attach
+        where institution_id = #{institutionId}
+        group by attach_type
+        order by attach_type
+    </select>
+
+    <insert id="insertPensionInstitutionAttach" parameterType="PensionInstitutionAttach" useGeneratedKeys="true" keyProperty="attachId">
+        insert into pension_institution_attach
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="institutionId != null">institution_id,</if>
+            <if test="attachType != null">attach_type,</if>
+            <if test="attachName != null">attach_name,</if>
+            <if test="attachPath != null">attach_path,</if>
+            <if test="fileSize != null">file_size,</if>
+            <if test="fileType != null">file_type,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="institutionId != null">#{institutionId},</if>
+            <if test="attachType != null">#{attachType},</if>
+            <if test="attachName != null">#{attachName},</if>
+            <if test="attachPath != null">#{attachPath},</if>
+            <if test="fileSize != null">#{fileSize},</if>
+            <if test="fileType != null">#{fileType},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updatePensionInstitutionAttach" parameterType="PensionInstitutionAttach">
+        update pension_institution_attach
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="institutionId != null">institution_id = #{institutionId},</if>
+            <if test="attachType != null">attach_type = #{attachType},</if>
+            <if test="attachName != null">attach_name = #{attachName},</if>
+            <if test="attachPath != null">attach_path = #{attachPath},</if>
+            <if test="fileSize != null">file_size = #{fileSize},</if>
+            <if test="fileType != null">file_type = #{fileType},</if>
+        </trim>
+        where attach_id = #{attachId}
+    </update>
+
+    <delete id="deletePensionInstitutionAttachByAttachId" parameterType="Long">
+        delete from pension_institution_attach where attach_id = #{attachId}
+    </delete>
+
+    <delete id="deletePensionInstitutionAttachByAttachIds" parameterType="String">
+        delete from pension_institution_attach where attach_id in
+        <foreach item="attachId" collection="array" open="(" separator="," close=")">
+            #{attachId}
+        </foreach>
+    </delete>
+
+    <delete id="deletePensionInstitutionAttachByInstitutionId" parameterType="Long">
+        delete from pension_institution_attach where institution_id = #{institutionId}
+    </delete>
+
+</mapper>

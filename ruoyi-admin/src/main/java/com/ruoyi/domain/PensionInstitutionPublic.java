@@ -48,6 +48,9 @@ public class PensionInstitutionPublic extends BaseEntity
     /** 机构主图 */
     private String mainPicture;
 
+    /** VR全景图片 */
+    private String vrImage;
+
     /** 评级(1-5星) */
     @Excel(name = "评级")
     private String rating;
@@ -236,6 +239,16 @@ public class PensionInstitutionPublic extends BaseEntity
     public void setMainPicture(String mainPicture)
     {
         this.mainPicture = mainPicture;
+    }
+
+    public String getVrImage()
+    {
+        return vrImage;
+    }
+
+    public void setVrImage(String vrImage)
+    {
+        this.vrImage = vrImage;
     }
 
     public void setRating(String rating)

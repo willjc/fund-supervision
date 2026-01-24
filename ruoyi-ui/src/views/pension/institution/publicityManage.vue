@@ -251,6 +251,10 @@
           <image-upload v-model="form.mainPicture" :limit="1" />
           <div style="color: #999; font-size: 12px; margin-top: 8px;">只能上传1张图片，作为机构主要展示图片，建议尺寸800x600</div>
         </el-form-item>
+        <el-form-item label="VR全景图片">
+          <image-upload v-model="form.vrImage" :limit="1" />
+          <div style="color: #999; font-size: 12px; margin-top: 8px;">上传360°全景图片，最多1张</div>
+        </el-form-item>
         <el-form-item label="机构简介" prop="institutionIntro">
           <el-input v-model="form.institutionIntro" type="textarea" :rows="4" placeholder="请输入机构简介" />
         </el-form-item>
@@ -349,7 +353,7 @@
     </el-dialog>
 
     <!-- 查看详情对话框 -->
-    <el-dialog title="公示信息详情" :visible.sync="viewOpen" width="1000px" append-to-body>
+    <el-dialog title="公示信息详情" :visible.sync="viewOpen" width="1200px" append-to-body>
       <div class="publicity-detail" v-if="viewData.publicId">
         <div class="detail-header">
           <h2>{{ viewData.institutionName || '-' }}</h2>
@@ -442,6 +446,19 @@
             <el-image
               :src="getImageUrl(viewData.mainPicture)"
               :preview-src-list="[getImageUrl(viewData.mainPicture)]"
+              fit="cover"
+              style="width: 300px; height: 200px; border-radius: 5px;"
+            ></el-image>
+          </div>
+        </div>
+
+        <!-- VR全景图片 -->
+        <div class="detail-section" v-if="viewData.vrImage">
+          <h4>VR全景图片</h4>
+          <div class="main-image-container">
+            <el-image
+              :src="getImageUrl(viewData.vrImage)"
+              :preview-src-list="[getImageUrl(viewData.vrImage)]"
               fit="cover"
               style="width: 300px; height: 200px; border-radius: 5px;"
             ></el-image>
@@ -551,7 +568,7 @@
     </el-dialog>
 
     <!-- 预览对话框 -->
-    <el-dialog title="公示信息预览" :visible.sync="previewOpen" width="1000px" append-to-body>
+    <el-dialog title="公示信息预览" :visible.sync="previewOpen" width="1200px" append-to-body>
       <div class="publicity-preview">
         <div class="preview-header">
           <h2>{{ form.institutionName || '养老机构' }}</h2>
@@ -630,6 +647,19 @@
             <el-image
               :src="getImageUrl(form.mainPicture)"
               :preview-src-list="[getImageUrl(form.mainPicture)]"
+              fit="cover"
+              style="width: 300px; height: 200px; border-radius: 5px;"
+            ></el-image>
+          </div>
+        </div>
+
+        <!-- VR全景图片 -->
+        <div class="detail-section" v-if="form.vrImage">
+          <h4>VR全景图片</h4>
+          <div class="main-image-container">
+            <el-image
+              :src="getImageUrl(form.vrImage)"
+              :preview-src-list="[getImageUrl(form.vrImage)]"
               fit="cover"
               style="width: 300px; height: 200px; border-radius: 5px;"
             ></el-image>
@@ -912,6 +942,7 @@ export default {
         buildingArea: null,
         environmentImgs: null,
         mainPicture: null,
+        vrImage: null,
         // 设施图片字段
         roomFacilities: null,
         basicFacilities: null,
@@ -1277,7 +1308,8 @@ export default {
 .publicity-preview {
   max-height: 700px;
   overflow-y: auto;
-  padding: 10px;
+  padding: 16px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
 }
 
 .form-tip {
@@ -1292,78 +1324,145 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 25px;
-  padding-bottom: 15px;
-  border-bottom: 2px solid #409EFF;
+  margin-bottom: 16px;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.25);
 }
 
 .detail-header h2,
 .preview-header h2 {
   margin: 0;
-  color: #303133;
-  font-size: 22px;
+  color: #ffffff;
+  font-size: 18px;
   font-weight: 600;
 }
 
 .detail-section {
-  margin-top: 25px;
-  padding: 20px;
-  background-color: #f8f9fa;
-  border-radius: 6px;
-  border-left: 3px solid #409EFF;
+  margin-top: 16px;
+  padding: 16px;
+  background: #ffffff;
+  border-radius: 8px;
+  border-left: 3px solid #667eea;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+}
+
+.detail-section:hover {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
 }
 
 .detail-section h4 {
-  margin: 0 0 12px 0;
-  color: #409EFF;
-  font-size: 15px;
+  margin: 0 0 10px 0;
+  color: #667eea;
+  font-size: 14px;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+.detail-section h4::before {
+  content: '';
+  width: 3px;
+  height: 14px;
+  background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+  border-radius: 2px;
+  margin-right: 6px;
 }
 
 .detail-section p {
   margin: 0;
   color: #303133;
-  line-height: 1.8;
-  font-size: 14px;
+  line-height: 1.6;
+  font-size: 13px;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 /* 描述列表样式优化 */
+.publicity-detail >>> .el-descriptions,
+.publicity-preview >>> .el-descriptions {
+  background: #ffffff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  margin-bottom: 12px;
+}
+
+.publicity-detail >>> .el-descriptions__body,
+.publicity-preview >>> .el-descriptions__body {
+  padding: 0;
+}
+
+.publicity-detail >>> .el-descriptions-item,
+.publicity-preview >>> .el-descriptions-item {
+  padding: 8px 12px !important;
+}
+
+.publicity-detail >>> .el-descriptions-item__label,
+.publicity-preview >>> .el-descriptions-item__label {
+  padding: 8px 12px !important;
+}
+
+.publicity-detail >>> .el-descriptions-item__content,
+.publicity-preview >>> .el-descriptions-item__content {
+  padding: 8px 12px !important;
+}
+
 .publicity-detail >>> .el-descriptions__title,
 .publicity-preview >>> .el-descriptions__title {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
-  color: #409EFF;
-  margin-bottom: 15px;
+  color: #667eea;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
 }
 
 .publicity-detail >>> .el-descriptions-item__label,
 .publicity-preview >>> .el-descriptions-item__label {
   font-weight: 600;
   background-color: #f5f7fa;
+  color: #606266;
+}
+
+.publicity-detail >>> .el-descriptions-item__content,
+.publicity-preview >>> .el-descriptions-item__content {
+  color: #303133;
 }
 
 /* 图片画廊样式 */
 .image-gallery {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 10px;
 }
 
 .gallery-image {
-  width: 150px;
-  height: 150px;
-  border-radius: 5px;
+  width: 100%;
+  height: 140px;
+  border-radius: 8px;
   background-color: #ebeef5;
-  box-shadow: 0 0 5px 1px #ccc;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   transition: all 0.3s;
+  overflow: hidden;
 }
 
 .gallery-image:hover {
-  transform: scale(1.05);
-  box-shadow: 0 0 10px 2px #999;
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.gallery-image >>> .el-image {
+  width: 100%;
+  height: 100%;
+}
+
+.gallery-image >>> .el-image__inner {
+  width: 100%;
+  height: 100%;
 }
 
 .main-image-container {
@@ -1371,17 +1470,34 @@ export default {
   text-align: center;
 }
 
+.main-image-container >>> .el-image {
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s;
+}
+
+.main-image-container >>> .el-image:hover {
+  transform: scale(1.02);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+
 /* 设施列表样式 */
 .facility-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: 8px;
   margin-top: 10px;
+}
+
+.facility-list >>> .el-tag {
+  padding: 8px 15px;
+  border-radius: 20px;
+  font-size: 13px;
 }
 
 /* 服务时间安排样式 */
 .service-schedule {
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .service-item {
@@ -1389,14 +1505,44 @@ export default {
   align-items: center;
   margin-bottom: 8px;
   padding: 8px 12px;
-  background-color: #f8f9fa;
-  border-radius: 4px;
-  border-left: 3px solid #409eff;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
+  border-radius: 6px;
+  border-left: 3px solid #667eea;
+  transition: all 0.3s ease;
+}
+
+.service-item:hover {
+  background: linear-gradient(135deg, #e8eef5 0%, #d5d9e8 100%);
+  transform: translateX(3px);
 }
 
 .service-content {
-  margin-left: 10px;
-  font-size: 14px;
+  margin-left: 8px;
+  font-size: 13px;
   color: #333;
+  flex: 1;
+}
+
+/* 滚动条美化 */
+.publicity-detail::-webkit-scrollbar,
+.publicity-preview::-webkit-scrollbar {
+  width: 8px;
+}
+
+.publicity-detail::-webkit-scrollbar-track,
+.publicity-preview::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.publicity-detail::-webkit-scrollbar-thumb,
+.publicity-preview::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+  border-radius: 10px;
+}
+
+.publicity-detail::-webkit-scrollbar-thumb:hover,
+.publicity-preview::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #5568d3 0%, #667eea 100%);
 }
 </style>

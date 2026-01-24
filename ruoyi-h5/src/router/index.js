@@ -31,6 +31,18 @@ const routes = [
     meta: { title: '机构详情', requireAuth: false }
   },
   {
+    path: '/institution/:id/images',
+    name: 'InstitutionImages',
+    component: () => import('@/views/institution/images.vue'),
+    meta: { title: '全部图片', requireAuth: false }
+  },
+  {
+    path: '/institution/:id/vr',
+    name: 'InstitutionVR',
+    component: () => import('@/views/institution/vr.vue'),
+    meta: { title: 'VR看房', requireAuth: false }
+  },
+  {
     path: '/deposit',
     name: 'Deposit',
     component: () => import('@/views/deposit/index.vue'),
