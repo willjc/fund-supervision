@@ -152,4 +152,29 @@ public interface SysUserMapper
      * @return 用户对象信息
      */
     public SysUser selectUserByPhonenumber(String phonenumber);
+
+    /**
+     * 查询H5家属用户列表
+     * 排除：系统管理员(user_id <= 100)、机构用户(user_name以jg开头)、老人登录账号(user_name以elder_开头)
+     *
+     * @param sysUser 用户信息
+     * @return H5家属用户集合信息
+     */
+    public List<SysUser> selectH5UserList(SysUser sysUser);
+
+    /**
+     * 根据用户ID查询用户及其关联的老人列表
+     *
+     * @param userId 用户ID
+     * @return 用户信息（包含关联老人列表）
+     */
+    public SysUser selectH5UserWithElders(@Param("userId") Long userId);
+
+    /**
+     * 查询用户关联的老人数量
+     *
+     * @param userId 用户ID
+     * @return 老人数量
+     */
+    public int selectElderCountByUserId(@Param("userId") Long userId);
 }

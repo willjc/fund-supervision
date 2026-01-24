@@ -1257,6 +1257,11 @@ onMounted(() => {
   border-bottom: 1px solid #f5f5f5;
 }
 
+.filter-radio-item :deep(.van-radio__label),
+.filter-checkbox-item :deep(.van-checkbox__label) {
+  font-size: 14px;
+}
+
 .filter-radio-item:last-child,
 .filter-checkbox-item:last-child {
   border-bottom: none;

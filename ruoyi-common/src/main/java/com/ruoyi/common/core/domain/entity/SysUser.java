@@ -3,6 +3,7 @@ package com.ruoyi.common.core.domain.entity;
 import java.util.Date;
 import java.util.List;
 import javax.validation.constraints.*;
+import com.ruoyi.common.core.domain.ElderRelationInfo;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import com.ruoyi.common.annotation.Excel;
@@ -91,6 +92,12 @@ public class SysUser extends BaseEntity
 
     /** 角色ID */
     private Long roleId;
+
+    /** 关联老人数量（H5家属用户） */
+    private Integer elderCount;
+
+    /** 关联老人列表（H5家属用户） */
+    private List<ElderRelationInfo> elderList;
 
     public SysUser()
     {
@@ -308,6 +315,26 @@ public class SysUser extends BaseEntity
     public void setRoleId(Long roleId)
     {
         this.roleId = roleId;
+    }
+
+    public Integer getElderCount()
+    {
+        return elderCount;
+    }
+
+    public void setElderCount(Integer elderCount)
+    {
+        this.elderCount = elderCount;
+    }
+
+    public List<ElderRelationInfo> getElderList()
+    {
+        return elderList;
+    }
+
+    public void setElderList(List<ElderRelationInfo> elderList)
+    {
+        this.elderList = elderList;
     }
 
     @Override

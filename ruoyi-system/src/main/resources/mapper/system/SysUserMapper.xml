@@ -228,7 +228,91 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
  		update sys_user set del_flag = '2' where user_id in
  		<foreach collection="array" item="userId" open="(" separator="," close=")">
  			#{userId}
-        </foreach> 
+        </foreach>
  	</delete>
-	
+
+	<!-- H5家属用户结果映射（包含关联老人列表） -->
+	<resultMap type="SysUser" id="H5UserResult">
+		<id     property="userId"        column="user_id"         />
+		<result property="userName"      column="user_name"       />
+		<result property="nickName"      column="nick_name"       />
+		<result property="phonenumber"   column="phonenumber"     />
+		<result property="sex"           column="sex"             />
+		<result property="status"        column="status"          />
+		<result property="loginIp"       column="login_ip"        />
+		<result property="loginDate"     column="login_date"      />
+		<result property="createTime"    column="create_time"     />
+		<result property="remark"        column="remark"          />
+		<result property="elderCount"    column="elder_count"     />
+		<collection  property="elderList" javaType="java.util.ArrayList" ofType="com.ruoyi.common.core.domain.ElderRelationInfo">
+			<id property="elderId"       column="elder_id"        />
+			<result property="elderName"     column="elder_name"      />
+			<result property="relationName"  column="relation_name"   />
+			<result property="idCard"        column="id_card"         />
+			<result property="age"           column="age"              />
+			<result property="gender"        column="gender"          />
+			<result property="phone"         column="phone"            />
+			<result property="status"        column="elder_status"     />
+		</collection>
+	</resultMap>
+
+	<!-- 查询H5家属用户列表 -->
+	<select id="selectH5UserList" parameterType="SysUser" resultMap="H5UserResult">
+		select u.user_id, u.nick_name, u.user_name, u.phonenumber, u.sex, u.status,
+		       u.login_ip, u.login_date, u.create_time, u.remark,
+		       (select count(*) from elder_family ef where ef.user_id = u.user_id and ef.status = '0') as elder_count,
+		       e.elder_id, e.elder_name, ef.relation_name,
+		       e.id_card, e.age, e.gender, e.phone, e.status as elder_status
+		from sys_user u
+		left join elder_family ef on u.user_id = ef.user_id and ef.status = '0'
+		left join elder_info e on ef.elder_id = e.elder_id
+		where u.del_flag = '0'
+		  and u.user_id > 100
+		  and u.user_name not like 'jg%'
+		  and u.user_name not like 'elder_%'
+		  and u.phonenumber is not null
+		  and u.phonenumber != ''
+		  and u.phonenumber REGEXP '^1[3-9][0-9]{9}$'
+		<if test="userName != null and userName != ''">
+			AND u.user_name like concat('%', #{userName}, '%')
+		</if>
+		<if test="nickName != null and nickName != ''">
+			AND u.nick_name like concat('%', #{nickName}, '%')
+		</if>
+		<if test="phonenumber != null and phonenumber != ''">
+			AND u.phonenumber like concat('%', #{phonenumber}, '%')
+		</if>
+		<if test="status != null and status != ''">
+			AND u.status = #{status}
+		</if>
+		<if test="params.beginTime != null and params.beginTime != ''">
+			AND date_format(u.create_time,'%Y%m%d') &gt;= date_format(#{params.beginTime},'%Y%m%d')
+		</if>
+		<if test="params.endTime != null and params.endTime != ''">
+			AND date_format(u.create_time,'%Y%m%d') &lt;= date_format(#{params.endTime},'%Y%m%d')
+		</if>
+		order by u.create_time desc
+	</select>
+
+	<!-- 根据用户ID查询用户及其关联的老人列表 -->
+	<select id="selectH5UserWithElders" parameterType="Long" resultMap="H5UserResult">
+		select u.user_id, u.nick_name, u.user_name, u.phonenumber, u.sex, u.status,
+		       u.login_ip, u.login_date, u.create_time, u.remark,
+		       (select count(*) from elder_family ef where ef.user_id = u.user_id and ef.status = '0') as elder_count,
+		       e.elder_id, e.elder_name, ef.relation_name,
+		       e.id_card, e.age, e.gender, e.phone, e.status as elder_status
+		from sys_user u
+		left join elder_family ef on u.user_id = ef.user_id and ef.status = '0'
+		left join elder_info e on ef.elder_id = e.elder_id
+		where u.user_id = #{userId}
+		  and u.del_flag = '0'
+	</select>
+
+	<!-- 查询用户关联的老人数量 -->
+	<select id="selectElderCountByUserId" parameterType="Long" resultType="int">
+		select count(*) from elder_family
+		where user_id = #{userId}
+		  and status = '0'
+	</select>
+
 </mapper> 
