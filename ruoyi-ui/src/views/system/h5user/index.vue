@@ -58,7 +58,20 @@
     <el-table v-loading="loading" :data="userList" @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="50" align="center" />
       <el-table-column label="用户编号" align="center" prop="userId" width="80" />
-      <el-table-column label="家属姓名" align="center" prop="nickName" :show-overflow-tooltip="true" />
+      <el-table-column label="头像" align="center" width="80">
+        <template slot-scope="scope">
+          <el-image
+            v-if="scope.row.avatar"
+            :src="getAvatarUrl(scope.row.avatar)"
+            :preview-src-list="[getAvatarUrl(scope.row.avatar)]"
+            style="width: 40px; height: 40px; border-radius: 50%;"
+            fit="cover"
+          />
+          <el-avatar v-else icon="el-icon-user" :size="40"></el-avatar>
+        </template>
+      </el-table-column>
+      <el-table-column label="昵称" align="center" prop="nickName" width="120" :show-overflow-tooltip="true" />
+      <el-table-column label="真实姓名" align="center" prop="realName" width="120" :show-overflow-tooltip="true" />
       <el-table-column label="手机号码" align="center" prop="phonenumber" width="120" />
       <el-table-column label="关联老人" align="center" prop="elderList" width="200" :show-overflow-tooltip="true">
         <template slot-scope="scope">
@@ -237,8 +250,19 @@
     <!-- 用户详情对话框 -->
     <el-dialog title="用户详情" :visible.sync="detailOpen" width="900px" append-to-body>
       <el-descriptions :column="2" border>
+        <el-descriptions-item label="头像" :span="2">
+          <el-image
+            v-if="userInfo.avatar"
+            :src="getAvatarUrl(userInfo.avatar)"
+            :preview-src-list="[getAvatarUrl(userInfo.avatar)]"
+            style="width: 80px; height: 80px; border-radius: 50%;"
+            fit="cover"
+          />
+          <el-avatar v-else icon="el-icon-user" :size="80"></el-avatar>
+        </el-descriptions-item>
         <el-descriptions-item label="用户编号">{{ userInfo.userId }}</el-descriptions-item>
-        <el-descriptions-item label="家属姓名">{{ userInfo.nickName }}</el-descriptions-item>
+        <el-descriptions-item label="昵称">{{ userInfo.nickName || '未设置' }}</el-descriptions-item>
+        <el-descriptions-item label="真实姓名">{{ userInfo.realName || '未设置' }}</el-descriptions-item>
         <el-descriptions-item label="手机号码">{{ userInfo.phonenumber }}</el-descriptions-item>
         <el-descriptions-item label="家属性别">
           <dict-tag :options="dict.type.sys_user_sex" :value="userInfo.sex"/>
@@ -425,8 +449,10 @@ export default {
           this.userInfo = {
             userId: response.user.userId,
             nickName: response.user.nickName,
+            realName: response.user.realName,
             phonenumber: response.user.phonenumber,
             sex: response.user.sex,
+            avatar: response.user.avatar,
             status: response.user.status,
             loginIp: response.user.loginIp,
             createTime: response.user.createTime,
@@ -512,6 +538,16 @@ export default {
           this.resetPwdOpen = false;
         }
       }).catch(() => {});
+    },
+    /** 获取头像URL */
+    getAvatarUrl(avatar) {
+      if (!avatar) return '';
+      // 如果已经是完整URL，直接返回
+      if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+        return avatar;
+      }
+      // 拼接开发环境API地址
+      return process.env.VUE_APP_BASE_API + avatar;
     }
   }
 };

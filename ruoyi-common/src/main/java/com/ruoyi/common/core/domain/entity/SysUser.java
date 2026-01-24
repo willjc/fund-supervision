@@ -38,6 +38,10 @@ public class SysUser extends BaseEntity
     @Excel(name = "用户名称")
     private String nickName;
 
+    /** 真实姓名 */
+    @Excel(name = "真实姓名")
+    private String realName;
+
     /** 用户邮箱 */
     @Excel(name = "用户邮箱")
     private String email;
@@ -149,6 +153,16 @@ public class SysUser extends BaseEntity
     public void setNickName(String nickName)
     {
         this.nickName = nickName;
+    }
+
+    public String getRealName()
+    {
+        return realName;
+    }
+
+    public void setRealName(String realName)
+    {
+        this.realName = realName;
     }
 
     @Xss(message = "用户账号不能包含脚本字符")

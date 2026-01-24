@@ -155,10 +155,10 @@ const userStore = useUserStore()
 const userInfo = computed(() => ({
   name: userStore.nickName || userStore.userName || '用户',
   phone: userStore.phonenumber || '',
-  avatar: 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
+  avatar: userStore.avatar || 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
 }))
 
-const userAvatar = ref('https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg')
+const userAvatar = computed(() => userStore.avatar || 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg')
 
 // 手机号脱敏
 const maskedPhone = computed(() => {

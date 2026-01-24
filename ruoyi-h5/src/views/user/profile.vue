@@ -165,10 +165,16 @@ const changeAvatar = () => {
       closeToast()
 
       if (response.code === 200) {
-        userInfo.value.avatar = response.data.avatar || response.data
-        // 更新 store
-        userStore.updateUserInfo({ avatar: userInfo.value.avatar })
-        showSuccessToast('头像上传成功')
+        // 安全获取头像URL，兼容直接返回URL或data.avatar格式
+        const avatarUrl = response.data?.avatar || response.data || response.avatar
+        if (avatarUrl) {
+          userInfo.value.avatar = avatarUrl
+          // 更新 store
+          userStore.updateUserInfo({ avatar: avatarUrl })
+          showSuccessToast('头像上传成功')
+        } else {
+          showToast('上传成功，但未返回头像地址')
+        }
       } else {
         showToast(response.msg || '上传失败')
       }

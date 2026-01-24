@@ -43,6 +43,11 @@ module.exports = {
           ['^' + process.env.VUE_APP_BASE_API]: ''
         }
       },
+      // 头像/文件资源代理
+      // '^/profile/(.*)': {
+      //   target: baseUrl,
+      //   changeOrigin: true
+      // },
       // springdoc proxy
       '^/v3/api-docs/(.*)': {
         target: baseUrl,

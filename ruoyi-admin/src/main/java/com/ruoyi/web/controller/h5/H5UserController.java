@@ -9,10 +9,12 @@ import java.util.Date;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.transaction.annotation.Transactional;
 import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.domain.AjaxResult;
@@ -31,6 +33,10 @@ import com.ruoyi.system.mapper.SysUserMapper;
 import com.ruoyi.service.IElderFamilyService;
 import com.ruoyi.service.IElderInfoService;
 import com.ruoyi.service.IElderAttachmentService;
+import com.ruoyi.common.config.RuoYiConfig;
+import com.ruoyi.common.utils.file.FileUploadUtils;
+import com.ruoyi.common.utils.file.FileUtils;
+import com.ruoyi.common.utils.file.MimeTypeUtils;
 
 /**
  * H5用户Controller
@@ -304,6 +310,7 @@ public class H5UserController
         userInfo.put("userId", user.getUserId());
         userInfo.put("userName", user.getUserName());
         userInfo.put("nickName", user.getNickName());
+        userInfo.put("realName", user.getRealName());
         userInfo.put("phonenumber", user.getPhonenumber());
         userInfo.put("sex", user.getSex());
         userInfo.put("avatar", user.getAvatar());
@@ -634,6 +641,102 @@ public class H5UserController
             case "4": return "其他亲属";
             case "5": return "朋友";
             default: return "家属";
+        }
+    }
+
+    /**
+     * 更新个人资料
+     *
+     * @param params 包含 nickName, realName, sex
+     * @return 操作结果
+     */
+    @PutMapping("/profile")
+    @Log(title = "H5用户更新资料", businessType = BusinessType.UPDATE)
+    public AjaxResult updateProfile(@RequestBody Map<String, String> params)
+    {
+        try
+        {
+            LoginUser loginUser = SecurityUtils.getLoginUser();
+            if (loginUser == null) {
+                return AjaxResult.error("用户未登录");
+            }
+
+            SysUser currentUser = loginUser.getUser();
+            String nickName = params.get("nickName");
+            String realName = params.get("realName");
+            String sex = params.get("sex");
+
+            // 只更新传入的字段
+            if (StringUtils.isNotEmpty(nickName)) {
+                currentUser.setNickName(nickName);
+            }
+            if (StringUtils.isNotEmpty(realName)) {
+                currentUser.setRealName(realName);
+            }
+            if (StringUtils.isNotEmpty(sex)) {
+                currentUser.setSex(sex);
+            }
+
+            // 更新数据库
+            int result = userService.updateUserProfile(currentUser);
+            if (result > 0) {
+                // 更新缓存
+                tokenService.setLoginUser(loginUser);
+                return AjaxResult.success("更新成功");
+            }
+            return AjaxResult.error("更新失败");
+        }
+        catch (Exception e)
+        {
+            return AjaxResult.error("更新失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 上传头像
+     *
+     * @param file 头像文件
+     * @return 头像URL
+     */
+    @PostMapping("/avatar")
+    @Log(title = "H5用户上传头像", businessType = BusinessType.UPDATE)
+    public AjaxResult uploadAvatar(@RequestParam("file") MultipartFile file) throws Exception
+    {
+        try
+        {
+            LoginUser loginUser = SecurityUtils.getLoginUser();
+            if (loginUser == null) {
+                return AjaxResult.error("用户未登录");
+            }
+
+            if (file.isEmpty()) {
+                return AjaxResult.error("请选择要上传的文件");
+            }
+
+            // 上传头像文件
+            String avatar = FileUploadUtils.upload(RuoYiConfig.getAvatarPath(), file, MimeTypeUtils.IMAGE_EXTENSION, true);
+
+            // 更新数据库
+            if (userService.updateUserAvatar(loginUser.getUserId(), avatar)) {
+                // 删除旧头像
+                String oldAvatar = loginUser.getUser().getAvatar();
+                if (StringUtils.isNotEmpty(oldAvatar)) {
+                    FileUtils.deleteFile(RuoYiConfig.getProfile() + FileUtils.stripPrefix(oldAvatar));
+                }
+
+                // 更新缓存
+                loginUser.getUser().setAvatar(avatar);
+                tokenService.setLoginUser(loginUser);
+
+                AjaxResult ajax = AjaxResult.success();
+                ajax.put("avatar", avatar);
+                return ajax;
+            }
+            return AjaxResult.error("上传失败");
+        }
+        catch (Exception e)
+        {
+            return AjaxResult.error("上传失败：" + e.getMessage());
         }
     }
 }

@@ -19,6 +19,12 @@ export const useUserStore = defineStore('user', {
     // 用户昵称
     nickName: (state) => state.userInfo?.nickName || '',
 
+    // 真实姓名
+    realName: (state) => state.userInfo?.realName || '',
+
+    // 用户头像
+    avatar: (state) => state.userInfo?.avatar || '',
+
     // 用户手机号
     phonenumber: (state) => state.userInfo?.phonenumber || '',
 
