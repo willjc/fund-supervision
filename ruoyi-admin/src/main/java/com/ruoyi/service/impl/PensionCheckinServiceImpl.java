@@ -243,8 +243,8 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
         Long orderId = orderInfo.getOrderId();
 
         // ========== 4. 创建订单明细记录(床位费、护理费、押金、会员费) ==========
-        // 4.1 床位费明细
-        BigDecimal bedFee = bedInfo.getPrice(); // 床位费
+        // 4.1 床位费明细（使用前端手动调整后的床位费）
+        BigDecimal bedFee = dto.getBedFee() != null ? dto.getBedFee() : bedInfo.getPrice();
         if (bedFee != null && bedFee.compareTo(BigDecimal.ZERO) > 0) {
             OrderItem bedItem = new OrderItem();
             bedItem.setOrderId(orderId);
@@ -261,8 +261,8 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
             orderItemMapper.insertOrderItem(bedItem);
         }
 
-        // 4.2 护理费明细
-        BigDecimal careFee = getCareFeeByLevel(bedInfo, dto.getCareLevel()); // 护理费
+        // 4.2 护理费明细（使用前端手动调整后的护理费）
+        BigDecimal careFee = dto.getCareFee() != null ? dto.getCareFee() : getCareFeeByLevel(bedInfo, dto.getCareLevel());
         if (careFee != null && careFee.compareTo(BigDecimal.ZERO) > 0) {
             OrderItem careItem = new OrderItem();
             careItem.setOrderId(orderId);

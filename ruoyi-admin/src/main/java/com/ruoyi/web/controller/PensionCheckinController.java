@@ -32,7 +32,7 @@ public class PensionCheckinController extends BaseController
      * 4. 创建order_item费用明细记录
      * 5. 更新床位状态
      */
-    @PreAuthorize("@ss.hasPermi('pension:checkin:add')")
+    @PreAuthorize("@ss.hasPermi('elder:checkin:add')")
     @Log(title = "养老机构入驻", businessType = BusinessType.INSERT)
     @PostMapping("/create")
     public AjaxResult create(@RequestBody PensionCheckinDTO dto)

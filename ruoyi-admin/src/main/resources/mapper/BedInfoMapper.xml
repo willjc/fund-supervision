@@ -57,7 +57,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="price != null "> and b.price = #{price}</if>
             <if test="floorNumber != null "> and b.floor_number = #{floorNumber}</if>
         </where>
-        order by b.floor_number, b.room_number, b.bed_number
+        order by b.bed_id desc
     </select>
 
     <select id="selectAvailableBeds" parameterType="Long" resultMap="BedInfoResult">

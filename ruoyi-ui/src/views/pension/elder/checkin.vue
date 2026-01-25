@@ -176,19 +176,47 @@
         </el-divider>
         <el-row :gutter="20">
           <el-col :span="8">
-            <el-form-item label="月服务费" prop="monthlyFee">
+            <el-form-item label="床位费" prop="bedFee">
               <el-input-number
-                v-model="form.monthlyFee"
+                v-model="form.bedFee"
                 :min="0"
                 :precision="2"
                 style="width: 100%;"
-                @change="calculateTotal" />
+                @change="onBedFeeChange" />
               <span style="margin-left: 10px; color: #909399;">元/月</span>
-              <div style="font-size: 12px; color: #E6A23C; margin-top: 4px;" v-if="selectedBed">
-                费用构成：床位费(¥{{ selectedBed.price }}) + 护理费(¥{{ getCurrentCareFee() }})
+              <div style="font-size: 12px; color: #909399; margin-top: 4px;" v-if="selectedBed">
+                标准价格：¥{{ selectedBed.price }}/月
               </div>
             </el-form-item>
           </el-col>
+          <el-col :span="8">
+            <el-form-item label="护理费" prop="careFee">
+              <el-input-number
+                v-model="form.careFee"
+                :min="0"
+                :precision="2"
+                style="width: 100%;"
+                @change="onCareFeeChange" />
+              <span style="margin-left: 10px; color: #909399;">元/月</span>
+              <div style="font-size: 12px; color: #909399; margin-top: 4px;" v-if="selectedBed">
+                标准价格：¥{{ getCurrentCareFee() }}/月 ({{ getCareLevelText() }})
+              </div>
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="月服务费">
+              <el-input
+                :value="formatMoney(monthlyFeeTotal)"
+                disabled
+                style="width: 100%;" />
+              <span style="margin-left: 10px; color: #909399;">元/月</span>
+              <div style="font-size: 12px; color: #409EFF; margin-top: 4px;">
+                = 床位费 + 护理费
+              </div>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
           <el-col :span="8">
             <el-form-item label="入驻月数" prop="monthCount">
               <el-input-number
@@ -251,13 +279,15 @@
             <i class="el-icon-s-finance"></i> 费用汇总
           </div>
           <el-descriptions :column="2" border>
-            <el-descriptions-item label="床位费">¥{{ formatMoney(selectedBed ? selectedBed.price : 0) }}/月</el-descriptions-item>
+            <el-descriptions-item label="床位费">
+              <span style="color: #409EFF; font-weight: bold;">¥{{ formatMoney(form.bedFee) }}</span>/月
+            </el-descriptions-item>
             <el-descriptions-item label="护理费">
-              ¥{{ formatMoney(getCurrentCareFee()) }}/月
+              <span style="color: #409EFF; font-weight: bold;">¥{{ formatMoney(form.careFee) }}</span>/月
               <span style="margin-left: 8px; color: #909399;">({{ getCareLevelText() }})</span>
             </el-descriptions-item>
             <el-descriptions-item label="月服务费">
-              <span style="font-weight: bold; color: #409EFF;">¥{{ formatMoney(form.monthlyFee) }} × {{ form.monthCount }}个月</span>
+              <span style="font-weight: bold; color: #409EFF;">¥{{ formatMoney(monthlyFeeTotal) }} × {{ form.monthCount }}个月</span>
             </el-descriptions-item>
             <el-descriptions-item label="服务费小计">¥{{ formatMoney(serviceFeeTotal) }}</el-descriptions-item>
             <el-descriptions-item label="押金">¥{{ formatMoney(form.depositAmount) }}</el-descriptions-item>
@@ -355,7 +385,9 @@ export default {
         bedId: null,
         checkInDate: '',
         // 费用信息
-        monthlyFee: 0,
+        bedFee: 0,           // 床位费
+        careFee: 0,          // 护理费
+        monthlyFee: 0,       // 月服务费(自动计算=床位费+护理费)
         monthCount: 1,
         depositAmount: 0,
         memberFee: 0,
@@ -428,9 +460,13 @@ export default {
     selectedBed() {
       return this.availableBeds.find(bed => bed.bedId === this.form.bedId);
     },
+    // 月服务费 = 床位费 + 护理费
+    monthlyFeeTotal() {
+      return (this.form.bedFee || 0) + (this.form.careFee || 0);
+    },
     // 服务费小计 = 月服务费 × 入驻月数
     serviceFeeTotal() {
-      return (this.form.monthlyFee || 0) * (this.form.monthCount || 1);
+      return this.monthlyFeeTotal * (this.form.monthCount || 1);
     },
     // 应收总计 = 服务费小计 + 押金 + 会员费
     calculatedTotal() {
@@ -486,13 +522,14 @@ export default {
     calculateMonthlyFee() {
       const bed = this.selectedBed;
       if (!bed || !bed.price) {
-        this.form.monthlyFee = 0;
+        this.form.bedFee = 0;
+        this.form.careFee = 0;
         this.calculateTotal();
         return;
       }
 
       // 获取床位费
-      const bedFee = parseFloat(bed.price) || 0;
+      this.form.bedFee = parseFloat(bed.price) || 0;
 
       // 根据护理等级获取护理费
       let careFee = 0;
@@ -513,15 +550,28 @@ export default {
       } else {
         careFee = 500; // 默认自理价格
       }
+      this.form.careFee = careFee;
 
-      // 月服务费 = 床位费 + 护理费
-      this.form.monthlyFee = bedFee + careFee;
+      // 同步更新 monthlyFee（用于后端存储）
+      this.form.monthlyFee = this.form.bedFee + this.form.careFee;
 
       // 同时设置默认的押金和会员费
       this.form.depositAmount = parseFloat(bed.depositFee) || 10000;
       this.form.memberFee = parseFloat(bed.memberFee) || 5000;
 
       // 重新计算总费用
+      this.calculateTotal();
+    },
+    /** 床位费改变 */
+    onBedFeeChange() {
+      // 同步更新 monthlyFee
+      this.form.monthlyFee = this.form.bedFee + this.form.careFee;
+      this.calculateTotal();
+    },
+    /** 护理费改变 */
+    onCareFeeChange() {
+      // 同步更新 monthlyFee
+      this.form.monthlyFee = this.form.bedFee + this.form.careFee;
       this.calculateTotal();
     },
     /** 计算总费用 */

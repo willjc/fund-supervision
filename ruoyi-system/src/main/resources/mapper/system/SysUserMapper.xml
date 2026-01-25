@@ -145,7 +145,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 	</select>
 
 	<select id="selectUserByPhonenumber" parameterType="String" resultMap="SysUserResult">
-		select user_id, user_name, nick_name, phonenumber, password, status, del_flag
+		select user_id, user_name, nick_name, real_name, phonenumber, sex, password, status, del_flag, avatar
 		from sys_user
 		where phonenumber = #{phonenumber} and del_flag = '0'
 		limit 1

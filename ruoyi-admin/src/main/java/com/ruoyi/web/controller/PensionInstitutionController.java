@@ -49,6 +49,8 @@ public class PensionInstitutionController extends BaseController
         // 养老机构端数据权限: 所有用户(包括admin)都只能查看自己关联的机构
         // 只有在民政监管端才能查看所有机构数据
         pensionInstitution.setCurrentUserId(getUserId());
+        // 只显示已审核通过的机构（status='1'），入驻申请等场景只能选择已通过审核的机构
+        pensionInstitution.setStatus("1");
         List<PensionInstitution> list = pensionInstitutionService.selectPensionInstitutionList(pensionInstitution);
         return getDataTable(list);
     }

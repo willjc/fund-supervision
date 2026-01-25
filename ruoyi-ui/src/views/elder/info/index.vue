@@ -167,13 +167,6 @@
             @click="handleSetPassword(scope.row)"
             v-hasPermi="['elder:info:edit']"
           >设置密码</el-button>
-          <el-button
-            size="mini"
-            type="text"
-            icon="el-icon-plus"
-            @click="handleCheckIn(scope.row)"
-            v-hasPermi="['elder:checkin:add']"
-          >入住申请</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -768,13 +761,6 @@ export default {
         this.form = response.data;
         this.open = true;
         this.title = "修改老人基础信息";
-      });
-    },
-    /** 入住申请按钮操作 */
-    handleCheckIn(row) {
-      this.$router.push({
-        path: '/elder/checkin',
-        query: { elderId: row.elderId, elderName: row.elderName }
       });
     },
     /** 提交按钮 */

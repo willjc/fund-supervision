@@ -15,63 +15,90 @@
           <!-- 老人照片 -->
           <div class="upload-item">
             <div class="upload-label">老人照片（1张）</div>
-            <div class="upload-section">
-              <van-uploader
-                v-model="formData.elderPhoto"
-                :max-count="1"
-                :max-size="5 * 1024 * 1024"
-                @oversize="onOversize"
-                @delete="onElderPhotoDelete"
-              >
-                <template #default>
-                  <div class="upload-placeholder">
-                    <van-icon name="photograph" size="32" color="#999" />
-                    <div class="upload-text">老人照片</div>
-                  </div>
-                </template>
-              </van-uploader>
+            <div class="upload-area">
+              <!-- 已上传图片 -->
+              <div v-if="formData.elderPhoto.length > 0" class="image-item">
+                <img
+                  :src="formData.elderPhoto[0].url"
+                  class="uploaded-image"
+                  @click="previewImage(formData.elderPhoto[0].url)"
+                />
+                <div class="delete-btn" @click="onElderPhotoDelete">
+                  <van-icon name="cross" size="12" color="#fff" />
+                </div>
+              </div>
+              <!-- 上传按钮 -->
+              <div v-else class="upload-btn" @click="triggerUpload('elderPhoto')">
+                <van-icon name="photograph" size="24" color="#cecfd7" />
+                <span class="upload-text">点击上传</span>
+              </div>
+              <input
+                type="file"
+                ref="elderPhotoInput"
+                accept="image/*"
+                style="display: none"
+                @change="onFileChange($event, 'elderPhoto')"
+              />
             </div>
           </div>
 
           <!-- 身份证正面 -->
           <div class="upload-item">
             <div class="upload-label">身份证正面（1张）</div>
-            <div class="upload-section">
-              <van-uploader
-                v-model="formData.idCardFront"
-                :max-count="1"
-                :max-size="5 * 1024 * 1024"
-                @oversize="onOversize"
-                @delete="onIdCardFrontDelete"
-              >
-                <template #default>
-                  <div class="upload-placeholder">
-                    <van-icon name="idcard" size="32" color="#999" />
-                    <div class="upload-text">身份证正面</div>
-                  </div>
-                </template>
-              </van-uploader>
+            <div class="upload-area">
+              <!-- 已上传图片 -->
+              <div v-if="formData.idCardFront.length > 0" class="image-item">
+                <img
+                  :src="formData.idCardFront[0].url"
+                  class="uploaded-image"
+                  @click="previewImage(formData.idCardFront[0].url)"
+                />
+                <div class="delete-btn" @click="onIdCardFrontDelete">
+                  <van-icon name="cross" size="12" color="#fff" />
+                </div>
+              </div>
+              <!-- 上传按钮 -->
+              <div v-else class="upload-btn" @click="triggerUpload('idCardFront')">
+                <van-icon name="photograph" size="24" color="#cecfd7" />
+                <span class="upload-text">点击上传</span>
+              </div>
+              <input
+                type="file"
+                ref="idCardFrontInput"
+                accept="image/*"
+                style="display: none"
+                @change="onFileChange($event, 'idCardFront')"
+              />
             </div>
           </div>
 
           <!-- 身份证反面 -->
           <div class="upload-item">
             <div class="upload-label">身份证反面（1张）</div>
-            <div class="upload-section">
-              <van-uploader
-                v-model="formData.idCardBack"
-                :max-count="1"
-                :max-size="5 * 1024 * 1024"
-                @oversize="onOversize"
-                @delete="onIdCardBackDelete"
-              >
-                <template #default>
-                  <div class="upload-placeholder">
-                    <van-icon name="idcard" size="32" color="#999" />
-                    <div class="upload-text">身份证反面</div>
-                  </div>
-                </template>
-              </van-uploader>
+            <div class="upload-area">
+              <!-- 已上传图片 -->
+              <div v-if="formData.idCardBack.length > 0" class="image-item">
+                <img
+                  :src="formData.idCardBack[0].url"
+                  class="uploaded-image"
+                  @click="previewImage(formData.idCardBack[0].url)"
+                />
+                <div class="delete-btn" @click="onIdCardBackDelete">
+                  <van-icon name="cross" size="12" color="#fff" />
+                </div>
+              </div>
+              <!-- 上传按钮 -->
+              <div v-else class="upload-btn" @click="triggerUpload('idCardBack')">
+                <van-icon name="photograph" size="24" color="#cecfd7" />
+                <span class="upload-text">点击上传</span>
+              </div>
+              <input
+                type="file"
+                ref="idCardBackInput"
+                accept="image/*"
+                style="display: none"
+                @change="onFileChange($event, 'idCardBack')"
+              />
             </div>
           </div>
         </van-cell-group>
@@ -195,7 +222,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { showToast } from 'vant'
+import { showToast, showImagePreview } from 'vant'
 import { getToken } from '@/utils/auth'
 import { useUserStore } from '@/store/modules/user'
 
@@ -225,6 +252,11 @@ const formData = ref({
 // 选择器显示状态
 const showRelationPicker = ref(false)
 const showHealthPicker = ref(false)
+
+// 文件输入框ref
+const elderPhotoInput = ref(null)
+const idCardFrontInput = ref(null)
+const idCardBackInput = ref(null)
 
 // 关系选项（对应数据库类型：0:本人 1:子女 2:配偶 3:兄弟姐妹 4:其他亲属 5:朋友）
 const relationOptions = [
@@ -315,6 +347,50 @@ const onIdCardFrontDelete = () => {
 
 const onIdCardBackDelete = () => {
   formData.value.idCardBack = []
+}
+
+// 触发文件选择
+const triggerUpload = (type) => {
+  const inputMap = {
+    elderPhoto: elderPhotoInput,
+    idCardFront: idCardFrontInput,
+    idCardBack: idCardBackInput
+  }
+  inputMap[type].value?.click()
+}
+
+// 文件选择处理
+const onFileChange = (event, type) => {
+  const file = event.target.files[0]
+  if (!file) return
+
+  // 检查文件大小
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('图片大小不能超过5MB')
+    return
+  }
+
+  // 创建预览URL
+  const url = URL.createObjectURL(file)
+  const targetArray = type === 'elderPhoto' ? 'elderPhoto' :
+                      type === 'idCardFront' ? 'idCardFront' : 'idCardBack'
+
+  formData.value[targetArray] = [{
+    url: url,
+    file: file,
+    isImage: true
+  }]
+
+  // 清空input，允许重复选择同一文件
+  event.target.value = ''
+}
+
+// 图片预览
+const previewImage = (url) => {
+  showImagePreview({
+    images: [url],
+    closeable: true
+  })
 }
 
 // 提交表单
@@ -583,17 +659,17 @@ onMounted(() => {
 <style scoped>
 .elder-form-page {
   min-height: 100vh;
-  background: linear-gradient(180deg, #f8f9fc 0%, #f5f6fa 100%);
+  background-color: #f5f6fc;
   padding-bottom: 80px;
 }
 
 .form-content {
-  padding: 16px 12px 20px;
+  padding: 12px;
 }
 
 /* 导航栏 */
 :deep(.van-nav-bar) {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #1281ff 0%, #4fc7ff 100%);
 }
 
 :deep(.van-nav-bar__title) {
@@ -612,14 +688,14 @@ onMounted(() => {
 
 /* 卡片组 */
 :deep(.van-cell-group) {
-  margin-bottom: 16px;
-  border-radius: 12px;
+  margin-bottom: 12px;
+  border-radius: 10px;
   overflow: hidden;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 
 :deep(.van-cell-group__title) {
-  padding: 16px 16px 8px;
+  padding: 12px 12px 8px;
   font-size: 16px;
   font-weight: 600;
   color: #333;
@@ -628,7 +704,7 @@ onMounted(() => {
 
 /* 表单字段 */
 :deep(.van-cell) {
-  padding: 16px;
+  padding: 12px;
   background: #fff;
   font-size: 15px;
 }
@@ -668,7 +744,7 @@ onMounted(() => {
 
 /* 图片上传 */
 .upload-item {
-  padding: 12px 16px;
+  padding: 10px 12px;
   background: #fff;
   margin-bottom: 0;
 }
@@ -681,7 +757,7 @@ onMounted(() => {
   font-size: 14px;
   font-weight: 500;
   color: #666;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -691,7 +767,7 @@ onMounted(() => {
   content: '';
   width: 3px;
   height: 14px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(180deg, #0f73ff 0%, #4fc7ff 100%);
   border-radius: 2px;
 }
 
@@ -699,59 +775,73 @@ onMounted(() => {
   padding: 0;
 }
 
-.upload-placeholder {
-  width: 100px;
-  height: 100px;
-  background: linear-gradient(135deg, #f8f9fc 0%, #f0f2f8 100%);
-  border: 2px dashed #d0d7e6;
-  border-radius: 12px;
+/* 上传区域 */
+.upload-area {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* 图片项 */
+.image-item {
+  position: relative;
+  width: 86px;
+  height: 86px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.uploaded-image {
+  width: 86px;
+  height: 86px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid #cdced5;
+  cursor: pointer;
+}
+
+/* 删除按钮 - 右上角圆形 */
+.delete-btn {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+}
+
+.delete-btn:active {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+/* 上传按钮 */
+.upload-btn {
+  width: 86px;
+  height: 86px;
+  border-radius: 10px;
+  border: 1px solid #cdced5;
+  background: #fafbff;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  transition: all 0.3s ease;
+  gap: 6px;
   cursor: pointer;
 }
 
-.upload-placeholder:active {
-  transform: scale(0.95);
-  background: linear-gradient(135deg, #eef1f8 0%, #e8ebf4 100%);
+.upload-btn:active {
+  background: #f0f2ff;
 }
 
-.upload-text {
-  font-size: 12px;
-  color: #999;
-  font-weight: 500;
-}
-
-:deep(.van-uploader__wrapper) {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-:deep(.van-uploader__preview) {
-  width: 100px;
-  height: 100px;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-:deep(.van-uploader__preview-image) {
-  border-radius: 12px;
-}
-
-:deep(.van-uploader__preview-delete) {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.6);
-}
-
-:deep(.van-uploader__preview-delete-icon) {
-  font-size: 12px;
+.upload-btn .upload-text {
+  color: #cecfd7;
+  font-size: 11px;
 }
 
 /* 提交按钮 */
@@ -760,26 +850,26 @@ onMounted(() => {
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 16px 20px;
+  padding: 12px 16px;
   background: linear-gradient(to top, #fff 80%, rgba(255, 255, 255, 0.9));
   box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
   z-index: 100;
 }
 
 :deep(.submit-section .van-button) {
-  height: 50px;
+  height: 48px;
   font-size: 16px;
   font-weight: 600;
-  border-radius: 25px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 24px;
+  background: linear-gradient(135deg, #1281ff 0%, #4fc7ff 100%);
   border: none;
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 6px 20px rgba(18, 129, 255, 0.3);
   transition: all 0.3s ease;
 }
 
 :deep(.submit-section .van-button:active) {
   transform: translateY(1px);
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 16px rgba(18, 129, 255, 0.25);
 }
 
 /* 选择器样式优化 */
@@ -788,7 +878,7 @@ onMounted(() => {
 }
 
 :deep(.van-picker__toolbar) {
-  padding: 16px;
+  padding: 12px;
   background: #f8f9fc;
 }
 
@@ -798,7 +888,7 @@ onMounted(() => {
 }
 
 :deep(.van-picker__confirm) {
-  color: #667eea;
+  color: #1281ff;
   font-weight: 600;
 }
 

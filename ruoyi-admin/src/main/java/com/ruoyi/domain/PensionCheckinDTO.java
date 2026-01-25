@@ -59,7 +59,13 @@ public class PensionCheckinDTO
     private Date checkInDate;
 
     // ========== 费用信息 ==========
-    /** 月服务费 */
+    /** 床位费 */
+    private BigDecimal bedFee;
+
+    /** 护理费 */
+    private BigDecimal careFee;
+
+    /** 月服务费(床位费+护理费，用于存储合计) */
     private BigDecimal monthlyFee;
 
     /** 入驻月数 */
@@ -194,6 +200,22 @@ public class PensionCheckinDTO
 
     public void setCheckInDate(Date checkInDate) {
         this.checkInDate = checkInDate;
+    }
+
+    public BigDecimal getBedFee() {
+        return bedFee;
+    }
+
+    public void setBedFee(BigDecimal bedFee) {
+        this.bedFee = bedFee;
+    }
+
+    public BigDecimal getCareFee() {
+        return careFee;
+    }
+
+    public void setCareFee(BigDecimal careFee) {
+        this.careFee = careFee;
     }
 
     public BigDecimal getMonthlyFee() {
