@@ -109,7 +109,7 @@
 
     <el-table v-loading="loading" :data="bedInfoList" @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="55" align="center" />
-      <el-table-column label="机构名称" align="center" prop="institutionName" />
+      <el-table-column label="机构名称" align="center" width="160" prop="institutionName" />
       <el-table-column label="房间号" align="center" prop="roomNumber" />
       <el-table-column label="床位号" align="center" prop="bedNumber" />
       <el-table-column label="床位类型" align="center" prop="bedType">
@@ -127,7 +127,7 @@
           <span>￥{{ scope.row.price }}/月</span>
         </template>
       </el-table-column>
-      <el-table-column label="护理价格" align="center">
+      <el-table-column label="护理价格"  width="160" align="center">
         <template slot-scope="scope">
           <div style="font-size: 12px;">
             <div>自理: ￥{{ scope.row.selfCarePrice || 0 }}/月</div>
@@ -144,24 +144,30 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="楼层" align="center" prop="floorNumber" />
+      <el-table-column label="楼层" align="center" prop="floorNumber">
+        <template slot-scope="scope">
+          <span>{{ scope.row.floorNumber || '-' }}</span>
+        </template>
+      </el-table-column>
       <el-table-column label="房间面积" align="center" prop="roomArea">
         <template slot-scope="scope">
-          <span>{{ scope.row.roomArea }}㎡</span>
+          <span>{{ scope.row.roomArea ? scope.row.roomArea + '㎡' : '未设置' }}</span>
         </template>
       </el-table-column>
       <el-table-column label="独立卫浴" align="center" prop="hasBathroom">
         <template slot-scope="scope">
-          <dict-tag :options="dict.type.sys_yes_no" :value="scope.row.hasBathroom"/>
+          <dict-tag v-if="scope.row.hasBathroom !== null && scope.row.hasBathroom !== undefined" :options="dict.type.sys_yes_no" :value="scope.row.hasBathroom"/>
+          <span v-else>-</span>
         </template>
       </el-table-column>
       <el-table-column label="阳台" align="center" prop="hasBalcony">
         <template slot-scope="scope">
-          <dict-tag :options="dict.type.sys_yes_no" :value="scope.row.hasBalcony"/>
+          <dict-tag v-if="scope.row.hasBalcony !== null && scope.row.hasBalcony !== undefined" :options="dict.type.sys_yes_no" :value="scope.row.hasBalcony"/>
+          <span v-else>-</span>
         </template>
       </el-table-column>
       <el-table-column label="设施配置" align="center" prop="facilities" show-overflow-tooltip />
-      <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
+      <el-table-column label="操作"  width="160" align="center" class-name="small-padding fixed-width">
         <template slot-scope="scope">
           <el-button
             size="mini"
@@ -363,14 +369,16 @@
         <el-descriptions-item label="床位状态">
           <dict-tag :options="dict.type.bed_status" :value="detailForm.bedStatus"/>
         </el-descriptions-item>
-        <el-descriptions-item label="床位费">{{ detailForm.price }}元/月</el-descriptions-item>
-        <el-descriptions-item label="楼层">{{ detailForm.floorNumber }}</el-descriptions-item>
-        <el-descriptions-item label="房间面积">{{ detailForm.roomArea }}㎡</el-descriptions-item>
+        <el-descriptions-item label="床位费">{{ detailForm.price || 0 }}元/月</el-descriptions-item>
+        <el-descriptions-item label="楼层">{{ detailForm.floorNumber || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="房间面积">{{ detailForm.roomArea ? detailForm.roomArea + '㎡' : '未设置' }}</el-descriptions-item>
         <el-descriptions-item label="独立卫浴">
-          <dict-tag :options="dict.type.sys_yes_no" :value="detailForm.hasBathroom"/>
+          <dict-tag v-if="detailForm.hasBathroom !== null && detailForm.hasBathroom !== undefined" :options="dict.type.sys_yes_no" :value="detailForm.hasBathroom"/>
+          <span v-else>-</span>
         </el-descriptions-item>
         <el-descriptions-item label="阳台">
-          <dict-tag :options="dict.type.sys_yes_no" :value="detailForm.hasBalcony"/>
+          <dict-tag v-if="detailForm.hasBalcony !== null && detailForm.hasBalcony !== undefined" :options="dict.type.sys_yes_no" :value="detailForm.hasBalcony"/>
+          <span v-else>-</span>
         </el-descriptions-item>
         <el-descriptions-item label="设施配置" :span="2">{{ detailForm.facilities }}</el-descriptions-item>
       </el-descriptions>
@@ -623,14 +631,31 @@ export default {
     submitForm() {
       this.$refs["form"].validate(valid => {
         if (valid) {
+          // 处理表单数据：将空字符串转为 null，确保数字字段正确保存
+          const submitData = { ...this.form };
+          // 楼层：空字符串转为 null
+          if (submitData.floorNumber === '' || submitData.floorNumber === undefined) {
+            submitData.floorNumber = null;
+          }
+          // 房间面积：空字符串转为 null
+          if (submitData.roomArea === '' || submitData.roomArea === undefined) {
+            submitData.roomArea = null;
+          }
+          // 价格字段：空字符串转为 null
+          ['price', 'selfCarePrice', 'halfCarePrice', 'fullCarePrice', 'memberFee', 'depositFee'].forEach(field => {
+            if (submitData[field] === '' || submitData[field] === undefined) {
+              submitData[field] = null;
+            }
+          });
+
           if (this.form.bedId != null) {
-            updateBed(this.form).then(response => {
+            updateBed(submitData).then(response => {
               this.$modal.msgSuccess("修改成功");
               this.open = false;
               this.getList();
             });
           } else {
-            addBed(this.form).then(response => {
+            addBed(submitData).then(response => {
               this.$modal.msgSuccess("新增成功");
               this.open = false;
               this.getList();
