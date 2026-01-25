@@ -164,6 +164,14 @@
           <el-button
             size="mini"
             type="text"
+            icon="el-icon-wallet"
+            @click="handleOfflinePay(scope.row)"
+            v-if="scope.row.orderStatus === '0' || scope.row.orderStatus === '5'"
+            v-hasPermi="['order:info:offlinePay']"
+          >线下支付</el-button>
+          <el-button
+            size="mini"
+            type="text"
             icon="el-icon-close"
             @click="handleCancel(scope.row)"
             v-if="scope.row.orderStatus === '4' || scope.row.orderStatus === '5'"
@@ -501,6 +509,9 @@
     <!-- 审核对话框 -->
     <audit-dialog ref="auditDialog" @success="getList" />
 
+    <!-- 线下支付对话框 -->
+    <offline-pay-dialog ref="offlinePayDialog" @success="getList" />
+
   </div>
 </template>
 
@@ -512,6 +523,7 @@ import OrderDetail from './components/OrderDetail'
 import PaymentDialog from './components/PaymentDialog'
 import GenerateOrderDialog from './components/GenerateOrderDialog'
 import AuditDialog from './components/AuditDialog'
+import OfflinePayDialog from './components/OfflinePayDialog'
 
 export default {
   name: "OrderInfo",
@@ -520,7 +532,8 @@ export default {
     OrderDetail,
     PaymentDialog,
     GenerateOrderDialog,
-    AuditDialog
+    AuditDialog,
+    OfflinePayDialog
   },
   data() {
     return {
@@ -867,6 +880,10 @@ export default {
     /** 支付操作 */
     handlePay(row) {
       this.$refs.paymentDialog.show(row);
+    },
+    /** 线下支付操作 */
+    handleOfflinePay(row) {
+      this.$refs.offlinePayDialog.show(row);
     },
     /** 取消订单 */
     handleCancel(row) {

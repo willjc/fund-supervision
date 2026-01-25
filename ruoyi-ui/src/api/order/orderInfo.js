@@ -102,3 +102,12 @@ export function rejectOrder(data) {
     data: data
   })
 }
+
+// 线下支付订单
+export function offlinePay(orderId, data) {
+  return request({
+    url: '/order/info/offlinePay/' + orderId,
+    method: 'put',
+    data: data
+  })
+}

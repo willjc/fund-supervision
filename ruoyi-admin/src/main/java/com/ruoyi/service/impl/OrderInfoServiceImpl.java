@@ -14,8 +14,13 @@ import com.ruoyi.mapper.OrderItemMapper;
 import com.ruoyi.domain.OrderInfo;
 import com.ruoyi.domain.OrderItem;
 import com.ruoyi.domain.ElderCheckIn;
+import com.ruoyi.domain.PaymentRecord;
+import com.ruoyi.domain.pension.AccountInfo;
 import com.ruoyi.service.IOrderInfoService;
 import com.ruoyi.service.IElderCheckInService;
+import com.ruoyi.service.IPaymentRecordService;
+import com.ruoyi.service.pension.IAccountInfoService;
+import com.ruoyi.service.pension.IExpenseRecordService;
 
 /**
  * 订单主表Service业务层处理
@@ -34,6 +39,15 @@ public class OrderInfoServiceImpl implements IOrderInfoService
 
     @Autowired
     private IElderCheckInService elderCheckInService;
+
+    @Autowired
+    private IPaymentRecordService paymentRecordService;
+
+    @Autowired
+    private IAccountInfoService accountInfoService;
+
+    @Autowired
+    private IExpenseRecordService expenseRecordService;
 
     /**
      * 查询订单主表
@@ -361,6 +375,150 @@ public class OrderInfoServiceImpl implements IOrderInfoService
     public OrderInfo selectOrderInfoByOrderNo(String orderNo)
     {
         return orderInfoMapper.selectOrderInfoByOrderNo(orderNo);
+    }
+
+    /**
+     * 线下支付订单（管理端使用）
+     *
+     * @param orderId 订单ID
+     * @param paymentMethod 支付方式（现金/刷卡/扫码）
+     * @param paymentProof 支付凭证图片URL
+     * @param paymentProofRemark 支付凭证备注
+     * @return 结果
+     */
+    @Override
+    @Transactional
+    public int offlinePayOrder(Long orderId, String paymentMethod, String paymentProof, String paymentProofRemark)
+    {
+        OrderInfo orderInfo = orderInfoMapper.selectOrderInfoByOrderId(orderId);
+        if (orderInfo == null) {
+            return 0;
+        }
+
+        // 只允许待支付状态（0或5）的订单进行线下支付
+        if (!"0".equals(orderInfo.getOrderStatus()) && !"5".equals(orderInfo.getOrderStatus())) {
+            return 0;
+        }
+
+        // 更新订单状态为已支付
+        orderInfo.setOrderStatus("1");
+        orderInfo.setPaidAmount(orderInfo.getOrderAmount());
+        orderInfo.setPaymentMethod(paymentMethod);
+        orderInfo.setPaymentTime(new Date());
+        orderInfo.setPaymentProof(paymentProof);
+        orderInfo.setPaymentProofRemark(paymentProofRemark);
+        orderInfo.setUpdateTime(DateUtils.getNowDate());
+
+        int result = orderInfoMapper.updateOrderInfo(orderInfo);
+
+        // 创建支付记录
+        if (result > 0) {
+            PaymentRecord paymentRecord = new PaymentRecord();
+            paymentRecord.setPaymentNo("PAY" + System.currentTimeMillis());
+            paymentRecord.setOrderId(orderId);
+            paymentRecord.setOrderNo(orderInfo.getOrderNo());
+            paymentRecord.setElderId(orderInfo.getElderId());
+            paymentRecord.setInstitutionId(orderInfo.getInstitutionId());
+            paymentRecord.setPaymentAmount(orderInfo.getOrderAmount());
+            paymentRecord.setPaymentMethod(paymentMethod);
+            paymentRecord.setPaymentStatus("1"); // 成功
+            paymentRecord.setPaymentTime(new Date());
+            paymentRecord.setTransactionId("OFFLINE" + System.currentTimeMillis());
+            paymentRecord.setGatewayResponse("线下支付");
+            paymentRecord.setPaymentProof(paymentProof);
+            paymentRecord.setPaymentProofRemark(paymentProofRemark);
+            paymentRecord.setOperator("admin");
+
+            paymentRecordService.insertPaymentRecord(paymentRecord);
+
+            // 更新老人账户余额和创建费用记录
+            updateAccountAndCreateExpenseRecord(orderInfo);
+        }
+
+        return result;
+    }
+
+    /**
+     * 更新老人账户余额并创建费用记录
+     * 严格按照订单明细（order_item）分配费用
+     */
+    private void updateAccountAndCreateExpenseRecord(OrderInfo orderInfo) {
+        try {
+            // 获取或创建老人账户
+            AccountInfo account = accountInfoService.selectAccountInfoByElderId(orderInfo.getElderId());
+            if (account == null) {
+                account = accountInfoService.createAccountInfo(
+                    orderInfo.getElderId(),
+                    orderInfo.getInstitutionId(),
+                    BigDecimal.ZERO
+                );
+            }
+
+            // 从订单明细获取费用分配
+            BigDecimal serviceAmount = BigDecimal.ZERO;
+            BigDecimal depositAmount = BigDecimal.ZERO;
+            BigDecimal memberAmount = BigDecimal.ZERO;
+            BigDecimal totalAmount = orderInfo.getOrderAmount() != null ? orderInfo.getOrderAmount() : BigDecimal.ZERO;
+
+            // 查询订单明细
+            List<OrderItem> orderItems = orderItemMapper.selectOrderItemsByOrderId(orderInfo.getOrderId());
+
+            if (orderItems != null && !orderItems.isEmpty()) {
+                // 严格按照订单明细项的类型分配金额
+                for (OrderItem item : orderItems) {
+                    BigDecimal itemTotal = item.getTotalAmount() != null ? item.getTotalAmount() : BigDecimal.ZERO;
+                    String itemType = item.getItemType();
+
+                    if ("deposit".equals(itemType)) {
+                        // 押金类型
+                        depositAmount = depositAmount.add(itemTotal);
+                    } else if ("member_fee".equals(itemType)) {
+                        // 会员费类型
+                        memberAmount = memberAmount.add(itemTotal);
+                    } else {
+                        // 其他类型（床位费、护理费、餐饮费、医疗费等）归入服务费
+                        serviceAmount = serviceAmount.add(itemTotal);
+                    }
+                }
+            } else {
+                // 如果没有订单明细，全部归入服务费（不使用比例分配）
+                serviceAmount = totalAmount;
+            }
+
+            // 记录更新前的余额
+            BigDecimal balanceBefore = account.getTotalBalance() != null ? account.getTotalBalance() : BigDecimal.ZERO;
+            BigDecimal serviceBefore = account.getServiceBalance() != null ? account.getServiceBalance() : BigDecimal.ZERO;
+            BigDecimal depositBefore = account.getDepositBalance() != null ? account.getDepositBalance() : BigDecimal.ZERO;
+            BigDecimal memberBefore = account.getMemberBalance() != null ? account.getMemberBalance() : BigDecimal.ZERO;
+
+            // 更新账户余额
+            account.setTotalBalance(balanceBefore.add(totalAmount));
+            account.setServiceBalance(serviceBefore.add(serviceAmount));
+            account.setDepositBalance(depositBefore.add(depositAmount));
+            account.setMemberBalance(memberBefore.add(memberAmount));
+            account.setUpdateTime(new Date());
+            account.setRemark(account.getRemark() + " | 线下支付订单" + orderInfo.getOrderNo() + "增加余额" + totalAmount + "元");
+
+            accountInfoService.updateAccountInfo(account);
+
+            // 创建费用记录
+            expenseRecordService.createOrderExpenseRecords(
+                account.getElderId(),
+                account.getAccountId(),
+                orderInfo.getOrderId(),
+                orderInfo.getOrderType(),
+                depositAmount,
+                serviceAmount,
+                memberAmount,
+                BigDecimal.ZERO,
+                balanceBefore,
+                account.getTotalBalance()
+            );
+
+        } catch (Exception e) {
+            // 记录错误但不影响支付流程
+            throw new RuntimeException("更新账户余额失败: " + e.getMessage(), e);
+        }
     }
 
     /**

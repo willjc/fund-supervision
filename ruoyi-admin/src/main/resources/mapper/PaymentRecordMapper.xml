@@ -18,6 +18,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="transactionId"    column="transaction_id"    />
         <result property="gatewayResponse"    column="gateway_response"    />
         <result property="operator"     column="operator"     />
+        <result property="paymentProof"     column="payment_proof"     />
+        <result property="paymentProofRemark"     column="payment_proof_remark"     />
         <result property="createBy"   column="create_by"   />
         <result property="createTime" column="create_time" />
         <result property="updateBy"   column="update_by"   />
@@ -30,8 +32,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <sql id="selectPaymentRecordVo">
         select p.payment_id, p.payment_no, p.order_id, p.elder_id, p.institution_id,
                p.payment_amount, p.payment_method, p.payment_status, p.payment_time,
-               p.transaction_id, p.gateway_response, p.operator, p.create_by, p.create_time,
-               p.update_by, p.update_time, p.remark,
+               p.transaction_id, p.gateway_response, p.operator, p.payment_proof, p.payment_proof_remark,
+               p.create_by, p.create_time, p.update_by, p.update_time, p.remark,
                e.elder_name, i.institution_name, o.order_no
         from payment_record p
         left join elder_info e on p.elder_id = e.elder_id
@@ -113,6 +115,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="transactionId != null and transactionId != ''">transaction_id,</if>
             <if test="gatewayResponse != null and gatewayResponse != ''">gateway_response,</if>
             <if test="operator != null and operator != ''">operator,</if>
+            <if test="paymentProof != null and paymentProof != ''">payment_proof,</if>
+            <if test="paymentProofRemark != null">payment_proof_remark,</if>
             <if test="createBy != null and createBy != ''">create_by,</if>
             <if test="createTime != null">create_time,</if>
             <if test="updateBy != null and updateBy != ''">update_by,</if>
@@ -131,6 +135,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="transactionId != null and transactionId != ''">#{transactionId},</if>
             <if test="gatewayResponse != null and gatewayResponse != ''">#{gatewayResponse},</if>
             <if test="operator != null and operator != ''">#{operator},</if>
+            <if test="paymentProof != null and paymentProof != ''">#{paymentProof},</if>
+            <if test="paymentProofRemark != null">#{paymentProofRemark},</if>
             <if test="createBy != null and createBy != ''">#{createBy},</if>
             <if test="createTime != null">#{createTime},</if>
             <if test="updateBy != null and updateBy != ''">#{updateBy},</if>
@@ -153,6 +159,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="transactionId != null and transactionId != ''">transaction_id = #{transactionId},</if>
             <if test="gatewayResponse != null and gatewayResponse != ''">gateway_response = #{gatewayResponse},</if>
             <if test="operator != null and operator != ''">operator = #{operator},</if>
+            <if test="paymentProof != null">payment_proof = #{paymentProof},</if>
+            <if test="paymentProofRemark != null">payment_proof_remark = #{paymentProofRemark},</if>
             <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>
             <if test="remark != null">remark = #{remark},</if>

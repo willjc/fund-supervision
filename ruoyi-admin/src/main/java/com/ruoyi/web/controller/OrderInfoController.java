@@ -164,6 +164,18 @@ public class OrderInfoController extends BaseController
     }
 
     /**
+     * 线下支付订单
+     */
+    @PreAuthorize("@ss.hasPermi('order:info:offlinePay')")
+    @Log(title = "线下支付订单", businessType = BusinessType.UPDATE)
+    @PutMapping("/offlinePay/{orderId}")
+    public AjaxResult offlinePay(@PathVariable("orderId") Long orderId, @RequestBody OrderInfo orderInfo)
+    {
+        return toAjax(orderInfoService.offlinePayOrder(orderId, orderInfo.getPaymentMethod(),
+            orderInfo.getPaymentProof(), orderInfo.getPaymentProofRemark()));
+    }
+
+    /**
      * 删除订单主表
      */
     @PreAuthorize("@ss.hasPermi('order:info:remove')")

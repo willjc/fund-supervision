@@ -100,4 +100,15 @@ public interface IOrderInfoService
      * @return 订单信息
      */
     public OrderInfo selectOrderInfoByOrderNo(String orderNo);
+
+    /**
+     * 线下支付订单（管理端使用）
+     *
+     * @param orderId 订单ID
+     * @param paymentMethod 支付方式（现金/刷卡/扫码）
+     * @param paymentProof 支付凭证图片URL
+     * @param paymentProofRemark 支付凭证备注
+     * @return 结果
+     */
+    public int offlinePayOrder(Long orderId, String paymentMethod, String paymentProof, String paymentProofRemark);
 }

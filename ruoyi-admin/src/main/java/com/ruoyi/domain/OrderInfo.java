@@ -73,6 +73,14 @@ public class OrderInfo extends BaseEntity
     @Excel(name = "支付时间", width = 30, dateFormat = "yyyy-MM-dd HH:mm:ss")
     private Date paymentTime;
 
+    /** 支付凭证图片URL */
+    @Excel(name = "支付凭证")
+    private String paymentProof;
+
+    /** 支付凭证备注 */
+    @Excel(name = "凭证备注")
+    private String paymentProofRemark;
+
     /** 订单日期 */
     @JsonFormat(pattern = "yyyy-MM-dd")
     @Excel(name = "订单日期", width = 30, dateFormat = "yyyy-MM-dd")
@@ -263,6 +271,27 @@ public class OrderInfo extends BaseEntity
     {
         return paymentTime;
     }
+
+    public String getPaymentProof()
+    {
+        return paymentProof;
+    }
+
+    public void setPaymentProof(String paymentProof)
+    {
+        this.paymentProof = paymentProof;
+    }
+
+    public String getPaymentProofRemark()
+    {
+        return paymentProofRemark;
+    }
+
+    public void setPaymentProofRemark(String paymentProofRemark)
+    {
+        this.paymentProofRemark = paymentProofRemark;
+    }
+
     public void setOrderDate(Date orderDate)
     {
         this.orderDate = orderDate;

@@ -62,7 +62,10 @@ public class PaymentRecordServiceImpl implements IPaymentRecordService
     public int insertPaymentRecord(PaymentRecord paymentRecord)
     {
         paymentRecord.setCreateTime(DateUtils.getNowDate());
-        paymentRecord.setPaymentStatus("0"); // 默认状态为处理中
+        // 只在状态为空时才设置默认状态为处理中
+        if (paymentRecord.getPaymentStatus() == null || paymentRecord.getPaymentStatus().isEmpty()) {
+            paymentRecord.setPaymentStatus("0"); // 默认状态为处理中
+        }
         return paymentRecordMapper.insertPaymentRecord(paymentRecord);
     }
 

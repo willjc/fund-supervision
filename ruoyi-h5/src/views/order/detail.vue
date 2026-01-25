@@ -16,21 +16,9 @@
         <van-icon :name="getStatusIcon(order.orderStatus)" size="48" :color="getStatusColor(order.orderStatus)" />
         <div class="status-text">{{ getStatusText(order.orderStatus) }}</div>
 
-        <!-- 倒计时：仅入驻订单显示 -->
-        <div v-if="order.orderType === '1' && (order.orderStatus === '0' || order.orderStatus === '5') && countdown > 0" class="countdown-bar">
-          <van-count-down :time="countdown" format="mm分ss秒" @finish="onCountdownFinish">
-            <template #default="timeData">
-              <span class="countdown-text">剩余支付时间: </span>
-              <span class="countdown-time">{{ timeData.minutes }}:{{ timeData.seconds }}</span>
-            </template>
-          </van-count-down>
-        </div>
-        <div v-else-if="order.orderType === '1' && (order.orderStatus === '0' || order.orderStatus === '5')" class="status-tip">
-          请尽快完成支付,超时订单将自动取消
-        </div>
-        <!-- 续费订单提示 -->
-        <div v-else-if="order.orderType === '2' && (order.orderStatus === '0' || order.orderStatus === '5')" class="status-tip" style="background-color: #e6f7ff; border: 1px solid #91d5ff;">
-          续费订单可随时支付，无时间限制
+        <!-- 支付提示：所有订单都可随时支付 -->
+        <div v-if="order.orderStatus === '0' || order.orderStatus === '5'" class="status-tip">
+          订单可随时支付，无时间限制
         </div>
       </div>
 
@@ -117,6 +105,20 @@
         <van-cell title="结束日期" :value="formatDate(order.serviceEndDate, 'YYYY-MM-DD')" />
       </van-cell-group>
 
+      <!-- 支付凭证 -->
+      <van-cell-group v-if="order.orderStatus === '1' && order.paymentProof" title="支付凭证" inset>
+        <div class="payment-proof">
+          <van-image
+            :src="order.paymentProof"
+            fit="cover"
+            @click="previewPaymentProof"
+          />
+          <div v-if="order.paymentProofRemark" class="proof-remark">
+            {{ order.paymentProofRemark }}
+          </div>
+        </div>
+      </van-cell-group>
+
       <!-- 备注信息 -->
       <van-cell-group v-if="order.remark" title="备注信息" inset>
         <van-cell :value="order.remark" />
@@ -146,7 +148,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { showToast, showConfirmDialog } from 'vant'
+import { showToast, showConfirmDialog, showImagePreview } from 'vant'
 import dayjs from 'dayjs'
 import { getOrderDetail as getOrderDetailApi, processPayment, getOrderItems } from '@/api/order'
 
@@ -156,7 +158,6 @@ const route = useRoute()
 const loading = ref(true)
 const order = ref(null)
 const orderItems = ref([]) // 订单明细列表
-const countdown = ref(0) // 倒计时毫秒数
 
 // 是否有价格修改
 const hasPriceModified = computed(() => {
@@ -215,19 +216,6 @@ const loadOrderDetail = async () => {
     // 处理订单详情
     if (detailRes.status === 'fulfilled' && detailRes.value && detailRes.value.code === 200 && detailRes.value.data) {
       order.value = detailRes.value.data
-
-      // 只有入驻订单(orderType='1')且待支付状态才计算倒计时(15分钟)
-      // 续费订单(orderType='2')不需要倒计时，可以随时支付
-      if (order.value.orderType === '1' && (order.value.orderStatus === '0' || order.value.orderStatus === '5')) {
-        const createTime = dayjs(order.value.createTime)
-        const expireTime = createTime.add(15, 'minute')
-        const now = dayjs()
-        const diff = expireTime.diff(now)
-
-        if (diff > 0) {
-          countdown.value = diff
-        }
-      }
     } else {
       const errorMsg = detailRes.status === 'rejected' ? detailRes.reason?.message : (detailRes.value?.msg || '获取订单详情失败')
       showToast(errorMsg)
@@ -261,12 +249,6 @@ const loadOrderDetail = async () => {
   } finally {
     loading.value = false
   }
-}
-
-// 倒计时结束
-const onCountdownFinish = () => {
-  showToast('订单已超时')
-  order.value.orderStatus = '2'
 }
 
 // 取消订单
@@ -330,6 +312,16 @@ const handleReview = () => {
 const handleContact = () => {
   showToast('客服功能开发中')
   // TODO: 跳转到客服页面或拨打客服电话
+}
+
+// 预览支付凭证
+const previewPaymentProof = () => {
+  if (order.value && order.value.paymentProof) {
+    showImagePreview({
+      images: [order.value.paymentProof],
+      closeable: true,
+    })
+  }
 }
 
 // 获取状态文本
@@ -431,26 +423,6 @@ onMounted(() => {
   font-weight: 500;
   margin-top: 12px;
   color: #323233;
-}
-
-.countdown-bar {
-  margin-top: 16px;
-  padding: 12px 20px;
-  background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);
-  border-radius: 20px;
-  display: inline-block;
-}
-
-.countdown-text {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.countdown-time {
-  font-size: 18px;
-  font-weight: bold;
-  color: #fff;
-  margin-left: 4px;
 }
 
 .status-tip {
@@ -667,5 +639,28 @@ onMounted(() => {
 
 .price-change-summary .price-diff.decrease {
   color: #67c23a;
+}
+
+/* 支付凭证样式 */
+.payment-proof {
+  padding: 16px;
+  text-align: center;
+}
+
+.payment-proof .van-image {
+  width: 100%;
+  max-width: 300px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.proof-remark {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #666;
+  text-align: left;
 }
 </style>

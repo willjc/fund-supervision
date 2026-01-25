@@ -18,6 +18,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="orderStatus"    column="order_status"    />
         <result property="paymentMethod"    column="payment_method"    />
         <result property="paymentTime"    column="payment_time"    />
+        <result property="paymentProof"    column="payment_proof"    />
+        <result property="paymentProofRemark"    column="payment_proof_remark"    />
         <result property="orderDate"    column="order_date"    />
         <result property="serviceStartDate"    column="service_start_date"    />
         <result property="serviceEndDate"    column="service_end_date"    />
@@ -40,7 +42,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <sql id="selectOrderInfoVo">
         select o.order_id, o.order_no, o.order_type, o.elder_id, o.creator_user_id, o.institution_id, o.check_in_id,
                o.bed_id, o.order_amount, o.paid_amount, o.order_status, o.payment_method,
-               o.payment_time, o.order_date, o.service_start_date, o.service_end_date,
+               o.payment_time, o.payment_proof, o.payment_proof_remark, o.order_date, o.service_start_date, o.service_end_date,
                o.billing_cycle, o.month_count, o.original_amount, o.discount_amount,
                o.due_date, o.create_by, o.create_time, o.update_by, o.update_time, o.remark,
                e.elder_name, i.institution_name, b.room_number, b.bed_number
@@ -114,6 +116,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="orderStatus != null">order_status,</if>
             <if test="paymentMethod != null and paymentMethod != ''">payment_method,</if>
             <if test="paymentTime != null">payment_time,</if>
+            <if test="paymentProof != null and paymentProof != ''">payment_proof,</if>
+            <if test="paymentProofRemark != null">payment_proof_remark,</if>
             <if test="orderDate != null">order_date,</if>
             <if test="serviceStartDate != null">service_start_date,</if>
             <if test="serviceEndDate != null">service_end_date,</if>
@@ -141,6 +145,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="orderStatus != null">#{orderStatus},</if>
             <if test="paymentMethod != null and paymentMethod != ''">#{paymentMethod},</if>
             <if test="paymentTime != null">#{paymentTime},</if>
+            <if test="paymentProof != null and paymentProof != ''">#{paymentProof},</if>
+            <if test="paymentProofRemark != null">#{paymentProofRemark},</if>
             <if test="orderDate != null">#{orderDate},</if>
             <if test="serviceStartDate != null">#{serviceStartDate},</if>
             <if test="serviceEndDate != null">#{serviceEndDate},</if>
@@ -171,6 +177,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="orderStatus != null">order_status = #{orderStatus},</if>
             <if test="paymentMethod != null and paymentMethod != ''">payment_method = #{paymentMethod},</if>
             <if test="paymentTime != null">payment_time = #{paymentTime},</if>
+            <if test="paymentProof != null">payment_proof = #{paymentProof},</if>
+            <if test="paymentProofRemark != null">payment_proof_remark = #{paymentProofRemark},</if>
             <if test="orderDate != null">order_date = #{orderDate},</if>
             <if test="serviceStartDate != null">service_start_date = #{serviceStartDate},</if>
             <if test="serviceEndDate != null">service_end_date = #{serviceEndDate},</if>
