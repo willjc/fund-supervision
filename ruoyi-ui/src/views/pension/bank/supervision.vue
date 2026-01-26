@@ -92,6 +92,8 @@
 </template>
 
 <script>
+import { getAccountInfo, getSupervisionList } from '@/api/pension/bank'
+
 export default {
   name: 'BankSupervision',
   data() {
@@ -106,44 +108,48 @@ export default {
         transactionType: null
       },
       accountInfo: {
-        balance: 1234567.89,
-        monthIncome: 456789.00,
-        monthExpense: 234567.00
+        balance: 0,
+        monthIncome: 0,
+        monthExpense: 0
       }
     }
   },
   created() {
+    this.getAccountInfo()
     this.getList()
   },
   methods: {
+    // 获取账户信息
+    getAccountInfo() {
+      getAccountInfo().then(response => {
+        this.accountInfo = response.data || { balance: 0, monthIncome: 0, monthExpense: 0 }
+      }).catch(error => {
+        console.error('获取账户信息失败:', error)
+      })
+    },
     // 查询列表
     getList() {
       this.loading = true
-      // TODO: 调用后端API
-      setTimeout(() => {
-        this.dataList = [
-          {
-            transactionNo: 'LSH202501030001',
-            transactionTime: '2025-01-03 10:30:25',
-            transactionType: '转入',
-            amount: 50000,
-            balance: 1234567.89,
-            description: '老人家属缴费',
-            counterpartyName: '张三'
-          },
-          {
-            transactionNo: 'LSH202501030002',
-            transactionTime: '2025-01-03 09:15:10',
-            transactionType: '转出',
-            amount: 20000,
-            balance: 1184567.89,
-            description: '划拨到运营账户',
-            counterpartyName: '运营账户'
-          }
-        ]
-        this.total = 2
+      const params = {
+        pageNum: this.queryParams.pageNum,
+        pageSize: this.queryParams.pageSize
+      }
+      if (this.dateRange && this.dateRange.length === 2) {
+        params.beginTime = this.dateRange[0]
+        params.endTime = this.dateRange[1]
+      }
+      if (this.queryParams.transactionType) {
+        params.transactionType = this.queryParams.transactionType === '转入' ? '收入' : '支出'
+      }
+
+      getSupervisionList(params).then(response => {
+        this.dataList = response.rows || []
+        this.total = response.total || 0
         this.loading = false
-      }, 500)
+      }).catch(error => {
+        console.error('查询监管账户流水失败:', error)
+        this.loading = false
+      })
     },
     // 搜索
     handleQuery() {

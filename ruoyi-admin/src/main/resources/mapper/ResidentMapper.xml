@@ -74,6 +74,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             ba.check_in_date,
             ba.due_date,
             ei.emergency_contact,
+            ei.emergency_phone,
             ei.address,
             ba.monthly_fee,
             CASE WHEN EXISTS (

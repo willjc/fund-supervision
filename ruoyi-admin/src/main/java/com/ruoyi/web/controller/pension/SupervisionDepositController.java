@@ -41,10 +41,7 @@ public class SupervisionDepositController extends BaseController
     public TableDataInfo list(DepositApply depositApply)
     {
         startPage();
-        // 默认查询家属已审批的押金申请（等待监管审批）
-        if (depositApply.getApplyStatus() == null || depositApply.getApplyStatus().isEmpty()) {
-            depositApply.setApplyStatus("family_approved");
-        }
+        // 查询所有状态的押金申请，由前端传入的applyStatus参数控制筛选
         List<DepositApply> list = depositApplyService.selectDepositApplyList(depositApply);
         return getDataTable(list);
     }

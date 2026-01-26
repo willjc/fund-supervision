@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.mapper.pension.SupervisionAccountLogMapper">
+
+    <resultMap type="SupervisionAccountLog" id="SupervisionAccountLogResult">
+        <result property="logId"             column="log_id"             />
+        <result property="institutionId"     column="institution_id"     />
+        <result property="transactionNo"     column="transaction_no"     />
+        <result property="transactionType"   column="transaction_type"   />
+        <result property="amount"            column="amount"             />
+        <result property="balanceBefore"     column="balance_before"     />
+        <result property="balanceAfter"      column="balance_after"      />
+        <result property="transactionTime"   column="transaction_time"   />
+        <result property="businessType"      column="business_type"      />
+        <result property="relatedOrderId"    column="related_order_id"   />
+        <result property="relatedTransferId" column="related_transfer_id" />
+        <result property="businessDesc"      column="business_desc"      />
+        <result property="counterparty"      column="counterparty"       />
+        <result property="operator"          column="operator"           />
+        <result property="createTime"        column="create_time"        />
+        <!-- 关联字段 -->
+        <result property="institutionName"   column="institution_name"   />
+    </resultMap>
+
+    <sql id="selectSupervisionAccountLogVo">
+        select log_id, institution_id, transaction_no, transaction_type,
+               amount, balance_before, balance_after, transaction_time,
+               business_type, related_order_id, related_transfer_id,
+               business_desc, counterparty, operator, create_time
+        from supervision_account_log
+    </sql>
+
+    <sql id="selectSupervisionAccountLogWithRelations">
+        select sal.log_id, sal.institution_id, sal.transaction_no, sal.transaction_type,
+               sal.amount, sal.balance_before, sal.balance_after, sal.transaction_time,
+               sal.business_type, sal.related_order_id, sal.related_transfer_id,
+               sal.business_desc, sal.counterparty, sal.operator, sal.create_time,
+               pi.institution_name
+        from supervision_account_log sal
+        left join pension_institution pi on sal.institution_id = pi.institution_id
+    </sql>
+
+    <select id="selectSupervisionAccountLogList" parameterType="SupervisionAccountLog" resultMap="SupervisionAccountLogResult">
+        <include refid="selectSupervisionAccountLogWithRelations"/>
+        <where>
+            <if test="institutionId != null "> and sal.institution_id = #{institutionId}</if>
+            <if test="transactionNo != null and transactionNo != ''"> and sal.transaction_no like concat('%', #{transactionNo}, '%')</if>
+            <if test="transactionType != null and transactionType != ''"> and sal.transaction_type = #{transactionType}</if>
+            <if test="businessType != null and businessType != ''"> and sal.business_type = #{businessType}</if>
+            <if test="counterparty != null and counterparty != ''"> and sal.counterparty like concat('%', #{counterparty}, '%')</if>
+            <if test="params.beginTime != null and params.beginTime != ''">
+                and date_format(sal.transaction_time,'%y%m%d') &gt;= date_format(#{params.beginTime},'%y%m%d')
+            </if>
+            <if test="params.endTime != null and params.endTime != ''">
+                and date_format(sal.transaction_time,'%y%m%d') &lt;= date_format(#{params.endTime},'%y%m%d')
+            </if>
+        </where>
+        order by sal.transaction_time desc
+    </select>
+
+    <select id="selectSupervisionAccountLogByLogId" parameterType="Long" resultMap="SupervisionAccountLogResult">
+        <include refid="selectSupervisionAccountLogWithRelations"/>
+        where sal.log_id = #{logId}
+    </select>
+
+    <select id="selectSupervisionAccountLogByInstitutionId" parameterType="Long" resultMap="SupervisionAccountLogResult">
+        <include refid="selectSupervisionAccountLogWithRelations"/>
+        where sal.institution_id = #{institutionId}
+        order by sal.transaction_time desc
+    </select>
+
+    <select id="selectSupervisionAccountLogByOrderId" parameterType="Long" resultMap="SupervisionAccountLogResult">
+        <include refid="selectSupervisionAccountLogWithRelations"/>
+        where sal.related_order_id = #{orderId}
+        order by sal.transaction_time desc
+    </select>
+
+    <select id="selectSupervisionAccountLogByTransferId" parameterType="Long" resultMap="SupervisionAccountLogResult">
+        <include refid="selectSupervisionAccountLogWithRelations"/>
+        where sal.related_transfer_id = #{transferId}
+        order by sal.transaction_time desc
+    </select>
+
+    <select id="selectCurrentBalance" parameterType="Long" resultType="java.math.BigDecimal">
+        select balance_after
+        from supervision_account_log
+        where institution_id = #{institutionId}
+        order by transaction_time desc
+        limit 1
+    </select>
+
+    <select id="selectStatisticsByDateRange" resultType="java.util.Map">
+        select
+            coalesce(sum(case when transaction_type = '收入' then amount else 0 end), 0) as totalIncome,
+            coalesce(sum(case when transaction_type = '支出' then amount else 0 end), 0) as totalExpense,
+            coalesce(sum(amount), 0) as totalAmount
+        from supervision_account_log
+        where institution_id = #{institutionId}
+            and transaction_time between #{startDate} and #{endDate}
+    </select>
+
+    <insert id="insertSupervisionAccountLog" parameterType="SupervisionAccountLog" useGeneratedKeys="true" keyProperty="logId">
+        insert into supervision_account_log
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="institutionId != null">institution_id,</if>
+            <if test="transactionNo != null and transactionNo != ''">transaction_no,</if>
+            <if test="transactionType != null and transactionType != ''">transaction_type,</if>
+            <if test="amount != null">amount,</if>
+            <if test="balanceBefore != null">balance_before,</if>
+            <if test="balanceAfter != null">balance_after,</if>
+            <if test="transactionTime != null">transaction_time,</if>
+            <if test="businessType != null and businessType != ''">business_type,</if>
+            <if test="relatedOrderId != null">related_order_id,</if>
+            <if test="relatedTransferId != null">related_transfer_id,</if>
+            <if test="businessDesc != null and businessDesc != ''">business_desc,</if>
+            <if test="counterparty != null and counterparty != ''">counterparty,</if>
+            <if test="operator != null and operator != ''">operator,</if>
+            <if test="createTime != null">create_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="institutionId != null">#{institutionId},</if>
+            <if test="transactionNo != null and transactionNo != ''">#{transactionNo},</if>
+            <if test="transactionType != null and transactionType != ''">#{transactionType},</if>
+            <if test="amount != null">#{amount},</if>
+            <if test="balanceBefore != null">#{balanceBefore},</if>
+            <if test="balanceAfter != null">#{balanceAfter},</if>
+            <if test="transactionTime != null">#{transactionTime},</if>
+            <if test="businessType != null and businessType != ''">#{businessType},</if>
+            <if test="relatedOrderId != null">#{relatedOrderId},</if>
+            <if test="relatedTransferId != null">#{relatedTransferId},</if>
+            <if test="businessDesc != null and businessDesc != ''">#{businessDesc},</if>
+            <if test="counterparty != null and counterparty != ''">#{counterparty},</if>
+            <if test="operator != null and operator != ''">#{operator},</if>
+            <if test="createTime != null">#{createTime},</if>
+         </trim>
+    </insert>
+
+</mapper>

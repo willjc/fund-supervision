@@ -27,6 +27,8 @@
           </template>
         </van-cell>
         <van-cell title="使用事由" :value="detail.usagePurpose" />
+        <van-cell title="申请原因" :value="detail.applyReason" />
+        <van-cell title="详细说明" :value="detail.description" />
         <van-cell title="申请状态">
           <template #value>
             <van-tag :type="getStatusType(detail.applyStatus)">
@@ -303,47 +305,24 @@ const handleApprove = async () => {
 // 拒绝申请
 const handleReject = async () => {
   try {
-    const result = await showDialog({
-      title: '拒绝申请',
-      message: '请输入拒绝原因',
-      showCancelButton: true,
-      confirmButtonText: '确认',
-      cancelButtonText: '取消',
-      beforeClose: (action) => {
-        if (action === 'confirm') {
-          const input = document.querySelector('.van-dialog__message input')
-          if (!input || !input.value.trim()) {
-            showToast('请输入拒绝原因')
-            return false
-          }
-        }
-        return true
-      }
-    })
+    // 使用 prompt 获取拒绝原因（更可靠的方式）
+    const rejectReason = window.prompt('请输入拒绝原因', '')
 
-    // 创建输入框
-    setTimeout(() => {
-      const messageEl = document.querySelector('.van-dialog__message')
-      if (messageEl && !messageEl.querySelector('input')) {
-        const input = document.createElement('input')
-        input.type = 'text'
-        input.placeholder = '请输入拒绝原因'
-        input.style.cssText = 'width: 100%; padding: 8px; margin-top: 12px; border: 1px solid #ebedf0; border-radius: 4px; font-size: 14px;'
-        messageEl.appendChild(input)
-      }
-    }, 0)
+    // 用户取消输入
+    if (rejectReason === null) {
+      return
+    }
 
-    const input = document.querySelector('.van-dialog__message input')
-    const rejectReason = input ? input.value.trim() : ''
-
-    if (!rejectReason) {
+    // 验证拒绝原因必填
+    if (!rejectReason || !rejectReason.trim()) {
+      showToast('请输入拒绝原因')
       return
     }
 
     const res = await submitFamilyApproval({
       applyId: route.params.id,
       approvalResult: 'rejected',
-      rejectReason
+      rejectReason: rejectReason.trim()
     })
 
     if (res.code === 200) {

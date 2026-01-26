@@ -105,6 +105,8 @@
 </template>
 
 <script>
+import { getPaymentList, getPaymentStatistics } from '@/api/pension/bank'
+
 export default {
   name: 'BankPayment',
   data() {
@@ -120,51 +122,52 @@ export default {
         orderNo: null
       },
       stats: {
-        todayCount: 28,
-        todayAmount: 45678.90,
-        monthCount: 856,
-        monthAmount: 1234567.89
+        todayCount: 0,
+        todayAmount: 0,
+        monthCount: 0,
+        monthAmount: 0
       }
     }
   },
   created() {
+    this.getStatistics()
     this.getList()
   },
   methods: {
+    // 获取统计信息
+    getStatistics() {
+      getPaymentStatistics().then(response => {
+        this.stats = response.data || { todayCount: 0, todayAmount: 0, monthCount: 0, monthAmount: 0 }
+      }).catch(error => {
+        console.error('获取统计信息失败:', error)
+      })
+    },
     // 查询列表
     getList() {
       this.loading = true
-      // TODO: 调用后端API
-      setTimeout(() => {
-        this.dataList = [
-          {
-            orderNo: 'DD202501030001',
-            transactionNo: 'WX202501030001234567',
-            paymentTime: '2025-01-03 10:30:25',
-            amount: 3000,
-            paymentMethod: '微信支付',
-            paymentChannel: '微信',
-            fee: 18,
-            actualAmount: 2982,
-            status: '已完成',
-            remark: '老人月度护理费'
-          },
-          {
-            orderNo: 'DD202501030002',
-            transactionNo: 'ZFB202501030002345678',
-            paymentTime: '2025-01-03 09:15:10',
-            amount: 2500,
-            paymentMethod: '支付宝',
-            paymentChannel: '支付宝',
-            fee: 15,
-            actualAmount: 2485,
-            status: '已完成',
-            remark: '老人餐费'
-          }
-        ]
-        this.total = 2
+      const params = {
+        pageNum: this.queryParams.pageNum,
+        pageSize: this.queryParams.pageSize
+      }
+      if (this.dateRange && this.dateRange.length === 2) {
+        params.beginTime = this.dateRange[0]
+        params.endTime = this.dateRange[1]
+      }
+      if (this.queryParams.paymentMethod) {
+        params.paymentMethod = this.queryParams.paymentMethod
+      }
+      if (this.queryParams.orderNo) {
+        params.orderNo = this.queryParams.orderNo
+      }
+
+      getPaymentList(params).then(response => {
+        this.dataList = response.rows || []
+        this.total = response.total || 0
         this.loading = false
-      }, 500)
+      }).catch(error => {
+        console.error('查询收单交易流水失败:', error)
+        this.loading = false
+      })
     },
     // 搜索
     handleQuery() {

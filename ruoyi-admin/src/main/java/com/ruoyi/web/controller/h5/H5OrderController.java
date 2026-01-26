@@ -90,6 +90,9 @@ public class H5OrderController extends BaseController
     @Autowired
     private IPaymentRecordService paymentRecordService;
 
+    @Autowired
+    private com.ruoyi.service.pension.ISupervisionAccountLogService supervisionAccountLogService;
+
     /**
      * 获取订单列表
      * 根据当前登录用户关联的老人查询订单（家属或老人本人）
@@ -883,6 +886,20 @@ public class H5OrderController extends BaseController
                     getInstitutionName(order.getInstitutionId()) : "未知机构");
 
                 paymentRecordService.insertPaymentRecord(paymentRecord);
+
+                // 记录监管账户流水
+                try {
+                    supervisionAccountLogService.recordIncome(
+                        order.getInstitutionId(),
+                        order.getOrderId(),
+                        order.getOrderAmount(),
+                        "用户支付订单-" + order.getElderName(),
+                        currentUserId.toString()
+                    );
+                } catch (Exception e) {
+                    logger.error("记录监管账户流水失败", e);
+                    // 不影响支付流程，只记录错误
+                }
 
                 // 处理账户信息
                 boolean accountUpdated = false;

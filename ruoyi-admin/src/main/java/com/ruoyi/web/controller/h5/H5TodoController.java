@@ -103,15 +103,15 @@ public class H5TodoController extends BaseController
                             todo.put("title", "押金使用申请审批");
                             todo.put("description", apply.getPurpose() != null ? apply.getPurpose() : apply.getApplyReason());
                             todo.put("amount", apply.getApplyAmount());
-                            todo.put("createTime", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, apply.getCreateTime()));
+                            todo.put("createTime", apply.getCreateTime() != null ? DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, apply.getCreateTime()) : "");
                             todo.put("urgencyLevel", apply.getUrgencyLevel());
                             todo.put("status", todoStatus); // pending/approved/rejected
 
                             // 已完成事项需要额外的完成信息
                             if ("completed".equals(targetStatus)) {
-                                todo.put("completeTime", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, apply.getUpdateTime()));
+                                todo.put("completeTime", apply.getUpdateTime() != null ? DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, apply.getUpdateTime()) : "");
                                 todo.put("approver", apply.getApprover());
-                                todo.put("approveTime", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, apply.getApproveTime()));
+                                todo.put("approveTime", apply.getApproveTime() != null ? DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, apply.getApproveTime()) : "");
                                 todo.put("approveRemark", apply.getApproveRemark());
 
                                 String resultText = "approved".equals(apply.getApplyStatus()) ? "审批通过" : "审批拒绝";

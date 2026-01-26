@@ -148,15 +148,6 @@
           v-hasPermi="['pension:deposit:export']"
         >导出</el-button>
       </el-col>
-      <el-col :span="1.5">
-        <el-switch
-          v-model="showAll"
-          active-text="显示全部"
-          inactive-text="仅待审批"
-          @change="handleShowAllChange"
-        >
-        </el-switch>
-      </el-col>
       <right-toolbar :showSearch.sync="showSearch" @queryTable="getList"></right-toolbar>
     </el-row>
 
@@ -258,6 +249,9 @@
           <dict-tag :options="dict.type.deposit_apply_status" :value="currentApply.applyStatus"/>
         </el-descriptions-item>
         <el-descriptions-item label="申请原因" :span="2">{{ currentApply.applyReason }}</el-descriptions-item>
+        <el-descriptions-item label="详细说明" :span="2" v-if="currentApply.description">
+          {{ currentApply.description }}
+        </el-descriptions-item>
 
         <!-- 申请材料 -->
         <el-descriptions-item label="申请材料" :span="2" v-if="currentApply.attachments">
@@ -438,7 +432,7 @@
 </template>
 
 <script>
-import { listApproval, listAllDeposit, getDepositApply, approveDeposit, rejectDeposit, getApprovalStatistics, batchApprove, getTodayPending, getUrgentApplies, getLargeAmountApplies, exportApproval } from "@/api/pension/supervisionDeposit";
+import { listApproval, getDepositApply, approveDeposit, rejectDeposit, getApprovalStatistics, batchApprove, getTodayPending, getUrgentApplies, getLargeAmountApplies, exportApproval } from "@/api/pension/supervisionDeposit";
 
 export default {
   name: "DepositApproval",
@@ -459,8 +453,6 @@ export default {
       depositList: [],
       // 统计数据
       statistics: {},
-      // 显示全部数据
-      showAll: false,
       // 弹出层标题
       title: "",
       // 是否显示详情弹出层
@@ -488,7 +480,7 @@ export default {
         applyNo: null,
         applyType: null,
         urgencyLevel: null,
-        applyStatus: "family_approved" // 默认查询家属已审批（待监管审批）
+        applyStatus: null // 默认查询所有状态
       },
       // 拒绝表单
       rejectForm: {
@@ -526,10 +518,7 @@ export default {
     getList() {
       this.loading = true;
 
-      // 根据是否显示全部选择不同的API
-      const apiMethod = this.showAll ? listAllDeposit : listApproval;
-
-      apiMethod(this.queryParams).then(response => {
+      listApproval(this.queryParams).then(response => {
         this.depositList = response.rows;
         this.total = response.total;
         this.loading = false;
@@ -608,7 +597,7 @@ export default {
       this.rejectOpen = false;
       this.resetForm("rejectForm");
     },
-    /** 批量审批操作 */
+    /** 批量审批���作 */
     handleBatchApprove() {
       const applyIds = this.ids;
       const applyNos = this.depositList.filter(item => applyIds.includes(item.applyId))
@@ -621,16 +610,6 @@ export default {
         this.getStatistics();
         this.$modal.msgSuccess(response.msg);
       }).catch(() => {});
-    },
-    /** 显示全部切换 */
-    handleShowAllChange(value) {
-      if (value) {
-        this.queryParams.applyStatus = null; // 显示全部状态
-      } else {
-        this.queryParams.applyStatus = "family_approved"; // 只显示待监管审批
-      }
-      this.queryParams.pageNum = 1;
-      this.getList();
     },
     /** 今日待处理 */
     handleTodayPending() {

@@ -221,7 +221,12 @@
               :icon="getCurrentStepIcon(2)">
               <h4 :style="getCurrentStepStyle(2)">家属审批</h4>
               <template v-if="detailData.familyApproveTime">
-                <p>{{ detailData.familyConfirmName || '家属' }}已确认</p>
+                <p v-if="detailData.applyStatus === 'rejected'">
+                  {{ detailData.familyConfirmName || '家属' }}已拒绝
+                </p>
+                <p v-else>
+                  {{ detailData.familyConfirmName || '家属' }}已确认
+                </p>
                 <p v-if="detailData.familyApproveOpinion" style="color: #606266; margin-top: 5px;">
                   意见: {{ detailData.familyApproveOpinion }}
                 </p>
@@ -722,7 +727,8 @@ export default {
       // 步骤2: 家属审批
       if (step === 2) {
         if (this.detailData.familyApproveTime) {
-          return '#67C23A'; // 绿色-已完成
+          // 家属拒绝显示红色，同意显示绿色
+          return status === 'rejected' ? '#F56C6C' : '#67C23A';
         } else if (currentStep === 2) {
           return '#E6A23C'; // 橙色-进行中
         } else {
@@ -769,7 +775,8 @@ export default {
       // 步骤2: 家属审批
       if (step === 2) {
         if (this.detailData.familyApproveTime) {
-          return 'el-icon-check'; // 已完成
+          // 家属拒绝显示关闭图标，同意显示勾选图标
+          return status === 'rejected' ? 'el-icon-close' : 'el-icon-check';
         } else if (currentStep === 2) {
           return 'el-icon-loading'; // 进行中
         } else {

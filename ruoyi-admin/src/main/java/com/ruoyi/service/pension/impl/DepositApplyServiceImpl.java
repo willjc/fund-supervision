@@ -11,6 +11,7 @@ import com.ruoyi.domain.pension.AccountInfo;
 import com.ruoyi.service.pension.IDepositApplyService;
 import com.ruoyi.service.pension.IAccountInfoService;
 import com.ruoyi.service.pension.IExpenseRecordService;
+import com.ruoyi.service.pension.ISupervisionAccountLogService;
 
 /**
  * 押金使用申请Service业务层处理
@@ -29,6 +30,9 @@ public class DepositApplyServiceImpl implements IDepositApplyService
 
     @Autowired
     private IExpenseRecordService expenseRecordService;
+
+    @Autowired
+    private ISupervisionAccountLogService supervisionAccountLogService;
 
     /**
      * 查询押金使用申请
@@ -259,6 +263,20 @@ public class DepositApplyServiceImpl implements IDepositApplyService
 
             // 记录实际使用金额
             apply.setActualAmount(applyAmount);
+
+            // 记录监管账户流水（划拨到基本账户）
+            try {
+                supervisionAccountLogService.recordTransferOut(
+                    apply.getInstitutionId(),
+                    applyId,
+                    applyAmount,
+                    "押金使用划拨-" + apply.getPurpose(),
+                    "基本账户"
+                );
+            } catch (Exception e) {
+                // 流水记录创建失败不影响主流程，只记录��志
+                System.err.println("记录监管账户流水异常：" + e.getMessage());
+            }
         }
 
         // 4. 更新审批信息
