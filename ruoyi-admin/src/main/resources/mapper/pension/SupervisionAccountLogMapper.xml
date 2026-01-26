@@ -45,6 +45,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <select id="selectSupervisionAccountLogList" parameterType="SupervisionAccountLog" resultMap="SupervisionAccountLogResult">
         <include refid="selectSupervisionAccountLogWithRelations"/>
         <where>
+            <!-- 数据权限过滤: 如果传入了currentUserId,则只查询该用户有权限的机构 -->
+            <if test="params.currentUserId != null">
+                and sal.institution_id in (
+                    select institution_id from sys_user_institution where user_id = #{params.currentUserId}
+                )
+            </if>
             <if test="institutionId != null "> and sal.institution_id = #{institutionId}</if>
             <if test="transactionNo != null and transactionNo != ''"> and sal.transaction_no like concat('%', #{transactionNo}, '%')</if>
             <if test="transactionType != null and transactionType != ''"> and sal.transaction_type = #{transactionType}</if>
@@ -99,6 +105,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         from supervision_account_log
         where institution_id = #{institutionId}
             and transaction_time between #{startDate} and #{endDate}
+    </select>
+
+    <select id="selectBasicBalanceByTime" resultType="java.math.BigDecimal">
+        select coalesce(sum(amount), 0)
+        from supervision_account_log
+        where institution_id = #{institutionId}
+            and transaction_type = '支出'
+            and transaction_time &lt;= #{transactionTime}
     </select>
 
     <insert id="insertSupervisionAccountLog" parameterType="SupervisionAccountLog" useGeneratedKeys="true" keyProperty="logId">

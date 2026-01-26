@@ -1,5 +1,7 @@
 package com.ruoyi.web.controller.pension;
 
+import java.math.BigDecimal;
+import java.util.Date;
 import java.util.List;
 import javax.servlet.http.HttpServletResponse;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -15,8 +17,14 @@ import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.enums.BusinessType;
+import com.ruoyi.common.utils.DateUtils;
+import com.ruoyi.common.utils.SecurityUtils;
+import com.ruoyi.domain.pension.AccountInfo;
 import com.ruoyi.domain.pension.RefundRecord;
+import com.ruoyi.service.pension.IAccountInfoService;
+import com.ruoyi.service.pension.IExpenseRecordService;
 import com.ruoyi.service.pension.IRefundRecordService;
+import com.ruoyi.service.pension.ISupervisionAccountLogService;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.common.core.page.TableDataInfo;
 
@@ -33,6 +41,15 @@ public class SupervisionRefundController extends BaseController
     @Autowired
     private IRefundRecordService refundRecordService;
 
+    @Autowired
+    private IAccountInfoService accountInfoService;
+
+    @Autowired
+    private IExpenseRecordService expenseRecordService;
+
+    @Autowired
+    private ISupervisionAccountLogService supervisionAccountLogService;
+
     /**
      * 查询退款审批列表
      */
@@ -41,8 +58,7 @@ public class SupervisionRefundController extends BaseController
     public TableDataInfo list(RefundRecord refundRecord)
     {
         startPage();
-        // 默认查询待审批的退款记录
-        refundRecord.setRefundStatus("0");
+        // 支持按状态筛选，前端传递refundStatus参数
         List<RefundRecord> list = refundRecordService.selectRefundRecordList(refundRecord);
         return getDataTable(list);
     }
@@ -99,10 +115,113 @@ public class SupervisionRefundController extends BaseController
             return AjaxResult.error("只能审批待处理状态的退款");
         }
 
-        // 更新状态为成功
+        // 获取老人账户信息
+        Long elderId = refundRecord.getElderId();
+        Long institutionId = refundRecord.getInstitutionId();
+
+        // 查询老人账户（通��elderId查询）
+        AccountInfo queryAccount = new AccountInfo();
+        queryAccount.setElderId(elderId);
+        queryAccount.setInstitutionId(institutionId);
+        List<AccountInfo> accountList = accountInfoService.selectAccountInfoList(queryAccount);
+        if (accountList == null || accountList.isEmpty()) {
+            return AjaxResult.error("未找到对应的老人账户信息");
+        }
+        AccountInfo account = accountList.get(0);
+
+        // 获取退款金额
+        BigDecimal serviceRefundAmount = refundRecord.getServiceRefundAmount() != null ?
+            refundRecord.getServiceRefundAmount() : BigDecimal.ZERO;
+        BigDecimal depositRefundAmount = refundRecord.getDepositRefundAmount() != null ?
+            refundRecord.getDepositRefundAmount() : BigDecimal.ZERO;
+        BigDecimal memberRefundAmount = refundRecord.getMemberRefundAmount() != null ?
+            refundRecord.getMemberRefundAmount() : BigDecimal.ZERO;
+        BigDecimal totalRefundAmount = refundRecord.getRefundAmount();
+
+        // 获取当前余额
+        BigDecimal currentServiceBalance = account.getServiceBalance() != null ?
+            account.getServiceBalance() : BigDecimal.ZERO;
+        BigDecimal currentDepositBalance = account.getDepositBalance() != null ?
+            account.getDepositBalance() : BigDecimal.ZERO;
+        BigDecimal currentMemberBalance = account.getMemberBalance() != null ?
+            account.getMemberBalance() : BigDecimal.ZERO;
+        BigDecimal currentTotalBalance = account.getTotalBalance() != null ?
+            account.getTotalBalance() : BigDecimal.ZERO;
+
+        // 验证余额是否足够
+        if (currentServiceBalance.compareTo(serviceRefundAmount) < 0) {
+            return AjaxResult.error("服务费余额不足，当前余额：" + currentServiceBalance + "元");
+        }
+        if (currentDepositBalance.compareTo(depositRefundAmount) < 0) {
+            return AjaxResult.error("押金余额不足，当前余额：" + currentDepositBalance + "元");
+        }
+        if (currentMemberBalance.compareTo(memberRefundAmount) < 0) {
+            return AjaxResult.error("会员费余额不足，当前余额：" + currentMemberBalance + "元");
+        }
+
+        // 扣减账户余额
+        BigDecimal newServiceBalance = currentServiceBalance.subtract(serviceRefundAmount);
+        BigDecimal newDepositBalance = currentDepositBalance.subtract(depositRefundAmount);
+        BigDecimal newMemberBalance = currentMemberBalance.subtract(memberRefundAmount);
+        BigDecimal newTotalBalance = currentTotalBalance.subtract(totalRefundAmount);
+
+        account.setServiceBalance(newServiceBalance);
+        account.setDepositBalance(newDepositBalance);
+        account.setMemberBalance(newMemberBalance);
+        account.setTotalBalance(newTotalBalance);
+        account.setUpdateTime(DateUtils.getNowDate());
+
+        // 更新账户余额
+        int accountUpdateResult = accountInfoService.updateAccountInfo(account);
+        if (accountUpdateResult <= 0) {
+            return AjaxResult.error("更新账户余额失败");
+        }
+
+        // 记录余额变动日志（分别记录服务费、押金、会员费退款）
+        try {
+            if (serviceRefundAmount.compareTo(BigDecimal.ZERO) > 0) {
+                expenseRecordService.createExpenseRecord(
+                    elderId, account.getAccountId(), "service", "expense",
+                    serviceRefundAmount, "服务费退款-" + refundRecord.getRefundNo(),
+                    refundId, "refund", currentTotalBalance, newTotalBalance
+                );
+            }
+            if (depositRefundAmount.compareTo(BigDecimal.ZERO) > 0) {
+                expenseRecordService.createExpenseRecord(
+                    elderId, account.getAccountId(), "deposit", "expense",
+                    depositRefundAmount, "押金退款-" + refundRecord.getRefundNo(),
+                    refundId, "refund", currentTotalBalance, newTotalBalance
+                );
+            }
+            if (memberRefundAmount.compareTo(BigDecimal.ZERO) > 0) {
+                expenseRecordService.createExpenseRecord(
+                    elderId, account.getAccountId(), "member", "expense",
+                    memberRefundAmount, "会员费退款-" + refundRecord.getRefundNo(),
+                    refundId, "refund", currentTotalBalance, newTotalBalance
+                );
+            }
+        } catch (Exception e) {
+            System.err.println("记录余额变动日志异常：" + e.getMessage());
+        }
+
+        // 记录监管账户流水（退款划拨到基本账户）
+        try {
+            supervisionAccountLogService.recordTransferOut(
+                institutionId,
+                refundId,
+                totalRefundAmount,
+                "退款划拨-" + refundRecord.getRefundNo(),
+                "基本账户"
+            );
+        } catch (Exception e) {
+            System.err.println("记录监管账户流水异常：" + e.getMessage());
+        }
+
+        // 更新退款状态为成功
         refundRecord.setRefundStatus("1");
+        refundRecord.setRefundTime(new Date());
         refundRecord.setApprover(getUsername());
-        refundRecord.setApproveTime(new java.util.Date());
+        refundRecord.setApproveTime(new Date());
 
         return toAjax(refundRecordService.updateRefundRecord(refundRecord));
     }
@@ -110,7 +229,7 @@ public class SupervisionRefundController extends BaseController
     /**
      * 审批拒绝退款申请
      */
-    @PreAuthorize("@ss.hasPermi('pension:refund:reject')")
+    @PreAuthorize("@ss.hasPermi('pension:refund:approve')")
     @Log(title = "退款审批", businessType = BusinessType.UPDATE)
     @PutMapping("/approval/reject/{refundId}")
     public AjaxResult reject(@PathVariable Long refundId, @RequestBody RefundRecord refundRecord)

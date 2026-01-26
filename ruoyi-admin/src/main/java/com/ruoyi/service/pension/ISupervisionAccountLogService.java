@@ -96,4 +96,14 @@ public interface ISupervisionAccountLogService
      * @return 交易流水号
      */
     public String generateTransactionNo();
+
+    /**
+     * 计算指定时间点的基本账户余额
+     * 基本账户余额 = 该时间点之前所有支出金额的累计总和
+     *
+     * @param institutionId 机构ID
+     * @param transactionTime 交易时间
+     * @return 基本账户余额
+     */
+    public java.math.BigDecimal selectBasicBalanceByTime(Long institutionId, java.util.Date transactionTime);
 }

@@ -7,6 +7,16 @@
 
       <!-- 搜索条件 -->
       <el-form :model="queryParams" ref="queryForm" :inline="true">
+        <el-form-item label="养老机构">
+          <el-select v-model="queryParams.institutionId" placeholder="请选择机构" clearable style="width: 200px">
+            <el-option
+              v-for="item in institutionOptions"
+              :key="item.institution_id"
+              :label="item.institution_name"
+              :value="item.institution_id">
+            </el-option>
+          </el-select>
+        </el-form-item>
         <el-form-item label="交易时间">
           <el-date-picker
             v-model="dateRange"
@@ -34,6 +44,7 @@
       <!-- 交易流水表格 -->
       <el-table v-loading="loading" :data="dataList" border style="margin-top: 20px">
         <el-table-column label="交易流水号" prop="transactionNo" width="180"></el-table-column>
+        <el-table-column label="归属机构" prop="institutionName" width="180" show-overflow-tooltip></el-table-column>
         <el-table-column label="交易时间" prop="transactionTime" width="180"></el-table-column>
         <el-table-column label="交易类型" prop="transactionType" width="100">
           <template slot-scope="scope">
@@ -59,6 +70,11 @@
         <el-table-column label="监管账户余额" prop="balance" width="150">
           <template slot-scope="scope">
             <span style="font-weight: bold;">¥{{ formatMoney(scope.row.balance) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="基本账户余额" prop="basicBalance" width="150">
+          <template slot-scope="scope">
+            <span style="font-weight: bold; color: #409eff;">¥{{ formatMoney(scope.row.basicBalance) }}</span>
           </template>
         </el-table-column>
         <el-table-column label="业务类型" prop="businessType" width="120">
@@ -99,6 +115,9 @@
           <el-descriptions-item label="监管账户余额">
             <span style="font-weight: bold;">¥{{ formatMoney(currentDetail.balance) }}</span>
           </el-descriptions-item>
+          <el-descriptions-item label="基本账户余额" v-if="currentDetail.basicBalance !== undefined && currentDetail.basicBalance !== null">
+            <span style="font-weight: bold; color: #409eff;">¥{{ formatMoney(currentDetail.basicBalance) }}</span>
+          </el-descriptions-item>
           <el-descriptions-item label="交易前余额" :span="2">
             ¥{{ formatMoney(currentDetail.balanceBefore) }}
           </el-descriptions-item>
@@ -130,7 +149,7 @@
 </template>
 
 <script>
-import { getSupervisionList, getSupervisionDetail } from '@/api/pension/bank'
+import { getSupervisionList, getSupervisionDetail, getUserInstitutions } from '@/api/pension/bank'
 
 export default {
   name: 'BankSupervision',
@@ -140,9 +159,11 @@ export default {
       dataList: [],
       total: 0,
       dateRange: [],
+      institutionOptions: [],
       queryParams: {
         pageNum: 1,
         pageSize: 10,
+        institutionId: null,
         transactionType: null
       },
       detailOpen: false,
@@ -150,15 +171,27 @@ export default {
     }
   },
   created() {
+    this.loadInstitutions()
     this.getList()
   },
   methods: {
+    // 加载机构列表
+    loadInstitutions() {
+      getUserInstitutions().then(response => {
+        this.institutionOptions = response.data || []
+      }).catch(error => {
+        console.error('获取机构列表失败:', error)
+      })
+    },
     // 查询列表
     getList() {
       this.loading = true
       const params = {
         pageNum: this.queryParams.pageNum,
         pageSize: this.queryParams.pageSize
+      }
+      if (this.queryParams.institutionId) {
+        params.institutionId = this.queryParams.institutionId
       }
       if (this.dateRange && this.dateRange.length === 2) {
         params.beginTime = this.dateRange[0]
@@ -185,6 +218,7 @@ export default {
     // 重置
     resetQuery() {
       this.dateRange = []
+      this.queryParams.institutionId = null
       this.$refs.queryForm.resetFields()
       this.handleQuery()
     },

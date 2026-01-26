@@ -7,6 +7,16 @@
 
       <!-- 搜索条件 -->
       <el-form :model="queryParams" ref="queryForm" :inline="true">
+        <el-form-item label="养老机构">
+          <el-select v-model="queryParams.institutionId" placeholder="请选择机构" clearable style="width: 200px">
+            <el-option
+              v-for="item in institutionOptions"
+              :key="item.institution_id"
+              :label="item.institution_name"
+              :value="item.institution_id">
+            </el-option>
+          </el-select>
+        </el-form-item>
         <el-form-item label="交易时间">
           <el-date-picker
             v-model="dateRange"
@@ -153,7 +163,7 @@
 </template>
 
 <script>
-import { getPaymentList, getPaymentStatistics, getPaymentDetail } from '@/api/pension/bank'
+import { getPaymentList, getPaymentStatistics, getPaymentDetail, getUserInstitutions } from '@/api/pension/bank'
 
 export default {
   name: 'BankPayment',
@@ -163,9 +173,11 @@ export default {
       dataList: [],
       total: 0,
       dateRange: [],
+      institutionOptions: [],
       queryParams: {
         pageNum: 1,
         pageSize: 10,
+        institutionId: null,
         paymentMethod: null,
         orderNo: null
       },
@@ -180,10 +192,19 @@ export default {
     }
   },
   created() {
+    this.loadInstitutions()
     this.getStatistics()
     this.getList()
   },
   methods: {
+    // 加载机构列表
+    loadInstitutions() {
+      getUserInstitutions().then(response => {
+        this.institutionOptions = response.data || []
+      }).catch(error => {
+        console.error('获取机构列表失败:', error)
+      })
+    },
     // 获取统计信息
     getStatistics() {
       getPaymentStatistics().then(response => {
@@ -198,6 +219,9 @@ export default {
       const params = {
         pageNum: this.queryParams.pageNum,
         pageSize: this.queryParams.pageSize
+      }
+      if (this.queryParams.institutionId) {
+        params.institutionId = this.queryParams.institutionId
       }
       if (this.dateRange && this.dateRange.length === 2) {
         params.beginTime = this.dateRange[0]

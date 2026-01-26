@@ -21,6 +21,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="approveRemark" column="approve_remark" />
         <result property="createTime"   column="create_time"   />
         <result property="updateTime"   column="update_time"   />
+        <result property="serviceRefundAmount" column="service_refund_amount" />
+        <result property="depositRefundAmount" column="deposit_refund_amount" />
+        <result property="memberRefundAmount" column="member_refund_amount" />
+        <result property="refundDesc" column="refund_desc" />
+        <result property="evidenceImages" column="evidence_images" />
         <!-- 关联字段 -->
         <result property="elderName"    column="elder_name"    />
         <result property="institutionName" column="institution_name" />
@@ -36,6 +41,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         select rr.refund_id, rr.refund_no, rr.order_id, rr.payment_id, rr.elder_id, rr.institution_id,
                rr.refund_amount, rr.refund_reason, rr.refund_status, rr.refund_method, rr.refund_time,
                rr.approver, rr.approve_time, rr.approve_remark, rr.create_time, rr.update_time,
+               rr.service_refund_amount, rr.deposit_refund_amount, rr.member_refund_amount,
+               rr.refund_desc, rr.evidence_images,
                ei.elder_name, pi.institution_name, oi.order_no, pr.payment_no
         from refund_record rr
         left join elder_info ei on rr.elder_id = ei.elder_id
@@ -97,6 +104,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="approver != null and approver != ''">approver,</if>
             <if test="approveTime != null">approve_time,</if>
             <if test="approveRemark != null and approveRemark != ''">approve_remark,</if>
+            <if test="serviceRefundAmount != null">service_refund_amount,</if>
+            <if test="depositRefundAmount != null">deposit_refund_amount,</if>
+            <if test="memberRefundAmount != null">member_refund_amount,</if>
+            <if test="refundDesc != null and refundDesc != ''">refund_desc,</if>
+            <if test="evidenceImages != null and evidenceImages != ''">evidence_images,</if>
             <if test="createBy != null and createBy != ''">create_by,</if>
             <if test="createTime != null">create_time,</if>
          </trim>
@@ -114,6 +126,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="approver != null and approver != ''">#{approver},</if>
             <if test="approveTime != null">#{approveTime},</if>
             <if test="approveRemark != null and approveRemark != ''">#{approveRemark},</if>
+            <if test="serviceRefundAmount != null">#{serviceRefundAmount},</if>
+            <if test="depositRefundAmount != null">#{depositRefundAmount},</if>
+            <if test="memberRefundAmount != null">#{memberRefundAmount},</if>
+            <if test="refundDesc != null and refundDesc != ''">#{refundDesc},</if>
+            <if test="evidenceImages != null and evidenceImages != ''">#{evidenceImages},</if>
             <if test="createBy != null and createBy != ''">#{createBy},</if>
             <if test="createTime != null">#{createTime},</if>
          </trim>
@@ -135,6 +152,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="approver != null">approver = #{approver},</if>
             <if test="approveTime != null">approve_time = #{approveTime},</if>
             <if test="approveRemark != null">approve_remark = #{approveRemark},</if>
+            <if test="serviceRefundAmount != null">service_refund_amount = #{serviceRefundAmount},</if>
+            <if test="depositRefundAmount != null">deposit_refund_amount = #{depositRefundAmount},</if>
+            <if test="memberRefundAmount != null">member_refund_amount = #{memberRefundAmount},</if>
+            <if test="refundDesc != null">refund_desc = #{refundDesc},</if>
+            <if test="evidenceImages != null">evidence_images = #{evidenceImages},</if>
             <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>
         </trim>

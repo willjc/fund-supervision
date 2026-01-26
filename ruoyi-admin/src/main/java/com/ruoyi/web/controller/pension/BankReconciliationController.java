@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.Calendar;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
@@ -33,6 +34,31 @@ public class BankReconciliationController extends BaseController
 
     @Autowired
     private IPaymentRecordService paymentRecordService;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    /**
+     * 获取当前用户关联的机构列表
+     */
+    @GetMapping("/user/institutions")
+    public AjaxResult getUserInstitutions()
+    {
+        try {
+            Long userId = getUserId();
+            String sql = "SELECT i.institution_id, i.institution_name " +
+                        "FROM sys_user_institution sui " +
+                        "INNER JOIN pension_institution i ON sui.institution_id = i.institution_id " +
+                        "WHERE sui.user_id = ? " +
+                        "ORDER BY i.institution_name";
+
+            List<Map<String, Object>> institutions = jdbcTemplate.queryForList(sql, userId);
+            return success(institutions);
+        } catch (Exception e) {
+            logger.error("获取用户机构列表失败", e);
+            return error("获取机构列表失败");
+        }
+    }
 
     /**
      * 获取账户信息
@@ -87,24 +113,44 @@ public class BankReconciliationController extends BaseController
     @GetMapping("/supervision/list")
     public TableDataInfo getSupervisionList(
             SupervisionAccountLog supervisionAccountLog,
+            @RequestParam(required = false) Long institutionId,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "10") Integer pageSize)
     {
         startPage();
+
+        // 数据权限过滤：只查询当前用户有权限的机构
+        Long currentUserId = getUserId();
+        supervisionAccountLog.getParams().put("currentUserId", currentUserId);
+
+        // 如果传入了机构ID，使用机构ID过滤
+        if (institutionId != null) {
+            supervisionAccountLog.setInstitutionId(institutionId);
+        }
+
         List<SupervisionAccountLog> list = supervisionAccountLogService.selectSupervisionAccountLogList(supervisionAccountLog);
 
-        // 转换为前端期望的格式
+        // 转换为前端期望的格式，并计算基本账户余额
+        // 注意：列表是按时间倒序显示的，所以基本账户余额需要通过服务方法查询
         List<Map<String, Object>> resultList = new java.util.ArrayList<>();
+
         for (SupervisionAccountLog log : list) {
             Map<String, Object> item = new HashMap<>();
             item.put("logId", log.getLogId());
             item.put("transactionNo", log.getTransactionNo());
+            item.put("institutionName", log.getInstitutionName()); // 归属机构
             item.put("transactionTime", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, log.getTransactionTime()));
             item.put("transactionType", "收入".equals(log.getTransactionType()) ? "转入" : "转出");
             item.put("amount", log.getAmount());
             item.put("balance", log.getBalanceAfter());
             item.put("description", log.getBusinessDesc());
             item.put("counterpartyName", log.getCounterparty());
+
+            // 计算基本账户余额：该时间点之前所有支出的累计总和
+            BigDecimal basicBalance = supervisionAccountLogService.selectBasicBalanceByTime(
+                log.getInstitutionId(), log.getTransactionTime());
+            item.put("basicBalance", basicBalance);
+
             resultList.add(item);
         }
 
@@ -122,6 +168,10 @@ public class BankReconciliationController extends BaseController
             return error("流水记录不存在");
         }
 
+        // 计算基本账户余额：该机构在该流水记录之前的所有支出记录总额
+        BigDecimal basicBalance = supervisionAccountLogService.selectBasicBalanceByTime(
+            log.getInstitutionId(), log.getTransactionTime());
+
         Map<String, Object> data = new HashMap<>();
         data.put("logId", log.getLogId());
         data.put("transactionNo", log.getTransactionNo());
@@ -131,6 +181,7 @@ public class BankReconciliationController extends BaseController
         data.put("balanceBefore", log.getBalanceBefore());
         data.put("balanceAfter", log.getBalanceAfter());
         data.put("balance", log.getBalanceAfter());
+        data.put("basicBalance", basicBalance);
         data.put("businessType", log.getBusinessType());
         data.put("description", log.getBusinessDesc());
         data.put("counterparty", log.getCounterparty());
@@ -151,6 +202,11 @@ public class BankReconciliationController extends BaseController
             @RequestParam(defaultValue = "10") Integer pageSize)
     {
         startPage();
+
+        // 数据权限过滤：只查询当前用户有权限的机构
+        Long currentUserId = getUserId();
+        paymentRecord.getParams().put("currentUserId", currentUserId);
+
         List<PaymentRecord> list = paymentRecordService.selectPaymentRecordList(paymentRecord);
 
         // 获取当前监管账户余额

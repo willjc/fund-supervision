@@ -17,6 +17,7 @@
       <div v-if="selectedElder.name" class="expense-overview">
         <div class="overview-header">
           <div class="header-gradient">
+            <div class="institution-name" v-if="institutionName">{{ institutionName }}</div>
             <div class="total-label">账户余额</div>
             <div class="total-amount">¥{{ formatAmount(accountBalance) }}</div>
             <div class="account-info">
@@ -38,6 +39,20 @@
             @click="goToDepositManage"
           >
             押金使用申请管理
+          </van-button>
+        </div>
+
+        <!-- 申��退款入口 -->
+        <div class="refund-entry">
+          <van-button
+            block
+            plain
+            type="primary"
+            size="small"
+            icon="refund-o"
+            @click="goToRefundApply"
+          >
+            申请退款
           </van-button>
         </div>
 
@@ -144,6 +159,7 @@ const elderOptions = ref([])
 const accountBalance = ref(0)
 const depositAmount = ref(0)
 const prepaidAmount = ref(0)
+const institutionName = ref('')
 
 // 费用列表
 const expenseList = ref([])
@@ -186,6 +202,7 @@ const loadAccountInfo = async (elderId) => {
       accountBalance.value = parseFloat(data.totalBalance || 0)
       depositAmount.value = parseFloat(data.depositBalance || 0)
       prepaidAmount.value = parseFloat(data.prepaidAmount || 0)
+      institutionName.value = data.institutionName || ''
 
       // 如果老人没有账户，显示提示信息
       if (!data.hasAccount) {
@@ -347,6 +364,22 @@ const goToDepositManage = () => {
   })
 }
 
+// 跳转申请退款
+const goToRefundApply = () => {
+  if (!selectedElder.value.id) {
+    showToast('请先选择老人')
+    return
+  }
+
+  router.push({
+    path: '/user/refund/apply',
+    query: {
+      elderId: selectedElder.value.id,
+      elderName: selectedElder.value.name
+    }
+  })
+}
+
 // 页面加载时获取老人列表
 const initPage = async () => {
   await loadElderList()
@@ -365,6 +398,7 @@ watch(selectedElder, (newVal) => {
     accountBalance.value = 0
     depositAmount.value = 0
     prepaidAmount.value = 0
+    institutionName.value = ''
     expenseList.value = []
   }
 }, { deep: true })
@@ -452,6 +486,29 @@ onMounted(async () => {
 
 .deposit-manage-entry :deep(.van-button):active {
   background-color: #f5f6ff;
+}
+
+/* 退款入口 */
+.refund-entry {
+  padding: 0 16px 16px;
+}
+
+.refund-entry :deep(.van-button) {
+  border-color: #ff976a;
+  color: #ff976a;
+  font-weight: 500;
+}
+
+.refund-entry :deep(.van-button):active {
+  background-color: #fff5f0;
+}
+
+/* 机构名称 */
+.institution-name {
+  font-size: 13px;
+  opacity: 0.85;
+  margin-bottom: 4px;
+  text-align: center;
 }
 
 /* Tab */

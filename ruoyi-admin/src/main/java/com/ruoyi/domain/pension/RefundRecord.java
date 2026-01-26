@@ -75,6 +75,26 @@ public class RefundRecord extends BaseEntity
     @Excel(name = "审批意见")
     private String approveRemark;
 
+    /** 服务费退款金额 */
+    @Excel(name = "服务费退款金额")
+    private BigDecimal serviceRefundAmount;
+
+    /** 押金退��金额 */
+    @Excel(name = "押金退款金额")
+    private BigDecimal depositRefundAmount;
+
+    /** 会员费退款金额 */
+    @Excel(name = "会员费退款金额")
+    private BigDecimal memberRefundAmount;
+
+    /** 退款说明 */
+    @Excel(name = "退款说明")
+    private String refundDesc;
+
+    /** 上传凭证（JSON数组） */
+    @Excel(name = "上传凭证")
+    private String evidenceImages;
+
     // 关联字段（用于展示）
     @Excel(name = "老人姓名")
     private String elderName;
@@ -226,6 +246,46 @@ public class RefundRecord extends BaseEntity
     public String getApproveRemark()
     {
         return approveRemark;
+    }
+
+    public BigDecimal getServiceRefundAmount() {
+        return serviceRefundAmount;
+    }
+
+    public void setServiceRefundAmount(BigDecimal serviceRefundAmount) {
+        this.serviceRefundAmount = serviceRefundAmount;
+    }
+
+    public BigDecimal getDepositRefundAmount() {
+        return depositRefundAmount;
+    }
+
+    public void setDepositRefundAmount(BigDecimal depositRefundAmount) {
+        this.depositRefundAmount = depositRefundAmount;
+    }
+
+    public BigDecimal getMemberRefundAmount() {
+        return memberRefundAmount;
+    }
+
+    public void setMemberRefundAmount(BigDecimal memberRefundAmount) {
+        this.memberRefundAmount = memberRefundAmount;
+    }
+
+    public String getRefundDesc() {
+        return refundDesc;
+    }
+
+    public void setRefundDesc(String refundDesc) {
+        this.refundDesc = refundDesc;
+    }
+
+    public String getEvidenceImages() {
+        return evidenceImages;
+    }
+
+    public void setEvidenceImages(String evidenceImages) {
+        this.evidenceImages = evidenceImages;
     }
 
     public String getElderName() {

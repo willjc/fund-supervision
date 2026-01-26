@@ -733,6 +733,14 @@ public class H5OrderController extends BaseController
             result.put("prepaidAmount", serviceBalance);
             result.put("hasAccount", true);
 
+            // 添加机构信息
+            Long institutionId = account.getInstitutionId();
+            if (institutionId != null) {
+                result.put("institutionId", institutionId);
+                PensionInstitution institution = institutionService.selectPensionInstitutionByInstitutionId(institutionId);
+                result.put("institutionName", institution != null ? institution.getInstitutionName() : "");
+            }
+
             return success(result);
         } catch (Exception e) {
             logger.error("获取账户信息失败", e);
@@ -889,11 +897,20 @@ public class H5OrderController extends BaseController
 
                 // 记录监管账户流水
                 try {
+                    // 获取老人名称用于流水描述
+                    String elderName = "未知老人";
+                    if (order.getElderId() != null) {
+                        ElderInfo elder = elderInfoService.selectElderInfoByElderId(order.getElderId());
+                        if (elder != null && elder.getElderName() != null) {
+                            elderName = elder.getElderName();
+                        }
+                    }
+
                     supervisionAccountLogService.recordIncome(
                         order.getInstitutionId(),
                         order.getOrderId(),
                         order.getOrderAmount(),
-                        "用户支付订单-" + order.getElderName(),
+                        "用户支付订单-" + elderName,
                         currentUserId.toString()
                     );
                 } catch (Exception e) {

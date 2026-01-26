@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -206,5 +205,20 @@ public class SupervisionAccountLogServiceImpl implements ISupervisionAccountLogS
         String timestamp = new java.text.SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
         int random = (int) (Math.random() * 10000);
         return "LSH" + timestamp + String.format("%04d", random);
+    }
+
+    /**
+     * 计算指定时间点的基本账户余额
+     * 基本账户余额 = 该时间点之前所有支出金额的累计总和
+     *
+     * @param institutionId 机构ID
+     * @param transactionTime 交易时间
+     * @return 基本账户余额
+     */
+    @Override
+    public BigDecimal selectBasicBalanceByTime(Long institutionId, Date transactionTime)
+    {
+        BigDecimal balance = supervisionAccountLogMapper.selectBasicBalanceByTime(institutionId, transactionTime);
+        return balance != null ? balance : BigDecimal.ZERO;
     }
 }

@@ -44,6 +44,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <select id="selectPaymentRecordList" parameterType="PaymentRecord" resultMap="PaymentRecordResult">
         <include refid="selectPaymentRecordVo"/>
         <where>
+            <!-- 数据权限过滤: 如果传入了currentUserId,则只查询该用户有权限的机构 -->
+            <if test="params.currentUserId != null">
+                and p.institution_id in (
+                    select institution_id from sys_user_institution where user_id = #{params.currentUserId}
+                )
+            </if>
             <if test="paymentNo != null  and paymentNo != ''"> and p.payment_no like concat('%', #{paymentNo}, '%')</if>
             <if test="orderId != null "> and p.order_id = #{orderId}</if>
             <if test="elderId != null "> and p.elder_id = #{elderId}</if>

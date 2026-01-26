@@ -58,3 +58,11 @@ export function exportTransactions(type) {
     params: { type: type }
   })
 }
+
+// 获取当前用户关联的机构列表
+export function getUserInstitutions() {
+  return request({
+    url: '/pension/bank/user/institutions',
+    method: 'get'
+  })
+}

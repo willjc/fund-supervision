@@ -23,7 +23,9 @@
 
     <!-- 订单列表 -->
     <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
+      <!-- 订单列表 (非退款tab) -->
       <van-list
+        v-if="activeTab !== '3'"
         v-model:loading="loading"
         :finished="finished"
         finished-text="没有更多了"
@@ -109,19 +111,87 @@
           description="暂无订单"
         />
       </van-list>
+
+      <!-- 退款列表 (退款tab) -->
+      <div v-if="activeTab === '3'" class="refund-list-container">
+        <van-loading v-if="loading" type="spinner" color="#667eea" />
+        <div v-else-if="refundList.length > 0">
+          <div
+            v-for="refund in refundList"
+            :key="refund.id"
+            class="refund-card"
+          >
+            <!-- 退款头部 -->
+            <div class="refund-header">
+              <div class="refund-no">
+                <van-icon name="bill-o" />
+                {{ refund.refundNo }}
+              </div>
+              <div :class="['refund-status', `status-${refund.refundStatus}`]">
+                {{ refund.statusText }}
+              </div>
+            </div>
+
+            <!-- 退款信息 -->
+            <div class="refund-body">
+              <div class="refund-info">
+                <div class="info-row">
+                  <span class="label">养老机构:</span>
+                  <span class="value">{{ refund.institutionName || '养老机构' }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="label">退款老人:</span>
+                  <span class="value">{{ refund.elderName || '未知老人' }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="label">退款原因:</span>
+                  <span class="value">{{ refund.refundReason || '-' }}</span>
+                </div>
+                <div class="info-row amount">
+                  <span class="label">退款总额:</span>
+                  <span class="value price">¥ {{ formatAmount(refund.refundAmount) }}</span>
+                </div>
+                <div class="refund-detail" v-if="refund.serviceRefundAmount || refund.depositRefundAmount || refund.memberRefundAmount">
+                  <span class="detail-item" v-if="refund.serviceRefundAmount">
+                    服务费: ¥{{ formatAmount(refund.serviceRefundAmount) }}
+                  </span>
+                  <span class="detail-item" v-if="refund.depositRefundAmount">
+                    押金: ¥{{ formatAmount(refund.depositRefundAmount) }}
+                  </span>
+                  <span class="detail-item" v-if="refund.memberRefundAmount">
+                    会员费: ¥{{ formatAmount(refund.memberRefundAmount) }}
+                  </span>
+                </div>
+                <div class="info-row time">
+                  <span class="label">申请时间:</span>
+                  <span class="value">{{ refund.createTime || '-' }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 退款空状态 -->
+        <van-empty
+          v-else-if="!loading"
+          description="暂无退款记录"
+        />
+      </div>
     </van-pull-refresh>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { showToast, showConfirmDialog } from 'vant'
 import { useUserStore } from '@/store/modules/user'
 import { getOrderList, cancelOrder, processPayment } from '@/api/order'
+import { getRefundList } from '@/api/refund'
 import dayjs from 'dayjs'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 
 // 搜索关键词
@@ -137,6 +207,9 @@ const refreshing = ref(false)
 
 // 订单列表
 const orderList = ref([])
+
+// 退款列���
+const refundList = ref([])
 
 // 分页参数
 const pageNum = ref(1)
@@ -267,6 +340,12 @@ const onRefresh = () => {
 
 // 加载订单列表 (根据当前登录用户查询订单)
 const onLoad = async () => {
+  // 如果是退款tab，加载退款列表
+  if (activeTab.value === '3' || activeTab.value === 'refund') {
+    await loadRefundList()
+    return
+  }
+
   try {
     loading.value = true
 
@@ -324,6 +403,29 @@ const onLoad = async () => {
   } catch (error) {
     console.error('获取订单列表失败:', error)
     showToast('获取订单列表失败，请稍后重试')
+    finished.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
+// 加载退款列表
+const loadRefundList = async () => {
+  try {
+    loading.value = true
+
+    const response = await getRefundList()
+
+    if (response.code === 200 && response.data) {
+      refundList.value = response.data
+      finished.value = true
+    } else {
+      showToast(response.msg || '获取退款列表失败')
+      finished.value = true
+    }
+  } catch (error) {
+    console.error('获取退款列表失败:', error)
+    showToast('获取退款列表失败，请稍后重试')
     finished.value = true
   } finally {
     loading.value = false
@@ -570,5 +672,108 @@ onMounted(async () => {
   gap: 8px;
   padding: 12px 16px;
   border-top: 1px solid #f5f5f5;
+}
+
+/* 退款列表 */
+.refund-list-container {
+  min-height: 300px;
+}
+
+.refund-card {
+  background-color: #fff;
+  margin: 12px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.refund-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.refund-no {
+  font-size: 15px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #667eea;
+}
+
+.refund-status {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.refund-status.status-0 {
+  color: #ff976a;
+}
+
+.refund-status.status-1 {
+  color: #07c160;
+}
+
+.refund-status.status-2 {
+  color: #ee0a24;
+}
+
+.refund-body {
+  padding: 12px 16px;
+}
+
+.refund-info .info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.refund-info .info-row:last-child {
+  margin-bottom: 0;
+}
+
+.refund-info .info-row.amount {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #ebedf0;
+}
+
+.refund-info .info-row.time {
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.refund-info .label {
+  color: #969799;
+}
+
+.refund-info .value {
+  color: #323233;
+}
+
+.refund-info .price {
+  color: #ee0a24;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.refund-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 0;
+}
+
+.refund-detail .detail-item {
+  background-color: #f5f5f5;
+  color: #666;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
 }
 </style>

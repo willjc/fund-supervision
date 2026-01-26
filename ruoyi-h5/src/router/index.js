@@ -185,9 +185,9 @@ const routes = [
   },
   // 退款管理
   {
-    path: '/user/expense/refund/apply',
+    path: '/user/refund/apply',
     name: 'RefundApply',
-    component: () => import('@/views/user/expense/refund/apply.vue'),
+    component: () => import('@/views/user/refund/apply.vue'),
     meta: { title: '申请退款', requireAuth: false }
   },
   {

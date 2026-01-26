@@ -58,3 +58,20 @@ export function cancelRefund(refundId) {
     method: 'post'
   })
 }
+
+/**
+ * 上传退款凭证图片
+ * @param {File} file 图片文件
+ */
+export function uploadRefundImage(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request({
+    url: '/h5/refund/upload',
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
