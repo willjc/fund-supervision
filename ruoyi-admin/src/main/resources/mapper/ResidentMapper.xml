@@ -34,6 +34,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="institutionId"    column="institution_id"     />
         <result property="institutionName"  column="institution_name"   />
         <result property="accountId"        column="account_id"         />
+        <result property="photoPath"        column="photo_path"         />
+        <result property="idCardFrontPath"  column="id_card_front_path"/>
+        <result property="idCardBackPath"   column="id_card_back_path" />
     </resultMap>
 
     <select id="selectResidentList" parameterType="com.ruoyi.domain.vo.ResidentVO" resultMap="ResidentVOResult">
@@ -121,6 +124,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             ei.remark,
             ei.create_time,
             ei.update_time,
+            ei.photo_path,
+            ei.id_card_front_path,
+            ei.id_card_back_path,
             bi.institution_id,
             pi.institution_name,
             ai.account_id

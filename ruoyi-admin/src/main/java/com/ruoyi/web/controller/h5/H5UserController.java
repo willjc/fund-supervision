@@ -346,6 +346,8 @@ public class H5UserController
             String phone = (String) params.get("phone");
             String address = (String) params.get("address");
             String healthStatus = (String) params.get("healthStatus");
+            String emergencyContact = (String) params.get("emergencyContact");
+            String emergencyPhone = (String) params.get("emergencyPhone");
             // String medicalHistory = (String) params.get("medicalHistory"); // 暂时注释，ElderInfo实体中无此字段
             String photoPath = (String) params.get("photoPath");
 
@@ -365,6 +367,16 @@ public class H5UserController
             }
             if (StringUtils.isEmpty(idCard)) {
                 return AjaxResult.error("身份证号不能为空");
+            }
+            // 紧急联系人必填校验
+            if (StringUtils.isEmpty(emergencyContact)) {
+                return AjaxResult.error("紧急联系人不能为空");
+            }
+            if (StringUtils.isEmpty(emergencyPhone)) {
+                return AjaxResult.error("紧急联系电话不能为空");
+            }
+            if (!emergencyPhone.matches("^1[3-9]\\d{9}$")) {
+                return AjaxResult.error("紧急联系电话格式不正确");
             }
 
             // 转换年龄
@@ -424,8 +436,13 @@ public class H5UserController
             elderInfo.setPhone(StringUtils.isEmpty(phone) ? null : phone);
             elderInfo.setAddress(StringUtils.isEmpty(address) ? null : address);
             elderInfo.setHealthStatus(StringUtils.isEmpty(healthStatus) ? null : healthStatus);
+            elderInfo.setEmergencyContact(emergencyContact); // 紧急联系人
+            elderInfo.setEmergencyPhone(emergencyPhone); // 紧急联系电话
             // medicalHistory字段不存在，暂时去掉
             elderInfo.setPhotoPath(StringUtils.isEmpty(photoPath) ? null : photoPath);
+            // 设置身份证照片路径到 elder_info 表（机构端需要查看）
+            elderInfo.setIdCardFrontPath(StringUtils.isEmpty(idCardFrontPath) ? null : idCardFrontPath);
+            elderInfo.setIdCardBackPath(StringUtils.isEmpty(idCardBackPath) ? null : idCardBackPath);
             // sourceType和submitUserId字段不存在，暂时去掉
             elderInfo.setStatus("1"); // 状态：1-正常
             elderInfo.setCareLevel("1"); // 护理等级：1-自理
@@ -548,6 +565,8 @@ public class H5UserController
             String phone = (String) params.get("phone");
             String address = (String) params.get("address");
             String healthStatus = (String) params.get("healthStatus");
+            String emergencyContact = (String) params.get("emergencyContact");
+            String emergencyPhone = (String) params.get("emergencyPhone");
             String photoPath = (String) params.get("photoPath");
             String idCardFrontPath = (String) params.get("idCardFrontPath");
             String idCardBackPath = (String) params.get("idCardBackPath");
@@ -558,6 +577,16 @@ public class H5UserController
             }
             if (StringUtils.isEmpty(elderName)) {
                 return AjaxResult.error("老人姓名不能为空");
+            }
+            // 紧急联系人必填校验
+            if (StringUtils.isEmpty(emergencyContact)) {
+                return AjaxResult.error("紧急联系人不能为空");
+            }
+            if (StringUtils.isEmpty(emergencyPhone)) {
+                return AjaxResult.error("紧急联系电话不能为空");
+            }
+            if (!emergencyPhone.matches("^1[3-9]\\d{9}$")) {
+                return AjaxResult.error("紧急联系电话格式不正确");
             }
 
             Long elderId = Long.valueOf(elderIdStr);
@@ -577,7 +606,12 @@ public class H5UserController
             elderInfo.setPhone(StringUtils.isEmpty(phone) ? null : phone);
             elderInfo.setAddress(StringUtils.isEmpty(address) ? null : address);
             elderInfo.setHealthStatus(StringUtils.isEmpty(healthStatus) ? null : healthStatus);
+            elderInfo.setEmergencyContact(emergencyContact);
+            elderInfo.setEmergencyPhone(emergencyPhone);
             elderInfo.setPhotoPath(StringUtils.isEmpty(photoPath) ? null : photoPath);
+            // 设置身份证照片路径到 elder_info 表（机构端需要查看）
+            elderInfo.setIdCardFrontPath(StringUtils.isEmpty(idCardFrontPath) ? null : idCardFrontPath);
+            elderInfo.setIdCardBackPath(StringUtils.isEmpty(idCardBackPath) ? null : idCardBackPath);
 
             // 如果身份证号发生变化，检查是否重复
             if (StringUtils.isNotEmpty(idCard) && !idCard.equals(existingElder.getIdCard())) {

@@ -157,6 +157,27 @@
           />
 
           <van-field
+            v-model="formData.emergencyContact"
+            label="紧急联系人"
+            placeholder="请输入紧急联系人姓名"
+            required
+            :rules="[{ required: true, message: '请输入紧急联系人' }]"
+          />
+
+          <van-field
+            v-model="formData.emergencyPhone"
+            label="紧急联系电话"
+            placeholder="请输入紧急联系电话"
+            type="tel"
+            maxlength="11"
+            required
+            :rules="[
+              { required: true, message: '请输入紧急联系电话' },
+              { pattern: /^1[3-9]\d{9}$/, message: '手机号格式不正确' }
+            ]"
+          />
+
+          <van-field
             v-model="formData.address"
             label="居住地址"
             placeholder="请输入居住地址"
@@ -244,6 +265,8 @@ const formData = ref({
   age: '',
   idCard: '',
   phone: '',
+  emergencyContact: '',
+  emergencyPhone: '',
   address: '',
   healthStatus: '',
   medicalHistory: ''
@@ -413,6 +436,18 @@ const onSubmit = async (values) => {
       showToast('请输入身份证号')
       return
     }
+    if (!formData.value.emergencyContact) {
+      showToast('请输入紧急联系人')
+      return
+    }
+    if (!formData.value.emergencyPhone) {
+      showToast('请输入紧急联系电话')
+      return
+    }
+    if (!/^1[3-9]\d{9}$/.test(formData.value.emergencyPhone)) {
+      showToast('紧急联系电话格式不正确')
+      return
+    }
 
     // 上传图片
     const uploadedImages = await uploadImages()
@@ -424,6 +459,8 @@ const onSubmit = async (values) => {
       age: formData.value.age,
       idCard: formData.value.idCard,
       phone: formData.value.phone,
+      emergencyContact: formData.value.emergencyContact,
+      emergencyPhone: formData.value.emergencyPhone,
       address: formData.value.address,
       healthStatus: formData.value.healthStatus,
       medicalHistory: formData.value.medicalHistory,
@@ -554,13 +591,14 @@ const uploadSingleImage = async (file) => {
     console.log('图片上传返回结果:', result) // 调试日志
 
     if (result.code === 200) {
-      // 若依框架的文件上传接口，url字段直接在根级别
-      if (result.url) {
-        console.log('上传成功，图片URL:', result.url)
-        return result.url // 返回图片路径
+      // 若依框架的文件上传接口，fileName字段是相对路径，url字段是完整URL
+      // 数据库应该存储相对路径，而不是包含域名的完整URL
+      if (result.fileName) {
+        console.log('上传成功，图片路径:', result.fileName)
+        return result.fileName // 返回相对路径
       } else {
-        console.error('上传返回数据中没有url字段:', result)
-        throw new Error('上传返回数据中没有url字段')
+        console.error('上传返回数据中没有fileName字段:', result)
+        throw new Error('上传返回数据中没有fileName字段')
       }
     } else {
       throw new Error(result.msg || '上传失败')
@@ -604,6 +642,8 @@ const loadElderInfo = async () => {
         age: elderInfo.age ? elderInfo.age.toString() : '',
         idCard: elderInfo.idCard || '',
         phone: elderInfo.phone || '',
+        emergencyContact: elderInfo.emergencyContact || '',
+        emergencyPhone: elderInfo.emergencyPhone || '',
         address: elderInfo.address || '',
         healthStatus: elderInfo.healthStatus || '',
         medicalHistory: ''
@@ -619,6 +659,7 @@ const loadElderInfo = async () => {
       }
 
       // 设置身份证照片
+      // 优先从 attachments 读取，如果没有则从 elderInfo 表字段读取
       if (attachments && attachments.length > 0) {
         attachments.forEach(attachment => {
           if (attachment.attachmentType === '1') {
@@ -637,6 +678,21 @@ const loadElderInfo = async () => {
             }]
           }
         })
+      }
+      // 如果 attachments 中没有身份证照片，从 elderInfo 表字段读取（兼容管理端上传的数据）
+      if (formData.value.idCardFront.length === 0 && elderInfo.idCardFrontPath) {
+        formData.value.idCardFront = [{
+          url: elderInfo.idCardFrontPath,
+          file: null,
+          isImage: true
+        }]
+      }
+      if (formData.value.idCardBack.length === 0 && elderInfo.idCardBackPath) {
+        formData.value.idCardBack = [{
+          url: elderInfo.idCardBackPath,
+          file: null,
+          isImage: true
+        }]
       }
 
       console.log('老人信息加载成功:', formData.value)

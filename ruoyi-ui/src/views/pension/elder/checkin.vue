@@ -16,92 +16,90 @@
         <el-divider content-position="left">
           <i class="el-icon-user"></i> 入住人基本信息
         </el-divider>
+        <el-form-item label="选择老人">
+          <el-select
+            v-model="selectedElderId"
+            placeholder="可选择已录入的老人信息自动填充"
+            filterable
+            clearable
+            style="width: 100%"
+            @change="handleElderChange">
+            <el-option
+              v-for="elder in elderOptions"
+              :key="elder.elderId"
+              :label="`${elder.elderName} (${elder.idCard})`"
+              :value="elder.elderId">
+            </el-option>
+          </el-select>
+          <div style="font-size: 12px; color: #909399; margin-top: 4px;">
+            <i class="el-icon-info"></i> 请先选择老人，信息将自动填充
+          </div>
+        </el-form-item>
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="入住人姓名" prop="elderName">
-              <el-input v-model="form.elderName" placeholder="请输入入住人姓名" />
+              <el-input v-model="form.elderName" placeholder="请先选择老人" disabled />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="性别" prop="gender">
-              <el-select v-model="form.gender" placeholder="请选择性别" style="width: 100%">
-                <el-option
-                  v-for="dict in dict.type.elder_gender"
-                  :key="dict.value"
-                  :label="dict.label"
-                  :value="dict.value"
-                ></el-option>
-              </el-select>
+              <el-input v-model="genderLabel" placeholder="请先选择老人" disabled />
             </el-form-item>
           </el-col>
         </el-row>
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="身份证号" prop="idCard">
-              <el-input v-model="form.idCard" placeholder="请输入身份证号" @blur="parseIdCard" />
+              <el-input v-model="form.idCard" placeholder="请先选择老人" disabled />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="出生日期" prop="birthDate">
-              <el-date-picker
-                v-model="form.birthDate"
-                type="date"
-                placeholder="请选择出生日期"
-                value-format="yyyy-MM-dd"
-                style="width: 100%;"
-                @change="calculateAgeFromBirthDate">
-              </el-date-picker>
+              <el-input v-model="form.birthDate" placeholder="请先选择老人" disabled />
             </el-form-item>
           </el-col>
         </el-row>
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="年龄" prop="age">
-              <el-input-number v-model="form.age" :min="1" :max="120" style="width: 100%;" />
+              <el-input v-model="form.age" placeholder="请先选择老人" disabled />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="联系电话" prop="phone">
-              <el-input v-model="form.phone" placeholder="请输入联系电话" />
+              <el-input v-model="form.phone" placeholder="请先选择老人" disabled />
             </el-form-item>
           </el-col>
         </el-row>
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="护理等级" prop="careLevel">
-              <el-select v-model="form.careLevel" placeholder="请选择护理等级" style="width: 100%" @change="calculateMonthlyFee">
-                <el-option
-                  v-for="dict in dict.type.elder_care_level"
-                  :key="dict.value"
-                  :label="dict.label"
-                  :value="dict.value"
-                ></el-option>
-              </el-select>
+              <el-input v-model="careLevelLabel" placeholder="请先选择老人" disabled />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="健康状况" prop="healthStatus">
-              <el-input v-model="form.healthStatus" placeholder="请输入健康状况" />
+              <el-input v-model="form.healthStatus" placeholder="请先选择老人" disabled />
             </el-form-item>
           </el-col>
         </el-row>
         <el-form-item label="家庭住址" prop="address">
-          <el-input v-model="form.address" type="textarea" placeholder="请输入家庭住址" />
+          <el-input v-model="form.address" type="textarea" placeholder="请先选择老人" disabled />
         </el-form-item>
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="紧急联系人" prop="emergencyContact">
-              <el-input v-model="form.emergencyContact" placeholder="请输入紧急联系人姓名" />
+              <el-input v-model="form.emergencyContact" placeholder="请先选择老人" disabled />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="紧急联系电话" prop="emergencyPhone">
-              <el-input v-model="form.emergencyPhone" placeholder="请输入紧急联系电话" />
+              <el-input v-model="form.emergencyPhone" placeholder="请先选择老人" disabled />
             </el-form-item>
           </el-col>
         </el-row>
         <el-form-item label="特殊需求" prop="specialNeeds">
-          <el-input v-model="form.specialNeeds" type="textarea" placeholder="请输入特殊需求或注意事项" />
+          <el-input v-model="form.specialNeeds" type="textarea" placeholder="请先选择老人" disabled />
         </el-form-item>
 
         <!-- 床位选择 -->
@@ -356,6 +354,7 @@
 import { listPensionInstitution } from "@/api/pension/institution";
 import { listBedInfo } from "@/api/pension/bed";
 import { createCheckin } from "@/api/pension/checkin";
+import { getElderOptions, getElderManage } from "@/api/pension/elderManage";
 
 export default {
   name: "PensionElderCheckin",
@@ -365,6 +364,8 @@ export default {
       submitLoading: false,
       availableBeds: [],
       institutionList: [],
+      elderOptions: [],
+      selectedElderId: null,
       // 表单数据
       form: {
         // 老人信息
@@ -460,6 +461,20 @@ export default {
     selectedBed() {
       return this.availableBeds.find(bed => bed.bedId === this.form.bedId);
     },
+    // 性别显示标签
+    genderLabel() {
+      if (!this.form.gender) return '';
+      const dict = this.dict.type.elder_gender;
+      const item = dict.find(d => d.value === this.form.gender);
+      return item ? item.label : '';
+    },
+    // 护理等级显示标签
+    careLevelLabel() {
+      if (!this.form.careLevel) return '';
+      const dict = this.dict.type.elder_care_level;
+      const item = dict.find(d => d.value === this.form.careLevel);
+      return item ? item.label : '';
+    },
     // 月服务费 = 床位费 + 护理费
     monthlyFeeTotal() {
       return (this.form.bedFee || 0) + (this.form.careFee || 0);
@@ -479,6 +494,7 @@ export default {
   },
   created() {
     this.loadInstitutions();
+    this.loadElderOptions();
     // 默认入住日期为今天
     this.form.checkInDate = this.parseTime(new Date(), '{y}-{m}-{d}');
   },
@@ -487,6 +503,52 @@ export default {
     loadInstitutions() {
       listPensionInstitution().then(response => {
         this.institutionList = response.rows || [];
+      });
+    },
+    /** 加载老人选项列表 */
+    loadElderOptions() {
+      getElderOptions().then(response => {
+        this.elderOptions = response.data || [];
+      });
+    },
+    /** 选择老人时自动填充表单 */
+    handleElderChange(elderId) {
+      if (!elderId) {
+        // 清空选择时，重置老人信息字段
+        this.form.elderName = '';
+        this.form.gender = '';
+        this.form.idCard = '';
+        this.form.birthDate = '';
+        this.form.age = null;
+        this.form.phone = '';
+        this.form.address = '';
+        this.form.emergencyContact = '';
+        this.form.emergencyPhone = '';
+        this.form.healthStatus = '';
+        this.form.specialNeeds = '';
+        this.form.careLevel = '';
+        return;
+      }
+
+      // 获取老人详细信息并填充表单
+      getElderManage(elderId).then(response => {
+        const elder = response.data;
+        if (elder) {
+          this.form.elderName = elder.elderName || '';
+          this.form.gender = elder.gender || '';
+          this.form.idCard = elder.idCard || '';
+          this.form.birthDate = elder.birthDate || '';
+          this.form.age = elder.age || null;
+          this.form.phone = elder.phone || '';
+          this.form.address = elder.address || '';
+          this.form.emergencyContact = elder.emergencyContact || '';
+          this.form.emergencyPhone = elder.emergencyPhone || '';
+          this.form.healthStatus = elder.healthStatus || '';
+          this.form.specialNeeds = elder.specialNeeds || '';
+          // 护理等级也要填充
+          this.form.careLevel = elder.careLevel || '';
+          this.$modal.msgSuccess("已自动填充老人信息");
+        }
       });
     },
     /** 养老机构改变 */

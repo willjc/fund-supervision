@@ -85,6 +85,19 @@ public class ElderInfo extends BaseEntity
     @Excel(name = "状态", readConverterExp = "0=未入住,1=已入住,2=已退住")
     private String status;
 
+    /** 当前用户ID(用于数据权限过滤,不映射到数据库) */
+    private transient Long currentUserId;
+
+    public Long getCurrentUserId()
+    {
+        return currentUserId;
+    }
+
+    public void setCurrentUserId(Long currentUserId)
+    {
+        this.currentUserId = currentUserId;
+    }
+
     public void setElderId(Long elderId)
     {
         this.elderId = elderId;

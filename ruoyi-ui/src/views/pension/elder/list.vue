@@ -252,8 +252,8 @@
               <div class="photo-item">
                 <div class="photo-label">老人照片</div>
                 <el-image
-                  :src="residentDetail.photoPath"
-                  :preview-src-list="[residentDetail.photoPath]"
+                  :src="getImageUrl(residentDetail.photoPath)"
+                  :preview-src-list="[getImageUrl(residentDetail.photoPath)]"
                   fit="cover"
                   style="width: 200px; height: 200px; border-radius: 4px; cursor: pointer;"
                 >
@@ -267,8 +267,8 @@
               <div class="photo-item">
                 <div class="photo-label">身份证正面</div>
                 <el-image
-                  :src="residentDetail.idCardFrontPath"
-                  :preview-src-list="[residentDetail.idCardFrontPath]"
+                  :src="getImageUrl(residentDetail.idCardFrontPath)"
+                  :preview-src-list="[getImageUrl(residentDetail.idCardFrontPath)]"
                   fit="cover"
                   style="width: 200px; height: 200px; border-radius: 4px; cursor: pointer;"
                 >
@@ -282,8 +282,8 @@
               <div class="photo-item">
                 <div class="photo-label">身份证反面</div>
                 <el-image
-                  :src="residentDetail.idCardBackPath"
-                  :preview-src-list="[residentDetail.idCardBackPath]"
+                  :src="getImageUrl(residentDetail.idCardBackPath)"
+                  :preview-src-list="[getImageUrl(residentDetail.idCardBackPath)]"
                   fit="cover"
                   style="width: 200px; height: 200px; border-radius: 4px; cursor: pointer;"
                 >
@@ -1050,6 +1050,8 @@ export default {
   dicts: ['elder_gender', 'elder_care_level', 'elder_relation_type'],
   data() {
     return {
+      // 图片服务器地址
+      baseUrl: process.env.VUE_APP_BASE_API,
       // 遮罩层
       loading: true,
       // 选中数组
@@ -1841,6 +1843,16 @@ export default {
       } else {
         this.expandedOrderKeys = [];
       }
+    },
+    /** 获取完整的图片URL */
+    getImageUrl(path) {
+      if (!path) return '';
+      // 如果路径已经是完整URL，直接返回
+      if (path.startsWith('http://') || path.startsWith('https://')) {
+        return path;
+      }
+      // 否则添加 baseUrl 前缀
+      return this.baseUrl + path;
     }
   }
 };

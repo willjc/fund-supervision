@@ -105,21 +105,17 @@ public class ResidentServiceImpl implements IResidentService
 
             // 查询老人照片（从elder_info表）
             ElderInfo elderInfo = elderInfoMapper.selectElderInfoByElderId(elderId);
-            if (elderInfo != null && elderInfo.getPhotoPath() != null) {
-                residentVO.setPhotoPath(elderInfo.getPhotoPath());
-            }
-
-            // 查询身份证照片（从elder_attachment表）
-            // 查询身份证正面（attachment_type = '1'）
-            ElderAttachment frontAttachment = elderAttachmentMapper.selectAttachmentByElderIdAndType(elderId, "1");
-            if (frontAttachment != null && frontAttachment.getFilePath() != null) {
-                residentVO.setIdCardFrontPath(frontAttachment.getFilePath());
-            }
-
-            // 查询身份证反面（attachment_type = '2'）
-            ElderAttachment backAttachment = elderAttachmentMapper.selectAttachmentByElderIdAndType(elderId, "2");
-            if (backAttachment != null && backAttachment.getFilePath() != null) {
-                residentVO.setIdCardBackPath(backAttachment.getFilePath());
+            if (elderInfo != null) {
+                if (elderInfo.getPhotoPath() != null) {
+                    residentVO.setPhotoPath(elderInfo.getPhotoPath());
+                }
+                // 查询身份证照片（从elder_info表）
+                if (elderInfo.getIdCardFrontPath() != null) {
+                    residentVO.setIdCardFrontPath(elderInfo.getIdCardFrontPath());
+                }
+                if (elderInfo.getIdCardBackPath() != null) {
+                    residentVO.setIdCardBackPath(elderInfo.getIdCardBackPath());
+                }
             }
         }
         return residentVO;

@@ -19,6 +19,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="careLevel"    column="care_level"    />
         <result property="specialNeeds"    column="special_needs"    />
         <result property="photoPath"    column="photo_path"    />
+        <result property="idCardFrontPath"    column="id_card_front_path"    />
+        <result property="idCardBackPath"    column="id_card_back_path"    />
         <result property="password"    column="password"    />
         <result property="status"     column="status"     />
         <result property="createBy"   column="create_by"   />
@@ -31,13 +33,22 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <sql id="selectElderInfoVo">
         select elder_id, elder_name, gender, id_card, birth_date, age, phone, address,
                emergency_contact, emergency_phone, health_status, care_level, special_needs,
-               photo_path, password, status, create_by, create_time, update_by, update_time, remark
+               photo_path, id_card_front_path, id_card_back_path, password, status,
+               create_by, create_time, update_by, update_time, remark
         from elder_info
     </sql>
 
     <select id="selectElderInfoList" parameterType="ElderInfo" resultMap="ElderInfoResult">
         <include refid="selectElderInfoVo"/>
         <where>
+            <!-- 数据权限过滤: ��果传入了currentUserId,则只查询该用户关联机构的老人 -->
+            <if test="currentUserId != null">
+                and create_by COLLATE utf8mb4_general_ci in (
+                    select u.user_name COLLATE utf8mb4_general_ci from sys_user_institution sui
+                    inner join sys_user u on sui.user_id = u.user_id
+                    where sui.user_id = #{currentUserId}
+                )
+            </if>
             <if test="elderName != null  and elderName != ''"> and elder_name like concat('%', #{elderName}, '%')</if>
             <if test="gender != null  and gender != ''"> and gender = #{gender}</if>
             <if test="idCard != null  and idCard != ''"> and id_card = #{idCard}</if>
@@ -74,6 +85,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="careLevel != null">care_level,</if>
             <if test="specialNeeds != null and specialNeeds != ''">special_needs,</if>
             <if test="photoPath != null and photoPath != ''">photo_path,</if>
+            <if test="idCardFrontPath != null and idCardFrontPath != ''">id_card_front_path,</if>
+            <if test="idCardBackPath != null and idCardBackPath != ''">id_card_back_path,</if>
             <if test="password != null and password != ''">password,</if>
             <if test="status != null">status,</if>
             <if test="createBy != null and createBy != ''">create_by,</if>
@@ -96,6 +109,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="careLevel != null">#{careLevel},</if>
             <if test="specialNeeds != null and specialNeeds != ''">#{specialNeeds},</if>
             <if test="photoPath != null and photoPath != ''">#{photoPath},</if>
+            <if test="idCardFrontPath != null and idCardFrontPath != ''">#{idCardFrontPath},</if>
+            <if test="idCardBackPath != null and idCardBackPath != ''">#{idCardBackPath},</if>
             <if test="password != null and password != ''">#{password},</if>
             <if test="status != null">#{status},</if>
             <if test="createBy != null and createBy != ''">#{createBy},</if>
@@ -122,6 +137,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="careLevel != null">care_level = #{careLevel},</if>
             <if test="specialNeeds != null and specialNeeds != ''">special_needs = #{specialNeeds},</if>
             <if test="photoPath != null and photoPath != ''">photo_path = #{photoPath},</if>
+            <if test="idCardFrontPath != null and idCardFrontPath != ''">id_card_front_path = #{idCardFrontPath},</if>
+            <if test="idCardBackPath != null and idCardBackPath != ''">id_card_back_path = #{idCardBackPath},</if>
             <if test="password != null and password != ''">password = #{password},</if>
             <if test="status != null">status = #{status},</if>
             <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
