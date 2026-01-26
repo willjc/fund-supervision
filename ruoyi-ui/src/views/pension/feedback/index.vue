@@ -7,17 +7,14 @@
 
       <!-- 搜索区域 -->
       <el-form :model="queryParams" ref="queryForm" :inline="true">
-        <el-form-item label="类型">
-          <el-select v-model="queryParams.type" placeholder="请选择" clearable>
-            <el-option label="投诉" value="投诉"></el-option>
-            <el-option label="建议" value="建议"></el-option>
-          </el-select>
+        <el-form-item label="机构名称" prop="institutionName">
+          <el-input v-model="queryParams.institutionName" placeholder="请输入机构名称" clearable />
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="queryParams.status" placeholder="请选择" clearable>
-            <el-option label="待处理" value="待处理"></el-option>
-            <el-option label="处理中" value="处理中"></el-option>
-            <el-option label="已完成" value="已完成"></el-option>
+            <el-option label="处理中" value="1"></el-option>
+            <el-option label="已处理" value="2"></el-option>
+            <el-option label="已拒绝" value="0"></el-option>
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -26,35 +23,24 @@
         </el-form-item>
       </el-form>
 
-      <!-- 操作按钮 -->
-      <el-row :gutter="10" class="mb8">
-        <el-col :span="1.5">
-          <el-button type="primary" icon="el-icon-plus" @click="handleAdd">提交反馈</el-button>
-        </el-col>
-      </el-row>
-
       <!-- 数据表格 -->
       <el-table v-loading="loading" :data="dataList" border>
-        <el-table-column label="编号" prop="feedbackNo" width="120"></el-table-column>
-        <el-table-column label="类型" prop="type" width="80">
-          <template slot-scope="scope">
-            <el-tag :type="scope.row.type === '投诉' ? 'danger' : 'primary'" size="small">
-              {{ scope.row.type }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="标题" prop="title" show-overflow-tooltip></el-table-column>
-        <el-table-column label="内容" prop="content" show-overflow-tooltip></el-table-column>
-        <el-table-column label="提交人" prop="submitter" width="100"></el-table-column>
-        <el-table-column label="提交时间" prop="submitTime" width="180"></el-table-column>
+        <el-table-column label="投诉编号" prop="complaintNo" width="150" />
+        <el-table-column label="机构名称" prop="institutionName" show-overflow-tooltip />
+        <el-table-column label="投诉标题" prop="title" show-overflow-tooltip />
+        <el-table-column label="投诉类型" prop="complaintType" width="100" />
+        <el-table-column label="联系人" prop="submitter" width="100" />
+        <el-table-column label="联系电话" prop="contact" width="120" />
+        <el-table-column label="提交时间" prop="submitTime" width="160" />
         <el-table-column label="状态" prop="status" width="100">
           <template slot-scope="scope">
-            <el-tag :type="getStatusType(scope.row.status)" size="small">{{ scope.row.status }}</el-tag>
+            <el-tag :type="getStatusType(scope.row.status)" size="small">{{ scope.row.statusText }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="150" fixed="right">
           <template slot-scope="scope">
             <el-button type="text" size="small" @click="handleView(scope.row)">查看</el-button>
+            <el-button type="text" size="small" @click="handleHandle(scope.row)" v-if="scope.row.status === '1'">处理</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -69,71 +55,79 @@
       />
     </el-card>
 
-    <!-- 新增/编辑对话框 -->
-    <el-dialog :title="dialogTitle" :visible.sync="dialogVisible" width="600px" append-to-body>
-      <el-form ref="feedbackForm" :model="form" :rules="rules" label-width="100px">
-        <el-form-item label="反馈类型" prop="type">
-          <el-radio-group v-model="form.type">
-            <el-radio label="投诉">投诉</el-radio>
-            <el-radio label="建议">建议</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item label="标题" prop="title">
-          <el-input v-model="form.title" placeholder="请输入标题"></el-input>
-        </el-form-item>
-        <el-form-item label="内容" prop="content">
-          <el-input
-            type="textarea"
-            v-model="form.content"
-            :rows="6"
-            placeholder="请详细描述您的投诉或建议"></el-input>
-        </el-form-item>
-        <el-form-item label="联系方式" prop="contact">
-          <el-input v-model="form.contact" placeholder="请输入联系电话或邮箱"></el-input>
-        </el-form-item>
-        <el-form-item label="附件">
-          <el-upload
-            action="/system/common/upload"
-            :on-success="handleUploadSuccess"
-            :on-remove="handleRemove"
-            :file-list="fileList">
-            <el-button size="small" type="primary">点击上传</el-button>
-            <div slot="tip" class="el-upload__tip">支持上传图片或文档作为证明材料</div>
-          </el-upload>
-        </el-form-item>
-      </el-form>
-      <div slot="footer" class="dialog-footer">
-        <el-button @click="dialogVisible = false">取 消</el-button>
-        <el-button type="primary" @click="submitForm" :loading="submitting">确 定</el-button>
-      </div>
-    </el-dialog>
-
     <!-- 详情对话框 -->
-    <el-dialog title="反馈详情" :visible.sync="detailVisible" width="700px" append-to-body>
+    <el-dialog title="投诉详情" :visible.sync="detailVisible" width="700px" append-to-body>
       <el-descriptions :column="2" border>
-        <el-descriptions-item label="编号">{{ detailData.feedbackNo }}</el-descriptions-item>
-        <el-descriptions-item label="类型">
-          <el-tag :type="detailData.type === '投诉' ? 'danger' : 'primary'">{{ detailData.type }}</el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="标题" :span="2">{{ detailData.title }}</el-descriptions-item>
-        <el-descriptions-item label="内容" :span="2">{{ detailData.content }}</el-descriptions-item>
-        <el-descriptions-item label="提交人">{{ detailData.submitter }}</el-descriptions-item>
-        <el-descriptions-item label="联系方式">{{ detailData.contact }}</el-descriptions-item>
-        <el-descriptions-item label="提交时间">{{ detailData.submitTime }}</el-descriptions-item>
+        <el-descriptions-item label="投诉编号">{{ detailData.complaintNo }}</el-descriptions-item>
         <el-descriptions-item label="状态">
-          <el-tag :type="getStatusType(detailData.status)">{{ detailData.status }}</el-tag>
+          <el-tag :type="getStatusType(detailData.status)">{{ detailData.statusText }}</el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="处理意见" :span="2">{{ detailData.handleComment || '暂无' }}</el-descriptions-item>
+        <el-descriptions-item label="机构名称" :span="2">{{ detailData.institutionName }}</el-descriptions-item>
+        <el-descriptions-item label="投诉类型">{{ detailData.complaintType || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="联系电话">{{ detailData.contact }}</el-descriptions-item>
+        <el-descriptions-item label="投诉标题" :span="2">{{ detailData.title }}</el-descriptions-item>
+        <el-descriptions-item label="投诉内容" :span="2">{{ detailData.content }}</el-descriptions-item>
+        <el-descriptions-item label="图片附件" :span="2" v-if="detailData.images && detailData.images.length > 0">
+          <div class="image-preview-list">
+            <el-image
+              v-for="(img, idx) in detailData.images"
+              :key="idx"
+              :src="img"
+              :preview-src-list="detailData.images"
+              fit="cover"
+              style="width: 100px; height: 100px; margin-right: 10px; border-radius: 4px;"
+            />
+          </div>
+        </el-descriptions-item>
+        <el-descriptions-item label="提交时间">{{ detailData.submitTime }}</el-descriptions-item>
+        <el-descriptions-item label="处理人">{{ detailData.handleUserName || '暂无' }}</el-descriptions-item>
+        <el-descriptions-item label="回复内容" :span="2">{{ detailData.replyContent || '暂无' }}</el-descriptions-item>
         <el-descriptions-item label="处理时间" :span="2">{{ detailData.handleTime || '暂无' }}</el-descriptions-item>
       </el-descriptions>
       <div slot="footer" class="dialog-footer">
         <el-button @click="detailVisible = false">关闭</el-button>
+        <el-button type="primary" @click="handleHandle(detailData)" v-if="detailData.status === '1'">处理投诉</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 处理投诉对话框 -->
+    <el-dialog title="处理投诉" :visible.sync="handleVisible" width="600px" append-to-body>
+      <el-form ref="handleForm" :model="handleForm" :rules="handleRules" label-width="100px">
+        <el-form-item label="投诉编号">
+          <el-input v-model="handleForm.complaintNo" disabled />
+        </el-form-item>
+        <el-form-item label="投诉标题">
+          <el-input v-model="handleForm.title" disabled />
+        </el-form-item>
+        <el-form-item label="处理状态" prop="status">
+          <el-radio-group v-model="handleForm.status">
+            <el-radio label="2">已处理</el-radio>
+            <el-radio label="0">已拒绝</el-radio>
+            <el-radio label="1">处理中</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="回复内容" prop="replyContent">
+          <el-input
+            type="textarea"
+            v-model="handleForm.replyContent"
+            :rows="6"
+            placeholder="请输入回复内容（将显示给用户）"
+            maxlength="500"
+            show-word-limit
+          />
+        </el-form-item>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="handleVisible = false">取 消</el-button>
+        <el-button type="primary" @click="submitHandle" :loading="submitting">确 定</el-button>
       </div>
     </el-dialog>
   </div>
 </template>
 
 <script>
+import { listFeedback, getFeedbackDetail, handleFeedback } from '@/api/pension/feedback'
+
 export default {
   name: 'FeedbackManagement',
   data() {
@@ -145,36 +139,28 @@ export default {
       queryParams: {
         pageNum: 1,
         pageSize: 10,
-        type: null,
+        institutionName: null,
         status: null
       },
-      dialogVisible: false,
-      dialogTitle: '',
-      form: {
-        type: '建议',
-        title: '',
-        content: '',
-        contact: '',
-        attachments: []
-      },
-      rules: {
-        type: [
-          { required: true, message: '请选择反馈类型', trigger: 'change' }
-        ],
-        title: [
-          { required: true, message: '请输入标题', trigger: 'blur' }
-        ],
-        content: [
-          { required: true, message: '请输入内容', trigger: 'blur' },
-          { min: 10, message: '内容至少10个字符', trigger: 'blur' }
-        ],
-        contact: [
-          { required: true, message: '请输入联系方式', trigger: 'blur' }
-        ]
-      },
-      fileList: [],
       detailVisible: false,
-      detailData: {}
+      detailData: {},
+      handleVisible: false,
+      handleForm: {
+        complaintId: null,
+        complaintNo: '',
+        title: '',
+        status: '2',
+        replyContent: ''
+      },
+      handleRules: {
+        status: [
+          { required: true, message: '请选择处理状态', trigger: 'change' }
+        ],
+        replyContent: [
+          { required: true, message: '请输入回复内容', trigger: 'blur' },
+          { min: 5, message: '回复内容至少5个字符', trigger: 'blur' }
+        ]
+      }
     }
   },
   created() {
@@ -184,37 +170,13 @@ export default {
     // 查询列表
     getList() {
       this.loading = true
-      // TODO: 调用后端API
-      setTimeout(() => {
-        this.dataList = [
-          {
-            feedbackNo: 'FB202501001',
-            type: '投诉',
-            title: '服务态度问题',
-            content: '护理员服务态度不好，希望改进',
-            submitter: '张三',
-            contact: '13800138000',
-            submitTime: '2025-01-03 10:30:00',
-            status: '已完成',
-            handleComment: '已对相关人员进行培训教育',
-            handleTime: '2025-01-04 14:00:00'
-          },
-          {
-            feedbackNo: 'FB202501002',
-            type: '建议',
-            title: '增加文娱活动',
-            content: '建议增加老年人的文娱活动项目',
-            submitter: '李四',
-            contact: '13900139000',
-            submitTime: '2025-01-02 09:15:00',
-            status: '处理中',
-            handleComment: null,
-            handleTime: null
-          }
-        ]
-        this.total = 2
+      listFeedback(this.queryParams).then(response => {
+        this.dataList = response.rows || []
+        this.total = response.total || 0
         this.loading = false
-      }, 500)
+      }).catch(() => {
+        this.loading = false
+      })
     },
     // 搜索
     handleQuery() {
@@ -226,57 +188,61 @@ export default {
       this.$refs.queryForm.resetFields()
       this.handleQuery()
     },
-    // 新增
-    handleAdd() {
-      this.dialogTitle = '提交反馈'
-      this.form = {
-        type: '建议',
-        title: '',
-        content: '',
-        contact: '',
-        attachments: []
-      }
-      this.fileList = []
-      this.dialogVisible = true
-    },
-    // 提交表单
-    submitForm() {
-      this.$refs.feedbackForm.validate(valid => {
-        if (valid) {
-          this.submitting = true
-          // TODO: 调用后端API
-          setTimeout(() => {
-            this.submitting = false
-            this.dialogVisible = false
-            this.$message.success('提交成功')
-            this.getList()
-          }, 1000)
-        }
-      })
-    },
     // 查看详情
     handleView(row) {
-      this.detailData = row
-      this.detailVisible = true
+      getFeedbackDetail(row.complaintId).then(response => {
+        this.detailData = response.data
+        this.detailVisible = true
+      })
     },
-    // 文件上传成功
-    handleUploadSuccess(response, file, fileList) {
-      this.fileList = fileList
-      this.form.attachments.push(response.url)
+    // 处理投诉
+    handleHandle(row) {
+      this.handleForm.complaintId = row.complaintId
+      this.handleForm.complaintNo = row.complaintNo
+      this.handleForm.title = row.title
+      this.handleForm.status = '2'
+      this.handleForm.replyContent = ''
+      this.handleVisible = true
+      this.$nextTick(() => {
+        this.$refs.handleForm && this.$refs.handleForm.clearValidate()
+      })
     },
-    // 移除文件
-    handleRemove(file, fileList) {
-      this.fileList = fileList
+    // 提交处理
+    submitHandle() {
+      this.$refs.handleForm.validate(valid => {
+        if (valid) {
+          this.submitting = true
+          handleFeedback({
+            complaintId: this.handleForm.complaintId,
+            status: this.handleForm.status,
+            replyContent: this.handleForm.replyContent
+          }).then(response => {
+            this.submitting = false
+            this.handleVisible = false
+            this.$message.success('处理成功')
+            this.getList()
+          }).catch(() => {
+            this.submitting = false
+          })
+        }
+      })
     },
     // 获取状态类型
     getStatusType(status) {
       const typeMap = {
-        '待处理': 'warning',
-        '处理中': 'primary',
-        '已完成': 'success'
+        '0': 'info',
+        '1': 'warning',
+        '2': 'success'
       }
       return typeMap[status] || 'info'
     }
   }
 }
 </script>
+
+<style scoped>
+.image-preview-list {
+  display: flex;
+  flex-wrap: wrap;
+}
+</style>

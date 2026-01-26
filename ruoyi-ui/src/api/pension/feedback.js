@@ -9,28 +9,27 @@ export function listFeedback(query) {
   })
 }
 
-// 提交投诉建议
-export function submitFeedback(data) {
+// 查询投诉详情
+export function getFeedbackDetail(complaintId) {
   return request({
-    url: '/pension/feedback/submit',
+    url: `/pension/feedback/detail/${complaintId}`,
+    method: 'get'
+  })
+}
+
+// 处理投诉
+export function handleFeedback(data) {
+  return request({
+    url: '/pension/feedback/handle',
     method: 'post',
     data: data
   })
 }
 
-// 查询反馈详情
-export function getDetail(feedbackNo) {
+// 获取投诉统计信息
+export function getStatistics() {
   return request({
-    url: `/pension/feedback/detail/${feedbackNo}`,
+    url: '/pension/feedback/statistics',
     method: 'get'
-  })
-}
-
-// 上传附件
-export function uploadAttachment(fileUrl) {
-  return request({
-    url: '/pension/feedback/upload-attachment',
-    method: 'post',
-    data: { file: fileUrl }
   })
 }

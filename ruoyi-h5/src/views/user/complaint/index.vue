@@ -5,38 +5,63 @@
     <div class="complaint-content">
       <!-- 投诉列表 -->
       <div class="complaint-list">
-        <div
-          v-for="item in complaintList"
-          :key="item.id"
-          class="complaint-item"
-          @click="goToDetail(item)"
-        >
-          <div class="complaint-header">
-            <van-tag :type="getStatusType(item.status)" size="medium">
-              {{ getStatusText(item.status) }}
-            </van-tag>
-            <span class="complaint-time">{{ item.createTime }}</span>
-          </div>
+        <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
+          <van-list
+            v-model:loading="loading"
+            :finished="finished"
+            finished-text="没有更多了"
+            @load="onLoad"
+          >
+            <div
+              v-for="item in complaintList"
+              :key="item.id"
+              class="complaint-item"
+              @click="goToDetail(item)"
+            >
+              <div class="complaint-header">
+                <van-tag :type="getStatusType(item.status)" size="medium">
+                  {{ item.statusText }}
+                </van-tag>
+                <span class="complaint-time">{{ item.createTime }}</span>
+              </div>
 
-          <div class="complaint-title">{{ item.title }}</div>
+              <div class="complaint-title">{{ item.title }}</div>
 
-          <div class="complaint-institution">
-            <van-icon name="shop-o" size="14" />
-            {{ item.institutionName }}
-          </div>
+              <div class="complaint-institution">
+                <van-icon name="shop-o" size="14" />
+                {{ item.institutionName }}
+              </div>
 
-          <div class="complaint-desc">{{ item.content }}</div>
+              <div class="complaint-desc">{{ item.content }}</div>
 
-          <div v-if="item.replyContent" class="complaint-reply">
-            <div class="reply-label">
-              <van-icon name="comment-o" size="14" />
-              回复
+              <div v-if="item.replyContent" class="complaint-reply">
+                <div class="reply-label">
+                  <van-icon name="comment-o" size="14" />
+                  回复
+                </div>
+                <div class="reply-content">{{ item.replyContent }}</div>
+              </div>
+
+              <!-- 有图片时显示图片预览 -->
+              <div v-if="item.images && item.images.length > 0" class="complaint-images">
+                <van-image
+                  v-for="(img, idx) in item.images.slice(0, 3)"
+                  :key="idx"
+                  width="60"
+                  height="60"
+                  :src="img"
+                  fit="cover"
+                  @click.stop="previewImages(item.images, idx)"
+                />
+                <div v-if="item.images.length > 3" class="more-images">
+                  +{{ item.images.length - 3 }}
+                </div>
+              </div>
             </div>
-            <div class="reply-content">{{ item.replyContent }}</div>
-          </div>
-        </div>
+          </van-list>
+        </van-pull-refresh>
 
-        <div v-if="complaintList.length === 0" class="empty-state">
+        <div v-if="complaintList.length === 0 && !loading" class="empty-state">
           <van-empty description="暂无投诉记录" />
         </div>
       </div>
@@ -60,49 +85,66 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { showToast, showImagePreview } from 'vant'
+import { getComplaintList } from '@/api/complaint'
 
 const router = useRouter()
 
 // 投诉列表
-const complaintList = ref([
-  {
-    id: 1,
-    title: '服务态度问题',
-    institutionName: '郑州市金水区花园口社区养老服务中心',
-    content: '工作人员服务态度较差,对老人不够耐心,希望改进。',
-    status: 'pending', // pending-待处理, processing-处理中, completed-已完成
-    createTime: '2025-01-14 10:30',
-    replyContent: ''
-  },
-  {
-    id: 2,
-    title: '卫生环境问题',
-    institutionName: '郑州市二七区福寿园养老院',
-    content: '房间卫生打扫不及时,走廊有异味,需要加强卫生管理。',
-    status: 'completed',
-    createTime: '2025-01-10 15:20',
-    replyContent: '感谢您的反馈,我们已经加强了卫生管理,并对相关人员进行了培训,欢迎您再次监督。'
-  }
-])
+const complaintList = ref([])
+const loading = ref(false)
+const finished = ref(false)
+const refreshing = ref(false)
 
 // 获取状态类型
 const getStatusType = (status) => {
   const typeMap = {
-    'pending': 'warning',
+    'rejected': 'danger',
     'processing': 'primary',
     'completed': 'success'
   }
   return typeMap[status] || 'default'
 }
 
-// 获取状态文本
-const getStatusText = (status) => {
-  const textMap = {
-    'pending': '待处理',
-    'processing': '处理中',
-    'completed': '已完成'
+// 加载投诉列表
+const loadComplaintList = async () => {
+  try {
+    const response = await getComplaintList()
+    if (response.code === 200) {
+      complaintList.value = response.data || []
+      finished.value = true
+    } else {
+      showToast(response.msg || '获取投诉列表失败')
+    }
+  } catch (error) {
+    console.error('获取投诉列表失败:', error)
+    showToast('获取投诉列表失败')
+  } finally {
+    loading.value = false
   }
-  return textMap[status] || '未知'
+}
+
+// 下拉刷新
+const onRefresh = async () => {
+  finished.value = false
+  await loadComplaintList()
+  refreshing.value = false
+}
+
+// 上拉加载
+const onLoad = () => {
+  if (!refreshing.value) {
+    loadComplaintList()
+  }
+}
+
+// 预览图片
+const previewImages = (images, index) => {
+  showImagePreview({
+    images: images,
+    startPosition: index,
+    closeable: true
+  })
 }
 
 // 跳转到详情
@@ -115,6 +157,9 @@ const goToDetail = (item) => {
 const goToAdd = () => {
   router.push('/user/complaint/form')
 }
+
+// 初始化加载
+loadComplaintList()
 </script>
 
 <style scoped>
@@ -187,6 +232,7 @@ const goToAdd = () => {
   border-radius: 8px;
   padding: 12px;
   border-left: 3px solid #667eea;
+  margin-bottom: 8px;
 }
 
 .reply-label {
@@ -203,6 +249,30 @@ const goToAdd = () => {
   font-size: 14px;
   color: #333;
   line-height: 1.6;
+}
+
+/* 投诉图片 */
+.complaint-images {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.complaint-images :deep(.van-image) {
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.more-images {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 12px;
+  border-radius: 6px;
 }
 
 .empty-state {

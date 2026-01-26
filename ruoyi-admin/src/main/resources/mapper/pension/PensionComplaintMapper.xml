@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.mapper.pension.PensionComplaintMapper">
+
+    <resultMap type="PensionComplaint" id="PensionComplaintResult">
+        <result property="complaintId"    column="complaint_id"    />
+        <result property="complaintNo"    column="complaint_no"    />
+        <result property="institutionId"  column="institution_id"  />
+        <result property="institutionName" column="institution_name" />
+        <result property="userId"         column="user_id"         />
+        <result property="userName"       column="user_name"       />
+        <result property="complaintType"  column="complaint_type"  />
+        <result property="title"          column="title"           />
+        <result property="content"        column="content"         />
+        <result property="images"         column="images"          />
+        <result property="contactName"    column="contact_name"    />
+        <result property="contactPhone"   column="contact_phone"   />
+        <result property="status"         column="status"          />
+        <result property="replyContent"   column="reply_content"   />
+        <result property="handleUserId"   column="handle_user_id"  />
+        <result property="handleUserName" column="handle_user_name"/>
+        <result property="handleTime"     column="handle_time"     />
+        <result property="createTime"     column="create_time"     />
+        <result property="updateTime"     column="update_time"     />
+        <result property="remark"         column="remark"          />
+    </resultMap>
+
+    <sql id="selectPensionComplaintVo">
+        select c.complaint_id, c.complaint_no, c.institution_id, c.institution_name,
+               c.user_id, c.complaint_type, c.title, c.content, c.images,
+               c.contact_name, c.contact_phone, c.status, c.reply_content,
+               c.handle_user_id, c.handle_user_name, c.handle_time,
+               c.create_time, c.update_time, c.remark,
+               u.nick_name as user_name,
+               i.institution_name
+        from pension_complaint c
+        left join sys_user u on c.user_id = u.user_id
+        left join pension_institution i on c.institution_id = i.institution_id
+    </sql>
+
+    <select id="selectPensionComplaintList" parameterType="PensionComplaint" resultMap="PensionComplaintResult">
+        <include refid="selectPensionComplaintVo"/>
+        <where>
+            <if test="institutionId != null">
+                and c.institution_id = #{institutionId}
+            </if>
+            <if test="institutionName != null and institutionName != ''">
+                and c.institution_name like concat('%', #{institutionName}, '%')
+            </if>
+            <if test="userId != null">
+                and c.user_id = #{userId}
+            </if>
+            <if test="complaintType != null and complaintType != ''">
+                and c.complaint_type = #{complaintType}
+            </if>
+            <if test="title != null and title != ''">
+                and c.title like concat('%', #{title}, '%')
+            </if>
+            <if test="status != null and status != ''">
+                and c.status = #{status}
+            </if>
+            <if test="contactPhone != null and contactPhone != ''">
+                and c.contact_phone = #{contactPhone}
+            </if>
+            <if test="params.beginTime != null and params.beginTime != ''">
+                and date_format(c.create_time,'%y%m%d') &gt;= date_format(#{params.beginTime},'%y%m%d')
+            </if>
+            <if test="params.endTime != null and params.endTime != ''">
+                and date_format(c.create_time,'%y%m%d') &lt;= date_format(#{params.endTime},'%y%m%d')
+            </if>
+        </where>
+        order by c.create_time desc
+    </select>
+
+    <select id="selectPensionComplaintById" parameterType="Long" resultMap="PensionComplaintResult">
+        <include refid="selectPensionComplaintVo"/>
+        where c.complaint_id = #{complaintId}
+    </select>
+
+    <select id="selectPensionComplaintByNo" parameterType="String" resultMap="PensionComplaintResult">
+        <include refid="selectPensionComplaintVo"/>
+        where c.complaint_no = #{complaintNo}
+    </select>
+
+    <select id="countTodayComplaint" parameterType="String" resultType="int">
+        select count(*) from pension_complaint
+        where complaint_no like concat(#{datePrefix}, '%')
+    </select>
+
+    <insert id="insertPensionComplaint" parameterType="PensionComplaint" useGeneratedKeys="true" keyProperty="complaintId">
+        insert into pension_complaint
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="complaintNo != null and complaintNo != ''">complaint_no,</if>
+            <if test="institutionId != null">institution_id,</if>
+            <if test="institutionName != null and institutionName != ''">institution_name,</if>
+            <if test="userId != null">user_id,</if>
+            <if test="complaintType != null and complaintType != ''">complaint_type,</if>
+            <if test="title != null and title != ''">title,</if>
+            <if test="content != null and content != ''">content,</if>
+            <if test="images != null and images != ''">images,</if>
+            <if test="contactName != null and contactName != ''">contact_name,</if>
+            <if test="contactPhone != null and contactPhone != ''">contact_phone,</if>
+            <if test="status != null and status != ''">status,</if>
+            <if test="replyContent != null and replyContent != ''">reply_content,</if>
+            <if test="handleUserId != null">handle_user_id,</if>
+            <if test="handleUserName != null and handleUserName != ''">handle_user_name,</if>
+            <if test="handleTime != null">handle_time,</if>
+            <if test="remark != null and remark != ''">remark,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="complaintNo != null and complaintNo != ''">#{complaintNo},</if>
+            <if test="institutionId != null">#{institutionId},</if>
+            <if test="institutionName != null and institutionName != ''">#{institutionName},</if>
+            <if test="userId != null">#{userId},</if>
+            <if test="complaintType != null and complaintType != ''">#{complaintType},</if>
+            <if test="title != null and title != ''">#{title},</if>
+            <if test="content != null and content != ''">#{content},</if>
+            <if test="images != null and images != ''">#{images},</if>
+            <if test="contactName != null and contactName != ''">#{contactName},</if>
+            <if test="contactPhone != null and contactPhone != ''">#{contactPhone},</if>
+            <if test="status != null and status != ''">#{status},</if>
+            <if test="replyContent != null and replyContent != ''">#{replyContent},</if>
+            <if test="handleUserId != null">#{handleUserId},</if>
+            <if test="handleUserName != null and handleUserName != ''">#{handleUserName},</if>
+            <if test="handleTime != null">#{handleTime},</if>
+            <if test="remark != null and remark != ''">#{remark},</if>
+        </trim>
+    </insert>
+
+    <update id="updatePensionComplaint" parameterType="PensionComplaint">
+        update pension_complaint
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="replyContent != null">reply_content = #{replyContent},</if>
+            <if test="handleUserId != null">handle_user_id = #{handleUserId},</if>
+            <if test="handleUserName != null and handleUserName != ''">handle_user_name = #{handleUserName},</if>
+            <if test="handleTime != null">handle_time = #{handleTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where complaint_id = #{complaintId}
+    </update>
+
+    <delete id="deletePensionComplaintById" parameterType="Long">
+        delete from pension_complaint where complaint_id = #{complaintId}
+    </delete>
+
+</mapper>

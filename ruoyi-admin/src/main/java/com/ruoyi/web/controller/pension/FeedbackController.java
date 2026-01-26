@@ -1,112 +1,202 @@
 package com.ruoyi.web.controller.pension;
 
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
-import java.util.ArrayList;
-import org.springframework.web.bind.annotation.*;
+import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
+import com.ruoyi.common.core.domain.entity.SysUser;
+import com.ruoyi.common.core.domain.model.LoginUser;
 import com.ruoyi.common.core.page.TableDataInfo;
+import com.ruoyi.common.enums.BusinessType;
+import com.ruoyi.common.utils.SecurityUtils;
+import com.ruoyi.domain.pension.PensionComplaint;
+import com.ruoyi.service.IPensionComplaintService;
 
 /**
  * 投诉建议管理Controller
+ * 用于管理端处理H5端用户提交的投诉
  *
  * @author ruoyi
- * @date 2025-01-03
+ * @date 2025-01-26
  */
 @RestController
 @RequestMapping("/pension/feedback")
 public class FeedbackController extends BaseController
 {
+    @Autowired
+    private IPensionComplaintService complaintService;
+
     /**
      * 查询投诉建议列表
      */
+    @PreAuthorize("@ss.hasPermi('pension:feedback:list')")
     @GetMapping("/list")
-    public TableDataInfo list(@RequestParam(required = false) String type,
-                               @RequestParam(required = false) String status,
-                               @RequestParam(defaultValue = "1") Integer pageNum,
-                               @RequestParam(defaultValue = "10") Integer pageSize)
+    public TableDataInfo list(PensionComplaint complaint)
     {
-        List<Map<String, Object>> list = new ArrayList<>();
+        startPage();
+        List<PensionComplaint> list = complaintService.selectPensionComplaintList(complaint);
+        List<Map<String, Object>> resultList = list.stream()
+                .map(this::convertToListFormat)
+                .collect(Collectors.toList());
 
-        // TODO: 从数据库查询真实数据
-        Map<String, Object> item1 = new HashMap<>();
-        item1.put("feedbackNo", "FB202501001");
-        item1.put("type", "投诉");
-        item1.put("title", "服务态度问题");
-        item1.put("content", "护理员服务态度不好，希望改进");
-        item1.put("submitter", "张三");
-        item1.put("contact", "13800138000");
-        item1.put("submitTime", "2025-01-03 10:30:00");
-        item1.put("status", "已完成");
-        item1.put("handleComment", "已对相关人员进行培训教育");
-        item1.put("handleTime", "2025-01-04 14:00:00");
-        list.add(item1);
-
-        Map<String, Object> item2 = new HashMap<>();
-        item2.put("feedbackNo", "FB202501002");
-        item2.put("type", "建议");
-        item2.put("title", "增加文娱活动");
-        item2.put("content", "建议增加老年人的文娱活动项目");
-        item2.put("submitter", "李四");
-        item2.put("contact", "13900139000");
-        item2.put("submitTime", "2025-01-02 09:15:00");
-        item2.put("status", "处理中");
-        item2.put("handleComment", null);
-        item2.put("handleTime", null);
-        list.add(item2);
-
-        TableDataInfo dataInfo = new TableDataInfo();
-        dataInfo.setCode(200);
-        dataInfo.setMsg("查询成功");
-        dataInfo.setRows(list);
-        dataInfo.setTotal(list.size());
-        return dataInfo;
+        TableDataInfo dataTable = getDataTable(list);
+        dataTable.setRows(resultList);
+        return dataTable;
     }
 
     /**
-     * 提交投诉建议
+     * 查询投诉详情
      */
-    @PostMapping("/submit")
-    public AjaxResult submitFeedback(@RequestBody Map<String, Object> params)
+    @PreAuthorize("@ss.hasPermi('pension:feedback:query')")
+    @GetMapping("/detail/{complaintId}")
+    public AjaxResult getDetail(@PathVariable Long complaintId)
     {
-        // TODO: 保存到数据库
-        logger.info("提交投诉建议: {}", params);
-        return success("提交成功");
+        PensionComplaint complaint = complaintService.selectPensionComplaintById(complaintId);
+        if (complaint == null)
+        {
+            return AjaxResult.error("投诉不存在");
+        }
+        return AjaxResult.success(convertToDetailFormat(complaint));
     }
 
     /**
-     * 查询反馈详情
+     * 处理投诉
      */
-    @GetMapping("/detail/{feedbackNo}")
-    public AjaxResult getDetail(@PathVariable String feedbackNo)
+    @PreAuthorize("@ss.hasPermi('pension:feedback:handle')")
+    @Log(title = "处理投诉", businessType = BusinessType.UPDATE)
+    @PostMapping("/handle")
+    public AjaxResult handleComplaint(@RequestBody Map<String, Object> params)
     {
-        // TODO: 从数据库查询真实数据
-        Map<String, Object> data = new HashMap<>();
-        data.put("feedbackNo", feedbackNo);
-        data.put("type", "投诉");
-        data.put("title", "服务态度问题");
-        data.put("content", "护理员服务态度不好，希望改进");
-        data.put("submitter", "张三");
-        data.put("contact", "13800138000");
-        data.put("submitTime", "2025-01-03 10:30:00");
-        data.put("status", "已完成");
-        data.put("handleComment", "已对相关人员进行培训教育");
-        data.put("handleTime", "2025-01-04 14:00:00");
-        return success(data);
+        Long complaintId = params.get("complaintId") != null ?
+                Long.parseLong(params.get("complaintId").toString()) : null;
+        String status = (String) params.get("status");
+        String replyContent = (String) params.get("replyContent");
+
+        if (complaintId == null)
+        {
+            return AjaxResult.error("投诉ID不能为空");
+        }
+        if (status == null || status.isEmpty())
+        {
+            return AjaxResult.error("请选择处理状态");
+        }
+        if (replyContent == null || replyContent.trim().isEmpty())
+        {
+            return AjaxResult.error("请填写回复内容");
+        }
+
+        // 验证投诉是否存在
+        PensionComplaint existing = complaintService.selectPensionComplaintById(complaintId);
+        if (existing == null)
+        {
+            return AjaxResult.error("投诉不存在");
+        }
+
+        // 获取当前处理人信息
+        LoginUser loginUser = SecurityUtils.getLoginUser();
+        SysUser user = loginUser.getUser();
+        Long handleUserId = user.getUserId();
+        String handleUserName = user.getNickName();
+
+        int result = complaintService.handleComplaint(complaintId, status, replyContent, handleUserId, handleUserName);
+        if (result > 0)
+        {
+            return AjaxResult.success("处理成功");
+        }
+        return AjaxResult.error("处理失败");
     }
 
     /**
-     * 上传附件
+     * 获取投诉统计信息
      */
-    @PostMapping("/upload-attachment")
-    public AjaxResult uploadAttachment(@RequestParam("file") String fileUrl)
+    @PreAuthorize("@ss.hasPermi('pension:feedback:list')")
+    @GetMapping("/statistics")
+    public AjaxResult getStatistics()
     {
-        // TODO: 处理文件上传
-        Map<String, Object> data = new HashMap<>();
-        data.put("url", fileUrl);
-        data.put("name", "附件文件");
-        return success(data);
+        PensionComplaint query = new PensionComplaint();
+
+        // 总数
+        List<PensionComplaint> allList = complaintService.selectPensionComplaintList(query);
+
+        // 处理中
+        query.setStatus(PensionComplaint.STATUS_PROCESSING);
+        List<PensionComplaint> processingList = complaintService.selectPensionComplaintList(query);
+
+        // 已处理
+        query.setStatus(PensionComplaint.STATUS_PROCESSED);
+        List<PensionComplaint> processedList = complaintService.selectPensionComplaintList(query);
+
+        // 已拒绝
+        query.setStatus(PensionComplaint.STATUS_REJECTED);
+        List<PensionComplaint> rejectedList = complaintService.selectPensionComplaintList(query);
+
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("total", allList.size());
+        stats.put("processing", processingList.size());
+        stats.put("processed", processedList.size());
+        stats.put("rejected", rejectedList.size());
+
+        return AjaxResult.success(stats);
+    }
+
+    /**
+     * 转换为列表格式
+     */
+    private Map<String, Object> convertToListFormat(PensionComplaint complaint)
+    {
+        Map<String, Object> result = new HashMap<>();
+        result.put("complaintId", complaint.getComplaintId());
+        result.put("complaintNo", complaint.getComplaintNo());
+        result.put("institutionName", complaint.getInstitutionName());
+        result.put("title", complaint.getTitle());
+        result.put("complaintType", complaint.getComplaintType());
+        result.put("submitter", complaint.getContactName());
+        result.put("contact", complaint.getContactPhone());
+        result.put("submitTime", complaint.getCreateTime());
+        result.put("status", complaint.getStatus());
+        result.put("statusText", complaint.getStatusText());
+        result.put("hasImages", complaint.getImages() != null && !complaint.getImages().isEmpty());
+        return result;
+    }
+
+    /**
+     * 转换为详情格式
+     */
+    private Map<String, Object> convertToDetailFormat(PensionComplaint complaint)
+    {
+        Map<String, Object> result = new HashMap<>();
+        result.put("complaintId", complaint.getComplaintId());
+        result.put("complaintNo", complaint.getComplaintNo());
+        result.put("institutionId", complaint.getInstitutionId());
+        result.put("institutionName", complaint.getInstitutionName());
+        result.put("title", complaint.getTitle());
+        result.put("complaintType", complaint.getComplaintType());
+        result.put("content", complaint.getContent());
+
+        // 图片数组
+        result.put("images", complaint.getImageArray());
+
+        result.put("submitter", complaint.getContactName());
+        result.put("contact", complaint.getContactPhone());
+        result.put("submitTime", complaint.getCreateTime());
+        result.put("status", complaint.getStatus());
+        result.put("statusText", complaint.getStatusText());
+        result.put("replyContent", complaint.getReplyContent());
+        result.put("handleUserName", complaint.getHandleUserName());
+        result.put("handleTime", complaint.getHandleTime());
+        return result;
     }
 }
