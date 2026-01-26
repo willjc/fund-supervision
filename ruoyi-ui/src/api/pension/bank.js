@@ -17,12 +17,28 @@ export function getSupervisionList(query) {
   })
 }
 
+// 获取监管账户流水详情
+export function getSupervisionDetail(logId) {
+  return request({
+    url: '/pension/bank/supervision/detail/' + logId,
+    method: 'get'
+  })
+}
+
 // 查询收单交易流水
 export function getPaymentList(query) {
   return request({
     url: '/pension/bank/payment/list',
     method: 'get',
     params: query
+  })
+}
+
+// 获取收单交易详情
+export function getPaymentDetail(paymentId) {
+  return request({
+    url: '/pension/bank/payment/detail/' + paymentId,
+    method: 'get'
   })
 }
 

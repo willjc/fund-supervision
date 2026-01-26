@@ -47,30 +47,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             CONCAT(bi.room_number, '-', bi.bed_number) as bed_info,
             ei.status as check_in_status,
             ei.care_level,
-            COALESCE(
-                (SELECT SUM(oi.total_amount)
-                 FROM order_item oi
-                 INNER JOIN order_info o ON oi.order_id = o.order_id
-                 WHERE o.elder_id = ei.elder_id
-                   AND oi.item_type = 'service_fee'
-                   AND o.order_status = '1'), 0
-            ) as service_balance,
-            COALESCE(
-                (SELECT SUM(oi.total_amount)
-                 FROM order_item oi
-                 INNER JOIN order_info o ON oi.order_id = o.order_id
-                 WHERE o.elder_id = ei.elder_id
-                   AND oi.item_type = 'deposit'
-                   AND o.order_status = '1'), 0
-            ) as deposit_balance,
-            COALESCE(
-                (SELECT SUM(oi.total_amount)
-                 FROM order_item oi
-                 INNER JOIN order_info o ON oi.order_id = o.order_id
-                 WHERE o.elder_id = ei.elder_id
-                   AND oi.item_type = 'member_fee'
-                   AND o.order_status = '1'), 0
-            ) as member_balance,
+            COALESCE(ai.service_balance, 0) as service_balance,
+            COALESCE(ai.deposit_balance, 0) as deposit_balance,
+            COALESCE(ai.member_balance, 0) as member_balance,
             ba.check_in_date,
             ba.due_date,
             ei.emergency_contact,
@@ -128,30 +107,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             CONCAT(bi.room_number, '-', bi.bed_number) as bed_info,
             ei.status as check_in_status,
             ei.care_level,
-            COALESCE(
-                (SELECT SUM(oi.total_amount)
-                 FROM order_item oi
-                 INNER JOIN order_info o ON oi.order_id = o.order_id
-                 WHERE o.elder_id = ei.elder_id
-                   AND oi.item_type = 'service_fee'
-                   AND o.order_status = '1'), 0
-            ) as service_balance,
-            COALESCE(
-                (SELECT SUM(oi.total_amount)
-                 FROM order_item oi
-                 INNER JOIN order_info o ON oi.order_id = o.order_id
-                 WHERE o.elder_id = ei.elder_id
-                   AND oi.item_type = 'deposit'
-                   AND o.order_status = '1'), 0
-            ) as deposit_balance,
-            COALESCE(
-                (SELECT SUM(oi.total_amount)
-                 FROM order_item oi
-                 INNER JOIN order_info o ON oi.order_id = o.order_id
-                 WHERE o.elder_id = ei.elder_id
-                   AND oi.item_type = 'member_fee'
-                   AND o.order_status = '1'), 0
-            ) as member_balance,
+            COALESCE(ai.service_balance, 0) as service_balance,
+            COALESCE(ai.deposit_balance, 0) as deposit_balance,
+            COALESCE(ai.member_balance, 0) as member_balance,
             ba.check_in_date,
             ba.due_date,
             ei.emergency_contact,
@@ -164,7 +122,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             ei.create_time,
             ei.update_time,
             bi.institution_id,
-            pi.institution_name
+            pi.institution_name,
+            ai.account_id
         FROM elder_info ei
         LEFT JOIN bed_allocation ba ON ei.elder_id = ba.elder_id
             AND (ba.allocation_status = '1' OR ba.allocation_status = '0')
@@ -177,6 +136,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             )
         LEFT JOIN bed_info bi ON ba.bed_id = bi.bed_id
         LEFT JOIN pension_institution pi ON bi.institution_id = pi.institution_id
+        LEFT JOIN account_info ai ON ei.elder_id = ai.elder_id
         WHERE ei.elder_id = #{elderId}
     </select>
 
@@ -234,21 +194,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <select id="selectResidentStatistics" resultType="java.util.Map">
         SELECT
             COUNT(DISTINCT ei.elder_id) as totalResidents,
-            COALESCE(SUM(
-                CASE WHEN oi.item_type = 'service_fee' AND o.order_status = '1'
-                THEN oi.total_amount ELSE 0 END
-            ), 0) as totalServiceBalance,
-            COALESCE(SUM(
-                CASE WHEN oi.item_type = 'deposit' AND o.order_status = '1'
-                THEN oi.total_amount ELSE 0 END
-            ), 0) as totalDepositBalance,
-            COALESCE(SUM(
-                CASE WHEN oi.item_type = 'member_fee' AND o.order_status = '1'
-                THEN oi.total_amount ELSE 0 END
-            ), 0) as totalMemberBalance
+            COALESCE(SUM(ai.service_balance), 0) as totalServiceBalance,
+            COALESCE(SUM(ai.deposit_balance), 0) as totalDepositBalance,
+            COALESCE(SUM(ai.member_balance), 0) as totalMemberBalance
         FROM elder_info ei
-        LEFT JOIN order_info o ON ei.elder_id = o.elder_id
-        LEFT JOIN order_item oi ON o.order_id = oi.order_id
+        LEFT JOIN account_info ai ON ei.elder_id = ai.elder_id
         WHERE ei.status IN ('0', '1', '3')
     </select>
 

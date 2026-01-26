@@ -112,6 +112,36 @@ public class BankReconciliationController extends BaseController
     }
 
     /**
+     * 获取监管账户流水详情
+     */
+    @GetMapping("/supervision/detail/{logId}")
+    public AjaxResult getSupervisionDetail(@PathVariable Long logId)
+    {
+        SupervisionAccountLog log = supervisionAccountLogService.selectSupervisionAccountLogByLogId(logId);
+        if (log == null) {
+            return error("流水记录不存在");
+        }
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("logId", log.getLogId());
+        data.put("transactionNo", log.getTransactionNo());
+        data.put("transactionTime", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, log.getTransactionTime()));
+        data.put("transactionType", "收入".equals(log.getTransactionType()) ? "转入" : "转出");
+        data.put("amount", log.getAmount());
+        data.put("balanceBefore", log.getBalanceBefore());
+        data.put("balanceAfter", log.getBalanceAfter());
+        data.put("balance", log.getBalanceAfter());
+        data.put("businessType", log.getBusinessType());
+        data.put("description", log.getBusinessDesc());
+        data.put("counterparty", log.getCounterparty());
+        data.put("operator", log.getOperator());
+        data.put("relatedTransferId", log.getRelatedTransferId());
+        data.put("relatedOrderId", log.getRelatedOrderId());
+
+        return success(data);
+    }
+
+    /**
      * 查询收单交易流水
      */
     @GetMapping("/payment/list")
@@ -122,6 +152,9 @@ public class BankReconciliationController extends BaseController
     {
         startPage();
         List<PaymentRecord> list = paymentRecordService.selectPaymentRecordList(paymentRecord);
+
+        // 获取当前监管账户余额
+        BigDecimal currentBalance = supervisionAccountLogService.getCurrentBalance(null);
 
         // 转换为前端期望的格式
         List<Map<String, Object>> resultList = new java.util.ArrayList<>();
@@ -136,6 +169,7 @@ public class BankReconciliationController extends BaseController
             item.put("paymentChannel", record.getPaymentMethod()); // 简化处理
             item.put("fee", BigDecimal.ZERO); // 手续费暂无字段
             item.put("actualAmount", record.getPaymentAmount());
+            item.put("supervisionBalance", currentBalance); // 监管账户余额
 
             // 支付状态转换
             String status = "处理中";
@@ -153,6 +187,47 @@ public class BankReconciliationController extends BaseController
     }
 
     /**
+     * 获取收单交易详情
+     */
+    @GetMapping("/payment/detail/{paymentId}")
+    public AjaxResult getPaymentDetail(@PathVariable Long paymentId)
+    {
+        PaymentRecord record = paymentRecordService.selectPaymentRecordByPaymentId(paymentId);
+        if (record == null) {
+            return error("支付记录不存在");
+        }
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("paymentId", record.getPaymentId());
+        data.put("paymentNo", record.getPaymentNo());
+        data.put("orderNo", record.getOrderNo());
+        data.put("transactionNo", record.getTransactionId());
+        data.put("paymentTime", record.getPaymentTime() != null ?
+            DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, record.getPaymentTime()) : "");
+        data.put("amount", record.getPaymentAmount());
+        data.put("paymentMethod", record.getPaymentMethod());
+        data.put("actualAmount", record.getPaymentAmount());
+        data.put("paymentProof", record.getPaymentProof());
+        data.put("paymentProofRemark", record.getPaymentProofRemark());
+
+        // 支付状态转换
+        String status = "处理中";
+        if ("1".equals(record.getPaymentStatus())) {
+            status = "已完成";
+        } else if ("2".equals(record.getPaymentStatus())) {
+            status = "失败";
+        }
+        data.put("status", status);
+        data.put("remark", record.getRemark());
+
+        // 获取关联的老人和机构名称（需要查询）
+        data.put("elderName", ""); // TODO: 从elder_info表查询
+        data.put("institutionName", ""); // TODO: 从pension_institution表查询
+
+        return success(data);
+    }
+
+    /**
      * 获取收单交易统计
      */
     @GetMapping("/payment/statistics")
@@ -160,25 +235,51 @@ public class BankReconciliationController extends BaseController
     {
         // 获取今日统计
         String today = DateUtils.getDate();
-        Date todayStart = DateUtils.parseDate(today);
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTime(todayStart);
-        calendar.add(Calendar.DAY_OF_MONTH, 1);
-        Date todayEnd = calendar.getTime();
 
         // 获取本月第一天
         Calendar monthCalendar = Calendar.getInstance();
         monthCalendar.set(Calendar.DAY_OF_MONTH, 1);
-        Date monthStart = monthCalendar.getTime();
+        String monthStart = DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD, monthCalendar.getTime());
 
         Map<String, Object> data = new HashMap<>();
 
-        // TODO: 从 payment_record 表统计数据
-        // 目前返回示例数据
-        data.put("todayCount", 0);
-        data.put("todayAmount", BigDecimal.ZERO);
-        data.put("monthCount", 0);
-        data.put("monthAmount", BigDecimal.ZERO);
+        // 查询今日已支付记录
+        PaymentRecord todayQuery = new PaymentRecord();
+        todayQuery.setPaymentStatus("1"); // 已支付
+        Map<String, Object> todayParams = new HashMap<>();
+        todayParams.put("beginTime", today);
+        todayParams.put("endTime", today);
+        todayQuery.setParams(todayParams);
+        List<PaymentRecord> todayList = paymentRecordService.selectPaymentRecordList(todayQuery);
+
+        int todayCount = todayList.size();
+        BigDecimal todayAmount = BigDecimal.ZERO;
+        for (PaymentRecord record : todayList) {
+            if (record.getPaymentAmount() != null) {
+                todayAmount = todayAmount.add(record.getPaymentAmount());
+            }
+        }
+
+        // 查询本月已支付记录
+        PaymentRecord monthQuery = new PaymentRecord();
+        monthQuery.setPaymentStatus("1");
+        Map<String, Object> monthParams = new HashMap<>();
+        monthParams.put("beginTime", monthStart);
+        monthQuery.setParams(monthParams);
+        List<PaymentRecord> monthList = paymentRecordService.selectPaymentRecordList(monthQuery);
+
+        int monthCount = monthList.size();
+        BigDecimal monthAmount = BigDecimal.ZERO;
+        for (PaymentRecord record : monthList) {
+            if (record.getPaymentAmount() != null) {
+                monthAmount = monthAmount.add(record.getPaymentAmount());
+            }
+        }
+
+        data.put("todayCount", todayCount);
+        data.put("todayAmount", todayAmount);
+        data.put("monthCount", monthCount);
+        data.put("monthAmount", monthAmount);
 
         return success(data);
     }

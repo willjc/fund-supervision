@@ -38,25 +38,25 @@
       <el-row :gutter="20" class="stats-cards">
         <el-col :span="6">
           <div class="stat-card">
-            <div class="stat-label">今日交易笔数</div>
+            <div class="stat-label">今日收入笔数</div>
             <div class="stat-value">{{ stats.todayCount }}</div>
           </div>
         </el-col>
         <el-col :span="6">
           <div class="stat-card">
-            <div class="stat-label">今日交易金额</div>
+            <div class="stat-label">今日监管账户收入</div>
             <div class="stat-value">¥{{ formatMoney(stats.todayAmount) }}</div>
           </div>
         </el-col>
         <el-col :span="6">
           <div class="stat-card">
-            <div class="stat-label">本月交易笔数</div>
+            <div class="stat-label">本月收入笔数</div>
             <div class="stat-value">{{ stats.monthCount }}</div>
           </div>
         </el-col>
         <el-col :span="6">
           <div class="stat-card">
-            <div class="stat-label">本月交易金额</div>
+            <div class="stat-label">本月监管账户收入</div>
             <div class="stat-value">¥{{ formatMoney(stats.monthAmount) }}</div>
           </div>
         </el-col>
@@ -84,13 +84,61 @@
             ¥{{ formatMoney(scope.row.actualAmount) }}
           </template>
         </el-table-column>
+        <el-table-column label="监管账户余额" prop="supervisionBalance" width="150">
+          <template slot-scope="scope">
+            <span style="color: #67C23A; font-weight: bold;">¥{{ formatMoney(scope.row.supervisionBalance) }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="订单状态" prop="status" width="100">
           <template slot-scope="scope">
             <el-tag :type="getStatusType(scope.row.status)">{{ scope.row.status }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="备注" prop="remark" show-overflow-tooltip></el-table-column>
+        <el-table-column label="操作" width="100" align="center">
+          <template slot-scope="scope">
+            <el-button size="mini" type="text" @click="handleDetail(scope.row)">详情</el-button>
+          </template>
+        </el-table-column>
       </el-table>
+
+      <!-- 详情对话框 -->
+      <el-dialog title="收单交易详情" :visible.sync="detailOpen" width="700px" append-to-body>
+        <el-descriptions :column="2" border v-if="currentDetail">
+          <el-descriptions-item label="支付单号">{{ currentDetail.paymentNo }}</el-descriptions-item>
+          <el-descriptions-item label="支付时间">{{ currentDetail.paymentTime }}</el-descriptions-item>
+          <el-descriptions-item label="订单号">{{ currentDetail.orderNo }}</el-descriptions-item>
+          <el-descriptions-item label="支付方式">{{ currentDetail.paymentMethod }}</el-descriptions-item>
+          <el-descriptions-item label="支付金额">
+            <span style="font-weight: bold; color: #409EFF;">¥{{ formatMoney(currentDetail.amount) }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="实际到账">
+            <span style="font-weight: bold; color: #67C23A;">¥{{ formatMoney(currentDetail.actualAmount) }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="订单状态">
+            <el-tag :type="getStatusType(currentDetail.status)">{{ currentDetail.status }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="交易流水号">{{ currentDetail.transactionNo || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="关联老人" :span="2">{{ currentDetail.elderName || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="关联机构" :span="2">{{ currentDetail.institutionName || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="支付凭证" :span="2" v-if="currentDetail.paymentProof">
+            <el-image
+              v-if="currentDetail.paymentProof"
+              :src="currentDetail.paymentProof"
+              :preview-src-list="[currentDetail.paymentProof]"
+              style="width: 100px; height: 100px; cursor: pointer;"
+              fit="cover">
+            </el-image>
+          </el-descriptions-item>
+          <el-descriptions-item label="凭证备注" :span="2" v-if="currentDetail.paymentProofRemark">
+            {{ currentDetail.paymentProofRemark }}
+          </el-descriptions-item>
+          <el-descriptions-item label="备注" :span="2">{{ currentDetail.remark || '-' }}</el-descriptions-item>
+        </el-descriptions>
+        <div slot="footer" class="dialog-footer">
+          <el-button @click="detailOpen = false">关闭</el-button>
+        </div>
+      </el-dialog>
 
       <!-- 分页 -->
       <pagination
@@ -105,7 +153,7 @@
 </template>
 
 <script>
-import { getPaymentList, getPaymentStatistics } from '@/api/pension/bank'
+import { getPaymentList, getPaymentStatistics, getPaymentDetail } from '@/api/pension/bank'
 
 export default {
   name: 'BankPayment',
@@ -126,7 +174,9 @@ export default {
         todayAmount: 0,
         monthCount: 0,
         monthAmount: 0
-      }
+      },
+      detailOpen: false,
+      currentDetail: null
     }
   },
   created() {
@@ -183,6 +233,15 @@ export default {
     // 导出
     handleExport() {
       this.$message.success('导出功能开发中')
+    },
+    // 查看详情
+    handleDetail(row) {
+      getPaymentDetail(row.paymentId).then(response => {
+        this.currentDetail = response.data
+        this.detailOpen = true
+      }).catch(error => {
+        console.error('获取详情失败:', error)
+      })
     },
     // 格式化金额
     formatMoney(value) {

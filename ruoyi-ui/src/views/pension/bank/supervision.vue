@@ -2,7 +2,7 @@
   <div class="app-container">
     <el-card>
       <div slot="header">
-        <span>监管账户交易流水</span>
+        <span>监管账户与基本账户流水</span>
       </div>
 
       <!-- 搜索条件 -->
@@ -19,8 +19,9 @@
         </el-form-item>
         <el-form-item label="交易类型">
           <el-select v-model="queryParams.transactionType" placeholder="请选择" clearable>
-            <el-option label="转入" value="转入"></el-option>
-            <el-option label="转出" value="转出"></el-option>
+            <el-option label="全部" value=""></el-option>
+            <el-option label="收入" value="收入"></el-option>
+            <el-option label="支出" value="支出"></el-option>
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -29,28 +30,6 @@
           <el-button type="success" icon="el-icon-download" @click="handleExport">导出</el-button>
         </el-form-item>
       </el-form>
-
-      <!-- 账户信息卡片 -->
-      <el-row :gutter="20" class="account-info">
-        <el-col :span="8">
-          <div class="info-card">
-            <div class="info-label">账户余额</div>
-            <div class="info-value">¥{{ formatMoney(accountInfo.balance) }}</div>
-          </div>
-        </el-col>
-        <el-col :span="8">
-          <div class="info-card">
-            <div class="info-label">本月收入</div>
-            <div class="info-value success">¥{{ formatMoney(accountInfo.monthIncome) }}</div>
-          </div>
-        </el-col>
-        <el-col :span="8">
-          <div class="info-card">
-            <div class="info-label">本月支出</div>
-            <div class="info-value danger">¥{{ formatMoney(accountInfo.monthExpense) }}</div>
-          </div>
-        </el-col>
-      </el-row>
 
       <!-- 交易流水表格 -->
       <el-table v-loading="loading" :data="dataList" border style="margin-top: 20px">
@@ -63,6 +42,13 @@
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column label="账户类型" width="120">
+          <template slot-scope="scope">
+            <el-tag :type="scope.row.transactionType === '转入' ? 'primary' : 'warning'">
+              {{ scope.row.transactionType === '转入' ? '监管账户' : '基本账户' }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="交易金额" prop="amount" width="150">
           <template slot-scope="scope">
             <span :class="scope.row.transactionType === '转入' ? 'text-success' : 'text-danger'">
@@ -70,14 +56,66 @@
             </span>
           </template>
         </el-table-column>
-        <el-table-column label="账户余额" prop="balance" width="150">
+        <el-table-column label="监管账户余额" prop="balance" width="150">
           <template slot-scope="scope">
-            ¥{{ formatMoney(scope.row.balance) }}
+            <span style="font-weight: bold;">¥{{ formatMoney(scope.row.balance) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="业务类型" prop="businessType" width="120">
+          <template slot-scope="scope">
+            {{ scope.row.businessType || '-' }}
           </template>
         </el-table-column>
         <el-table-column label="交易说明" prop="description" show-overflow-tooltip></el-table-column>
         <el-table-column label="对方户名" prop="counterpartyName" width="200"></el-table-column>
+        <el-table-column label="操作" width="100" align="center">
+          <template slot-scope="scope">
+            <el-button size="mini" type="text" @click="handleDetail(scope.row)">详情</el-button>
+          </template>
+        </el-table-column>
       </el-table>
+
+      <!-- 详情对话框 -->
+      <el-dialog title="账户流水详情" :visible.sync="detailOpen" width="700px" append-to-body>
+        <el-descriptions :column="2" border v-if="currentDetail">
+          <el-descriptions-item label="交易流水号">{{ currentDetail.transactionNo }}</el-descriptions-item>
+          <el-descriptions-item label="交易时间">{{ currentDetail.transactionTime }}</el-descriptions-item>
+          <el-descriptions-item label="交易类型">
+            <el-tag :type="currentDetail.transactionType === '转入' ? 'success' : 'warning'">
+              {{ currentDetail.transactionType }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="账户类型">
+            <el-tag :type="currentDetail.transactionType === '转入' ? 'primary' : 'warning'">
+              {{ currentDetail.transactionType === '转入' ? '监管账户' : '基本账户' }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="业务类型">{{ currentDetail.businessType || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="交易金额">
+            <span :class="currentDetail.transactionType === '转入' ? 'text-success' : 'text-danger'" style="font-weight: bold;">
+              {{ currentDetail.transactionType === '转入' ? '+' : '-' }}¥{{ formatMoney(currentDetail.amount) }}
+            </span>
+          </el-descriptions-item>
+          <el-descriptions-item label="监管账户余额">
+            <span style="font-weight: bold;">¥{{ formatMoney(currentDetail.balance) }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="交易前余额" :span="2">
+            ¥{{ formatMoney(currentDetail.balanceBefore) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="交易说明" :span="2">{{ currentDetail.description || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="对方账户">{{ currentDetail.counterparty || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="操作人">{{ currentDetail.operator || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="关联划拨单" :span="2" v-if="currentDetail.relatedTransferId">
+            {{ currentDetail.relatedTransferId }}
+          </el-descriptions-item>
+          <el-descriptions-item label="关联订单" :span="2" v-if="currentDetail.relatedOrderId">
+            {{ currentDetail.relatedOrderId }}
+          </el-descriptions-item>
+        </el-descriptions>
+        <div slot="footer" class="dialog-footer">
+          <el-button @click="detailOpen = false">关闭</el-button>
+        </div>
+      </el-dialog>
 
       <!-- 分页 -->
       <pagination
@@ -92,7 +130,7 @@
 </template>
 
 <script>
-import { getAccountInfo, getSupervisionList } from '@/api/pension/bank'
+import { getSupervisionList, getSupervisionDetail } from '@/api/pension/bank'
 
 export default {
   name: 'BankSupervision',
@@ -107,26 +145,14 @@ export default {
         pageSize: 10,
         transactionType: null
       },
-      accountInfo: {
-        balance: 0,
-        monthIncome: 0,
-        monthExpense: 0
-      }
+      detailOpen: false,
+      currentDetail: null
     }
   },
   created() {
-    this.getAccountInfo()
     this.getList()
   },
   methods: {
-    // 获取账户信息
-    getAccountInfo() {
-      getAccountInfo().then(response => {
-        this.accountInfo = response.data || { balance: 0, monthIncome: 0, monthExpense: 0 }
-      }).catch(error => {
-        console.error('获取账户信息失败:', error)
-      })
-    },
     // 查询列表
     getList() {
       this.loading = true
@@ -166,6 +192,15 @@ export default {
     handleExport() {
       this.$message.success('导出功能开发中')
     },
+    // 查看详情
+    handleDetail(row) {
+      getSupervisionDetail(row.logId).then(response => {
+        this.currentDetail = response.data
+        this.detailOpen = true
+      }).catch(error => {
+        console.error('获取详情失败:', error)
+      })
+    },
     // 格式化金额
     formatMoney(value) {
       if (!value) return '0.00'
@@ -179,37 +214,6 @@ export default {
 </script>
 
 <style scoped lang="scss">
-.account-info {
-  margin-bottom: 20px;
-
-  .info-card {
-    background: #f5f7fa;
-    padding: 20px;
-    border-radius: 8px;
-    text-align: center;
-  }
-
-  .info-label {
-    font-size: 14px;
-    color: #909399;
-    margin-bottom: 10px;
-  }
-
-  .info-value {
-    font-size: 24px;
-    font-weight: bold;
-    color: #303133;
-
-    &.success {
-      color: #67c23a;
-    }
-
-    &.danger {
-      color: #f56c6c;
-    }
-  }
-}
-
 .text-success {
   color: #67c23a;
 }

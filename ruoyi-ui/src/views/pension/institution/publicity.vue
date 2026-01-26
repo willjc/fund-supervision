@@ -788,9 +788,18 @@ export default {
 
 <style scoped lang="scss">
 .publicity-card {
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+
   ::v-deep .el-card__header {
-    background: #f5f7fa;
-    border-bottom: 1px solid #ebeef5;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-bottom: none;
+    padding: 20px 24px;
+  }
+
+  ::v-deep .el-card__body {
+    padding: 32px;
   }
 }
 
@@ -798,41 +807,232 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
 
-.header-left {
-  flex: 1;
-}
+  .header-left {
+    span {
+      font-size: 18px;
+      font-weight: 600;
+      color: #ffffff;
+    }
+  }
 
-.header-right {
-  display: flex;
-  gap: 8px;
+  .header-right {
+    display: flex;
+    gap: 10px;
+  }
 }
 
 .el-divider {
-  margin: 30px 0 20px 0;
+  margin: 32px 0 24px 0;
+
+  ::v-deep .el-divider__text {
+    font-size: 15px;
+    font-weight: 600;
+    color: #667eea;
+  }
+
+  ::v-deep .el-divider__line {
+    background-color: #e8eef5;
+  }
+}
+
+// 表单项美化
+::v-deep .el-form-item__label {
+  font-weight: 500;
+  color: #606266;
+}
+
+::v-deep .el-input__inner,
+::v-deep .el-textarea__inner {
+  border-radius: 6px;
+  border: 1px solid #dcdfe6;
+  transition: all 0.3s;
+
+  &:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+  }
+
+  &:disabled {
+    background-color: #f5f7fa;
+  }
+}
+
+::v-deep .el-input-number {
+  .el-input-number__increase,
+  .el-input-number__decrease {
+    background-color: #f5f7fa;
+    border-color: #dcdfe6;
+
+    &:hover {
+      color: #667eea;
+    }
+  }
+}
+
+// 按钮美化
+.header-right {
+  ::v-deep .el-button--warning {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #ffffff;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.25);
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+
+    &:focus {
+      color: #ffffff;
+    }
+  }
+
+  ::v-deep .el-button--primary {
+    background: #ffffff;
+    color: #667eea;
+    border-color: #ffffff;
+
+    &:hover {
+      background: #f0f0f0;
+      color: #5568d3;
+    }
+
+    &:focus {
+      color: #5568d3;
+    }
+  }
+
+  .el-icon-setting {
+    margin-right: 4px;
+  }
+}
+
+// 图片上传区域美化
+::v-deep .el-upload-list--picture-card .el-upload-list__item {
+  width: 130px;
+  height: 130px;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  }
+}
+
+::v-deep .el-upload--picture-card {
+  width: 130px;
+  height: 130px;
+  line-height: 130px;
+  border-radius: 10px;
+  border: 2px dashed #dcdfe6;
+  background: #fafbfc;
+  transition: all 0.3s;
+
+  &:hover {
+    border-color: #667eea;
+    background: #f5f3ff;
+  }
+
+  .el-icon-plus {
+    color: #667eea;
+    font-size: 28px;
+  }
+}
+
+// 复选框美化
+::v-deep .el-checkbox {
+  margin-right: 20px;
+  margin-bottom: 12px;
+
+  .el-checkbox__label {
+    font-size: 14px;
+    color: #606266;
+  }
+
+  .el-checkbox__input.is-checked + .el-checkbox__label {
+    color: #667eea;
+  }
+}
+
+// 开关美化
+::v-deep .el-switch {
+  &.is-checked {
+    .el-switch__core {
+      background-color: #667eea;
+      border-color: #667eea;
+    }
+  }
+}
+
+// 图片预览对话框
+::v-deep .el-dialog {
+  border-radius: 12px;
+  overflow: hidden;
+
+  .el-dialog__header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20px 24px;
+
+    .el-dialog__title {
+      color: #ffffff;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .el-dialog__headerbtn .el-dialog__close {
+      color: #ffffff;
+    }
+  }
+
+  .el-dialog__body {
+    padding: 24px;
+  }
+
+  .el-dialog__footer {
+    padding: 16px 24px;
+    border-top: 1px solid #ebeef5;
+  }
 }
 
 .upload-tip {
   font-size: 12px;
   color: #909399;
   margin-top: 8px;
+  line-height: 1.4;
 }
 
 .form-tip {
   font-size: 12px;
   color: #909399;
-  margin-top: 5px;
+  margin-top: 6px;
+  line-height: 1.4;
 }
 
-::v-deep .el-upload-list--picture-card .el-upload-list__item {
-  width: 120px;
-  height: 120px;
+// 费用显示区域
+.el-form-item {
+  margin-bottom: 22px;
+
+  ::v-deep .el-form-item__content {
+    line-height: 1;
+  }
 }
 
-::v-deep .el-upload--picture-card {
-  width: 120px;
-  height: 120px;
-  line-height: 120px;
+// 服务时间安排
+.daily-service-item {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>
