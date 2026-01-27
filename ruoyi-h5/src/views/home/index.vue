@@ -545,7 +545,7 @@ onMounted(() => {
   font-family: 'PingFang SC', '苹方-简', sans-serif;
   display: inline-block;
   height: 0.96667rem;
-  line-height: 0.38667rem;
+  line-height: 0.96667rem;
   cursor: pointer;
   /* height: 22px;
   line-height: 22px; */

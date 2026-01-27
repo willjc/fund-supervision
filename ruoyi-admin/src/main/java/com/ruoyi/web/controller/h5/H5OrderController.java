@@ -1053,6 +1053,21 @@ public class H5OrderController extends BaseController
                                 // 再次更新账户余额（扣除首月服务费）
                                 accountInfoService.updateAccountInfo(account);
 
+                                // 生成监管账户划拨流水记录（首月服务费划拨到机构基本账户）
+                                try {
+                                    supervisionAccountLogService.recordTransferOut(
+                                        order.getInstitutionId(),
+                                        order.getOrderId(),
+                                        firstMonthServiceFee,
+                                        "首月服务费划拨-" + order.getOrderNo(),
+                                        "基本账户"
+                                    );
+                                    logger.info("生成首月服务费划拨流水：" + firstMonthServiceFee + "元，订单号：" + order.getOrderNo());
+                                } catch (Exception e) {
+                                    logger.error("记录首月服务费划拨流水失败", e);
+                                    // 划拨流水记录失败不影响主流程
+                                }
+
                                 logger.info("扣除首月服务费：" + firstMonthServiceFee + "元，订单号：" + order.getOrderNo());
                             } else {
                                 logger.warn("服务费余额不足以扣除首月服务费：" + firstMonthServiceFee + "元，当前余额：" + account.getServiceBalance() + "元");

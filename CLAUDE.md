@@ -35,7 +35,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **主机**: localhost
 - **端口**: 3306
 - **用户名**: root
-- **密码**: 123456
+- **密码**: 123456789w
 - **连接URL**: jdbc:mysql://localhost:3306/newzijin?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8
 
 **说明**：
@@ -73,12 +73,6 @@ npm run dev        # 开发环境 (端口: 3000)
 npm run build      # 生产环境构建
 ```
 
-### 数据库初始化
-```bash
-# 导入数据库脚本 (MySQL)
-mysql -u root -p < sql/ry_20250522.sql
-mysql -u root -p < sql/quartz.sql
-```
 
 ## 项目架构
 
@@ -574,6 +568,100 @@ ruoyi-admin/
 └── src/main/java/com/ruoyi/web/controller/h5/
     └── H5OrderController.java  # H5端控制器（566-690行：支付功能）
 ```
+
+## 监管账户划拨流水记录最佳实践 ⭐ 重要
+
+当系统执行资金划拨操作（如押金使用、服务费扣除等）时，必须同时生成监管账户流水记录，以便在管理端监管账户流水页面能够追踪所有资金变动。
+
+### 核心原则
+
+**任何资金从监管账户划拨出去的操作，都必须调用 `recordTransferOut` 生成流水记录。**
+
+### 什么时候需要生成划拨流水
+
+以下场景需要生成监管账户支出流水：
+
+| 场景 | 示例 | 划拨去向 |
+|------|------|----------|
+| 押金使用申请审批通过 | 家属申请购买物品，监管部门审批通过 | 基本账户 |
+| 首月服务费扣除 | 新入住订单支付后自动扣除首月服务费 | 基本账户 |
+| 月度服务费划拨 | 定时任务每月自动划拨服务费给机构 | 基本账户 |
+| 退款划拨 | 老人退款审批通过 | 基本账户 |
+
+### 代码实现模板
+
+```java
+// 1. 注入服务
+@Autowired
+private ISupervisionAccountLogService supervisionAccountLogService;
+
+// 2. 在资金划拨成功后调用 recordTransferOut
+try {
+    supervisionAccountLogService.recordTransferOut(
+        institutionId,           // 机构ID
+        relatedId,               // 关联ID（订单ID、申请ID等）
+        amount,                  // 划拨金额
+        businessDesc,            // 业务描述，如"首月服务费划拨-订单号"
+        "基本账户"                // 划拨去向
+    );
+    logger.info("生成划拨流水成功：" + amount + "元");
+} catch (Exception e) {
+    logger.error("记录划拨流水失败", e);
+    // 划拨流水记录失败不应影响主流程
+}
+```
+
+### 完整示例（首月服务费划拨）
+
+```java
+// 文件：H5OrderController.java
+// 位置：updateAccountBalanceFromOrder 方法中
+
+if ("1".equals(order.getOrderType())) {
+    // 计算首月服务费
+    BigDecimal firstMonthServiceFee = calculateFirstMonthServiceFee(order.getOrderId());
+
+    if (firstMonthServiceFee.compareTo(BigDecimal.ZERO) > 0) {
+        // 检查余额是否足够
+        if (account.getServiceBalance().compareTo(firstMonthServiceFee) >= 0) {
+            // 更新账户余额（扣除）
+            account.setServiceBalance(account.getServiceBalance().subtract(firstMonthServiceFee));
+            account.setTotalBalance(account.getTotalBalance().subtract(firstMonthServiceFee));
+            accountInfoService.updateAccountInfo(account);
+
+            // 生成监管账户划拨流水
+            supervisionAccountLogService.recordTransferOut(
+                order.getInstitutionId(),
+                order.getOrderId(),
+                firstMonthServiceFee,
+                "首月服务费划拨-" + order.getOrderNo(),
+                "基本账户"
+            );
+
+            logger.info("扣除首月服务费：" + firstMonthServiceFee + "元，订单号：" + order.getOrderNo());
+        }
+    }
+}
+```
+
+### 参考实现
+
+- **押金使用划拨**: `DepositApplyServiceImpl.java` 第268-275行
+- **首月服务费划拨**: `H5OrderController.java` 第1056-1069行
+- **监管账户流水服务**: `SupervisionAccountLogServiceImpl.java` 第132-165行
+- **流水查询接口**: `BankReconciliationController.java` 第113-158行
+
+### 流水记录字段说明
+
+| 字段 | 说明 | 示例值 |
+|------|------|--------|
+| transactionType | 交易类型 | "支出" |
+| businessType | 业务类型 | "押金划拨" |
+| amount | 划拨金额 | 3000.00 |
+| businessDesc | 业务描述 | "首月服务费划拨-ORD202501270001" |
+| counterparty | 交易对手 | "基本账户" |
+| relatedOrderId | 关联订单ID | 123 |
+| relatedTransferId | 关联划拨ID | 456 |
 
 ## 相关文档
 - **功能描述**: `功能描述.md` - 完整的功能需求文档

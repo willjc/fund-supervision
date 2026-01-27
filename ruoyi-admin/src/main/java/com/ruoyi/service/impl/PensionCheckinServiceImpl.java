@@ -6,6 +6,7 @@ import java.util.Date;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.DigestUtils;
 import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.common.exception.ServiceException;
@@ -122,6 +123,8 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
             elderInfo.setEmergencyContact(dto.getEmergencyContact());
             elderInfo.setEmergencyPhone(dto.getEmergencyPhone());
             elderInfo.setSpecialNeeds(dto.getSpecialNeeds());
+            // 设置默认密码：123456（MD5加密），用于老人登录H5端
+            elderInfo.setPassword(DigestUtils.md5DigestAsHex("123456".getBytes()));
             // 根据支付方式设置状态: 已支付->已入住, 未支付->待入住
             elderInfo.setStatus("later".equals(dto.getPaymentMethod()) ? "0" : "1");
             elderInfo.setCreateTime(DateUtils.getNowDate());

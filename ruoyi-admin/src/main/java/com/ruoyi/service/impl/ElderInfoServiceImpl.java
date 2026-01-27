@@ -2,8 +2,10 @@ package com.ruoyi.service.impl;
 
 import java.util.List;
 import com.ruoyi.common.utils.DateUtils;
+import com.ruoyi.common.utils.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.DigestUtils;
 import com.ruoyi.mapper.ElderInfoMapper;
 import com.ruoyi.mapper.ElderAttachmentMapper;
 import com.ruoyi.domain.ElderInfo;
@@ -74,6 +76,10 @@ public class ElderInfoServiceImpl implements IElderInfoService
     {
         elderInfo.setCreateTime(DateUtils.getNowDate());
         elderInfo.setStatus("0"); // 默认状态为未入住
+        // 如果密码为空，设置默认密码：123456（MD5加密），用于老人登录H5端
+        if (StringUtils.isEmpty(elderInfo.getPassword())) {
+            elderInfo.setPassword(DigestUtils.md5DigestAsHex("123456".getBytes()));
+        }
         return elderInfoMapper.insertElderInfo(elderInfo);
     }
 
