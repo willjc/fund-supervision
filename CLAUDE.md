@@ -40,7 +40,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **说明**：
 - 使用 MySQL MCP 工具时，直接连接到此数据库
-- 配置文件位置：`ruoyi-admin/src/main/resources/application-druid.yml`
+- 配置文件位置：`/Users/wangwen/Desktop/supervison/fund-supervision/ruoyi-admin/src/main/resources/application-druid.yml`
 
 ## 核心开发原则 (必须遵守)
 

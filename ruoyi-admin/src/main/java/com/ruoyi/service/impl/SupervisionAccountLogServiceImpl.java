@@ -221,4 +221,16 @@ public class SupervisionAccountLogServiceImpl implements ISupervisionAccountLogS
         BigDecimal balance = supervisionAccountLogMapper.selectBasicBalanceByTime(institutionId, transactionTime);
         return balance != null ? balance : BigDecimal.ZERO;
     }
+
+    /**
+     * 查询所有机构的监管账户流水（无数据权限限制，用于超管查看）
+     *
+     * @param supervisionAccountLog 监管账户流水
+     * @return 监管账户流水集合
+     */
+    @Override
+    public List<SupervisionAccountLog> selectAllSupervisionAccountLogList(SupervisionAccountLog supervisionAccountLog)
+    {
+        return supervisionAccountLogMapper.selectAllSupervisionAccountLogList(supervisionAccountLog);
+    }
 }

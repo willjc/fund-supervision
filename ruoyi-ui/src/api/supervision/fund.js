@@ -1,80 +1,74 @@
 import request from '@/utils/request'
 
-// 查询资金记录查看
-export function listFundRecord(query) {
+// ==================== 划付规则配置接口 ====================
+
+// 查询划付规则配置列表
+export function listTransferRule(query) {
   return request({
-    url: '/supervision/fund/record/list',
+    url: '/supervision/fund/transfer-rule/list',
     method: 'get',
     params: query
   })
 }
 
-// 查询资金统计概览
-export function getFundStatistics(query) {
+// 查询划付规则配置详细
+export function getTransferRule(ruleId) {
   return request({
-    url: '/supervision/fund/statistics',
-    method: 'get',
-    params: query
-  })
-}
-
-// 查询资金流动明细
-export function listFundFlowDetail(query) {
-  return request({
-    url: '/supervision/fund/flow/detail',
-    method: 'get',
-    params: query
-  })
-}
-
-// 查询分配规则配置列表
-export function listAllocationRule(query) {
-  return request({
-    url: '/supervision/fund/allocation-rule/list',
-    method: 'get',
-    params: query
-  })
-}
-
-// 查询分配规则配置详细
-export function getAllocationRule(ruleId) {
-  return request({
-    url: '/supervision/fund/allocation-rule/detail/' + ruleId,
+    url: '/supervision/fund/transfer-rule/' + ruleId,
     method: 'get'
   })
 }
 
-// 新增分配规则配置
-export function addAllocationRule(data) {
+// 新增划付规则配置
+export function addTransferRule(data) {
   return request({
-    url: '/supervision/fund/allocation-rule/add',
+    url: '/supervision/fund/transfer-rule',
     method: 'post',
     data: data
   })
 }
 
-// 修改分配规则配置
-export function updateAllocationRule(data) {
+// 修改划付规则配置
+export function updateTransferRule(data) {
   return request({
-    url: '/supervision/fund/allocation-rule/update/' + data.ruleId,
+    url: '/supervision/fund/transfer-rule',
     method: 'put',
     data: data
   })
 }
 
-// 删除分配规则配置
-export function delAllocationRule(ruleId) {
+// 删除划付规则配置
+export function delTransferRule(ruleIds) {
   return request({
-    url: '/supervision/fund/allocation-rule/delete/' + ruleId,
+    url: '/supervision/fund/transfer-rule/' + ruleIds,
     method: 'delete'
   })
 }
 
-// 查询规则执行历史
-export function listRuleExecutionHistory(ruleId, query) {
+// ==================== 资金划付记录接口 ====================
+
+// 查询资金划付记录列表
+export function listTransferRecord(query) {
   return request({
-    url: '/supervision/fund/allocation-rule/history/' + ruleId,
+    url: '/supervision/fund/transfer-record/list',
     method: 'get',
     params: query
+  })
+}
+
+// 导出资金划付记录
+export function exportTransferRecord(query) {
+  return request({
+    url: '/supervision/fund/transfer-record/export',
+    method: 'post',
+    params: query
+  })
+}
+
+// 获取所有机构列表
+export function getAllInstitutions() {
+  return request({
+    url: '/supervision/fund/institutions/all',
+    method: 'get'
   })
 }

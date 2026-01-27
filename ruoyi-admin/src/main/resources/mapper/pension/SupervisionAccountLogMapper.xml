@@ -115,6 +115,26 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             and transaction_time &lt;= #{transactionTime}
     </select>
 
+    <!-- 查询所有机构的监管账户流水（无数据权限限制，用于超管查看） -->
+    <select id="selectAllSupervisionAccountLogList" parameterType="SupervisionAccountLog" resultMap="SupervisionAccountLogResult">
+        <include refid="selectSupervisionAccountLogWithRelations"/>
+        <where>
+            <!-- 不添加数据权限过滤，这是关键区别 -->
+            <if test="institutionId != null"> and sal.institution_id = #{institutionId}</if>
+            <if test="transactionNo != null and transactionNo != ''"> and sal.transaction_no like concat('%', #{transactionNo}, '%')</if>
+            <if test="transactionType != null and transactionType != ''"> and sal.transaction_type = #{transactionType}</if>
+            <if test="businessType != null and businessType != ''"> and sal.business_type = #{businessType}</if>
+            <if test="counterparty != null and counterparty != ''"> and sal.counterparty like concat('%', #{counterparty}, '%')</if>
+            <if test="params.beginTime != null and params.beginTime != ''">
+                and date_format(sal.transaction_time,'%y%m%d') &gt;= date_format(#{params.beginTime},'%y%m%d')
+            </if>
+            <if test="params.endTime != null and params.endTime != ''">
+                and date_format(sal.transaction_time,'%y%m%d') &lt;= date_format(#{params.endTime},'%y%m%d')
+            </if>
+        </where>
+        order by sal.transaction_time desc
+    </select>
+
     <insert id="insertSupervisionAccountLog" parameterType="SupervisionAccountLog" useGeneratedKeys="true" keyProperty="logId">
         insert into supervision_account_log
         <trim prefix="(" suffix=")" suffixOverrides=",">

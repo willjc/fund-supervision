@@ -91,4 +91,12 @@ public interface SupervisionAccountLogMapper
      * @return 基本账户余额
      */
     public java.math.BigDecimal selectBasicBalanceByTime(@Param("institutionId") Long institutionId, @Param("transactionTime") java.util.Date transactionTime);
+
+    /**
+     * 查询所有机构的监管账户流水（无数据权限限制，用于超管查看）
+     *
+     * @param supervisionAccountLog 监管账户流水
+     * @return 监管账户流水集合
+     */
+    public List<SupervisionAccountLog> selectAllSupervisionAccountLogList(SupervisionAccountLog supervisionAccountLog);
 }
