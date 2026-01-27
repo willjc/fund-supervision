@@ -80,9 +80,45 @@ public class FundTransfer extends BaseEntity
     @Excel(name = "执行时间", width = 30, dateFormat = "yyyy-MM-dd HH:mm:ss")
     private Date executeTime;
 
+    /** 是否已划拨 0-否 1-是 */
+    @Excel(name = "是否已划拨", readConverterExp = "0=否,1=是")
+    private String isPaid;
+
+    /** 实际划拨时间 */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @Excel(name = "实际划拨时间", width = 30, dateFormat = "yyyy-MM-dd HH:mm:ss")
+    private Date paidTime;
+
+    /** 划拨方式 auto-自动 manual-手动申请 */
+    @Excel(name = "划拨方式", readConverterExp = "auto=自动,manual=手动申请")
+    private String paidMethod;
+
+    /** 关联的申请ID（手动申请时） */
+    private Long applyId;
+
+    /** 老人ID */
+    @Excel(name = "老人ID")
+    private Long elderId;
+
+    /** 关联订单ID */
+    @Excel(name = "订单ID")
+    private Long orderId;
+
+    /** 账单月份 (格式: 2025-02) */
+    @Excel(name = "账单月份")
+    private String billingMonth;
+
+    /** 划拨单状态 pending-待划拨 processing-划拨中 completed-已完成 cancelled-已取消 */
+    @Excel(name = "划拨单状态")
+    private String status;
+
     // 关联字段（用于展示）
     @Excel(name = "机构名称")
     private String institutionName;
+
+    /** 老人姓名 */
+    @Excel(name = "老人姓名")
+    private String elderName;
 
     public void setTransferId(Long transferId)
     {
@@ -242,6 +278,78 @@ public class FundTransfer extends BaseEntity
         this.institutionName = institutionName;
     }
 
+    public String getIsPaid() {
+        return isPaid;
+    }
+
+    public void setIsPaid(String isPaid) {
+        this.isPaid = isPaid;
+    }
+
+    public Date getPaidTime() {
+        return paidTime;
+    }
+
+    public void setPaidTime(Date paidTime) {
+        this.paidTime = paidTime;
+    }
+
+    public String getPaidMethod() {
+        return paidMethod;
+    }
+
+    public void setPaidMethod(String paidMethod) {
+        this.paidMethod = paidMethod;
+    }
+
+    public Long getApplyId() {
+        return applyId;
+    }
+
+    public void setApplyId(Long applyId) {
+        this.applyId = applyId;
+    }
+
+    public Long getElderId() {
+        return elderId;
+    }
+
+    public void setElderId(Long elderId) {
+        this.elderId = elderId;
+    }
+
+    public Long getOrderId() {
+        return orderId;
+    }
+
+    public void setOrderId(Long orderId) {
+        this.orderId = orderId;
+    }
+
+    public String getBillingMonth() {
+        return billingMonth;
+    }
+
+    public void setBillingMonth(String billingMonth) {
+        this.billingMonth = billingMonth;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public String getElderName() {
+        return elderName;
+    }
+
+    public void setElderName(String elderName) {
+        this.elderName = elderName;
+    }
+
     @Override
     public String toString() {
         return new ToStringBuilder(this,ToStringStyle.MULTI_LINE_STYLE)
@@ -260,6 +368,14 @@ public class FundTransfer extends BaseEntity
             .append("approveTime", getApproveTime())
             .append("executeUser", getExecuteUser())
             .append("executeTime", getExecuteTime())
+            .append("isPaid", getIsPaid())
+            .append("paidTime", getPaidTime())
+            .append("paidMethod", getPaidMethod())
+            .append("applyId", getApplyId())
+            .append("elderId", getElderId())
+            .append("orderId", getOrderId())
+            .append("billingMonth", getBillingMonth())
+            .append("status", getStatus())
             .append("createBy", getCreateBy())
             .append("createTime", getCreateTime())
             .append("updateBy", getUpdateBy())

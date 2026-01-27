@@ -139,4 +139,39 @@ public interface IFundTransferService
      * @return 账户列表
      */
     public java.util.List<com.ruoyi.domain.pension.AccountInfo> selectLowBalanceAccounts(Integer months);
+
+    /**
+     * 根据入住单生成划拨单
+     *
+     * @param checkInId 入住单ID
+     * @param orderId 订单ID
+     * @param institutionId 机构ID
+     * @param elderId 老人ID
+     * @param monthCount 月数
+     * @param startDate 起始日期
+     */
+    public void generateTransferOrderFromCheckIn(Long checkInId, Long orderId, Long institutionId,
+                                                 Long elderId, Integer monthCount, Date startDate);
+
+    /**
+     * 根据老人ID和月数生成划拨单
+     *
+     * @param orderId 订单ID
+     * @param institutionId 机构ID
+     * @param elderId 老人ID
+     * @param monthCount 月数
+     * @param startDate 起始日期
+     * @param monthlyFee 月费用
+     */
+    public void generateMonthlyTransfersForOrder(Long orderId, Long institutionId, Long elderId,
+                                                 Integer monthCount, Date startDate, java.math.BigDecimal monthlyFee);
+
+    /**
+     * 根据老人ID和支付方式查询已完成的划拨记录（用于H5费用查询）
+     *
+     * @param elderId 老人ID
+     * @param paidMethods 支付方式数组（如：auto, manual, deposit）
+     * @return 划拨记录集合
+     */
+    public List<FundTransfer> selectByElderIdAndPaidMethods(Long elderId, String[] paidMethods);
 }

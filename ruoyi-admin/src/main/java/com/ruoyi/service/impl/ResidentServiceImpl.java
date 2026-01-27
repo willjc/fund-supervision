@@ -20,6 +20,7 @@ import com.ruoyi.domain.RenewDTO;
 import com.ruoyi.domain.vo.ElderCurrentPriceVO;
 import com.ruoyi.domain.vo.ResidentVO;
 import com.ruoyi.domain.pension.AccountInfo;
+import com.ruoyi.domain.pension.FundTransfer;
 import com.ruoyi.domain.pension.ExpenseRecord;
 import com.ruoyi.mapper.BedAllocationMapper;
 import com.ruoyi.mapper.ElderAttachmentMapper;
@@ -648,6 +649,18 @@ public class ResidentServiceImpl implements IResidentService
 
         // 4. 删除老人信息
         return elderInfoMapper.deleteElderInfoByElderId(residentId);
+    }
+
+    /**
+     * 查询老人的拨付单列表
+     *
+     * @param elderId 老人ID
+     * @return 拨付单列表
+     */
+    @Override
+    public List<FundTransfer> selectTransfersByElderId(Long elderId)
+    {
+        return residentMapper.selectTransfersByElderId(elderId);
     }
 
     /**

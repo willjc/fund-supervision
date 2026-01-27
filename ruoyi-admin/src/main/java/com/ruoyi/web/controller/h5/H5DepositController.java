@@ -24,12 +24,16 @@ import com.ruoyi.domain.ElderInfo;
 import com.ruoyi.domain.PensionInstitution;
 import com.ruoyi.domain.pension.AccountInfo;
 import com.ruoyi.domain.pension.DepositApply;
+import com.ruoyi.domain.pension.FundTransferApply;
 import com.ruoyi.service.IElderFamilyService;
 import com.ruoyi.service.IElderInfoService;
 import com.ruoyi.service.IPensionInstitutionService;
 import com.ruoyi.service.pension.IAccountInfoService;
 import com.ruoyi.service.pension.IDepositApplyService;
+import com.ruoyi.service.pension.IFundTransferApplyService;
 import com.ruoyi.system.service.ISysUserService;
+import com.ruoyi.mapper.pension.FundTransferApplyDetailMapper;
+import com.ruoyi.domain.pension.FundTransferApplyDetail;
 
 /**
  * H5押金管理Controller
@@ -57,6 +61,12 @@ public class H5DepositController extends BaseController
 
     @Autowired
     private ISysUserService userService;
+
+    @Autowired
+    private IFundTransferApplyService fundTransferApplyService;
+
+    @Autowired
+    private FundTransferApplyDetailMapper fundTransferApplyDetailMapper;
 
     /**
      * 获取押金申请列表（家属视角）
@@ -398,6 +408,141 @@ public class H5DepositController extends BaseController
         } catch (Exception e) {
             logger.error("家属审批失败", e);
             return error("家属审批失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 家属审批资金划拨申请
+     */
+    @PostMapping("/transfer/family/approve")
+    public AjaxResult approveTransfer(@RequestBody Map<String, Object> params)
+    {
+        try {
+            // 获取当前用户ID
+            Long currentUserId = getCurrentUserId();
+            if (currentUserId == null) {
+                return error("用户未登录或身份验证失败");
+            }
+
+            // 获取参数
+            Long applyId = Long.parseLong(params.get("applyId").toString());
+            String approvalResult = params.get("approvalResult").toString();
+            String rejectReason = params.get("rejectReason") != null ? params.get("rejectReason").toString() : "";
+
+            // 查询划拨申请信息
+            FundTransferApply apply = fundTransferApplyService.selectFundTransferApplyByApplyId(applyId);
+            if (apply == null) {
+                return error("划拨申请不存在");
+            }
+
+            // 验证用户是否为该老人的家属
+            ElderFamily familyQuery = new ElderFamily();
+            familyQuery.setUserId(currentUserId);
+            familyQuery.setElderId(apply.getElderId());
+            List<ElderFamily> familyList = elderFamilyService.selectElderFamilyList(familyQuery);
+
+            if (familyList == null || familyList.isEmpty()) {
+                return error("您不是该老人的家属，无权审批此申请");
+            }
+
+            // 获取家属信息
+            SysUser user = SecurityUtils.getLoginUser().getUser();
+            String approverName = user.getNickName() != null ? user.getNickName() : user.getUserName();
+            String relation = familyList.get(0).getRelationName();
+            String phone = familyList.get(0).getPhonenumber();
+
+            // 调用家属审批方法
+            boolean approved = "approved".equals(approvalResult);
+            String opinion = approved ? "同意" : rejectReason;
+            int result = fundTransferApplyService.familyApprove(applyId, approved, opinion, approverName, relation, phone);
+
+            if (result > 0) {
+                return success(approved ? "审批成功，等待监管部门审批" : "已拒绝申请");
+            } else {
+                return error("审批失败");
+            }
+        } catch (Exception e) {
+            logger.error("家属审批划拨申请失败", e);
+            return error("审批失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取资金划拨申请详情（家属端）
+     */
+    @GetMapping("/transfer/detail/{applyId}")
+    public AjaxResult getTransferDetail(@PathVariable Long applyId)
+    {
+        try {
+            Long currentUserId = getCurrentUserId();
+            if (currentUserId == null) {
+                return error("用户未登录或身份验证失败");
+            }
+
+            FundTransferApply apply = fundTransferApplyService.selectFundTransferApplyByApplyId(applyId);
+            if (apply == null) {
+                return error("划拨申请不存在");
+            }
+
+            // 验证用户是否为该老人的家属
+            ElderFamily familyQuery = new ElderFamily();
+            familyQuery.setUserId(currentUserId);
+            familyQuery.setElderId(apply.getElderId());
+            List<ElderFamily> familyList = elderFamilyService.selectElderFamilyList(familyQuery);
+
+            if (familyList == null || familyList.isEmpty()) {
+                return error("您不是该老人的家属，无权查看此申请");
+            }
+
+            // 构建返回数据
+            Map<String, Object> data = new HashMap<>();
+            data.put("applyId", apply.getApplyId());
+            data.put("applyNo", apply.getApplyNo());
+            data.put("applyAmount", apply.getApplyAmount());
+            data.put("applyReason", apply.getApplyReason());
+            data.put("urgencyLevel", apply.getUrgencyLevel());
+            data.put("expectedUseDate", apply.getExpectedUseDate());
+            data.put("applyStatus", apply.getApplyStatus());
+            data.put("createTime", apply.getCreateTime() != null ? DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, apply.getCreateTime()) : "");
+            data.put("familyApproveOpinion", apply.getFamilyApproveOpinion());
+            data.put("familyApproveTime", apply.getFamilyApproveTime() != null ? DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, apply.getFamilyApproveTime()) : "");
+            data.put("familyConfirmName", apply.getFamilyConfirmName());
+            data.put("approveRemark", apply.getApproveRemark());
+            data.put("approveTime", apply.getApproveTime() != null ? DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, apply.getApproveTime()) : "");
+            data.put("approver", apply.getApprover());
+
+            // 获取老人信息
+            ElderInfo elderInfo = elderInfoService.selectElderInfoByElderId(apply.getElderId());
+            if (elderInfo != null) {
+                data.put("elderName", elderInfo.getElderName());
+            }
+
+            // 获取机构信息
+            if (apply.getInstitutionId() != null) {
+                PensionInstitution institution = institutionService.selectPensionInstitutionByInstitutionId(apply.getInstitutionId());
+                if (institution != null) {
+                    data.put("institutionName", institution.getInstitutionName());
+                }
+            }
+
+            // 获取划拨明细
+            List<FundTransferApplyDetail> transferDetails = fundTransferApplyDetailMapper.selectFundTransferApplyDetailByApplyId(applyId);
+            List<Map<String, Object>> detailsList = new ArrayList<>();
+            if (transferDetails != null && !transferDetails.isEmpty()) {
+                for (FundTransferApplyDetail detail : transferDetails) {
+                    Map<String, Object> detailItem = new HashMap<>();
+                    detailItem.put("billingMonth", detail.getBillingMonth());
+                    detailItem.put("transferAmount", detail.getTransferAmount());
+                    detailItem.put("transferNo", detail.getTransferNo());
+                    detailsList.add(detailItem);
+                }
+            }
+            data.put("transferDetails", detailsList);
+
+            return success(data);
+        } catch (Exception e) {
+            logger.error("获取划拨申请详情失败", e);
+            return error("获取详情失败：" + e.getMessage());
         }
     }
 

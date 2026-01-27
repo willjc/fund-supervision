@@ -102,4 +102,14 @@ public class PensionResidentController extends BaseController
     {
         return toAjax(residentService.deleteResident(residentId));
     }
+
+    /**
+     * 查询老人的拨付单列表
+     */
+    @PreAuthorize("@ss.hasPermi('elder:resident:query')")
+    @GetMapping("/transfer/{elderId}")
+    public AjaxResult getTransfers(@PathVariable("elderId") Long elderId)
+    {
+        return AjaxResult.success(residentService.selectTransfersByElderId(elderId));
+    }
 }

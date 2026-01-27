@@ -72,6 +72,13 @@ const routes = [
     component: () => import('@/views/deposit/approve.vue'),
     meta: { title: '押金审批', requireAuth: true }
   },
+  // 资金划拨审批
+  {
+    path: '/transfer/apply-detail/:id',
+    name: 'TransferApplyDetail',
+    component: () => import('@/views/transfer/applyDetail.vue'),
+    meta: { title: '划拨申请详情', requireAuth: true }
+  },
   {
     path: '/order',
     name: 'Order',

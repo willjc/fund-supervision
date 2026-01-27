@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.mapper.pension.FundTransferApplyDetailMapper">
+
+    <resultMap type="FundTransferApplyDetail" id="FundTransferApplyDetailResult">
+        <result property="detailId"       column="detail_id"       />
+        <result property="applyId"        column="apply_id"        />
+        <result property="transferId"     column="transfer_id"     />
+        <result property="elderId"        column="elder_id"        />
+        <result property="transferAmount" column="transfer_amount" />
+        <result property="billingMonth"   column="billing_month"   />
+        <result property="createTime"     column="create_time"     />
+        <result property="transferNo"     column="transfer_no"     />
+        <result property="elderName"      column="elder_name"      />
+    </resultMap>
+
+    <sql id="selectFundTransferApplyDetailVo">
+        select detail_id, apply_id, transfer_id, elder_id, transfer_amount, billing_month, create_time
+        from fund_transfer_apply_detail
+    </sql>
+
+    <sql id="selectFundTransferApplyDetailWithRelations">
+        select ftad.detail_id, ftad.apply_id, ftad.transfer_id, ftad.elder_id,
+               ftad.transfer_amount, ftad.billing_month, ftad.create_time,
+               ft.transfer_no, ei.elder_name
+        from fund_transfer_apply_detail ftad
+        left join fund_transfer ft on ftad.transfer_id = ft.transfer_id
+        left join elder_info ei on ftad.elder_id = ei.elder_id
+    </sql>
+
+    <select id="selectFundTransferApplyDetailList" parameterType="FundTransferApplyDetail" resultMap="FundTransferApplyDetailResult">
+        <include refid="selectFundTransferApplyDetailWithRelations"/>
+        <where>
+            <if test="applyId != null"> and ftad.apply_id = #{applyId}</if>
+            <if test="transferId != null"> and ftad.transfer_id = #{transferId}</if>
+            <if test="elderId != null"> and ftad.elder_id = #{elderId}</if>
+        </where>
+        order by ftad.create_time
+    </select>
+
+    <select id="selectFundTransferApplyDetailByDetailId" parameterType="Long" resultMap="FundTransferApplyDetailResult">
+        <include refid="selectFundTransferApplyDetailWithRelations"/>
+        where ftad.detail_id = #{detailId}
+    </select>
+
+    <select id="selectFundTransferApplyDetailByApplyId" parameterType="Long" resultMap="FundTransferApplyDetailResult">
+        <include refid="selectFundTransferApplyDetailWithRelations"/>
+        where ftad.apply_id = #{applyId}
+        order by ftad.billing_month
+    </select>
+
+    <select id="selectFundTransferApplyDetailByTransferId" parameterType="Long" resultMap="FundTransferApplyDetailResult">
+        <include refid="selectFundTransferApplyDetailWithRelations"/>
+        where ftad.transfer_id = #{transferId}
+    </select>
+
+    <insert id="insertFundTransferApplyDetail" parameterType="FundTransferApplyDetail" useGeneratedKeys="true" keyProperty="detailId">
+        insert into fund_transfer_apply_detail
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="applyId != null">apply_id,</if>
+            <if test="transferId != null">transfer_id,</if>
+            <if test="elderId != null">elder_id,</if>
+            <if test="transferAmount != null">transfer_amount,</if>
+            <if test="billingMonth != null and billingMonth != ''">billing_month,</if>
+            create_time
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="applyId != null">#{applyId},</if>
+            <if test="transferId != null">#{transferId},</if>
+            <if test="elderId != null">#{elderId},</if>
+            <if test="transferAmount != null">#{transferAmount},</if>
+            <if test="billingMonth != null and billingMonth != ''">#{billingMonth},</if>
+            NOW()
+        </trim>
+    </insert>
+
+    <insert id="batchInsertFundTransferApplyDetail">
+        insert into fund_transfer_apply_detail (apply_id, transfer_id, elder_id, transfer_amount, billing_month, create_time)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.applyId}, #{item.transferId}, #{item.elderId}, #{item.transferAmount}, #{item.billingMonth}, NOW())
+        </foreach>
+    </insert>
+
+    <update id="updateFundTransferApplyDetail" parameterType="FundTransferApplyDetail">
+        update fund_transfer_apply_detail
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="applyId != null">apply_id = #{applyId},</if>
+            <if test="transferId != null">transfer_id = #{transferId},</if>
+            <if test="elderId != null">elder_id = #{elderId},</if>
+            <if test="transferAmount != null">transfer_amount = #{transferAmount},</if>
+            <if test="billingMonth != null and billingMonth != ''">billing_month = #{billingMonth},</if>
+        </trim>
+        where detail_id = #{detailId}
+    </update>
+
+    <delete id="deleteFundTransferApplyDetailByDetailId" parameterType="Long">
+        delete from fund_transfer_apply_detail where detail_id = #{detailId}
+    </delete>
+
+    <delete id="deleteFundTransferApplyDetailByDetailIds" parameterType="Long">
+        delete from fund_transfer_apply_detail where detail_id in
+        <foreach item="detailId" collection="array" open="(" separator="," close=")">
+            #{detailId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteFundTransferApplyDetailByApplyId" parameterType="Long">
+        delete from fund_transfer_apply_detail where apply_id = #{applyId}
+    </delete>
+
+</mapper>

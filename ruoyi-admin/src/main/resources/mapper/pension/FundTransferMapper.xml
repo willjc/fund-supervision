@@ -25,8 +25,17 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="updateBy"   column="update_by"   />
         <result property="updateTime" column="update_time" />
         <result property="remark"     column="remark"     />
+        <result property="isPaid"      column="is_paid"      />
+        <result property="paidTime"    column="paid_time"    />
+        <result property="paidMethod"  column="paid_method"  />
+        <result property="applyId"     column="apply_id"     />
+        <result property="elderId"     column="elder_id"     />
+        <result property="orderId"     column="order_id"     />
+        <result property="billingMonth" column="billing_month" />
+        <result property="status"      column="status"       />
         <!-- 关联字段 -->
         <result property="institutionName"    column="institution_name"    />
+        <result property="elderName"     column="elder_name"     />
     </resultMap>
 
     <sql id="selectFundTransferVo">
@@ -34,9 +43,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                ft.transfer_date, ft.transfer_period, ft.elder_count, ft.transfer_status, ft.bank_order_no,
                ft.failure_reason, ft.approve_user, ft.approve_time, ft.execute_user, ft.execute_time,
                ft.create_by, ft.create_time, ft.update_by, ft.update_time, ft.remark,
-               pi.institution_name
+               ft.is_paid, ft.paid_time, ft.paid_method, ft.apply_id, ft.elder_id, ft.order_id,
+               ft.billing_month, ft.status,
+               pi.institution_name, ei.elder_name
         from fund_transfer ft
         left join pension_institution pi on ft.institution_id = pi.institution_id
+        left join elder_info ei on ft.elder_id = ei.elder_id
     </sql>
 
     <select id="selectFundTransferList" parameterType="FundTransfer" resultMap="FundTransferResult">
@@ -72,7 +84,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <select id="selectPendingTransfers" resultMap="FundTransferResult">
         <include refid="selectFundTransferVo"/>
         where ft.transfer_status = '0'
-        order by ft.create_time asc
+        and (ft.is_paid = '0' or ft.is_paid is null)
+        and ft.status = 'pending'
+        order by ft.billing_month asc
     </select>
 
     <select id="selectTransferStatistics" parameterType="map" resultType="map">
@@ -110,6 +124,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="createBy != null and createBy != ''">create_by,</if>
             <if test="createTime != null">create_time,</if>
             <if test="remark != null">remark,</if>
+            <if test="isPaid != null">is_paid,</if>
+            <if test="paidTime != null">paid_time,</if>
+            <if test="paidMethod != null">paid_method,</if>
+            <if test="applyId != null">apply_id,</if>
+            <if test="elderId != null">elder_id,</if>
+            <if test="orderId != null">order_id,</if>
+            <if test="billingMonth != null">billing_month,</if>
+            <if test="status != null">status,</if>
          </trim>
         <trim prefix="values (" suffix=")" suffixOverrides=",">
             <if test="institutionId != null">#{institutionId},</if>
@@ -129,6 +151,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="createBy != null and createBy != ''">#{createBy},</if>
             <if test="createTime != null">#{createTime},</if>
             <if test="remark != null">#{remark},</if>
+            <if test="isPaid != null">#{isPaid},</if>
+            <if test="paidTime != null">#{paidTime},</if>
+            <if test="paidMethod != null">#{paidMethod},</if>
+            <if test="applyId != null">#{applyId},</if>
+            <if test="elderId != null">#{elderId},</if>
+            <if test="orderId != null">#{orderId},</if>
+            <if test="billingMonth != null">#{billingMonth},</if>
+            <if test="status != null">#{status},</if>
          </trim>
     </insert>
 
@@ -151,6 +181,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>
             <if test="remark != null">remark = #{remark},</if>
+            <if test="isPaid != null">is_paid = #{isPaid},</if>
+            <if test="paidTime != null">paid_time = #{paidTime},</if>
+            <if test="paidMethod != null">paid_method = #{paidMethod},</if>
+            <if test="applyId != null">apply_id = #{applyId},</if>
+            <if test="elderId != null">elder_id = #{elderId},</if>
+            <if test="orderId != null">order_id = #{orderId},</if>
+            <if test="billingMonth != null">billing_month = #{billingMonth},</if>
+            <if test="status != null">status = #{status},</if>
         </trim>
         where transfer_id = #{transferId}
     </update>
@@ -183,4 +221,34 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             #{transferId}
         </foreach>
     </delete>
+
+    <!-- 根据老人ID和支付方式查询已完成的划拨记录（用于H5费用查询） -->
+    <select id="selectByElderIdAndPaidMethods" resultMap="FundTransferResult">
+        SELECT
+            ft.transfer_id,
+            ft.transfer_no,
+            ft.institution_id,
+            ft.elder_id,
+            ft.order_id,
+            ft.billing_month,
+            ft.transfer_amount,
+            ft.transfer_date,
+            ft.transfer_type,
+            ft.paid_time,
+            ft.paid_method,
+            ft.remark,
+            ft.status,
+            ei.elder_name
+        FROM fund_transfer ft
+        LEFT JOIN elder_info ei ON ft.elder_id = ei.elder_id
+        WHERE ft.elder_id = #{elderId}
+          AND ft.status = 'completed'
+          AND ft.is_paid = '1'
+          AND ft.paid_method IN
+        <foreach item="method" collection="paidMethods" open="(" separator="," close=")">
+            #{method}
+        </foreach>
+        ORDER BY ft.paid_time DESC
+    </select>
+
 </mapper>

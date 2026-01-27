@@ -119,4 +119,14 @@ public interface FundTransferMapper
     public java.util.Map<String, Object> selectTransferStatistics(@Param("institutionId") Long institutionId,
                                                                @Param("startDate") Date startDate,
                                                                @Param("endDate") Date endDate);
+
+    /**
+     * 根据老人ID和支付方式查询已完成的划拨记录（用于H5费用查询）
+     *
+     * @param elderId 老人ID
+     * @param paidMethods 支付方式数组（如：auto, manual, deposit）
+     * @return 划拨记录集合
+     */
+    public List<FundTransfer> selectByElderIdAndPaidMethods(@Param("elderId") Long elderId,
+                                                           @Param("paidMethods") String[] paidMethods);
 }

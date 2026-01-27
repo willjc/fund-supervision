@@ -222,6 +222,7 @@ const loadCompletedList = async () => {
 const getTypeColor = (type) => {
   const colorMap = {
     '押金审批': 'warning',
+    '划拨审批': 'danger',
     '缴费提醒': 'warning',
     '体检提醒': 'primary',
     '预约确认': 'success',
@@ -244,6 +245,9 @@ const handleTodoClick = (item) => {
   if (item.type === 'deposit_approve') {
     // 跳转到押金审批详情页
     router.push(item.path)
+  } else if (item.type === 'transfer_approve') {
+    // 跳转到划拨审批详情页
+    router.push(item.path)
   } else if (item.type === '缴费提醒') {
     router.push('/user/expense')
   } else if (item.type === '预约确认') {
@@ -251,10 +255,10 @@ const handleTodoClick = (item) => {
   }
 }
 
-// 标记完成（押金审批不需要此功能，在详情页直接审批）
+// 标记完成（审批类待办不支持标记完成，需要在详情页审批）
 const handleComplete = async (item) => {
-  // 押金审批类待办不支持标记完成，需要在详情页审批
-  if (item.type === 'deposit_approve') {
+  // 押金审批和划拨审批类待办不支持标记完成，需要在详情页审批
+  if (item.type === 'deposit_approve' || item.type === 'transfer_approve') {
     showToast({
       message: '请进入详情页进行审批'
     })

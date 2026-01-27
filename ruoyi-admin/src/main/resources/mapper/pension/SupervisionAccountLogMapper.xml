@@ -171,4 +171,65 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
          </trim>
     </insert>
 
+    <!-- 查询拨付单流水列表（以fund_transfer为主表，只查询已划拨完成的记录） -->
+    <select id="selectTransferFlowList" resultType="java.util.Map">
+        SELECT
+            ft.transfer_id as transferId,
+            ft.transfer_no as transferNo,
+            ft.institution_id as institutionId,
+            ft.elder_id as elderId,
+            ft.order_id as orderId,
+            ft.billing_month as billingMonth,
+            ft.transfer_amount as transferAmount,
+            ft.transfer_date as transferDate,
+            ft.transfer_type as transferType,
+            ft.paid_time as paidTime,
+            ft.remark as remark,
+            ft.create_time as createTime,
+            ei.elder_name as elderName,
+            pi.institution_name as institutionName,
+            oi.order_no as orderNo,
+            (SELECT COALESCE(sal.balance_after, 0)
+             FROM supervision_account_log sal
+             WHERE sal.institution_id = ft.institution_id
+             ORDER BY sal.transaction_time DESC
+             LIMIT 1) as supervisionBalance,
+            (SELECT COALESCE(SUM(ft2.transfer_amount), 0)
+             FROM fund_transfer ft2
+             WHERE ft2.institution_id = ft.institution_id
+               AND ft2.status = 'completed'
+               AND ft2.is_paid = '1') as basicBalance
+        FROM fund_transfer ft
+        LEFT JOIN elder_info ei ON ft.elder_id = ei.elder_id
+        LEFT JOIN pension_institution pi ON ft.institution_id = pi.institution_id
+        LEFT JOIN order_info oi ON ft.order_id = oi.order_id
+        <where>
+            -- 只查询已划拨完成的记录（监管账户转到基本账户）
+            ft.status = 'completed'
+            AND ft.is_paid = '1'
+            AND ft.elder_id IS NOT NULL
+            <if test="params.currentUserId != null">
+                AND ft.institution_id IN (
+                    SELECT institution_id FROM sys_user_institution WHERE user_id = #{params.currentUserId}
+                )
+            </if>
+            <if test="params.institutionId != null">
+                AND ft.institution_id = #{params.institutionId}
+            </if>
+            <if test="params.transferType != null and params.transferType != ''">
+                AND ft.transfer_type = #{params.transferType}
+            </if>
+            <if test="params.beginTime != null and params.beginTime != ''">
+                AND DATE_FORMAT(ft.transfer_date, '%Y-%m-%d') &gt;= #{params.beginTime}
+            </if>
+            <if test="params.endTime != null and params.endTime != ''">
+                AND DATE_FORMAT(ft.transfer_date, '%Y-%m-%d') &lt;= #{params.endTime}
+            </if>
+            <if test="params.elderName != null and params.elderName != ''">
+                AND ei.elder_name LIKE CONCAT('%', #{params.elderName}, '%')
+            </if>
+        </where>
+        ORDER BY ft.paid_time DESC
+    </select>
+
 </mapper>

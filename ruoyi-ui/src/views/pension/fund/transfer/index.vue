@@ -66,13 +66,27 @@
     <el-table v-loading="loading" :data="transferList" @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="55" align="center" />
       <el-table-column label="划拨单号" align="center" prop="transferNo" width="180" />
-      <el-table-column label="划拨周期" align="center" prop="transferPeriod" width="120" />
+      <el-table-column label="账单月份" align="center" prop="billingMonth" width="100" />
       <el-table-column label="划拨金额" align="center" prop="transferAmount" width="120">
         <template slot-scope="scope">
           <span class="text-danger">¥{{ scope.row.transferAmount }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="账户数量" align="center" prop="accountCount" width="100" />
+      <el-table-column label="划拨状态" align="center" prop="isPaid" width="100">
+        <template slot-scope="scope">
+          <el-tag v-if="scope.row.isPaid === '1'" type="success">已划拨</el-tag>
+          <el-tag v-else-if="scope.row.isPaid === '0'" type="info">待划拨</el-tag>
+          <el-tag v-else type="info">未知</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="划拨方式" align="center" prop="paidMethod" width="100">
+        <template slot-scope="scope">
+          <el-tag v-if="scope.row.paidMethod === 'auto'" type="primary">自动</el-tag>
+          <el-tag v-else-if="scope.row.paidMethod === 'manual'" type="warning">手动申请</el-tag>
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="账户数量" align="center" prop="elderCount" width="100" />
       <el-table-column label="审批状态" align="center" prop="approvalStatus" width="100">
         <template slot-scope="scope">
           <dict-tag :options="dict.type.approval_status" :value="scope.row.approvalStatus"/>
@@ -110,7 +124,7 @@
             icon="el-icon-s-promotion"
             @click="handleExecute(scope.row)"
             v-hasPermi="['pension:fundTransfer:execute']"
-            v-if="scope.row.approvalStatus === '1' && scope.row.transferStatus === '0'"
+            v-if="scope.row.approvalStatus === '1' && scope.row.transferStatus === '0' && scope.row.isPaid === '0'"
           >执行划拨</el-button>
         </template>
       </el-table-column>

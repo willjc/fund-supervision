@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.mapper.pension.FundTransferApplyMapper">
+
+    <resultMap type="FundTransferApply" id="FundTransferApplyResult">
+        <result property="applyId"       column="apply_id"       />
+        <result property="applyNo"       column="apply_no"       />
+        <result property="institutionId" column="institution_id" />
+        <result property="elderId"       column="elder_id"       />
+        <result property="applyAmount"   column="apply_amount"   />
+        <result property="applyReason"   column="apply_reason"   />
+        <result property="urgencyLevel"  column="urgency_level"  />
+        <result property="expectedUseDate" column="expected_use_date" />
+        <result property="attachments"   column="attachments"    />
+        <result property="applyStatus"   column="apply_status"   />
+        <result property="familyConfirmName"    column="family_confirm_name"   />
+        <result property="familyRelation"       column="family_relation"       />
+        <result property="familyPhone"          column="family_phone"          />
+        <result property="familyApproveTime"    column="family_approve_time"   />
+        <result property="familyApproveOpinion" column="family_approve_opinion" />
+        <result property="approver"      column="approver"       />
+        <result property="approveTime"   column="approve_time"   />
+        <result property="approveRemark" column="approve_remark" />
+        <result property="actualAmount"  column="actual_amount"  />
+        <result property="useTime"       column="use_time"       />
+        <result property="createBy"      column="create_by"      />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"      column="update_by"      />
+        <result property="updateTime"    column="update_time"    />
+        <result property="remark"        column="remark"         />
+        <!-- 关联字段 -->
+        <result property="institutionName" column="institution_name" />
+        <result property="elderName"      column="elder_name"      />
+        <result property="elderIdCard"    column="id_card"         />
+        <result property="bedInfo"        column="bed_info"        />
+    </resultMap>
+
+    <resultMap type="FundTransfer" id="FundTransferResult">
+        <result property="transferId"    column="transfer_id"    />
+        <result property="transferNo"    column="transfer_no"    />
+        <result property="institutionId" column="institution_id" />
+        <result property="elderId"       column="elder_id"       />
+        <result property="orderId"       column="order_id"       />
+        <result property="transferAmount" column="transfer_amount" />
+        <result property="billingMonth"  column="billing_month"  />
+        <result property="transferDate"  column="transfer_date"  />
+        <result property="status"        column="status"         />
+        <result property="isPaid"        column="is_paid"        />
+        <result property="elderName"     column="elder_name"     />
+    </resultMap>
+
+    <sql id="selectFundTransferApplyVo">
+        select apply_id, apply_no, institution_id, elder_id, apply_amount, apply_reason,
+               urgency_level, expected_use_date, attachments, apply_status,
+               family_confirm_name, family_relation, family_phone, family_approve_time, family_approve_opinion,
+               approver, approve_time, approve_remark, actual_amount, use_time,
+               create_by, create_time, update_by, update_time, remark
+        from fund_transfer_apply
+    </sql>
+
+    <sql id="selectFundTransferApplyWithRelations">
+        select fta.apply_id, fta.apply_no, fta.institution_id, fta.elder_id,
+               fta.apply_amount, fta.apply_reason, fta.urgency_level,
+               fta.expected_use_date, fta.attachments, fta.apply_status,
+               fta.family_confirm_name, fta.family_relation, fta.family_phone,
+               fta.family_approve_time, fta.family_approve_opinion,
+               fta.approver, fta.approve_time, fta.approve_remark,
+               fta.actual_amount, fta.use_time,
+               fta.create_by, fta.create_time, fta.update_by, fta.update_time, fta.remark,
+               pi.institution_name, ei.elder_name, ei.id_card,
+               CONCAT(bi.room_number, '-', bi.bed_number) as bed_info
+        from fund_transfer_apply fta
+        left join pension_institution pi on fta.institution_id = pi.institution_id
+        left join elder_info ei on fta.elder_id = ei.elder_id
+        left join (
+            select elder_id, bed_id
+            from bed_allocation
+            where (elder_id, allocation_id) in (
+                select elder_id, max(allocation_id)
+                from bed_allocation
+                group by elder_id
+            )
+        ) ba on fta.elder_id = ba.elder_id
+        left join bed_info bi on ba.bed_id = bi.bed_id
+    </sql>
+
+    <select id="selectFundTransferApplyList" parameterType="FundTransferApply" resultMap="FundTransferApplyResult">
+        <include refid="selectFundTransferApplyWithRelations"/>
+        <where>
+            <if test="currentUserId != null">
+                and fta.institution_id IN (
+                    SELECT institution_id FROM sys_user_institution WHERE user_id = #{currentUserId}
+                )
+            </if>
+            <if test="applyNo != null and applyNo != ''"> and fta.apply_no like concat('%', #{applyNo}, '%')</if>
+            <if test="elderId != null"> and fta.elder_id = #{elderId}</if>
+            <if test="institutionId != null"> and fta.institution_id = #{institutionId}</if>
+            <if test="urgencyLevel != null and urgencyLevel != ''"> and fta.urgency_level = #{urgencyLevel}</if>
+            <if test="applyStatus != null and applyStatus != ''"> and fta.apply_status = #{applyStatus}</if>
+            <if test="approver != null and approver != ''"> and fta.approver like concat('%', #{approver}, '%')</if>
+        </where>
+        order by fta.create_time desc
+    </select>
+
+    <select id="selectFundTransferApplyByApplyId" parameterType="Long" resultMap="FundTransferApplyResult">
+        <include refid="selectFundTransferApplyWithRelations"/>
+        where fta.apply_id = #{applyId}
+    </select>
+
+    <select id="selectFundTransferApplyByElderId" parameterType="Long" resultMap="FundTransferApplyResult">
+        <include refid="selectFundTransferApplyWithRelations"/>
+        where fta.elder_id = #{elderId}
+        order by fta.create_time desc
+    </select>
+
+    <select id="selectFundTransferApplyByInstitutionId" parameterType="Long" resultMap="FundTransferApplyResult">
+        <include refid="selectFundTransferApplyWithRelations"/>
+        where fta.institution_id = #{institutionId}
+        order by fta.create_time desc
+    </select>
+
+    <select id="selectPendingTransferByElderId" parameterType="Long" resultMap="FundTransferResult">
+        select ft.transfer_id, ft.transfer_no, ft.institution_id, ft.elder_id, ft.order_id,
+               ft.transfer_amount, ft.billing_month, ft.transfer_date, ft.status, ft.is_paid,
+               ei.elder_name
+        from fund_transfer ft
+        left join elder_info ei on ft.elder_id = ei.elder_id
+        where ft.elder_id = #{elderId}
+        and ft.is_paid = '0'
+        and ft.status = 'pending'
+        order by ft.billing_month
+    </select>
+
+    <select id="generateApplyNo" resultType="String">
+        select concat('SQF', DATE_FORMAT(NOW(), '%Y%m%d'), LPAD(next_no, 4, '0')) as apply_no
+        from (
+            select CAST(SUBSTRING(MAX(apply_no), -4) AS UNSIGNED) + 1 as next_no
+            from fund_transfer_apply
+            where apply_no like concat('SQF', DATE_FORMAT(NOW(), '%Y%m%d'), '%')
+        ) t
+    </select>
+
+    <insert id="insertFundTransferApply" parameterType="FundTransferApply" useGeneratedKeys="true" keyProperty="applyId">
+        insert into fund_transfer_apply
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="applyNo != null and applyNo != ''">apply_no,</if>
+            <if test="institutionId != null">institution_id,</if>
+            <if test="elderId != null">elder_id,</if>
+            <if test="applyAmount != null">apply_amount,</if>
+            <if test="applyReason != null and applyReason != ''">apply_reason,</if>
+            <if test="urgencyLevel != null and urgencyLevel != ''">urgency_level,</if>
+            <if test="expectedUseDate != null">expected_use_date,</if>
+            <if test="attachments != null and attachments != ''">attachments,</if>
+            <if test="applyStatus != null and applyStatus != ''">apply_status,</if>
+            <if test="familyConfirmName != null and familyConfirmName != ''">family_confirm_name,</if>
+            <if test="familyRelation != null and familyRelation != ''">family_relation,</if>
+            <if test="familyPhone != null and familyPhone != ''">family_phone,</if>
+            <if test="familyApproveTime != null">family_approve_time,</if>
+            <if test="familyApproveOpinion != null and familyApproveOpinion != ''">family_approve_opinion,</if>
+            <if test="approver != null and approver != ''">approver,</if>
+            <if test="approveTime != null">approve_time,</if>
+            <if test="approveRemark != null and approveRemark != ''">approve_remark,</if>
+            <if test="actualAmount != null">actual_amount,</if>
+            <if test="useTime != null">use_time,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            <if test="remark != null and remark != ''">remark,</if>
+            create_time
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="applyNo != null and applyNo != ''">#{applyNo},</if>
+            <if test="institutionId != null">#{institutionId},</if>
+            <if test="elderId != null">#{elderId},</if>
+            <if test="applyAmount != null">#{applyAmount},</if>
+            <if test="applyReason != null and applyReason != ''">#{applyReason},</if>
+            <if test="urgencyLevel != null and urgencyLevel != ''">#{urgencyLevel},</if>
+            <if test="expectedUseDate != null">#{expectedUseDate},</if>
+            <if test="attachments != null and attachments != ''">#{attachments},</if>
+            <if test="applyStatus != null and applyStatus != ''">#{applyStatus},</if>
+            <if test="familyConfirmName != null and familyConfirmName != ''">#{familyConfirmName},</if>
+            <if test="familyRelation != null and familyRelation != ''">#{familyRelation},</if>
+            <if test="familyPhone != null and familyPhone != ''">#{familyPhone},</if>
+            <if test="familyApproveTime != null">#{familyApproveTime},</if>
+            <if test="familyApproveOpinion != null and familyApproveOpinion != ''">#{familyApproveOpinion},</if>
+            <if test="approver != null and approver != ''">#{approver},</if>
+            <if test="approveTime != null">#{approveTime},</if>
+            <if test="approveRemark != null and approveRemark != ''">#{approveRemark},</if>
+            <if test="actualAmount != null">#{actualAmount},</if>
+            <if test="useTime != null">#{useTime},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            <if test="remark != null and remark != ''">#{remark},</if>
+            NOW()
+        </trim>
+    </insert>
+
+    <update id="updateFundTransferApply" parameterType="FundTransferApply">
+        update fund_transfer_apply
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="applyReason != null and applyReason != ''">apply_reason = #{applyReason},</if>
+            <if test="urgencyLevel != null and urgencyLevel != ''">urgency_level = #{urgencyLevel},</if>
+            <if test="expectedUseDate != null">expected_use_date = #{expectedUseDate},</if>
+            <if test="attachments != null and attachments != ''">attachments = #{attachments},</if>
+            <if test="applyStatus != null and applyStatus != ''">apply_status = #{applyStatus},</if>
+            <if test="familyConfirmName != null">family_confirm_name = #{familyConfirmName},</if>
+            <if test="familyRelation != null">family_relation = #{familyRelation},</if>
+            <if test="familyPhone != null">family_phone = #{familyPhone},</if>
+            <if test="familyApproveTime != null">family_approve_time = #{familyApproveTime},</if>
+            <if test="familyApproveOpinion != null">family_approve_opinion = #{familyApproveOpinion},</if>
+            <if test="approver != null">approver = #{approver},</if>
+            <if test="approveTime != null">approve_time = #{approveTime},</if>
+            <if test="approveRemark != null">approve_remark = #{approveRemark},</if>
+            <if test="actualAmount != null">actual_amount = #{actualAmount},</if>
+            <if test="useTime != null">use_time = #{useTime},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            update_time = NOW()
+        </trim>
+        where apply_id = #{applyId}
+    </update>
+
+    <delete id="deleteFundTransferApplyByApplyId" parameterType="Long">
+        delete from fund_transfer_apply where apply_id = #{applyId}
+    </delete>
+
+    <delete id="deleteFundTransferApplyByApplyIds" parameterType="Long">
+        delete from fund_transfer_apply where apply_id in
+        <foreach item="applyId" collection="array" open="(" separator="," close=")">
+            #{applyId}
+        </foreach>
+    </delete>
+
+</mapper>

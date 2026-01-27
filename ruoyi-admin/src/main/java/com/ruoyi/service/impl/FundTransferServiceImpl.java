@@ -5,6 +5,7 @@ import java.util.Date;
 import java.util.Map;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import com.ruoyi.common.utils.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -13,8 +14,9 @@ import com.ruoyi.mapper.pension.FundTransferMapper;
 import com.ruoyi.mapper.pension.AccountInfoMapper;
 import com.ruoyi.domain.pension.FundTransfer;
 import com.ruoyi.domain.pension.AccountInfo;
+import com.ruoyi.domain.pension.TransferRuleConfig;
 import com.ruoyi.service.pension.IFundTransferService;
-import com.ruoyi.common.utils.StringUtils;
+import com.ruoyi.service.pension.ITransferRuleConfigService;
 
 /**
  * 资金划拨记录Service业务层处理
@@ -30,6 +32,9 @@ public class FundTransferServiceImpl implements IFundTransferService
 
     @Autowired
     private AccountInfoMapper accountInfoMapper;
+
+    @Autowired
+    private ITransferRuleConfigService transferRuleConfigService;
 
     /**
      * 查询资金划拨记录
@@ -345,5 +350,171 @@ public class FundTransferServiceImpl implements IFundTransferService
     public List<AccountInfo> selectLowBalanceAccounts(Integer months)
     {
         return accountInfoMapper.selectLowBalanceAccounts(months);
+    }
+
+    /**
+     * 根据入住单生成划拨单
+     *
+     * @param checkInId 入住单ID
+     * @param orderId 订单ID
+     * @param institutionId 机构ID
+     * @param elderId 老人ID
+     * @param monthCount 月数
+     * @param startDate 起始日期
+     */
+    @Override
+    @Transactional
+    public void generateTransferOrderFromCheckIn(Long checkInId, Long orderId, Long institutionId,
+                                                  Long elderId, Integer monthCount, Date startDate)
+    {
+        // 查询老人账户获取月费用
+        AccountInfo account = accountInfoMapper.selectAccountInfoByElderId(elderId);
+        if (account == null) {
+            // 如果账户不存在，先创建账户
+            account = new AccountInfo();
+            account.setElderId(elderId);
+            account.setInstitutionId(institutionId);
+            account.setAccountNo("ACC" + System.currentTimeMillis());
+            account.setAccountName("账户-" + elderId);
+            account.setAccountStatus("1");
+            account.setTotalBalance(BigDecimal.ZERO);
+            account.setServiceBalance(BigDecimal.ZERO);
+            account.setDepositBalance(BigDecimal.ZERO);
+            account.setMemberBalance(BigDecimal.ZERO);
+            account.setCreateTime(DateUtils.getNowDate());
+            accountInfoMapper.insertAccountInfo(account);
+        }
+
+        // 计算月费用（从账户余额推算，或使用默认值）
+        // 这里简化处理，实际应该从入住单获取月费用
+        BigDecimal monthlyFee = new BigDecimal("3000.00"); // 默认月费用，可以从配置获取
+
+        generateMonthlyTransfersForOrder(orderId, institutionId, elderId, monthCount, startDate, monthlyFee);
+    }
+
+    /**
+     * 根据老人ID和月数生成划拨单（从次月开始，按划拨规则配置）
+     *
+     * @param orderId 订单ID
+     * @param institutionId 机构ID
+     * @param elderId 老人ID
+     * @param monthCount 月数
+     * @param startDate 起始日期
+     * @param monthlyFee 月费用
+     */
+    @Override
+    @Transactional
+    public void generateMonthlyTransfersForOrder(Long orderId, Long institutionId, Long elderId,
+                                                  Integer monthCount, Date startDate, BigDecimal monthlyFee)
+    {
+        if (monthCount == null || monthCount <= 0) {
+            monthCount = 1;
+        }
+
+        // 获取有效的划拨规则配置
+        TransferRuleConfig ruleConfig = getActiveTransferRule(institutionId);
+        if (ruleConfig == null) {
+            // 没有配置规则，使用默认值：每月1号划拨
+            ruleConfig = new TransferRuleConfig();
+            ruleConfig.setTransferCycle("monthly");
+            ruleConfig.setTransferDay(1);
+        }
+
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM");
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(startDate);
+
+        // 根据划拨周期计算首月划拨后的下一个划拨月份
+        int cycleMonths = getCycleMonths(ruleConfig.getTransferCycle());
+        cal.add(Calendar.MONTH, cycleMonths);
+
+        // 生成monthCount个月的划拨单
+        for (int i = 0; i < monthCount; i++) {
+            String billingMonth = sdf.format(cal.getTime());
+
+            // 设置划拨日期（使用规则配置的日期）
+            Calendar transferDateCal = Calendar.getInstance();
+            transferDateCal.setTime(cal.getTime());
+            int transferDay = ruleConfig.getTransferDay() != null ? ruleConfig.getTransferDay() : 1;
+            // 确保日期在当月有效范围内
+            int maxDay = transferDateCal.getActualMaximum(Calendar.DAY_OF_MONTH);
+            transferDay = Math.min(transferDay, maxDay);
+            transferDateCal.set(Calendar.DAY_OF_MONTH, transferDay);
+
+            // 生成划拨单号
+            String transferNo = "TRF" + System.currentTimeMillis() + i + String.format("%02d", (int)(Math.random() * 100));
+
+            // 创建划拨单
+            FundTransfer fundTransfer = new FundTransfer();
+            fundTransfer.setInstitutionId(institutionId);
+            fundTransfer.setElderId(elderId);
+            fundTransfer.setOrderId(orderId);
+            fundTransfer.setTransferNo(transferNo);
+            fundTransfer.setTransferType("1"); // 自动划拨
+            fundTransfer.setTransferAmount(monthlyFee);
+            fundTransfer.setTransferDate(transferDateCal.getTime());
+            fundTransfer.setTransferPeriod(billingMonth);
+            fundTransfer.setBillingMonth(billingMonth);
+            fundTransfer.setElderCount(1);
+            fundTransfer.setTransferStatus("0"); // 待处理
+            fundTransfer.setIsPaid("0"); // 未划拨
+            fundTransfer.setStatus("pending"); // 待划拨
+            fundTransfer.setCreateBy("system");
+            fundTransfer.setCreateTime(new Date());
+            fundTransfer.setRemark("订单支付后自动生成-" + billingMonth);
+
+            fundTransferMapper.insertFundTransfer(fundTransfer);
+
+            // 根据划拨周期增加月份
+            cal.add(Calendar.MONTH, cycleMonths);
+        }
+    }
+
+    /**
+     * 获取有效的划拨规则配置
+     *
+     * @param institutionId 机构ID（保留参数以备将来扩展，当前规则为全局）
+     * @return 划拨规则配置
+     */
+    private TransferRuleConfig getActiveTransferRule(Long institutionId)
+    {
+        try {
+            TransferRuleConfig query = new TransferRuleConfig();
+            query.setStatus("0"); // 0-正常
+            List<TransferRuleConfig> rules = transferRuleConfigService.selectTransferRuleConfigList(query);
+            return rules != null && !rules.isEmpty() ? rules.get(0) : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * 根据划拨周期获取月数间隔
+     *
+     * @param transferCycle 划拨周期
+     * @return 月数间隔
+     */
+    private int getCycleMonths(String transferCycle)
+    {
+        if ("quarterly".equals(transferCycle)) {
+            return 3; // 按季度：3个月
+        } else if ("yearly".equals(transferCycle)) {
+            return 12; // 按年：12个月
+        } else {
+            return 1; // 默认按月：1个月
+        }
+    }
+
+    /**
+     * 根据老人ID和支付方式查询已完成的划拨记录（用于H5费用查询）
+     *
+     * @param elderId 老人ID
+     * @param paidMethods ���付方式数组（如：auto, manual, deposit）
+     * @return 划拨记录集合
+     */
+    @Override
+    public List<FundTransfer> selectByElderIdAndPaidMethods(Long elderId, String[] paidMethods)
+    {
+        return fundTransferMapper.selectByElderIdAndPaidMethods(elderId, paidMethods);
     }
 }

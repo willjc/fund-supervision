@@ -8,13 +8,15 @@ import org.springframework.stereotype.Service;
 import com.ruoyi.mapper.pension.DepositApplyMapper;
 import com.ruoyi.domain.pension.DepositApply;
 import com.ruoyi.domain.pension.AccountInfo;
+import com.ruoyi.domain.pension.FundTransfer;
 import com.ruoyi.service.pension.IDepositApplyService;
 import com.ruoyi.service.pension.IAccountInfoService;
 import com.ruoyi.service.pension.IExpenseRecordService;
 import com.ruoyi.service.pension.ISupervisionAccountLogService;
+import com.ruoyi.service.pension.IFundTransferService;
 
 /**
- * 押金使用申请Service业务层处理
+ * 押金使用申请Service业���层处理
  *
  * @author ruoyi
  * @date 2025-10-29
@@ -33,6 +35,9 @@ public class DepositApplyServiceImpl implements IDepositApplyService
 
     @Autowired
     private ISupervisionAccountLogService supervisionAccountLogService;
+
+    @Autowired
+    private IFundTransferService fundTransferService;
 
     /**
      * 查询押金使用申请
@@ -264,17 +269,49 @@ public class DepositApplyServiceImpl implements IDepositApplyService
             // 记录实际使用金额
             apply.setActualAmount(applyAmount);
 
-            // 记录监管账户流水（划拨到基本账户）
+            // 创建fund_transfer记录（统一管理所有划拨）
+            Long transferId = null;
+            try {
+                String transferNo = "TRF" + System.currentTimeMillis() + String.format("%03d", (int)(Math.random() * 1000));
+                String billingMonth = new java.text.SimpleDateFormat("yyyy-MM").format(apply.getCreateTime());
+
+                FundTransfer fundTransfer = new FundTransfer();
+                fundTransfer.setTransferNo(transferNo);
+                fundTransfer.setTransferType("3"); // 3-特殊划拨（押金使用）
+                fundTransfer.setTransferAmount(applyAmount);
+                fundTransfer.setTransferDate(DateUtils.getNowDate());
+                fundTransfer.setBillingMonth(billingMonth); // 使用申请日期作为账单月份
+                fundTransfer.setElderCount(1);
+                fundTransfer.setTransferStatus("1"); // 1-成功
+                fundTransfer.setIsPaid("1"); // 已划拨
+                fundTransfer.setPaidTime(DateUtils.getNowDate());
+                fundTransfer.setPaidMethod("deposit"); // 标识来源为押金使用
+                fundTransfer.setApplyId(applyId); // 关联押金申请ID
+                fundTransfer.setElderId(apply.getElderId());
+                fundTransfer.setInstitutionId(apply.getInstitutionId());
+                fundTransfer.setStatus("completed"); // 已完成
+                fundTransfer.setCreateBy(approver);
+                fundTransfer.setCreateTime(DateUtils.getNowDate());
+                fundTransfer.setRemark("押金使用-" + apply.getPurpose());
+
+                fundTransferService.insertFundTransfer(fundTransfer);
+                transferId = fundTransfer.getTransferId();
+            } catch (Exception e) {
+                // 创建fund_transfer失败不影响主流程，只记录日志
+                System.err.println("创建划拨记录异常：" + e.getMessage());
+            }
+
+            // 记录监管账户流水（划拨到基本账户，关联transfer_id）
             try {
                 supervisionAccountLogService.recordTransferOut(
                     apply.getInstitutionId(),
-                    applyId,
+                    transferId,
                     applyAmount,
                     "押金使用划拨-" + apply.getPurpose(),
                     "基本账户"
                 );
             } catch (Exception e) {
-                // 流水记录创建失败不影响主流程，只记录��志
+                // 流水记录创建失败不影响主流程，只记录日志
                 System.err.println("记录监管账户流水异常：" + e.getMessage());
             }
         }

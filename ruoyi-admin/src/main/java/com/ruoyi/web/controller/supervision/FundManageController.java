@@ -2,7 +2,6 @@ package com.ruoyi.web.controller.supervision;
 
 import java.util.List;
 import java.util.Map;
-import java.util.ArrayList;
 import java.util.HashMap;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,9 +13,7 @@ import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
-import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.domain.pension.TransferRuleConfig;
-import com.ruoyi.domain.pension.SupervisionAccountLog;
 import com.ruoyi.service.pension.ITransferRuleConfigService;
 import com.ruoyi.service.pension.ISupervisionAccountLogService;
 
@@ -101,47 +98,40 @@ public class FundManageController extends BaseController
     // ==================== 资金划付记录接口 ====================
 
     /**
-     * 查询资金划付记录列表（所有机构汇总，无数据权限限制）
+     * 查询资金划付记录列表（以fund_transfer为主表，所有机构汇总）
      */
     @PreAuthorize("@ss.hasPermi('supervision:transferRecord:list')")
     @GetMapping("/transfer-record/list")
     public TableDataInfo getTransferRecordList(
-            SupervisionAccountLog supervisionAccountLog,
             @RequestParam(required = false) Long institutionId,
+            @RequestParam(required = false) String transferType,
+            @RequestParam(required = false) String elderName,
             @RequestParam(required = false) String beginTime,
             @RequestParam(required = false) String endTime)
     {
         startPage();
 
-        // 不设置 currentUserId，使用无数据权限限制的查询方法
+        // 构建查询参数（不设置currentUserId，允许查看所有机构）
+        Map<String, Object> params = new HashMap<>();
         if (institutionId != null) {
-            supervisionAccountLog.setInstitutionId(institutionId);
+            params.put("institutionId", institutionId);
         }
-
-        // 设置时间范围参数
-        if (beginTime != null || endTime != null) {
-            Map<String, Object> params = new HashMap<>();
+        if (transferType != null && !transferType.isEmpty()) {
+            params.put("transferType", transferType);
+        }
+        if (elderName != null && !elderName.isEmpty()) {
+            params.put("elderName", elderName);
+        }
+        if (beginTime != null && !beginTime.isEmpty()) {
             params.put("beginTime", beginTime);
+        }
+        if (endTime != null && !endTime.isEmpty()) {
             params.put("endTime", endTime);
-            supervisionAccountLog.setParams(params);
         }
 
-        List<SupervisionAccountLog> list = supervisionAccountLogService.selectAllSupervisionAccountLogList(supervisionAccountLog);
+        List<Map<String, Object>> list = supervisionAccountLogService.selectTransferFlowList(params);
 
-        // 转换为前端期望的格式
-        List<Map<String, Object>> resultList = new ArrayList<>();
-        for (SupervisionAccountLog log : list) {
-            Map<String, Object> item = new HashMap<>();
-            item.put("logId", log.getLogId());
-            item.put("institutionName", log.getInstitutionName());
-            item.put("transactionTime", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, log.getTransactionTime()));
-            item.put("transactionType", log.getTransactionType());
-            item.put("amount", log.getAmount());
-            item.put("businessDesc", log.getBusinessDesc());
-            resultList.add(item);
-        }
-
-        return getDataTable(resultList);
+        return getDataTable(list);
     }
 
     /**

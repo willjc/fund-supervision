@@ -5,6 +5,7 @@ import java.util.Map;
 import com.ruoyi.domain.RenewDTO;
 import com.ruoyi.domain.vo.ElderCurrentPriceVO;
 import com.ruoyi.domain.vo.ResidentVO;
+import com.ruoyi.domain.pension.FundTransfer;
 
 /**
  * 入住人Service接口
@@ -61,4 +62,12 @@ public interface IResidentService
      * @return 结果
      */
     public int deleteResident(Long residentId);
+
+    /**
+     * 查询老人的拨付单列表
+     *
+     * @param elderId 老人ID
+     * @return 拨付单列表
+     */
+    public List<FundTransfer> selectTransfersByElderId(Long elderId);
 }

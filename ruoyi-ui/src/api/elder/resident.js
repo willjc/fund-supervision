@@ -93,3 +93,11 @@ export function getCurrentPrice(elderId) {
     method: 'get'
   })
 }
+
+// 查询老人的拨付单列表
+export function getResidentTransfers(elderId) {
+  return request({
+    url: '/pension/resident/transfer/' + elderId,
+    method: 'get'
+  })
+}

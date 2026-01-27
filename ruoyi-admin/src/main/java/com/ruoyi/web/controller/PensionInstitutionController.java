@@ -54,6 +54,19 @@ public class PensionInstitutionController extends BaseController
     }
 
     /**
+     * 获取所有机构列表（不分页，用于下拉选择）
+     */
+    @PreAuthorize("@ss.hasPermi('pension:institution:list')")
+    @GetMapping("/all")
+    public AjaxResult listAll(PensionInstitution pensionInstitution)
+    {
+        // 监管端可以查看所有机构，机构端只能查看自己关联的机构
+        pensionInstitution.setCurrentUserId(getUserId());
+        List<PensionInstitution> list = pensionInstitutionService.selectPensionInstitutionList(pensionInstitution);
+        return AjaxResult.success(list);
+    }
+
+    /**
      * 导出养老机构信息列表
      */
     @PreAuthorize("@ss.hasPermi('pension:institution:export')")

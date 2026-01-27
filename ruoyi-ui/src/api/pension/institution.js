@@ -60,6 +60,14 @@ export function getDictData(dictType) {
   })
 }
 
+// 获取所有机构列表（不分页，用于下拉选择）
+export function listAllInstitutions() {
+  return request({
+    url: '/pension/institution/all',
+    method: 'get'
+  })
+}
+
 // 以下是别名导出,与index.vue中的导入保持一致
 export const listInstitution = listPensionInstitution
 export const getInstitution = getPensionInstitution

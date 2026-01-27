@@ -5,6 +5,7 @@ import java.util.Map;
 import com.ruoyi.domain.OrderInfo;
 import com.ruoyi.domain.PaymentRecord;
 import com.ruoyi.domain.vo.ResidentVO;
+import com.ruoyi.domain.pension.FundTransfer;
 
 /**
  * 入住人Mapper接口
@@ -52,4 +53,12 @@ public interface ResidentMapper
      * @return 统计数据(totalResidents, totalServiceBalance, totalDepositBalance, totalMemberBalance)
      */
     public Map<String, Object> selectResidentStatistics();
+
+    /**
+     * 查询老人的拨付单列表
+     *
+     * @param elderId 老人ID
+     * @return 拨付单列表
+     */
+    public List<FundTransfer> selectTransfersByElderId(Long elderId);
 }

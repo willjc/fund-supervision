@@ -233,4 +233,17 @@ public class SupervisionAccountLogServiceImpl implements ISupervisionAccountLogS
     {
         return supervisionAccountLogMapper.selectAllSupervisionAccountLogList(supervisionAccountLog);
     }
+
+    /**
+     * 查询拨付单流水列表（以fund_transfer为主表）
+     * 用于监管账户流水页面展示划拨单记录
+     *
+     * @param params 查询参数
+     * @return 拨付单流水列表
+     */
+    @Override
+    public List<Map<String, Object>> selectTransferFlowList(Map<String, Object> params)
+    {
+        return supervisionAccountLogMapper.selectTransferFlowList(params);
+    }
 }

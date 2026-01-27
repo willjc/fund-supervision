@@ -208,4 +208,38 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         WHERE ei.status IN ('0', '1', '3')
     </select>
 
+    <!-- FundTransfer结果映射 -->
+    <resultMap type="com.ruoyi.domain.pension.FundTransfer" id="FundTransferResult">
+        <result property="transferId"    column="transfer_id"    />
+        <result property="transferNo"    column="transfer_no"    />
+        <result property="institutionId" column="institution_id" />
+        <result property="elderId"       column="elder_id"       />
+        <result property="orderId"       column="order_id"       />
+        <result property="transferAmount" column="transfer_amount" />
+        <result property="billingMonth"  column="billing_month"  />
+        <result property="transferDate"  column="transfer_date"  />
+        <result property="status"        column="status"         />
+        <result property="isPaid"        column="is_paid"        />
+        <result property="paidTime"      column="paid_time"      />
+    </resultMap>
+
+    <!-- 查询老人的拨付单列表 -->
+    <select id="selectTransfersByElderId" parameterType="Long" resultMap="FundTransferResult">
+        SELECT
+            ft.transfer_id,
+            ft.transfer_no,
+            ft.institution_id,
+            ft.elder_id,
+            ft.order_id,
+            ft.transfer_amount,
+            ft.billing_month,
+            ft.transfer_date,
+            ft.status,
+            ft.is_paid,
+            ft.paid_time
+        FROM fund_transfer ft
+        WHERE ft.elder_id = #{elderId}
+        ORDER BY ft.billing_month DESC
+    </select>
+
 </mapper>

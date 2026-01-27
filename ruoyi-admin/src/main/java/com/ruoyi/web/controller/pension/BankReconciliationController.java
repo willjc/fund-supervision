@@ -108,53 +108,65 @@ public class BankReconciliationController extends BaseController
     }
 
     /**
-     * 查询监管账户交易流水
+     * 查询监管账户交易流水（改为查询拨付单流水）
      */
     @GetMapping("/supervision/list")
     public TableDataInfo getSupervisionList(
-            SupervisionAccountLog supervisionAccountLog,
             @RequestParam(required = false) Long institutionId,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String transferType,
+            @RequestParam(required = false) String elderName,
+            @RequestParam(required = false) String beginTime,
+            @RequestParam(required = false) String endTime,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "10") Integer pageSize)
     {
         startPage();
 
-        // 数据权限过滤：只查询当前用户有权限的机构
-        Long currentUserId = getUserId();
-        supervisionAccountLog.getParams().put("currentUserId", currentUserId);
-
-        // 如果传入了机构ID，使用机构ID过滤
+        // 构建查询参数
+        Map<String, Object> params = new HashMap<>();
+        // 数据权限过滤: 只对机构用户过滤，监管用户可以看到所有机构的流水
+        if (!isSupervisionUser()) {
+            params.put("currentUserId", getUserId());
+        }
         if (institutionId != null) {
-            supervisionAccountLog.setInstitutionId(institutionId);
+            params.put("institutionId", institutionId);
+        }
+        if (status != null && !status.isEmpty()) {
+            params.put("status", status);
+        }
+        if (transferType != null && !transferType.isEmpty()) {
+            params.put("transferType", transferType);
+        }
+        if (elderName != null && !elderName.isEmpty()) {
+            params.put("elderName", elderName);
+        }
+        if (beginTime != null && !beginTime.isEmpty()) {
+            params.put("beginTime", beginTime);
+        }
+        if (endTime != null && !endTime.isEmpty()) {
+            params.put("endTime", endTime);
         }
 
-        List<SupervisionAccountLog> list = supervisionAccountLogService.selectSupervisionAccountLogList(supervisionAccountLog);
+        List<Map<String, Object>> list = supervisionAccountLogService.selectTransferFlowList(params);
 
-        // 转换为前端期望的格式，并计算基本账户余额
-        // 注意：列表是按时间倒序显示的，所以基本账户余额需要通过服务方法查询
-        List<Map<String, Object>> resultList = new java.util.ArrayList<>();
+        return getDataTable(list);
+    }
 
-        for (SupervisionAccountLog log : list) {
-            Map<String, Object> item = new HashMap<>();
-            item.put("logId", log.getLogId());
-            item.put("transactionNo", log.getTransactionNo());
-            item.put("institutionName", log.getInstitutionName()); // 归属机构
-            item.put("transactionTime", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, log.getTransactionTime()));
-            item.put("transactionType", "收入".equals(log.getTransactionType()) ? "转入" : "转出");
-            item.put("amount", log.getAmount());
-            item.put("balance", log.getBalanceAfter());
-            item.put("description", log.getBusinessDesc());
-            item.put("counterpartyName", log.getCounterparty());
-
-            // 计算基本账户余额：该时间点之前所有支出的累计总和
-            BigDecimal basicBalance = supervisionAccountLogService.selectBasicBalanceByTime(
-                log.getInstitutionId(), log.getTransactionTime());
-            item.put("basicBalance", basicBalance);
-
-            resultList.add(item);
+    /**
+     * 判断当前用户是否为监管用户
+     * 监管用户具有监管审批权限，可以查看所有机构的划拨流水
+     */
+    private boolean isSupervisionUser()
+    {
+        try {
+            // 检查当前用户是否为管理员或是否有监管审批权限
+            return com.ruoyi.common.utils.SecurityUtils.isAdmin(com.ruoyi.common.utils.SecurityUtils.getUserId())
+                || com.ruoyi.common.utils.SecurityUtils.hasPermi("pension:fundTransferApply:supervisionApprove")
+                || com.ruoyi.common.utils.SecurityUtils.hasPermi("pension:bank:supervision:list");
+        } catch (Exception e) {
+            return false;
         }
-
-        return getDataTable(resultList);
     }
 
     /**

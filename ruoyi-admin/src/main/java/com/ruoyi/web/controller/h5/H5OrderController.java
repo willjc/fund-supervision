@@ -93,6 +93,9 @@ public class H5OrderController extends BaseController
     @Autowired
     private com.ruoyi.service.pension.ISupervisionAccountLogService supervisionAccountLogService;
 
+    @Autowired
+    private com.ruoyi.service.pension.IFundTransferService fundTransferService;
+
     /**
      * 获取订单列表
      * 根据当前登录用户关联的老人查询订单（家属或老人本人）
@@ -1522,6 +1525,17 @@ public class H5OrderController extends BaseController
     /**
      * 获取老人费用记录列表
      * H5端用户只能查看自己关联老人的费用记录
+     *
+     * 数据说明：
+     * - 收入：从 expense_record 查询 transaction_type='income' 的记录
+     * - 支出（服务费）：从 fund_transfer 查询 paid_method IN ('auto','manual')
+     * - 支出（押金）：从 fund_transfer 查询 paid_method='deposit'
+     *
+     * 费用类型说明：
+     * - service（服务费）：expense_record(service,income) + fund_transfer(auto,manual,expense)
+     * - deposit（押金）：expense_record(deposit,income) + fund_transfer(deposit,expense)
+     * - member（会员费）：从 expense_record 查询
+     * - all：合并所有类型的数据
      */
     @GetMapping("/expense/list")
     public AjaxResult getExpenseList(@RequestParam Long elderId,
@@ -1542,29 +1556,95 @@ public class H5OrderController extends BaseController
                 return error("您没有权限查看该老人的费用记录");
             }
 
-            // 构建查询条件
-            ExpenseRecord query = new ExpenseRecord();
-            query.setElderId(elderId);
+            // 存储所有费用记录（统一转换为Map格式返回）
+            List<Map<String, Object>> allRecords = new java.util.ArrayList<>();
 
-            // 费用类型过滤
-            if (!"all".equals(type)) {
-                query.setExpenseType(type);
+            // ========== 1. 查询收入记录（从 expense_record） ==========
+            if ("all".equals(transactionType) || "income".equals(transactionType)) {
+                ExpenseRecord incomeQuery = new ExpenseRecord();
+                incomeQuery.setElderId(elderId);
+                incomeQuery.setTransactionType("income"); // 只查收入
+
+                // 费用类型过滤
+                if ("service".equals(type)) {
+                    incomeQuery.setExpenseType("service");
+                } else if ("deposit".equals(type)) {
+                    incomeQuery.setExpenseType("deposit");
+                } else if ("member".equals(type)) {
+                    incomeQuery.setExpenseType("member");
+                }
+
+                List<ExpenseRecord> incomeRecords = expenseRecordService.selectExpenseRecordList(incomeQuery);
+                for (ExpenseRecord er : incomeRecords) {
+                    Map<String, Object> record = new java.util.HashMap<>();
+                    record.put("recordId", er.getRecordId());
+                    record.put("expenseType", er.getExpenseType());
+                    record.put("amount", er.getAmount());
+                    record.put("createTime", er.getCreateTime());
+                    record.put("transactionType", "income");
+                    record.put("description", er.getDescription());
+                    record.put("balanceBefore", er.getBalanceBefore());
+                    record.put("balanceAfter", er.getBalanceAfter());
+                    allRecords.add(record);
+                }
             }
 
-            // 交易类型过滤
-            if (!"all".equals(transactionType)) {
-                query.setTransactionType(transactionType);
+            // ========== 2. 查询支出记录（从 fund_transfer） ==========
+            if ("all".equals(transactionType) || "expense".equals(transactionType)) {
+                // 服务费划拨（支出）
+                if ("all".equals(type) || "service".equals(type)) {
+                    List<com.ruoyi.domain.pension.FundTransfer> serviceTransfers =
+                        fundTransferService.selectByElderIdAndPaidMethods(elderId, new String[]{"auto", "manual"});
+                    for (com.ruoyi.domain.pension.FundTransfer ft : serviceTransfers) {
+                        Map<String, Object> record = new java.util.HashMap<>();
+                        record.put("recordId", ft.getTransferId());
+                        record.put("expenseType", "service");
+                        record.put("amount", ft.getTransferAmount());
+                        record.put("createTime", ft.getPaidTime());
+                        record.put("transactionType", "expense");
+                        record.put("description", ft.getRemark() != null ? ft.getRemark() : "服务费划拨");
+                        record.put("balanceBefore", null);
+                        record.put("balanceAfter", null);
+                        allRecords.add(record);
+                    }
+                }
+
+                // 押金划拨（支出）
+                if ("all".equals(type) || "deposit".equals(type)) {
+                    List<com.ruoyi.domain.pension.FundTransfer> depositTransfers =
+                        fundTransferService.selectByElderIdAndPaidMethods(elderId, new String[]{"deposit"});
+                    for (com.ruoyi.domain.pension.FundTransfer ft : depositTransfers) {
+                        Map<String, Object> record = new java.util.HashMap<>();
+                        record.put("recordId", ft.getTransferId());
+                        record.put("expenseType", "deposit");
+                        record.put("amount", ft.getTransferAmount());
+                        record.put("createTime", ft.getPaidTime());
+                        record.put("transactionType", "expense");
+                        record.put("description", ft.getRemark() != null ? ft.getRemark() : "押金使用划拨");
+                        record.put("balanceBefore", null);
+                        record.put("balanceAfter", null);
+                        allRecords.add(record);
+                    }
+                }
             }
 
-            // 查询费用记录
-            List<ExpenseRecord> expenseList = expenseRecordService.selectExpenseRecordList(query);
+            // 按时间降序排序
+            allRecords.sort((a, b) -> {
+                java.util.Date timeA = (java.util.Date) a.get("createTime");
+                java.util.Date timeB = (java.util.Date) b.get("createTime");
+                if (timeA == null) return 1;
+                if (timeB == null) return -1;
+                return timeB.compareTo(timeA);
+            });
 
             // 简单分页处理
-            int total = expenseList.size();
+            int total = allRecords.size();
             int start = (pageNum - 1) * pageSize;
             int end = Math.min(start + pageSize, total);
 
-            List<ExpenseRecord> pageList = expenseList.subList(start, end);
+            List<Map<String, Object>> pageList = start < total ?
+                allRecords.subList(Math.max(0, start), Math.min(end, total)) :
+                new java.util.ArrayList<>();
 
             // 构建返回结果
             Map<String, Object> result = new HashMap<>();

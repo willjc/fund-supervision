@@ -218,6 +218,14 @@
             @click="handleSetPassword(scope.row)"
             v-hasPermi="['elder:resident:edit']"
           >设置密码</el-button>
+          <!-- 拨付单详情 -->
+          <el-button
+            size="mini"
+            type="text"
+            icon="el-icon-s-finance"
+            @click="handleTransferDetail(scope.row)"
+            v-hasPermi="['elder:resident:query']"
+          >拨付单</el-button>
           <!-- 删除:所有人都能删除 -->
           <el-button
             size="mini"
@@ -1036,11 +1044,44 @@
         <el-button @click="passwordDialogOpen = false">取 消</el-button>
       </div>
     </el-dialog>
+
+    <!-- 拨付单详情对话框 -->
+    <el-dialog :title="'拨付单详情 - ' + (currentElderForTransfer ? currentElderForTransfer.elderName : '')" :visible.sync="transferDialogOpen" width="900px" append-to-body>
+      <el-table v-loading="transferLoading" :data="transferList" border>
+        <el-table-column label="账单月份" prop="billingMonth" width="100" align="center" />
+        <el-table-column label="划拨单号" prop="transferNo" width="180" show-overflow-tooltip />
+        <el-table-column label="划拨金额" prop="transferAmount" width="120" align="center">
+          <template slot-scope="scope">
+            <span style="color: #E6A23C; font-weight: bold;">¥{{ formatMoney(scope.row.transferAmount) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="划拨日期" prop="transferDate" width="110" align="center">
+          <template slot-scope="scope">
+            {{ parseTime(scope.row.transferDate, '{y}-{m}-{d}') }}
+          </template>
+        </el-table-column>
+        <el-table-column label="划拨状态" prop="status" width="100" align="center">
+          <template slot-scope="scope">
+            <el-tag v-if="scope.row.status === 'pending'" type="warning">待划拨</el-tag>
+            <el-tag v-else-if="scope.row.status === 'processing'" type="primary">划拨中</el-tag>
+            <el-tag v-else-if="scope.row.status === 'completed'" type="success">已完成</el-tag>
+            <el-tag v-else-if="scope.row.status === 'cancelled'" type="info">已取消</el-tag>
+            <el-tag v-else type="info">{{ scope.row.status }}</el-tag>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div v-if="transferList.length === 0" style="text-align: center; padding: 20px; color: #909399;">
+        暂无拨付单记录
+      </div>
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="transferDialogOpen = false">关 闭</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script>
-import { listResident, getResident, delResident, renewResident, refundResident, applyDepositUse, getCurrentPrice } from "@/api/elder/resident";
+import { listResident, getResident, delResident, renewResident, refundResident, applyDepositUse, getCurrentPrice, getResidentTransfers } from "@/api/elder/resident";
 import { updateElderInfo, setPassword } from "@/api/elder/elderInfo";
 import { listPensionInstitution } from "@/api/pension/institution";
 import { listFamily, addFamily, updateFamily, delFamily } from "@/api/elder/family";
@@ -1284,7 +1325,12 @@ export default {
         relationName: [
           { required: true, message: "请输入关系描述", trigger: "blur" }
         ]
-      }
+      },
+      // 拨付单详情相关
+      transferDialogOpen: false,
+      currentElderForTransfer: null,
+      transferLoading: false,
+      transferList: []
     };
   },
   computed: {
@@ -1843,6 +1889,20 @@ export default {
       } else {
         this.expandedOrderKeys = [];
       }
+    },
+    /** 拨付单详情 */
+    handleTransferDetail(row) {
+      this.currentElderForTransfer = row;
+      this.transferDialogOpen = true;
+      this.transferLoading = true;
+      getResidentTransfers(row.elderId).then(response => {
+        this.transferList = response.data || [];
+      }).catch(() => {
+        this.transferList = [];
+        this.$message.error('获取拨付单失败');
+      }).finally(() => {
+        this.transferLoading = false;
+      });
     },
     /** 获取完整的图片URL */
     getImageUrl(path) {

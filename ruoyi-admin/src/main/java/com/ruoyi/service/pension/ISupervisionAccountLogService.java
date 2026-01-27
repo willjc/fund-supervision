@@ -114,4 +114,13 @@ public interface ISupervisionAccountLogService
      * @return 监管账户流水集合
      */
     public List<SupervisionAccountLog> selectAllSupervisionAccountLogList(SupervisionAccountLog supervisionAccountLog);
+
+    /**
+     * 查询拨付单流水列表（以fund_transfer为主表）
+     * 用于监管账户流水页面展示划拨单记录
+     *
+     * @param params 查询参数（包含institutionId, status, transferType, beginTime, endTime, currentUserId等）
+     * @return 拨付单流水列表
+     */
+    public List<Map<String, Object>> selectTransferFlowList(Map<String, Object> params);
 }
