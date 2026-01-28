@@ -61,6 +61,32 @@
             <artifactId>ruoyi-generator</artifactId>
         </dependency>
 
+        <!-- fastjson (郑好办SDK依赖) -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>fastjson</artifactId>
+            <version>1.2.75</version>
+        </dependency>
+
+        <!-- commons-codec (郑好办SDK依赖) -->
+        <dependency>
+            <groupId>commons-codec</groupId>
+            <artifactId>commons-codec</artifactId>
+        </dependency>
+
+        <!-- 郑好办SDK -->
+        <dependency>
+            <groupId>com.digital.szzz</groupId>
+            <artifactId>szzz-open-gateway-sdk</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+
+        <!-- Spring Security Crypto (提供Base64Utils，兼容SDK) -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+        </dependency>
+
     </dependencies>
 
     <build>
@@ -70,7 +96,7 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <version>2.5.15</version>
                 <configuration>
-                    <fork>true</fork> <!-- 如果没有该配置，devtools不会生效 -->
+                    <addResources>true</addResources>
                 </configuration>
                 <executions>
                     <execution>

@@ -14,7 +14,8 @@ public class RuoYiApplication
 {
     public static void main(String[] args)
     {
-        // System.setProperty("spring.devtools.restart.enabled", "false");
+        // 禁用DevTools重启功能，解决郑好办SDK类加载器问题
+        System.setProperty("spring.devtools.restart.enabled", "false");
         SpringApplication.run(RuoYiApplication.class, args);
         System.out.println("若依启动成功");
     }

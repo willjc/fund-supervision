@@ -35,6 +35,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="elderName"      column="elder_name"      />
         <result property="elderIdCard"    column="id_card"         />
         <result property="bedInfo"        column="bed_info"        />
+        <result property="transferNos"    column="transfer_nos"    />
     </resultMap>
 
     <resultMap type="FundTransfer" id="FundTransferResult">
@@ -70,7 +71,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                fta.actual_amount, fta.use_time,
                fta.create_by, fta.create_time, fta.update_by, fta.update_time, fta.remark,
                pi.institution_name, ei.elder_name, ei.id_card,
-               CONCAT(bi.room_number, '-', bi.bed_number) as bed_info
+               CONCAT(bi.room_number, '-', bi.bed_number) as bed_info,
+               (
+                   SELECT GROUP_CONCAT(ft.transfer_no SEPARATOR ', ')
+                   FROM fund_transfer_apply_detail ftad
+                   LEFT JOIN fund_transfer ft ON ftad.transfer_id = ft.transfer_id
+                   WHERE ftad.apply_id = fta.apply_id
+               ) as transfer_nos
         from fund_transfer_apply fta
         left join pension_institution pi on fta.institution_id = pi.institution_id
         left join elder_info ei on fta.elder_id = ei.elder_id

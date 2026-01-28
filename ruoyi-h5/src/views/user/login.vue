@@ -22,6 +22,29 @@
         <div class="app-desc">家属端</div>
       </div>
 
+      <!-- 郑好办登录按钮 -->
+      <div class="zhb-login-wrapper">
+        <van-button
+          block
+          type="primary"
+          :loading="zhbLoading"
+          @click="handleZhbLogin"
+          class="zhb-login-btn"
+          round
+          icon="logistics"
+        >
+          郑好办一键登录
+        </van-button>
+        <div class="zhb-login-tip">使用郑好办账号快速登录</div>
+      </div>
+
+      <!-- 分割线 -->
+      <div class="divider-wrapper">
+        <div class="divider-line"></div>
+        <div class="divider-text">或</div>
+        <div class="divider-line"></div>
+      </div>
+
       <!-- 登录表单 -->
       <div class="login-form">
         <van-form @submit="handleLogin">
@@ -68,6 +91,7 @@
             <div class="tips-title">支持的登录方式:</div>
             <div class="tip-item">• 手机号 + 密码 (家属账号)</div>
             <div class="tip-item">• 身份证号 + 密码 (老人账号)</div>
+            <div class="tip-item">• 郑好办一键登录</div>
           </div>
         </van-form>
       </div>
@@ -78,20 +102,86 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { showToast } from 'vant'
+import { showToast, showDialog } from 'vant'
 import { useUserStore } from '@/store/modules/user'
 import { setToken } from '@/utils/auth'
 import { login } from '@/api/user'
+import { loginByZhengHaoBan } from '@/api/zhb'
+import { isZhengHaoBanEnv, getUserAuthCode } from '@/utils/zhb'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 
 const loading = ref(false)
+const zhbLoading = ref(false)
+
 const loginForm = ref({
   account: '',
   password: ''
 })
+
+// 郑好办登录处理
+const handleZhbLogin = async () => {
+  // 检查是否在郑好办环境
+  if (!isZhengHaoBanEnv()) {
+    await showDialog({
+      title: '提示',
+      message: '请在郑好办APP中打开页面使用郑好办登录功能',
+      confirmButtonText: '知道了'
+    })
+    return
+  }
+
+  try {
+    zhbLoading.value = true
+
+    // 获取授权码
+    let authCode
+    try {
+      authCode = await getUserAuthCode()
+    } catch (error) {
+      if (error.message.includes('取消')) {
+        showToast('已取消授权')
+      } else {
+        showToast(error.message || '获取授权失败')
+      }
+      return
+    }
+
+    // 调用后端登录接口
+    const res = await loginByZhengHaoBan({ authCode })
+
+    if (res.code === 200) {
+      // 保存token
+      setToken(res.data.token)
+      userStore.setToken(res.data.token)
+
+      // 保存用户信息
+      userStore.setUser(res.data.user)
+
+      // 保存关联老人列表
+      if (res.data.elders) {
+        userStore.setElders(res.data.elders)
+      }
+
+      showToast({
+        message: '郑好办登录成功',
+        onClose: () => {
+          // 跳转到重定向地址或首页
+          const redirect = route.query.redirect || '/user'
+          router.replace(redirect)
+        }
+      })
+    } else {
+      showToast(res.msg || '登录失败')
+    }
+  } catch (error) {
+    showToast('登录失败,请稍后重试')
+  } finally {
+    zhbLoading.value = false
+  }
+}
 
 // 登录处理
 const handleLogin = async () => {
@@ -221,6 +311,50 @@ const handleLogin = async () => {
   padding: 16px;
   position: relative;
   z-index: 1;
+}
+
+/* 郑好办登录区域 */
+.zhb-login-wrapper {
+  margin-bottom: 16px;
+}
+
+.zhb-login-btn {
+  height: 50px;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);
+  border: none;
+  box-shadow: 0 4px 16px rgba(255, 107, 107, 0.4);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.zhb-login-btn:active {
+  opacity: 0.9;
+}
+
+.zhb-login-tip {
+  text-align: center;
+  margin-top: 8px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* 分割线 */
+.divider-wrapper {
+  display: flex;
+  align-items: center;
+  margin: 20px 0;
+}
+
+.divider-line {
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.divider-text {
+  padding: 0 16px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
 }
 
 /* Logo区域 */

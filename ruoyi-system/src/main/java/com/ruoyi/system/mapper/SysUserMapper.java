@@ -154,6 +154,22 @@ public interface SysUserMapper
     public SysUser selectUserByPhonenumber(String phonenumber);
 
     /**
+     * 通过郑好办zid查询用户(用于郑好办登录)
+     *
+     * @param zid 郑好办用户ID
+     * @return 用户对象信息
+     */
+    public SysUser selectUserByZid(@Param("zid") String zid);
+
+    /**
+     * 通过身份证号查询用户(用于郑好办登录)
+     *
+     * @param idCard 身份证号
+     * @return 用户对象信息
+     */
+    public SysUser selectUserByIdCard(@Param("idCard") String idCard);
+
+    /**
      * 查询H5家属用户列表
      * 排除：系统管理员(user_id <= 100)、机构用户(user_name以jg开头)、老人登录账号(user_name以elder_开头)
      *

@@ -19,11 +19,12 @@
         <el-form-item label="申请状态" prop="applyStatus">
           <el-select v-model="queryParams.applyStatus" placeholder="请选择状态" clearable size="small">
             <el-option label="全部" value="" />
-            <el-option label="待家属确认" value="pending_family" />
-            <el-option label="待监管审核" value="pending_supervision" />
-            <el-option label="已批准" value="approved" />
-            <el-option label="已拒绝" value="rejected" />
-            <el-option label="已完成" value="completed" />
+            <el-option
+              v-for="dict in dict.type.deposit_apply_status"
+              :key="dict.value"
+              :label="dict.label"
+              :value="dict.value"
+            />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -50,6 +51,12 @@
       <!-- 数据表格 -->
       <el-table v-loading="loading" :data="applyList" border>
         <el-table-column label="申请单号" prop="applyNo" width="180" />
+        <el-table-column label="关联划拨单" prop="transferNos" width="200" show-overflow-tooltip>
+          <template slot-scope="scope">
+            <span v-if="scope.row.transferNos">{{ scope.row.transferNos }}</span>
+            <span v-else style="color: #909399;">-</span>
+          </template>
+        </el-table-column>
         <el-table-column label="老人姓名" prop="elderName" width="100" />
         <el-table-column label="床位信息" prop="bedInfo" width="150" show-overflow-tooltip />
         <el-table-column label="申请金额" prop="applyAmount" width="120" align="center">
@@ -65,7 +72,7 @@
         </el-table-column>
         <el-table-column label="申请状态" prop="applyStatus" width="120" align="center">
           <template slot-scope="scope">
-            <dict-tag :options="statusOptions" :value="scope.row.applyStatus"/>
+            <dict-tag :options="dict.type.deposit_apply_status" :value="scope.row.applyStatus"/>
           </template>
         </el-table-column>
         <el-table-column label="申请时间" prop="createTime" width="160" align="center">
@@ -123,7 +130,7 @@
           <el-tag :type="detailData.urgencyLevel === '紧急' ? 'warning' : 'info'">{{ detailData.urgencyLevel }}</el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="申请状态">
-          <dict-tag :options="statusOptions" :value="detailData.applyStatus"/>
+          <dict-tag :options="dict.type.deposit_apply_status" :value="detailData.applyStatus"/>
         </el-descriptions-item>
         <el-descriptions-item label="申请原因" :span="2">{{ detailData.applyReason }}</el-descriptions-item>
         <el-descriptions-item label="期望划拨日期">
@@ -177,6 +184,7 @@ import { listFundTransferApply, getFundTransferApply, supervisionApprove, execut
 
 export default {
   name: 'FundTransferApplyList',
+  dicts: ['deposit_apply_status'],
   data() {
     return {
       loading: false,
@@ -203,14 +211,7 @@ export default {
         remark: [
           { required: true, message: '请输入审批意见', trigger: 'blur' }
         ]
-      },
-      statusOptions: [
-        { label: '待家属确认', value: 'pending_family', color: 'info' },
-        { label: '待监管审核', value: 'pending_supervision', color: 'warning' },
-        { label: '已批准', value: 'approved', color: 'success' },
-        { label: '已拒绝', value: 'rejected', color: 'danger' },
-        { label: '已完成', value: 'completed', color: 'success' }
-      ]
+      }
     }
   },
   created() {

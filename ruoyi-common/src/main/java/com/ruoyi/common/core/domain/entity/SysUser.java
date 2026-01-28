@@ -78,6 +78,12 @@ public class SysUser extends BaseEntity
     /** 密码最后更新时间 */
     private Date pwdUpdateDate;
 
+    /** 郑好办用户ID */
+    private String zid;
+
+    /** 身份证号 */
+    private String idCard;
+
     /** 部门对象 */
     @Excels({
         @Excel(name = "部门名称", targetAttr = "deptName", type = Type.EXPORT),
@@ -279,6 +285,26 @@ public class SysUser extends BaseEntity
     public void setPwdUpdateDate(Date pwdUpdateDate)
     {
         this.pwdUpdateDate = pwdUpdateDate;
+    }
+
+    public String getZid()
+    {
+        return zid;
+    }
+
+    public void setZid(String zid)
+    {
+        this.zid = zid;
+    }
+
+    public String getIdCard()
+    {
+        return idCard;
+    }
+
+    public void setIdCard(String idCard)
+    {
+        this.idCard = idCard;
     }
 
     public SysDept getDept()

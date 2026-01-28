@@ -37,6 +37,9 @@ import com.ruoyi.common.config.RuoYiConfig;
 import com.ruoyi.common.utils.file.FileUploadUtils;
 import com.ruoyi.common.utils.file.FileUtils;
 import com.ruoyi.common.utils.file.MimeTypeUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import com.ruoyi.web.core.domain.ZhbUserInfo;
 
 /**
  * H5用户Controller
@@ -48,6 +51,7 @@ import com.ruoyi.common.utils.file.MimeTypeUtils;
 @RequestMapping("/h5/user")
 public class H5UserController
 {
+    private static final Logger logger = LoggerFactory.getLogger(H5UserController.class);
     @Autowired
     private ISysUserService userService;
 
@@ -773,4 +777,241 @@ public class H5UserController
             return AjaxResult.error("上传失败：" + e.getMessage());
         }
     }
+
+    /**
+     * 郑好办登录
+     *
+     * @param loginMap 登录信息 {authCode}
+     * @return token和用户信息
+     */
+    @PostMapping("/login/zhb")
+    @Log(title = "H5郑好办登录", businessType = BusinessType.OTHER)
+    public AjaxResult loginByZhengHaoBan(@RequestBody Map<String, String> loginMap)
+    {
+        String authCode = loginMap.get("authCode");
+
+        // 参数校验
+        if (StringUtils.isEmpty(authCode))
+        {
+            return AjaxResult.error("授权码不能为空");
+        }
+
+        try
+        {
+            // 1. 通过authCode获取郑好办用户信息
+            ZhbUserInfo zhbUserInfo = zhbService.loginByAuthCode(authCode);
+            if (zhbUserInfo == null)
+            {
+                return AjaxResult.error("获取郑好办用户信息失败，请重新授权");
+            }
+
+            // 2. 优先级查询用户：zid → 手机号 → 身份证号
+            SysUser user = findUserByPriority(zhbUserInfo);
+            boolean isNewUser = (user == null);
+
+            if (isNewUser)
+            {
+                // 创建新用户
+                user = createZhbUser(zhbUserInfo);
+            }
+            else
+            {
+                // 更新用户信息（绑定zid和更新其他信息）
+                updateZhbUser(user, zhbUserInfo);
+            }
+
+            // 3. 验证用户状态
+            if (user == null || "1".equals(user.getStatus()))
+            {
+                return AjaxResult.error("账号已停用");
+            }
+            if ("2".equals(user.getDelFlag()))
+            {
+                return AjaxResult.error("账号已删除");
+            }
+
+            // 4. 生成token
+            LoginUser loginUser = new LoginUser();
+            loginUser.setUserId(user.getUserId());
+            loginUser.setUser(user);
+            String token = tokenService.createToken(loginUser);
+
+            // 5. 构建返回数据
+            Map<String, Object> data = new HashMap<>();
+            data.put("token", token);
+            data.put("user", buildUserInfo(user));
+            data.put("isNewUser", isNewUser);
+
+            // 查询关联老人列表
+            List<Map<String, Object>> elders = getEldersByUserId(user.getUserId());
+            data.put("elders", elders);
+
+            return AjaxResult.success(data);
+        }
+        catch (Exception e)
+        {
+            logger.error("郑好办登录失败", e);
+            return AjaxResult.error("登录失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 优先级查询用户
+     * 1. 按zid查询（郑好办用户ID）
+     * 2. 按手机号查询
+     * 3. 按身份证号查询
+     *
+     * @param zhbUserInfo 郑好办用户信息
+     * @return 用户对象，找不到返回null
+     */
+    private SysUser findUserByPriority(ZhbUserInfo zhbUserInfo)
+    {
+        // 1. 优先按zid查询
+        String zid = zhbUserInfo.getZid();
+        if (StringUtils.isNotEmpty(zid))
+        {
+            SysUser user = userMapper.selectUserByZid(zid);
+            if (user != null)
+            {
+                logger.info("按zid找到用户，zid：{}，userId：{}", zid, user.getUserId());
+                return user;
+            }
+        }
+
+        // 2. 按手机号查询
+        String phone = zhbUserInfo.getPhone();
+        if (StringUtils.isNotEmpty(phone))
+        {
+            SysUser user = userMapper.selectUserByPhonenumber(phone);
+            if (user != null)
+            {
+                logger.info("按手机号找到用户，phone：{}，userId：{}", phone, user.getUserId());
+                return user;
+            }
+        }
+
+        // 3. 按身份证号查询
+        String idCard = zhbUserInfo.getIdCode();
+        if (StringUtils.isNotEmpty(idCard))
+        {
+            SysUser user = userMapper.selectUserByIdCard(idCard);
+            if (user != null)
+            {
+                logger.info("按身份证号找到用户，idCard：{}，userId：{}", idCard, user.getUserId());
+                return user;
+            }
+        }
+
+        logger.info("未找到匹配的用户，zid：{}，phone：{}，idCard：{}", zid, phone, idCard);
+        return null;
+    }
+
+    /**
+     * 创建郑好办用户
+     */
+    private SysUser createZhbUser(ZhbUserInfo zhbUserInfo)
+    {
+        SysUser newUser = new SysUser();
+        newUser.setZid(zhbUserInfo.getZid());
+        newUser.setUserName("zhb_" + zhbUserInfo.getZid());
+
+        // 从郑好办获取的用户信息
+        String nickName = zhbUserInfo.getDisplayName();
+        String realName = zhbUserInfo.getRealName();
+        String phone = zhbUserInfo.getPhone();
+        String idCard = zhbUserInfo.getIdCode();
+        Integer gender = zhbUserInfo.getGender(); // 0男 1女
+
+        newUser.setNickName(StringUtils.isNotEmpty(nickName) ? nickName : realName);
+        newUser.setRealName(realName);
+        newUser.setPhonenumber(phone);
+        newUser.setIdCard(idCard);
+
+        // 郑好办性别：0男 1女，系统：0男 1女 2未知
+        if (gender != null)
+        {
+            if (gender == 0)
+            {
+                newUser.setSex("0");
+            }
+            else if (gender == 1)
+            {
+                newUser.setSex("1");
+            }
+            else
+            {
+                newUser.setSex("2");
+            }
+        }
+        else
+        {
+            newUser.setSex("2");
+        }
+
+        // 设置随机密码（郑好办用户不会使用密码登录）
+        newUser.setPassword(SecurityUtils.encryptPassword(java.util.UUID.randomUUID().toString()));
+
+        newUser.setStatus("0"); // 正常
+        newUser.setDelFlag("0"); // 未删除
+        newUser.setCreateTime(new Date());
+        newUser.setCreateBy("zhb_system");
+
+        // 插入用户
+        userMapper.insertUser(newUser);
+
+        logger.info("创建郑好办用户成功，userId：{}，zid：{}，phone：{}", newUser.getUserId(), zhbUserInfo.getZid(), phone);
+
+        return newUser;
+    }
+
+    /**
+     * 更新郑好办用户信息
+     */
+    private void updateZhbUser(SysUser user, ZhbUserInfo zhbUserInfo)
+    {
+        boolean needUpdate = false;
+
+        // 绑定zid（如果还没有绑定）
+        String zid = zhbUserInfo.getZid();
+        if (StringUtils.isNotEmpty(zid) && !zid.equals(user.getZid()))
+        {
+            user.setZid(zid);
+            needUpdate = true;
+        }
+
+        // 更新真实姓名
+        String realName = zhbUserInfo.getRealName();
+        if (StringUtils.isNotEmpty(realName) && !realName.equals(user.getRealName()))
+        {
+            user.setRealName(realName);
+            needUpdate = true;
+        }
+
+        // 更新手机号
+        String phone = zhbUserInfo.getPhone();
+        if (StringUtils.isNotEmpty(phone) && !phone.equals(user.getPhonenumber()))
+        {
+            user.setPhonenumber(phone);
+            needUpdate = true;
+        }
+
+        // 更新身份证号
+        String idCard = zhbUserInfo.getIdCode();
+        if (StringUtils.isNotEmpty(idCard) && !idCard.equals(user.getIdCard()))
+        {
+            user.setIdCard(idCard);
+            needUpdate = true;
+        }
+
+        if (needUpdate)
+        {
+            user.setUpdateBy("zhb_system");
+            user.setUpdateTime(new Date());
+            userMapper.updateUser(user);
+            logger.info("更新郑好办用户信息成功，userId：{}，zid已绑定：{}", user.getUserId(), zid);
+        }
+    }
+
+    @Autowired
+    private com.ruoyi.service.IZhengHaoBanService zhbService;
 }

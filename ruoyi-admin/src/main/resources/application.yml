@@ -136,3 +136,16 @@ xss:
   excludes: /system/notice
   # 匹配链接
   urlPatterns: /system/*,/monitor/*,/tool/*
+
+# 郑好办配置
+zhenghaoban:
+  # 网关配置
+  gateway:
+    url: https://zhenghaoban.zzsxzspj.zhengzhou.gov.cn:10019/open/api/do
+    app-id: 5cff7bcd-1a4b-457d-a072-fe7f808cc3af
+    iv-str: f1p82ZPQ/DuWKWgXuDnJ7Q==
+    key-str: OR4fbhfocgFlVJkdH8OZDw==
+    secret-key: "85278047"
+  # 应用配置
+  app:
+    module-id: "413781"

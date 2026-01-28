@@ -109,6 +109,9 @@ public class FundTransferApply extends BaseEntity
     /** 床位信息 */
     private String bedInfo;
 
+    /** 关联划拨单号列表（逗号分隔） */
+    private String transferNos;
+
     /** 数据权限过滤：当前用户ID（不对应数据库字段） */
     private transient Long currentUserId;
 
@@ -342,6 +345,14 @@ public class FundTransferApply extends BaseEntity
 
     public void setBedInfo(String bedInfo) {
         this.bedInfo = bedInfo;
+    }
+
+    public String getTransferNos() {
+        return transferNos;
+    }
+
+    public void setTransferNos(String transferNos) {
+        this.transferNos = transferNos;
     }
 
     public Long getCurrentUserId() {
