@@ -61,20 +61,7 @@
             <artifactId>ruoyi-generator</artifactId>
         </dependency>
 
-        <!-- fastjson (郑好办SDK依赖) -->
-        <dependency>
-            <groupId>com.alibaba</groupId>
-            <artifactId>fastjson</artifactId>
-            <version>1.2.75</version>
-        </dependency>
-
-        <!-- commons-codec (郑好办SDK依赖) -->
-        <dependency>
-            <groupId>commons-codec</groupId>
-            <artifactId>commons-codec</artifactId>
-        </dependency>
-
-        <!-- 郑好办SDK -->
+        <!-- 数郑网关SDK -->
         <dependency>
             <groupId>com.digital.szzz</groupId>
             <artifactId>szzz-open-gateway-sdk</artifactId>

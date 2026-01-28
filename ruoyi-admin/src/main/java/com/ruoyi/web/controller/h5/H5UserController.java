@@ -922,7 +922,19 @@ public class H5UserController
         String idCard = zhbUserInfo.getIdCode();
         Integer gender = zhbUserInfo.getGender(); // 0男 1女
 
-        newUser.setNickName(StringUtils.isNotEmpty(nickName) ? nickName : realName);
+        // 设置昵称，优先使用displayName，其次realName，最后使用默认值
+        if (StringUtils.isNotEmpty(nickName))
+        {
+            newUser.setNickName(nickName);
+        }
+        else if (StringUtils.isNotEmpty(realName))
+        {
+            newUser.setNickName(realName);
+        }
+        else
+        {
+            newUser.setNickName("郑好办用户");
+        }
         newUser.setRealName(realName);
         newUser.setPhonenumber(phone);
         newUser.setIdCard(idCard);

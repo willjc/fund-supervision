@@ -89,9 +89,16 @@ public class ZhengHaoBanServiceImpl implements IZhengHaoBanService
             String plainText = new String(plainData, StandardCharsets.UTF_8);
             log.info("OAuth token response: {}", plainText);
 
-            // 解析JSON获取oauthToken
+            // 解析JSON获取oauthToken（注意：oauthToken在data对象里）
             JSONObject result = JSON.parseObject(plainText);
-            return result.getString("oauthToken");
+            JSONObject responseData = result.getJSONObject("data");
+            if (responseData != null)
+            {
+                return responseData.getString("oauthToken");
+            }
+
+            log.error("No data object found in response");
+            return null;
 
         }
         catch (Exception e)
@@ -155,7 +162,13 @@ public class ZhengHaoBanServiceImpl implements IZhengHaoBanService
             log.info("User detail response: {}", plainText);
 
             // 解析JSON获取用户信息
-            return parseUserInfo(plainText);
+            ZhbUserInfo userInfo = parseUserInfo(plainText);
+            if (userInfo == null)
+            {
+                log.error("Failed to parse user info from: {}", plainText);
+                return null;
+            }
+            return userInfo;
 
         }
         catch (Exception e)
@@ -190,29 +203,33 @@ public class ZhengHaoBanServiceImpl implements IZhengHaoBanService
         try
         {
             JSONObject json = JSON.parseObject(jsonStr);
+
+            // 用户信息在data对象里
+            JSONObject data = json.getJSONObject("data");
+            if (data == null)
+            {
+                log.error("No data object found in response: {}", jsonStr);
+                return null;
+            }
+
             ZhbUserInfo userInfo = new ZhbUserInfo();
 
             // 基础信息
-            userInfo.setZid(json.getString("zid"));
-            userInfo.setUid(json.getString("uid"));
-            userInfo.setPhone(json.getString("phone"));
+            userInfo.setZid(data.getString("zid"));
+            userInfo.setPhone(data.getString("phone"));
 
             // 名称信息
-            userInfo.setDisplayName(json.getString("displayName"));
-            userInfo.setRealName(json.getString("realName"));
+            userInfo.setDisplayName(data.getString("displayName"));
+            userInfo.setRealName(data.getString("realName"));
 
             // 身份信息
-            userInfo.setIdCode(json.getString("idCode"));
+            userInfo.setIdCode(data.getString("idCode"));
 
             // 其他信息
-            userInfo.setAvatarUrl(json.getString("avatarUrl"));
+            userInfo.setAvatarUrl(data.getString("avatarUrl"));
 
             // 性别 (0:男 1:女)
-            String gender = json.getString("gender");
-            if (gender != null)
-            {
-                userInfo.setGender(Integer.parseInt(gender));
-            }
+            userInfo.setGender(data.getInteger("gender"));
 
             log.info("Parsed user info: zid={}, phone={}, displayName={}",
                     userInfo.getZid(), userInfo.getPhone(), userInfo.getDisplayName());

@@ -1,3 +1,9 @@
+// ==================== polyfill 导入 ====================
+// 必须在最前面导入，确保兼容老版本浏览器
+import 'core-js/stable'
+import 'regenerator-runtime/runtime'
+// =======================================================
+
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
