@@ -97,3 +97,14 @@ export function getAbnormalTransactions() {
     method: 'get'
   })
 }
+
+// ==================== 资金划拨记录接口 ====================
+
+// 查询资金划拨记录列表（所有状态）
+export function listFundTransferRecord(query) {
+  return request({
+    url: '/pension/bank/transfer-record/list',
+    method: 'get',
+    params: query
+  })
+}

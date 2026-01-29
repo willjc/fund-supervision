@@ -251,4 +251,65 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         ORDER BY ft.paid_time DESC
     </select>
 
+    <!-- 根据老人ID���询待划拨数量 -->
+    <select id="countPendingByElderId" parameterType="Long" resultType="int">
+        SELECT COUNT(*)
+        FROM fund_transfer ft
+        WHERE ft.elder_id = #{elderId}
+          AND ft.transfer_status = '0'
+          AND (ft.is_paid = '0' OR ft.is_paid IS NULL)
+          AND ft.status = 'pending'
+    </select>
+
+    <!-- 批量查询多个老人的待划拨数量 -->
+    <select id="countPendingByElderIds" resultType="java.util.HashMap">
+        SELECT ft.elder_id, COUNT(*) as pending_count
+        FROM fund_transfer ft
+        WHERE ft.elder_id IN
+        <foreach item="elderId" collection="elderIds" open="(" separator="," close=")">
+            #{elderId}
+        </foreach>
+          AND ft.transfer_status = '0'
+          AND (ft.is_paid = '0' OR ft.is_paid IS NULL)
+          AND ft.status = 'pending'
+        GROUP BY ft.elder_id
+    </select>
+
+    <!-- 根据账单月份查询待划付的划拨单 -->
+    <select id="selectPendingTransfersByBillingMonth" resultMap="FundTransferResult">
+        <include refid="selectFundTransferVo"/>
+        WHERE ft.billing_month = #{billingMonth}
+          AND ft.status = 'pending'
+          AND (ft.is_paid = '0' OR ft.is_paid IS NULL)
+        ORDER BY ft.institution_id, ft.elder_id
+    </select>
+
+    <!-- 批量更新划拨单为已划付状态 -->
+    <update id="batchUpdatePaidStatus">
+        UPDATE fund_transfer
+        SET is_paid = '1',
+            paid_time = #{paidTime},
+            transfer_status = #{transferStatus},
+            <if test="transferStatus == '1'">
+                status = 'completed',
+            </if>
+            <if test="transferStatus == '2'">
+                status = 'failed',
+            </if>
+            execute_user = 'system',
+            execute_time = #{paidTime},
+            <if test="transferStatus == '2'">
+                failure_reason = #{failureReason},
+            </if>
+            <if test="transferStatus == '1'">
+                failure_reason = NULL,
+            </if>
+            update_time = #{paidTime}
+        WHERE transfer_id IN
+        <foreach item="transferId" collection="transferIds" open="(" separator="," close=")">
+            #{transferId}
+        </foreach>
+          AND (is_paid = '0' OR is_paid IS NULL)
+    </update>
+
 </mapper>

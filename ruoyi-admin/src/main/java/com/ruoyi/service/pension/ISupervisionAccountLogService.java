@@ -123,4 +123,13 @@ public interface ISupervisionAccountLogService
      * @return 拨付单流水列表
      */
     public List<Map<String, Object>> selectTransferFlowList(Map<String, Object> params);
+
+    /**
+     * 查询资金划拨记录列表（所有状态）
+     * 用于资金划拨记录页面展示，包括待处理、处理中、已完成、已取消等所有状态
+     *
+     * @param params 查询参数（包含transferNo, transferType, elderName, status, beginTime, endTime, currentUserId等）
+     * @return 资金划拨记录列表
+     */
+    public List<Map<String, Object>> selectTransferRecordList(Map<String, Object> params);
 }

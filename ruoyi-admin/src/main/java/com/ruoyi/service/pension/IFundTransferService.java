@@ -167,11 +167,40 @@ public interface IFundTransferService
                                                  Integer monthCount, Date startDate, java.math.BigDecimal monthlyFee);
 
     /**
-     * 根据老人ID和支付方式查询已完成的划拨记录（用于H5费用查询）
+     * 根据老��ID和支付方式查询已完成的划拨记录（用于H5费用查询）
      *
      * @param elderId 老人ID
      * @param paidMethods 支付方式数组（如：auto, manual, deposit）
      * @return 划拨记录集合
      */
     public List<FundTransfer> selectByElderIdAndPaidMethods(Long elderId, String[] paidMethods);
+
+    /**
+     * 根据账单月份查询待划付的划拨单
+     *
+     * @param billingMonth 账单月份（格式：2026-02）
+     * @return 待划付的划拨单集合
+     */
+    public List<FundTransfer> selectPendingTransfersByBillingMonth(String billingMonth);
+
+    /**
+     * 批量执行划拨（按划付规则配置）
+     *
+     * @param billingMonth 账单月份
+     * @param transferDay 划付日期
+     * @param transferTime 划付时间
+     * @return 执行结果
+     */
+    public java.util.Map<String, Object> executeTransferByRule(String billingMonth, Integer transferDay, String transferTime);
+
+    /**
+     * 批量更新划拨单为已划付状态
+     *
+     * @param transferIds 划拨单ID列表
+     * @param paidTime 划付时间
+     * @param transferStatus 划拨状态（1成功 2失败）
+     * @param failureReason 失败原因
+     * @return 更新数量
+     */
+    public int batchUpdatePaidStatus(List<Long> transferIds, Date paidTime, String transferStatus, String failureReason);
 }

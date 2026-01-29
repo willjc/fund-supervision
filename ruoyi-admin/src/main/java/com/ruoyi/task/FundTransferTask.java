@@ -5,7 +5,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import com.ruoyi.service.pension.IFundTransferService;
+import com.ruoyi.service.pension.ITransferRuleConfigService;
+import com.ruoyi.domain.pension.TransferRuleConfig;
 import java.util.Map;
+import java.util.Calendar;
+import java.util.List;
 
 /**
  * 资金划拨定时任务
@@ -21,29 +25,89 @@ public class FundTransferTask
     @Autowired
     private IFundTransferService fundTransferService;
 
+    @Autowired
+    private ITransferRuleConfigService transferRuleConfigService;
+
     /**
-     * 每月1日凌晨2点执行自动划拨
+     * 每天执行自动划拨（根据划付规则配置判断是否执行）
+     * 每天早上9点执行一次，检查当前日期是否匹配规则配置
      */
     public void executeAutoTransfer()
     {
-        log.info("开始执行资金自动划拨任务");
+        log.info("========== 开始执行资金自动划拨任务 ==========");
 
         try {
-            Map<String, Object> result = fundTransferService.executeAutoTransfer();
+            // 获取当前日期时间
+            Calendar now = Calendar.getInstance();
+            int currentDay = now.get(Calendar.DAY_OF_MONTH);
+            int currentHour = now.get(Calendar.HOUR_OF_DAY);
+            int currentMinute = now.get(Calendar.MINUTE);
+
+            // 获取当前账单月份
+            String billingMonth = String.format("%tY-%tm", now, now);
+
+            log.info("当前时间: {}月{}日 {:02d}:{:02d}, 账单月份: {}",
+                now.get(Calendar.MONTH) + 1, currentDay, currentHour, currentMinute, billingMonth);
+
+            // 查询有效的划付规则配置（目前只考虑按月划付）
+            TransferRuleConfig query = new TransferRuleConfig();
+            query.setStatus("0"); // 0-正常
+            query.setTransferCycle("monthly"); // 只考虑按月划付
+            List<TransferRuleConfig> rules = transferRuleConfigService.selectTransferRuleConfigList(query);
+
+            if (rules == null || rules.isEmpty()) {
+                log.info("未找到有效的划付规则配置，跳过本次执行");
+                return;
+            }
+
+            TransferRuleConfig rule = rules.get(0);
+            Integer ruleDay = rule.getTransferDay();
+            String ruleTime = rule.getTransferTime();
+
+            log.info("划付规则配置: 每月{}日 {}", ruleDay, ruleTime);
+
+            // 解析规则时间
+            String[] timeParts = ruleTime.split(":");
+            int ruleHour = Integer.parseInt(timeParts[0]);
+            int ruleMinute = timeParts.length > 1 ? Integer.parseInt(timeParts[1]) : 0;
+
+            // 判断当前日期和时间是否匹配规则
+            if (currentDay != ruleDay) {
+                log.info("当前日期({}号)与规则配置({}号)不匹配，跳过本次执行", currentDay, ruleDay);
+                return;
+            }
+
+            // 判断当前时间是否在规则时间前后30分钟内（允许有一定的执行窗口）
+            int currentMinutes = currentHour * 60 + currentMinute;
+            int ruleMinutes = ruleHour * 60 + ruleMinute;
+            int timeDiff = Math.abs(currentMinutes - ruleMinutes);
+
+            if (timeDiff > 30) {
+                log.info("当前时间({:02d}:{:02d})与规则配置时间({}:{})相差较大，跳过本次执行",
+                    currentHour, currentMinute, ruleHour, String.format("%02d", ruleMinute));
+                return;
+            }
+
+            // 执行划拨
+            log.info("当前时间匹配划付规则，开始执行划拨...");
+            Map<String, Object> result = fundTransferService.executeTransferByRule(billingMonth, ruleDay, ruleTime);
 
             if ((Boolean) result.get("success")) {
+                Integer totalCount = (Integer) result.get("totalCount");
+                Integer successCount = (Integer) result.get("successCount");
+                Integer failCount = (Integer) result.get("failCount");
+
                 log.info("资金自动划拨任务执行成功: {}", result.get("message"));
-                if (result.containsKey("transferAmount")) {
-                    log.info("划拨金额: {} 元, 涉及老人: {} 人", result.get("transferAmount"), result.get("elderCount"));
-                }
+                log.info("划拨统计: 总单数={}, 成功={}, 失败={}", totalCount, successCount, failCount);
             } else {
                 log.error("资金自动划拨任务执行失败: {}", result.get("message"));
             }
+
         } catch (Exception e) {
             log.error("资金自动划拨任务执行异常", e);
         }
 
-        log.info("资金自动划拨任务执行结束");
+        log.info("========== 资金自动划拨任务执行结束 ==========");
     }
 
     /**

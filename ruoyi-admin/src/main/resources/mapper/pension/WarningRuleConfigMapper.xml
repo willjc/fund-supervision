@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.mapper.pension.WarningRuleConfigMapper">
+
+    <resultMap type="WarningRuleConfig" id="WarningRuleConfigResult">
+        <result property="ruleId"        column="rule_id"        />
+        <result property="ruleCode"      column="rule_code"      />
+        <result property="ruleName"      column="rule_name"      />
+        <result property="warningType"   column="warning_type"   />
+        <result property="thresholdValue" column="threshold_value" />
+        <result property="thresholdUnit" column="threshold_unit" />
+        <result property="minValue"      column="min_value"      />
+        <result property="maxValue"      column="max_value"      />
+        <result property="enabled"       column="enabled"        />
+        <result property="sortOrder"     column="sort_order"     />
+        <result property="remark"        column="remark"         />
+        <result property="createBy"      column="create_by"      />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"      column="update_by"      />
+        <result property="updateTime"    column="update_time"    />
+    </resultMap>
+
+    <sql id="selectWarningRuleConfigVo">
+        select rule_id, rule_code, rule_name, warning_type, threshold_value, threshold_unit,
+               min_value, max_value, enabled, sort_order, remark, create_by, create_time, update_by, update_time
+        from warning_rule_config
+    </sql>
+
+    <select id="selectWarningRuleConfigList" parameterType="WarningRuleConfig" resultMap="WarningRuleConfigResult">
+        <include refid="selectWarningRuleConfigVo"/>
+        <where>
+            <if test="ruleName != null and ruleName != ''">
+                and rule_name like concat('%', #{ruleName}, '%')
+            </if>
+            <if test="warningType != null and warningType != ''">
+                and warning_type = #{warningType}
+            </if>
+            <if test="enabled != null and enabled != ''">
+                and enabled = #{enabled}
+            </if>
+        </where>
+        order by sort_order, rule_id
+    </select>
+
+    <select id="selectWarningRuleConfigByRuleId" parameterType="Long" resultMap="WarningRuleConfigResult">
+        <include refid="selectWarningRuleConfigVo"/>
+        where rule_id = #{ruleId}
+    </select>
+
+    <select id="selectWarningRuleConfigByRuleCode" parameterType="String" resultMap="WarningRuleConfigResult">
+        <include refid="selectWarningRuleConfigVo"/>
+        where rule_code = #{ruleCode}
+    </select>
+
+    <insert id="insertWarningRuleConfig" parameterType="WarningRuleConfig" useGeneratedKeys="true" keyProperty="ruleId">
+        insert into warning_rule_config
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="ruleCode != null and ruleCode != ''">rule_code,</if>
+            <if test="ruleName != null and ruleName != ''">rule_name,</if>
+            <if test="warningType != null and warningType != ''">warning_type,</if>
+            <if test="thresholdValue != null">threshold_value,</if>
+            <if test="thresholdUnit != null and thresholdUnit != ''">threshold_unit,</if>
+            <if test="minValue != null">min_value,</if>
+            <if test="maxValue != null">max_value,</if>
+            <if test="enabled != null">enabled,</if>
+            <if test="sortOrder != null">sort_order,</if>
+            <if test="remark != null">remark,</if>
+            <if test="createBy != null">create_by,</if>
+            create_time
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="ruleCode != null and ruleCode != ''">#{ruleCode},</if>
+            <if test="ruleName != null and ruleName != ''">#{ruleName},</if>
+            <if test="warningType != null and warningType != ''">#{warningType},</if>
+            <if test="thresholdValue != null">#{thresholdValue},</if>
+            <if test="thresholdUnit != null and thresholdUnit != ''">#{thresholdUnit},</if>
+            <if test="minValue != null">#{minValue},</if>
+            <if test="maxValue != null">#{maxValue},</if>
+            <if test="enabled != null">#{enabled},</if>
+            <if test="sortOrder != null">#{sortOrder},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="createBy != null">#{createBy},</if>
+            sysdate()
+        </trim>
+    </insert>
+
+    <update id="updateWarningRuleConfig" parameterType="WarningRuleConfig">
+        update warning_rule_config
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="ruleCode != null and ruleCode != ''">rule_code = #{ruleCode},</if>
+            <if test="ruleName != null and ruleName != ''">rule_name = #{ruleName},</if>
+            <if test="warningType != null and warningType != ''">warning_type = #{warningType},</if>
+            <if test="thresholdValue != null">threshold_value = #{thresholdValue},</if>
+            <if test="thresholdUnit != null and thresholdUnit != ''">threshold_unit = #{thresholdUnit},</if>
+            <if test="minValue != null">min_value = #{minValue},</if>
+            <if test="maxValue != null">max_value = #{maxValue},</if>
+            <if test="enabled != null">enabled = #{enabled},</if>
+            <if test="sortOrder != null">sort_order = #{sortOrder},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </trim>
+        where rule_id = #{ruleId}
+    </update>
+
+    <delete id="deleteWarningRuleConfigByRuleId" parameterType="Long">
+        delete from warning_rule_config where rule_id = #{ruleId}
+    </delete>
+
+    <delete id="deleteWarningRuleConfigByRuleIds" parameterType="String">
+        delete from warning_rule_config where rule_id in
+        <foreach item="ruleId" collection="array" open="(" separator="," close=")">
+            #{ruleId}
+        </foreach>
+    </delete>
+
+</mapper>

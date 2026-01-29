@@ -119,3 +119,23 @@ service.interceptors.response.use(
 )
 
 export default service
+
+/**
+ * 用于原生fetch的API请求，自动拼接baseUrl
+ * 解决生产环境硬编码 /api/ 前缀导致404的问题
+ * @param {string} url - 请求路径，如 '/h5/user/info'
+ * @param {object} options - fetch配置项
+ * @returns {Promise} fetch返回的Promise
+ */
+export function fetchApi(url, options = {}) {
+  const baseUrl = process.env.VUE_APP_BASE_API || ''
+
+  // 如果URL已经是完整地址，直接使用
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return fetch(url, options)
+  }
+
+  // 拼接baseUrl
+  const fullUrl = baseUrl + (url.startsWith('/') ? url : '/' + url)
+  return fetch(fullUrl, options)
+}

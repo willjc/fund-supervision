@@ -232,4 +232,61 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         ORDER BY ft.paid_time DESC
     </select>
 
+    <!-- 查询资金划拨记录列表（所有状态，用于资金划拨记录页面） -->
+    <select id="selectTransferRecordList" resultType="java.util.Map">
+        SELECT
+            ft.transfer_id as transferId,
+            ft.transfer_no as transferNo,
+            ft.transfer_type as transferType,
+            ft.transfer_amount as transferAmount,
+            ft.transfer_date as transferDate,
+            ft.billing_month as billingMonth,
+            ft.status as status,
+            ft.is_paid as isPaid,
+            ft.paid_time as paidTime,
+            ft.create_time as createTime,
+            ft.remark as remark,
+            ft.elder_id as elderId,
+            ft.institution_id as institutionId,
+            ft.order_id as orderId,
+            ei.elder_name as elderName,
+            pi.institution_name as institutionName,
+            oi.order_no as orderNo,
+            (SELECT COALESCE(sal.balance_after, 0)
+             FROM supervision_account_log sal
+             WHERE sal.institution_id = ft.institution_id
+             ORDER BY sal.transaction_time DESC
+             LIMIT 1) as supervisionBalance
+        FROM fund_transfer ft
+        LEFT JOIN elder_info ei ON ft.elder_id = ei.elder_id
+        LEFT JOIN pension_institution pi ON ft.institution_id = pi.institution_id
+        LEFT JOIN order_info oi ON ft.order_id = oi.order_id
+        <where>
+            <if test="params.currentUserId != null">
+                AND ft.institution_id IN (
+                    SELECT institution_id FROM sys_user_institution WHERE user_id = #{params.currentUserId}
+                )
+            </if>
+            <if test="params.transferNo != null and params.transferNo != ''">
+                AND ft.transfer_no LIKE CONCAT('%', #{params.transferNo}, '%')
+            </if>
+            <if test="params.transferType != null and params.transferType != ''">
+                AND ft.transfer_type = #{params.transferType}
+            </if>
+            <if test="params.elderName != null and params.elderName != ''">
+                AND ei.elder_name LIKE CONCAT('%', #{params.elderName}, '%')
+            </if>
+            <if test="params.status != null and params.status != ''">
+                AND ft.status = #{params.status}
+            </if>
+            <if test="params.beginTime != null and params.beginTime != ''">
+                AND DATE_FORMAT(ft.create_time, '%Y-%m-%d') &gt;= #{params.beginTime}
+            </if>
+            <if test="params.endTime != null and params.endTime != ''">
+                AND DATE_FORMAT(ft.create_time, '%Y-%m-%d') &lt;= #{params.endTime}
+            </if>
+        </where>
+        ORDER BY ft.create_time DESC
+    </select>
+
 </mapper>

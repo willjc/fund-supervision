@@ -81,11 +81,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast, showConfirmDialog } from 'vant'
 import { useUserStore } from '@/store/modules/user'
 import { getToken } from '@/utils/auth'
+import { fetchApi } from '@/utils/request'
+import { getImageUrl } from '@/utils/image'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -95,7 +97,7 @@ onMounted(async () => {
   try {
     // 调用 /info 接口获取最新的老人列表
     const token = getToken()
-    const response = await fetch('/api/h5/user/info', {
+    const response = await fetchApi('/h5/user/info', {
       method: 'GET',
       headers: {
         'Authorization': token ? `Bearer ${token}` : ''
@@ -130,7 +132,7 @@ const elderList = computed(() => {
     idCard: elder.idCard,
     address: elder.address || elder.liveAddress || '',
     contactPhone: elder.contactPhone || elder.phoneNumber || elder.phone || '',
-    avatar: elder.photoPath || 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
+    avatar: getImageUrl(elder.photoPath) || 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
   }))
 })
 

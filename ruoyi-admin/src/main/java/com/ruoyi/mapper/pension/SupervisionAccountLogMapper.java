@@ -109,4 +109,13 @@ public interface SupervisionAccountLogMapper
      * @return 拨付单流水列表
      */
     public List<Map<String, Object>> selectTransferFlowList(@Param("params") Map<String, Object> params);
+
+    /**
+     * 查询资金划拨记录列表（所有状态）
+     * 用于资金划拨记录页面展示
+     *
+     * @param params 查询参数（包含transferNo, transferType, elderName, status, beginTime, endTime, currentUserId等）
+     * @return 资金划拨记录列表
+     */
+    public List<Map<String, Object>> selectTransferRecordList(@Param("params") Map<String, Object> params);
 }

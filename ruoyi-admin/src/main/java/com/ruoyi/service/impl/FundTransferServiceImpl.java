@@ -7,6 +7,8 @@ import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import com.ruoyi.common.utils.DateUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +19,7 @@ import com.ruoyi.domain.pension.AccountInfo;
 import com.ruoyi.domain.pension.TransferRuleConfig;
 import com.ruoyi.service.pension.IFundTransferService;
 import com.ruoyi.service.pension.ITransferRuleConfigService;
+import com.ruoyi.service.pension.ISupervisionAccountLogService;
 
 /**
  * 资金划拨记录Service业务层处理
@@ -27,6 +30,8 @@ import com.ruoyi.service.pension.ITransferRuleConfigService;
 @Service
 public class FundTransferServiceImpl implements IFundTransferService
 {
+    private static final Logger log = LoggerFactory.getLogger(FundTransferServiceImpl.class);
+
     @Autowired
     private FundTransferMapper fundTransferMapper;
 
@@ -35,6 +40,9 @@ public class FundTransferServiceImpl implements IFundTransferService
 
     @Autowired
     private ITransferRuleConfigService transferRuleConfigService;
+
+    @Autowired
+    private ISupervisionAccountLogService supervisionAccountLogService;
 
     /**
      * 查询资金划拨记录
@@ -516,5 +524,151 @@ public class FundTransferServiceImpl implements IFundTransferService
     public List<FundTransfer> selectByElderIdAndPaidMethods(Long elderId, String[] paidMethods)
     {
         return fundTransferMapper.selectByElderIdAndPaidMethods(elderId, paidMethods);
+    }
+
+    /**
+     * 根据账单月份查询待划付的划拨单
+     *
+     * @param billingMonth 账单月份（格式：2026-02）
+     * @return 待划付的划拨单集合
+     */
+    @Override
+    public List<FundTransfer> selectPendingTransfersByBillingMonth(String billingMonth)
+    {
+        return fundTransferMapper.selectPendingTransfersByBillingMonth(billingMonth);
+    }
+
+    /**
+     * 批量执行划拨（按划付规则配置）
+     *
+     * @param billingMonth 账单月份
+     * @param transferDay 划付日期
+     * @param transferTime 划付时间
+     * @return 执行结果
+     */
+    @Override
+    @Transactional
+    public Map<String, Object> executeTransferByRule(String billingMonth, Integer transferDay, String transferTime)
+    {
+        Map<String, Object> result = new java.util.HashMap<>();
+
+        try {
+            log.info("开始执行按月划拨：账单月份={}, 划付日期={}, 划付时间={}", billingMonth, transferDay, transferTime);
+
+            // 查询该账单月份待划付的划拨单
+            List<FundTransfer> pendingTransfers = fundTransferMapper.selectPendingTransfersByBillingMonth(billingMonth);
+
+            if (pendingTransfers == null || pendingTransfers.isEmpty()) {
+                result.put("success", true);
+                result.put("message", "本期无待划付的划拨单");
+                result.put("totalCount", 0);
+                result.put("successCount", 0);
+                result.put("failCount", 0);
+                return result;
+            }
+
+            // 收集需要划拨的ID
+            List<Long> successIds = new java.util.ArrayList<>();
+            List<Long> failIds = new java.util.ArrayList<>();
+            Date paidTime = new Date();
+
+            // 按机构分组处理
+            Map<Long, List<FundTransfer>> groupByInstitution = new java.util.HashMap<>();
+            for (FundTransfer transfer : pendingTransfers) {
+                Long institutionId = transfer.getInstitutionId();
+                if (!groupByInstitution.containsKey(institutionId)) {
+                    groupByInstitution.put(institutionId, new java.util.ArrayList<>());
+                }
+                groupByInstitution.get(institutionId).add(transfer);
+            }
+
+            // 对每个机构的划拨单进行处理
+            for (Map.Entry<Long, List<FundTransfer>> entry : groupByInstitution.entrySet()) {
+                Long institutionId = entry.getKey();
+                List<FundTransfer> transfers = entry.getValue();
+                List<Long> transferIds = new java.util.ArrayList<>();
+
+                for (FundTransfer transfer : transfers) {
+                    transferIds.add(transfer.getTransferId());
+                }
+
+                try {
+                    // 批量更新为已划付状态
+                    int updated = fundTransferMapper.batchUpdatePaidStatus(
+                        transferIds,
+                        paidTime,
+                        "1", // 成功
+                        null
+                    );
+
+                    if (updated > 0) {
+                        successIds.addAll(transferIds);
+                        log.info("机构ID={} 成功划拨 {} 单", institutionId, updated);
+
+                        // 为每个划拨单生成监管账户流水
+                        for (FundTransfer transfer : transfers) {
+                            try {
+                                supervisionAccountLogService.recordTransferOut(
+                                    institutionId,
+                                    transfer.getTransferId(),
+                                    transfer.getTransferAmount(),
+                                    "自动划拨-" + billingMonth + "账单-" + transfer.getTransferNo(),
+                                    "基本账户"
+                                );
+                                log.info("生成划拨流水成功：划拨单号={}, 金额={}", transfer.getTransferNo(), transfer.getTransferAmount());
+                            } catch (Exception ex) {
+                                log.error("生成划拨流水失败：划拨单号={}, 错误={}", transfer.getTransferNo(), ex.getMessage());
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    log.error("机构ID={} 划拨失败: {}", institutionId, e.getMessage());
+                    failIds.addAll(transferIds);
+
+                    // 记录失败状态
+                    try {
+                        fundTransferMapper.batchUpdatePaidStatus(
+                            transferIds,
+                            paidTime,
+                            "2", // 失败
+                            "系统异常: " + e.getMessage()
+                        );
+                    } catch (Exception ex) {
+                        log.error("记录失败状态时发生异常: {}", ex.getMessage());
+                    }
+                }
+            }
+
+            result.put("success", true);
+            result.put("message", "划拨处理完成");
+            result.put("totalCount", pendingTransfers.size());
+            result.put("successCount", successIds.size());
+            result.put("failCount", failIds.size());
+
+            log.info("按月划拨执行完成：总单数={}, 成功={}, 失败={}",
+                pendingTransfers.size(), successIds.size(), failIds.size());
+
+        } catch (Exception e) {
+            log.error("按月划拨执行异常", e);
+            result.put("success", false);
+            result.put("message", "划拨执行异常: " + e.getMessage());
+        }
+
+        return result;
+    }
+
+    /**
+     * 批量更新划拨单为已划付状态
+     *
+     * @param transferIds 划拨单ID列表
+     * @param paidTime 划付时间
+     * @param transferStatus 划拨状态（1成功 2失败）
+     * @param failureReason 失败原因
+     * @return 更新数量
+     */
+    @Override
+    public int batchUpdatePaidStatus(List<Long> transferIds, Date paidTime, String transferStatus, String failureReason)
+    {
+        return fundTransferMapper.batchUpdatePaidStatus(transferIds, paidTime, transferStatus, failureReason);
     }
 }

@@ -30,6 +30,10 @@ public class TransferRuleConfig extends BaseEntity
     @Excel(name = "划付日期")
     private Integer transferDay;
 
+    /** 划付时间(HH:mm格式) */
+    @Excel(name = "划付时���")
+    private String transferTime;
+
     /** 状态(0-正常 1-停用) */
     @Excel(name = "状态")
     private String status;
@@ -74,6 +78,16 @@ public class TransferRuleConfig extends BaseEntity
         return transferDay;
     }
 
+    public void setTransferTime(String transferTime)
+    {
+        this.transferTime = transferTime;
+    }
+
+    public String getTransferTime()
+    {
+        return transferTime;
+    }
+
     public void setStatus(String status)
     {
         this.status = status;
@@ -91,6 +105,7 @@ public class TransferRuleConfig extends BaseEntity
             .append("ruleName", getRuleName())
             .append("transferCycle", getTransferCycle())
             .append("transferDay", getTransferDay())
+            .append("transferTime", getTransferTime())
             .append("status", getStatus())
             .append("remark", getRemark())
             .append("createBy", getCreateBy())

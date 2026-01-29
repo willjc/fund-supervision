@@ -78,9 +78,8 @@ export default {
   name: 'FundSupervisionLink',
   data() {
     return {
-      bigScreenUrl: process.env.NODE_ENV === 'production'
-        ? '/screen/fund-supervision.html'
-        : 'http://localhost:8080/screen/fund-supervision.html'
+      // 使用相对路径，避免硬编码域名导致跨环境问题
+      bigScreenUrl: '/screen/fund-supervision.html'
     }
   },
   methods: {

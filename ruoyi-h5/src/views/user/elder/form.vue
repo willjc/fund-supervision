@@ -246,6 +246,8 @@ import { useRouter, useRoute } from 'vue-router'
 import { showToast, showImagePreview } from 'vant'
 import { getToken } from '@/utils/auth'
 import { useUserStore } from '@/store/modules/user'
+import { fetchApi } from '@/utils/request'
+import { getImageUrl } from '@/utils/image'
 
 const router = useRouter()
 const route = useRoute()
@@ -479,10 +481,10 @@ const onSubmit = async (values) => {
     console.log('提交表单使用的token:', token) // 调试日志
 
     // 根据模式选择不同的接口
-    const apiUrl = isEdit.value ? '/api/h5/user/updateElder' : '/api/h5/user/addElder'
+    const apiUrl = isEdit.value ? '/h5/user/updateElder' : '/h5/user/addElder'
     console.log('调用接口:', apiUrl, '数据:', submitData)
 
-    const response = await fetch(apiUrl, {
+    const response = await fetchApi(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -500,7 +502,7 @@ const onSubmit = async (values) => {
       try {
         // 直接调用接口刷新数据，避免 userStore 方法缓存问题
         const token = getToken()
-        const refreshResponse = await fetch('/api/h5/user/info', {
+        const refreshResponse = await fetchApi('/h5/user/info', {
           method: 'GET',
           headers: {
             'Authorization': token ? `Bearer ${token}` : ''
@@ -579,7 +581,7 @@ const uploadSingleImage = async (file) => {
     const token = getToken()
     console.log('上传图片使用的token:', token) // 调试日志
 
-    const response = await fetch('/api/common/upload', {
+    const response = await fetchApi('/common/upload', {
       method: 'POST',
       headers: {
         'Authorization': token ? 'Bearer ' + token : ''
@@ -618,7 +620,7 @@ const loadElderInfo = async () => {
   try {
     // 调用后端接口获取老人信息
     const token = getToken()
-    const response = await fetch(`/api/h5/user/getElderById?elderId=${route.query.id}`, {
+    const response = await fetchApi(`/h5/user/getElderById?elderId=${route.query.id}`, {
       method: 'GET',
       headers: {
         'Authorization': token ? `Bearer ${token}` : ''
@@ -652,7 +654,7 @@ const loadElderInfo = async () => {
       // 设置老人照片
       if (elderInfo.photoPath) {
         formData.value.elderPhoto = [{
-          url: elderInfo.photoPath,
+          url: getImageUrl(elderInfo.photoPath),
           file: null,
           isImage: true
         }]
@@ -665,14 +667,14 @@ const loadElderInfo = async () => {
           if (attachment.attachmentType === '1') {
             // 身份证正面
             formData.value.idCardFront = [{
-              url: attachment.filePath,
+              url: getImageUrl(attachment.filePath),
               file: null,
               isImage: true
             }]
           } else if (attachment.attachmentType === '2') {
             // 身份证反面
             formData.value.idCardBack = [{
-              url: attachment.filePath,
+              url: getImageUrl(attachment.filePath),
               file: null,
               isImage: true
             }]
@@ -682,14 +684,14 @@ const loadElderInfo = async () => {
       // 如果 attachments 中没有身份证照片，从 elderInfo 表字段读取（兼容管理端上传的数据）
       if (formData.value.idCardFront.length === 0 && elderInfo.idCardFrontPath) {
         formData.value.idCardFront = [{
-          url: elderInfo.idCardFrontPath,
+          url: getImageUrl(elderInfo.idCardFrontPath),
           file: null,
           isImage: true
         }]
       }
       if (formData.value.idCardBack.length === 0 && elderInfo.idCardBackPath) {
         formData.value.idCardBack = [{
-          url: elderInfo.idCardBackPath,
+          url: getImageUrl(elderInfo.idCardBackPath),
           file: null,
           isImage: true
         }]

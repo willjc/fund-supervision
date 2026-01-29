@@ -123,9 +123,8 @@ export default {
   name: 'WarningMonitorLink',
   data() {
     return {
-      bigScreenUrl: process.env.NODE_ENV === 'production'
-        ? '/screen/warning-monitor.html'
-        : 'http://localhost:8080/screen/warning-monitor.html'
+      // 使用相对路径，避免硬编码域名导致跨环境问题
+      bigScreenUrl: '/screen/warning-monitor.html'
     }
   },
   methods: {

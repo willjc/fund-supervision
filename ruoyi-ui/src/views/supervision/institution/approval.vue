@@ -259,10 +259,10 @@
           <el-card shadow="hover">
             <div slot="header">营业执照</div>
             <el-image
-              :src="currentInstitution.businessLicense"
+              :src="processImageUrl(currentInstitution.businessLicense)"
               style="width: 100%; height: 200px;"
               fit="contain"
-              :preview-src-list="[currentInstitution.businessLicense]"
+              :preview-src-list="[processImageUrl(currentInstitution.businessLicense)]"
             ></el-image>
           </el-card>
         </el-col>
@@ -270,10 +270,10 @@
           <el-card shadow="hover">
             <div slot="header">社会福利机构设置批准证书</div>
             <el-image
-              :src="currentInstitution.approvalCertificate"
+              :src="processImageUrl(currentInstitution.approvalCertificate)"
               style="width: 100%; height: 200px;"
               fit="contain"
-              :preview-src-list="[currentInstitution.approvalCertificate]"
+              :preview-src-list="[processImageUrl(currentInstitution.approvalCertificate)]"
             ></el-image>
           </el-card>
         </el-col>
@@ -281,10 +281,10 @@
           <el-card shadow="hover">
             <div slot="header">三方监管协议</div>
             <el-image
-              :src="currentInstitution.supervisionAgreement"
+              :src="processImageUrl(currentInstitution.supervisionAgreement)"
               style="width: 100%; height: 200px;"
               fit="contain"
-              :preview-src-list="[currentInstitution.supervisionAgreement]"
+              :preview-src-list="[processImageUrl(currentInstitution.supervisionAgreement)]"
             ></el-image>
           </el-card>
         </el-col>
@@ -371,6 +371,23 @@ export default {
     this.getStatistics();
   },
   methods: {
+    /** 处理图片URL，移除硬编码域名并添加API前缀 */
+    processImageUrl(url) {
+      if (!url) return '';
+      // 如果URL包含 http:// 或 https://，提取相对路径
+      let cleanUrl = url;
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        try {
+          const urlObj = new URL(url);
+          cleanUrl = urlObj.pathname;
+        } catch (e) {
+          // 如果URL解析失败，尝试移除域名部分
+          cleanUrl = url.replace(/^https?:\/\/[^\/]+/, '');
+        }
+      }
+      // 添加API前缀，让前端代理正确转发到后端
+      return process.env.VUE_APP_BASE_API + cleanUrl;
+    },
     /** 查询养老机构入驻申请列表 */
     getList() {
       this.loading = true;

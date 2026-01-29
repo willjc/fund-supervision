@@ -52,5 +52,5 @@ module.exports = {
   /**
    * 底部版权文本内容
    */
-  footerContent: 'Copyright © 2018-2025 中国电信. All Rights Reserved.'
+  footerContent: 'Copyright © 2018-2025 养老资金监管平台 All Rights Reserved.'
 }

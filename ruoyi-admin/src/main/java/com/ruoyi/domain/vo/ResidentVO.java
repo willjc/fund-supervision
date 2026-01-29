@@ -131,6 +131,9 @@ public class ResidentVO
     /** 支付记录列表 */
     private List<PaymentRecord> payments;
 
+    /** 待划拨月数 */
+    private Integer pendingCount;
+
     public Long getResidentId() {
         return residentId;
     }
@@ -425,5 +428,13 @@ public class ResidentVO
 
     public void setIdCardBackPath(String idCardBackPath) {
         this.idCardBackPath = idCardBackPath;
+    }
+
+    public Integer getPendingCount() {
+        return pendingCount;
+    }
+
+    public void setPendingCount(Integer pendingCount) {
+        this.pendingCount = pendingCount;
     }
 }

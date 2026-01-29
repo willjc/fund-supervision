@@ -7,10 +7,8 @@ export default {
   name: 'InstitutionRedirect',
   created() {
     // 直接跳转到独立的机构分布大屏页面
-    const url = process.env.NODE_ENV === 'production'
-      ? '/screen/institution-distribution.html'
-      : 'http://localhost:8080/screen/institution-distribution.html';
-
+    // 使用相对路径，避免硬编码域名导致跨环境问题
+    const url = '/screen/institution-distribution.html';
     window.location.href = url;
   }
 }

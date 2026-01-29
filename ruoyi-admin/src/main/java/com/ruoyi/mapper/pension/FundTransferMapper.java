@@ -129,4 +129,42 @@ public interface FundTransferMapper
      */
     public List<FundTransfer> selectByElderIdAndPaidMethods(@Param("elderId") Long elderId,
                                                            @Param("paidMethods") String[] paidMethods);
+
+    /**
+     * 根据老人ID查询待划拨数量
+     *
+     * @param elderId 老人ID
+     * @return 待划拨数量
+     */
+    public int countPendingByElderId(@Param("elderId") Long elderId);
+
+    /**
+     * 批量查询多个老人的待划拨数量
+     *
+     * @param elderIds 老人ID列表
+     * @return 待划拨数量列表
+     */
+    public List<java.util.Map<String, Object>> countPendingByElderIds(@Param("elderIds") List<Long> elderIds);
+
+    /**
+     * 根据账单月份查询待划付的划拨单
+     *
+     * @param billingMonth 账单月份（格式：2026-02）
+     * @return 待划付的划拨单集合
+     */
+    public List<FundTransfer> selectPendingTransfersByBillingMonth(@Param("billingMonth") String billingMonth);
+
+    /**
+     * 批量更新划拨单为已划付状态
+     *
+     * @param transferIds 划拨单ID列表
+     * @param paidTime 划付时间
+     * @param transferStatus 划拨状态（1成功 2失败）
+     * @param failureReason 失败原因
+     * @return 更新数量
+     */
+    public int batchUpdatePaidStatus(@Param("transferIds") List<Long> transferIds,
+                                     @Param("paidTime") Date paidTime,
+                                     @Param("transferStatus") String transferStatus,
+                                     @Param("failureReason") String failureReason);
 }

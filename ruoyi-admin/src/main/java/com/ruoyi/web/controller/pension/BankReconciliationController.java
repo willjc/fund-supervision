@@ -154,6 +154,53 @@ public class BankReconciliationController extends BaseController
     }
 
     /**
+     * 查询资金划拨记录列表（所有状态）
+     * 用于养老机构端资金划拨记录页面展示
+     */
+    @GetMapping("/transfer-record/list")
+    public TableDataInfo getTransferRecordList(
+            @RequestParam(required = false) String transferNo,
+            @RequestParam(required = false) String transferType,
+            @RequestParam(required = false) String elderName,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String beginTime,
+            @RequestParam(required = false) String endTime,
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize)
+    {
+        startPage();
+
+        // 构建查询参数
+        Map<String, Object> params = new HashMap<>();
+        // 数据权限过滤: 只对机构用户过滤，监管用户可以看到所有机构的记录
+        if (!isSupervisionUser()) {
+            params.put("currentUserId", getUserId());
+        }
+        if (transferNo != null && !transferNo.isEmpty()) {
+            params.put("transferNo", transferNo);
+        }
+        if (transferType != null && !transferType.isEmpty()) {
+            params.put("transferType", transferType);
+        }
+        if (elderName != null && !elderName.isEmpty()) {
+            params.put("elderName", elderName);
+        }
+        if (status != null && !status.isEmpty()) {
+            params.put("status", status);
+        }
+        if (beginTime != null && !beginTime.isEmpty()) {
+            params.put("beginTime", beginTime);
+        }
+        if (endTime != null && !endTime.isEmpty()) {
+            params.put("endTime", endTime);
+        }
+
+        List<Map<String, Object>> list = supervisionAccountLogService.selectTransferRecordList(params);
+
+        return getDataTable(list);
+    }
+
+    /**
      * 判断当前用户是否为监管用户
      * 监管用户具有监管审批权限，可以查看所有机构的划拨流水
      */

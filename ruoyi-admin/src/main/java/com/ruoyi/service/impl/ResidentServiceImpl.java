@@ -30,6 +30,7 @@ import com.ruoyi.mapper.OrderItemMapper;
 import com.ruoyi.mapper.PaymentRecordMapper;
 import com.ruoyi.mapper.pension.AccountInfoMapper;
 import com.ruoyi.mapper.pension.ExpenseRecordMapper;
+import com.ruoyi.mapper.pension.FundTransferMapper;
 import com.ruoyi.mapper.ResidentMapper;
 import com.ruoyi.service.IResidentService;
 
@@ -69,6 +70,9 @@ public class ResidentServiceImpl implements IResidentService
     @Autowired
     private ExpenseRecordMapper expenseRecordMapper;
 
+    @Autowired
+    private FundTransferMapper fundTransferMapper;
+
     /**
      * 查询入住人列表
      *
@@ -78,7 +82,34 @@ public class ResidentServiceImpl implements IResidentService
     @Override
     public List<ResidentVO> selectResidentList(ResidentVO queryVO)
     {
-        return residentMapper.selectResidentList(queryVO);
+        List<ResidentVO> list = residentMapper.selectResidentList(queryVO);
+        if (list != null && !list.isEmpty()) {
+            // 批量查询待划拨数量
+            List<Long> elderIds = new java.util.ArrayList<>();
+            for (ResidentVO resident : list) {
+                if (resident.getElderId() != null) {
+                    elderIds.add(resident.getElderId());
+                }
+            }
+            if (!elderIds.isEmpty()) {
+                List<java.util.Map<String, Object>> countList = fundTransferMapper.countPendingByElderIds(elderIds);
+                if (countList != null) {
+                    // 转换为 Map<Long, Integer>
+                    Map<Long, Integer> pendingCountMap = new java.util.HashMap<>();
+                    for (java.util.Map<String, Object> item : countList) {
+                        Long elderId = Long.valueOf(item.get("elder_id").toString());
+                        Integer count = Integer.valueOf(item.get("pending_count").toString());
+                        pendingCountMap.put(elderId, count);
+                    }
+                    // 设置到每个老人对象
+                    for (ResidentVO resident : list) {
+                        Integer count = pendingCountMap.get(resident.getElderId());
+                        resident.setPendingCount(count != null ? count : 0);
+                    }
+                }
+            }
+        }
+        return list;
     }
 
     /**

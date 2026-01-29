@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { getUserInfo, setUserInfo, clearAuth, getToken } from '@/utils/auth'
+import { fetchApi } from '@/utils/request'
 
 export const useUserStore = defineStore('user', {
   state: () => ({
@@ -80,7 +81,7 @@ export const useUserStore = defineStore('user', {
     async fetchElders() {
       try {
         const token = getToken()
-        const response = await fetch('/api/h5/user/getEldersByUserId', {
+        const response = await fetchApi('/h5/user/getEldersByUserId', {
           method: 'GET',
           headers: {
             'Authorization': token ? `Bearer ${token}` : ''
