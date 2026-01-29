@@ -93,4 +93,13 @@ public interface IBedInfoService
      * @return 床位统计信息 {totalBeds: 总床位, availableBeds: 可定床位}
      */
     public Map<String, Object> getBedStatistics(Long institutionId);
+
+    /**
+     * 更新床位状态
+     *
+     * @param bedId 床位ID
+     * @param bedStatus 状态（0-空置，1-占用）
+     * @return 结果
+     */
+    public int updateBedStatus(Long bedId, String bedStatus);
 }

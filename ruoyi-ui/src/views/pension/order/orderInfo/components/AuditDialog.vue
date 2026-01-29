@@ -26,6 +26,44 @@
 
         <el-divider content-position="left">床位与护理信息</el-divider>
 
+        <!-- 当前床位显示 -->
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="当前床位">
+              <span v-if="form.currentBedInfo" style="color: #409EFF; font-weight: bold">
+                {{ form.currentBedInfo }}
+              </span>
+              <span v-else style="color: #909399">未分配</span>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="更换床位">
+              <el-select v-model="form.newBedId" placeholder="选择新床位（可选）" clearable @change="onBedChange">
+                <el-option
+                  v-for="bed in availableBeds"
+                  :key="bed.bedId"
+                  :label="bed.roomNumber + '-' + bed.bedNumber"
+                  :value="bed.bedId">
+                  <span>{{ bed.roomNumber }}-{{ bed.bedNumber }}</span>
+                  <span style="color: #8492a6; font-size: 12px; margin-left: 10px">
+                    ¥{{ bed.price }}
+                  </span>
+                </el-option>
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <!-- 如果没有可用床位，显示警告 -->
+        <el-alert
+          v-if="availableBeds.length === 0 && form.institutionId"
+          title="警告"
+          type="warning"
+          description="该类型下暂无空置床位，无法完成审核"
+          :closable="false"
+          style="margin-bottom: 10px"
+        />
+
         <el-row>
           <el-col :span="12">
             <el-form-item label="床位类型" prop="bedType">
@@ -119,6 +157,7 @@
 
 <script>
 import { getOrder, approveOrder, rejectOrder } from "@/api/order/orderInfo";
+import { listBed } from "@/api/elder/bed";
 
 export default {
   name: "AuditDialog",
@@ -127,10 +166,15 @@ export default {
       visible: false,
       loading: false,
       submitting: false,
+      availableBeds: [],  // 可用床位列表
       form: {
         orderId: null,
         orderNo: '',
         elderName: '',
+        currentBedInfo: '',  // 当前床位信息
+        newBedId: null,      // 新选择的床位ID
+        institutionId: null, // 机构ID
+        originalBedId: null, // 原始床位ID
         bedType: '1',
         careLevel: '自理',
         bedFee: 500,
@@ -194,14 +238,52 @@ export default {
         this.form.orderId = order.orderId;
         this.form.orderNo = order.orderNo;
         this.form.elderName = order.elderName;
+        this.form.institutionId = order.institutionId;
+
+        // 显示当前床位信息
+        this.form.currentBedInfo = order.roomNumber && order.bedNumber
+          ? order.roomNumber + '-' + order.bedNumber
+          : '';
+        this.form.originalBedId = order.bedId;
 
         // 从remark中解析费用信息
         this.parseFeesFromRemark(order.remark);
+
+        // 加载可用床位列表
+        this.loadAvailableBeds(order.institutionId, order.bedId);
 
         this.loading = false;
       }).catch(() => {
         this.loading = false;
       });
+    },
+    // 加载可用床位列表
+    loadAvailableBeds(institutionId, currentBedId) {
+      if (!institutionId) return;
+
+      // 查询该机构下空置的床位
+      const query = {
+        institutionId: institutionId,
+        bedStatus: '0'  // 空置状态
+      };
+      listBed(query).then(response => {
+        // 过滤掉当前床位（如果有的话）
+        this.availableBeds = (response.rows || []).filter(bed =>
+          !currentBedId || bed.bedId !== currentBedId
+        );
+      });
+    },
+    // 床位选择变化时更新床位费
+    onBedChange(newBedId) {
+      if (newBedId) {
+        const selectedBed = this.availableBeds.find(b => b.bedId === newBedId);
+        if (selectedBed) {
+          this.form.bedFee = selectedBed.price || this.form.bedFee;
+          this.form.depositFee = selectedBed.depositFee || this.form.depositFee;
+          this.form.memberFee = selectedBed.memberFee || this.form.memberFee;
+          this.calculateTotal();
+        }
+      }
     },
     // 从remark字段解析费用信息
     parseFeesFromRemark(remark) {
@@ -282,6 +364,12 @@ export default {
     },
     // 审核通过
     handleApprove() {
+      // 检查是否有可用床位（如果要换床位）
+      if (this.availableBeds.length === 0 && this.form.newBedId) {
+        this.$modal.msgError("暂无可用床位，无法完成审核");
+        return;
+      }
+
       this.$refs.form.validate(valid => {
         if (valid) {
           this.submitting = true;
@@ -292,6 +380,11 @@ export default {
             monthCount: this.form.monthCount,
             remark: this.buildFeeRemark()
           };
+
+          // 如果选择了新床位，添加到提交数据
+          if (this.form.newBedId) {
+            submitData.bedId = this.form.newBedId;
+          }
 
           approveOrder(submitData).then(() => {
             this.$modal.msgSuccess("审核通过成功");
@@ -345,6 +438,10 @@ export default {
         orderId: null,
         orderNo: '',
         elderName: '',
+        currentBedInfo: '',
+        newBedId: null,
+        institutionId: null,
+        originalBedId: null,
         bedType: '1',
         careLevel: '自理',
         bedFee: 500,
@@ -354,6 +451,7 @@ export default {
         memberFee: 5000,
         approveRemark: ''
       };
+      this.availableBeds = [];
       if (this.$refs.form) {
         this.$refs.form.resetFields();
       }

@@ -56,6 +56,9 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
     @Autowired
     private IAccountInfoService accountInfoService;
 
+    @Autowired
+    private com.ruoyi.service.pension.IFundTransferService fundTransferService;
+
     /**
      * 安全获取用户名（处理H5端未登录情况）
      */
@@ -333,7 +336,33 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
             paymentRecordMapper.insertPaymentRecord(paymentRecord);
         }
 
-        // ========== 6. 更新床位状态为占用 ==========
+        // ========== 6. 更新账户余额并生成拨付单（仅当已支付时）==========
+        if (!"later".equals(dto.getPaymentMethod()) && "1".equals(orderInfo.getOrderType())) {
+            // 6.1 计算首月服务费 = 床位费 + 护理费（null安全处理）
+            BigDecimal safeBedFee = bedFee != null ? bedFee : BigDecimal.ZERO;
+            BigDecimal safeCareFee = careFee != null ? careFee : BigDecimal.ZERO;
+            BigDecimal firstMonthServiceFee = safeBedFee.add(safeCareFee);
+
+            // 6.2 生成首月拨付单（已完成状态，表示首月服务费已消耗）
+            createFirstMonthTransfer(orderInfo, elderId, institutionId, firstMonthServiceFee, checkInDate);
+
+            // 6.3 生成后续月份拨付单（待处理状态）
+            if (monthCount > 1) {
+                fundTransferService.generateMonthlyTransfersForOrder(
+                    orderId,
+                    institutionId,
+                    elderId,
+                    monthCount - 1,
+                    checkInDate,
+                    firstMonthServiceFee
+                );
+            }
+
+            // 6.4 更新老人账户余额
+            updateAccountBalance(elderId, institutionId, dto, firstMonthServiceFee, monthCount);
+        }
+
+        // ========== 7. 更新床位状态为占用 ==========
         bedInfoMapper.updateBedStatus(bedId, "1"); // 1-占用
 
         return 1;
@@ -382,5 +411,81 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
             default:
                 return "自理";
         }
+    }
+
+    /**
+     * 创建首月服务费立即划拨的拨付单
+     *
+     * @param orderInfo 订单信息
+     * @param elderId 老人ID
+     * @param institutionId 机构ID
+     * @param amount 划拨金额
+     * @param transferDate 划拨日期
+     */
+    private void createFirstMonthTransfer(OrderInfo orderInfo, Long elderId, Long institutionId,
+                                           BigDecimal amount, Date transferDate) {
+        com.ruoyi.domain.pension.FundTransfer transfer = new com.ruoyi.domain.pension.FundTransfer();
+        transfer.setOrderId(orderInfo.getOrderId());
+        transfer.setElderId(elderId);
+        transfer.setInstitutionId(institutionId);
+
+        // 生成拨付单号
+        String transferNo = "TRF" + System.currentTimeMillis() + "FM" + String.format("%02d", (int)(Math.random() * 100));
+        transfer.setTransferNo(transferNo);
+        transfer.setTransferType("1"); // 自动划拨
+        transfer.setTransferAmount(amount);
+        transfer.setTransferDate(transferDate);
+
+        // 设置当前月份为划拨周期
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM");
+        String currentPeriod = sdf.format(transferDate);
+        transfer.setTransferPeriod(currentPeriod);
+        transfer.setBillingMonth(currentPeriod);
+
+        transfer.setElderCount(1);
+        transfer.setTransferStatus("1"); // 已完成
+        transfer.setIsPaid("1"); // 已划拨
+        transfer.setStatus("completed"); // 已完成
+        transfer.setExecuteUser("system");
+        transfer.setExecuteTime(DateUtils.getNowDate());
+        transfer.setPaidTime(DateUtils.getNowDate()); // 设置实际划拨时间
+        transfer.setPaidMethod("auto");
+        transfer.setCreateBy("system");
+        transfer.setCreateTime(DateUtils.getNowDate());
+        transfer.setRemark("首月服务费立即划拨-" + orderInfo.getOrderNo());
+
+        fundTransferService.insertFundTransfer(transfer);
+    }
+
+    /**
+     * 更新老人账户余额
+     *
+     * @param elderId 老人ID
+     * @param institutionId 机构ID
+     * @param dto 入住信息
+     * @param firstMonthServiceFee 首月服务费
+     * @param monthCount 月数
+     */
+    private void updateAccountBalance(Long elderId, Long institutionId, PensionCheckinDTO dto,
+                                      BigDecimal firstMonthServiceFee, Integer monthCount) {
+        AccountInfo account = accountInfoService.selectAccountInfoByElderId(elderId);
+        if (account == null) {
+            account = accountInfoService.createAccountInfo(elderId, institutionId, BigDecimal.ZERO);
+        }
+
+        // 计算进入账户的金额 = 押金 + 会员费 + 剩余月份服务费
+        // 首月服务费已通过拨付单消耗，不计入余额
+        BigDecimal deposit = dto.getDepositAmount() != null ? dto.getDepositAmount() : BigDecimal.ZERO;
+        BigDecimal memberFee = dto.getMemberFee() != null ? dto.getMemberFee() : BigDecimal.ZERO;
+        BigDecimal remainingMonths = new BigDecimal(Math.max(0, monthCount - 1));
+        BigDecimal remainingServiceFee = firstMonthServiceFee.multiply(remainingMonths);
+
+        BigDecimal totalAdd = deposit.add(memberFee).add(remainingServiceFee);
+
+        // 更新账户余额
+        account.setServiceBalance(account.getServiceBalance().add(totalAdd));
+        account.setTotalBalance(account.getTotalBalance().add(totalAdd));
+        account.setUpdateTime(DateUtils.getNowDate());
+        accountInfoService.updateAccountInfo(account);
     }
 }

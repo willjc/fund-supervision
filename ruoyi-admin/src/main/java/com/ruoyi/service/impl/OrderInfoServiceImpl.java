@@ -49,6 +49,9 @@ public class OrderInfoServiceImpl implements IOrderInfoService
     @Autowired
     private IExpenseRecordService expenseRecordService;
 
+    @Autowired
+    private com.ruoyi.service.pension.IFundTransferService fundTransferService;
+
     /**
      * 查询订单主表
      *
@@ -502,7 +505,7 @@ public class OrderInfoServiceImpl implements IOrderInfoService
             accountInfoService.updateAccountInfo(account);
 
             // 创建费用记录
-            expenseRecordService.createOrderExpenseRecords(
+            int recordResult = expenseRecordService.createOrderExpenseRecords(
                 account.getElderId(),
                 account.getAccountId(),
                 orderInfo.getOrderId(),
@@ -515,9 +518,125 @@ public class OrderInfoServiceImpl implements IOrderInfoService
                 account.getTotalBalance()
             );
 
+            // 如果是入驻订单，生成拨付单
+            if (recordResult > 0 && "1".equals(orderInfo.getOrderType())) {
+                generateTransfersForOrder(orderInfo, serviceAmount);
+            }
+
         } catch (Exception e) {
             // 记录错误但不影响支付流程
-            throw new RuntimeException("更新账户余额失败: " + e.getMessage(), e);
+            throw new RuntimeException("更新账户余��失败: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 为订单生成拨付单
+     *
+     * @param orderInfo 订单信息
+     * @param serviceAmount 服务费金额
+     */
+    private void generateTransfersForOrder(OrderInfo orderInfo, BigDecimal serviceAmount) {
+        try {
+            // 计算首月服务费
+            BigDecimal firstMonthServiceFee = calculateFirstMonthServiceFee(orderInfo.getOrderId());
+            if (firstMonthServiceFee.compareTo(BigDecimal.ZERO) <= 0) {
+                // 如果无法从明细计算，使用传入的服务费作为首月服务费
+                firstMonthServiceFee = serviceAmount;
+            }
+
+            // 生成首月服务费立即划拨的拨付单（已完成状态）
+            createFirstMonthTransfer(orderInfo, firstMonthServiceFee);
+
+            // 生成后续月份的拨付单（从次月开始）
+            Integer monthCount = orderInfo.getMonthCount() != null ? orderInfo.getMonthCount() : 1;
+            if (monthCount > 1) {
+                fundTransferService.generateMonthlyTransfersForOrder(
+                    orderInfo.getOrderId(),
+                    orderInfo.getInstitutionId(),
+                    orderInfo.getElderId(),
+                    monthCount - 1, // 首月已处理，生成剩余月份
+                    orderInfo.getServiceStartDate() != null ? orderInfo.getServiceStartDate() : new Date(),
+                    firstMonthServiceFee // 使用首月服务费作为月费参考
+                );
+            }
+        } catch (Exception e) {
+            // 生成拨付单失败不影响主流程
+            // 可以记录日志
+        }
+    }
+
+    /**
+     * 创建首月服务费立即划拨的拨付单
+     *
+     * @param orderInfo 订单信息
+     * @param amount 划拨金额
+     */
+    private void createFirstMonthTransfer(OrderInfo orderInfo, BigDecimal amount) {
+        com.ruoyi.domain.pension.FundTransfer transfer = new com.ruoyi.domain.pension.FundTransfer();
+        transfer.setInstitutionId(orderInfo.getInstitutionId());
+        transfer.setElderId(orderInfo.getElderId());
+        transfer.setOrderId(orderInfo.getOrderId());
+
+        // 生成拨付单号
+        String transferNo = "TRF" + System.currentTimeMillis() + "FM" + String.format("%02d", (int)(Math.random() * 100));
+        transfer.setTransferNo(transferNo);
+        transfer.setTransferType("1"); // 自动划拨
+        transfer.setTransferAmount(amount);
+        transfer.setTransferDate(new Date());
+
+        // 设置当前月份为划拨周期
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM");
+        String currentPeriod = sdf.format(new Date());
+        transfer.setTransferPeriod(currentPeriod);
+        transfer.setBillingMonth(currentPeriod);
+
+        transfer.setElderCount(1);
+        transfer.setTransferStatus("1"); // 已完成
+        transfer.setIsPaid("1"); // 已划拨
+        transfer.setStatus("completed"); // 已完成
+        transfer.setExecuteUser("system");
+        transfer.setExecuteTime(new Date());
+        transfer.setPaidTime(new Date()); // 设置实际划拨时间
+        transfer.setPaidMethod("auto");
+        transfer.setCreateBy("system");
+        transfer.setCreateTime(new Date());
+        transfer.setRemark("首月服务费立即划拨-" + orderInfo.getOrderNo());
+
+        fundTransferService.insertFundTransfer(transfer);
+    }
+
+    /**
+     * 计算首月服务费
+     * 根据订单明细中的床位费和护理费计算首月费用
+     *
+     * @param orderId 订单ID
+     * @return 首月服务费金额
+     */
+    private BigDecimal calculateFirstMonthServiceFee(Long orderId) {
+        try {
+            List<OrderItem> orderItems = orderItemMapper.selectOrderItemsByOrderId(orderId);
+            BigDecimal firstMonthFee = BigDecimal.ZERO;
+
+            if (orderItems != null && !orderItems.isEmpty()) {
+                for (OrderItem item : orderItems) {
+                    String itemType = item.getItemType();
+                    BigDecimal totalAmount = item.getTotalAmount() != null ? item.getTotalAmount() : BigDecimal.ZERO;
+                    Integer quantity = item.getQuantity() != null ? item.getQuantity().intValue() : 1;
+
+                    if ("bed_fee".equals(itemType) || "care_fee".equals(itemType)) {
+                        // 计算单月费用：总金额 / 数量（月份数）
+                        if (quantity > 0) {
+                            BigDecimal monthlyFee = totalAmount.divide(new BigDecimal(quantity), 2, BigDecimal.ROUND_HALF_UP);
+                            firstMonthFee = firstMonthFee.add(monthlyFee);
+                        }
+                    }
+                }
+            }
+
+            return firstMonthFee;
+        } catch (Exception e) {
+            // 计算失败时返回0，避免影响主流程
+            return BigDecimal.ZERO;
         }
     }
 

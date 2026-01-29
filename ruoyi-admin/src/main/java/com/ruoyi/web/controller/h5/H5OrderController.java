@@ -310,6 +310,16 @@ public class H5OrderController extends BaseController
                 }
             }
 
+            // 获取床位信息 - 直接使用 order 对象中已有的数据（Mapper 已关联查询）
+            if (order.getRoomNumber() != null && order.getBedNumber() != null) {
+                result.put("bedInfo", order.getRoomNumber() + "-" + order.getBedNumber());
+                result.put("roomNumber", order.getRoomNumber());
+                result.put("bedNumber", order.getBedNumber());
+                if (order.getBedId() != null) {
+                    result.put("bedId", order.getBedId());
+                }
+            }
+
             // 构建费用明细 - 从床位和订单信息中提取详细费用
             java.util.List<Map<String, Object>> feeItems = new java.util.ArrayList<>();
             BigDecimal bedFee = BigDecimal.ZERO;
@@ -521,6 +531,16 @@ public class H5OrderController extends BaseController
                     if (publicInfo != null && publicInfo.getMainPicture() != null && !publicInfo.getMainPicture().isEmpty()) {
                         result.put("institutionCover", publicInfo.getMainPicture());
                     }
+                }
+            }
+
+            // 获取床位信息 - 直接使用 order 对象中已有的数据（Mapper 已关联查询）
+            if (order.getRoomNumber() != null && order.getBedNumber() != null) {
+                result.put("bedInfo", order.getRoomNumber() + "-" + order.getBedNumber());
+                result.put("roomNumber", order.getRoomNumber());
+                result.put("bedNumber", order.getBedNumber());
+                if (order.getBedId() != null) {
+                    result.put("bedId", order.getBedId());
                 }
             }
 
@@ -1072,6 +1092,33 @@ public class H5OrderController extends BaseController
                                 }
 
                                 logger.info("扣除首月服务费：" + firstMonthServiceFee + "元，订单号：" + order.getOrderNo());
+
+                                // 生成首月服务费立即划拨的拨付单（已完成状态）
+                                try {
+                                    createFirstMonthTransfer(order, firstMonthServiceFee);
+                                    logger.info("生成首月服务费拨付单成功，订单号：" + order.getOrderNo());
+                                } catch (Exception e) {
+                                    logger.error("生成首月服务费拨付单失败", e);
+                                }
+
+                                // 生成后续月份的拨付单（从次月开始）
+                                try {
+                                    Integer monthCount = order.getMonthCount() != null ? order.getMonthCount() : 1;
+                                    // 如果只有1个月，则不生成后续拨付单
+                                    if (monthCount > 1) {
+                                        fundTransferService.generateMonthlyTransfersForOrder(
+                                            order.getOrderId(),
+                                            order.getInstitutionId(),
+                                            order.getElderId(),
+                                            monthCount - 1, // 首月已处理，生成剩余月份
+                                            order.getServiceStartDate() != null ? order.getServiceStartDate() : new Date(),
+                                            firstMonthServiceFee // 使用首月服务费作为月费参考
+                                        );
+                                        logger.info("生成后续月份拨付单成功，月数：" + (monthCount - 1) + "，订单号：" + order.getOrderNo());
+                                    }
+                                } catch (Exception e) {
+                                    logger.error("生成后续月份拨付单失败", e);
+                                }
                             } else {
                                 logger.warn("服务费余额不足以扣除首月服务费：" + firstMonthServiceFee + "元，当前余额：" + account.getServiceBalance() + "元");
                             }
@@ -1087,6 +1134,46 @@ public class H5OrderController extends BaseController
             logger.error("更新账户余额失败", e);
             throw new RuntimeException("更新账户余额失败：" + e.getMessage());
         }
+    }
+
+    /**
+     * 创建首月服务费立即划拨的拨付单
+     *
+     * @param order 订单信息
+     * @param amount 划拨金额
+     */
+    private void createFirstMonthTransfer(OrderInfo order, BigDecimal amount) {
+        com.ruoyi.domain.pension.FundTransfer transfer = new com.ruoyi.domain.pension.FundTransfer();
+        transfer.setInstitutionId(order.getInstitutionId());
+        transfer.setElderId(order.getElderId());
+        transfer.setOrderId(order.getOrderId());
+
+        // 生成拨付单号
+        String transferNo = "TRF" + System.currentTimeMillis() + "FM" + String.format("%02d", (int)(Math.random() * 100));
+        transfer.setTransferNo(transferNo);
+        transfer.setTransferType("1"); // 自动划拨
+        transfer.setTransferAmount(amount);
+        transfer.setTransferDate(new Date());
+
+        // 设置当前月份为划拨周期
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM");
+        String currentPeriod = sdf.format(new Date());
+        transfer.setTransferPeriod(currentPeriod);
+        transfer.setBillingMonth(currentPeriod);
+
+        transfer.setElderCount(1);
+        transfer.setTransferStatus("1"); // 已完成
+        transfer.setIsPaid("1"); // 已划拨
+        transfer.setStatus("completed"); // 已完成
+        transfer.setExecuteUser("system");
+        transfer.setExecuteTime(new Date());
+        transfer.setPaidTime(new Date()); // 设置实际划拨时间
+        transfer.setPaidMethod("auto");
+        transfer.setCreateBy("system");
+        transfer.setCreateTime(new Date());
+        transfer.setRemark("首月服务费立即划拨-" + order.getOrderNo());
+
+        fundTransferService.insertFundTransfer(transfer);
     }
 
     /**

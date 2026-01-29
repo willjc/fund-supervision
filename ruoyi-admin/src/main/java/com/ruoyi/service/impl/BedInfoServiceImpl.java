@@ -332,4 +332,21 @@ public class BedInfoServiceImpl implements IBedInfoService
     {
         return bedInfoMapper.selectBedStatistics(institutionId);
     }
+
+    /**
+     * 更新床位状态
+     *
+     * @param bedId 床位ID
+     * @param bedStatus 状态（0-空置，1-占用）
+     * @return 结果
+     */
+    @Override
+    public int updateBedStatus(Long bedId, String bedStatus)
+    {
+        BedInfo bed = new BedInfo();
+        bed.setBedId(bedId);
+        bed.setBedStatus(bedStatus);
+        bed.setUpdateTime(DateUtils.getNowDate());
+        return bedInfoMapper.updateBedInfo(bed);
+    }
 }

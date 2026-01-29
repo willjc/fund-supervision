@@ -47,6 +47,7 @@
       <!-- 订单信息 -->
       <van-cell-group title="订单信息" inset>
         <van-cell title="订单编号" :value="order.orderNo" />
+        <van-cell title="床位信息" :value="order.bedInfo || '未分配'" />
         <van-cell title="老人姓名" :value="order.elderName || '-'" />
         <van-cell title="下单时间" :value="formatDate(order.createTime)" />
         <van-cell v-if="order.paymentTime" title="支付时间" :value="formatDate(order.paymentTime)" />

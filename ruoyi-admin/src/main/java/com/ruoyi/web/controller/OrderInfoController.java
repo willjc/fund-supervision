@@ -18,6 +18,7 @@ import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.domain.OrderInfo;
 import com.ruoyi.service.IOrderInfoService;
+import com.ruoyi.service.IBedInfoService;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.common.core.page.TableDataInfo;
 
@@ -33,6 +34,9 @@ public class OrderInfoController extends BaseController
 {
     @Autowired
     private IOrderInfoService orderInfoService;
+
+    @Autowired
+    private IBedInfoService bedInfoService;
 
     /**
      * 查询订单主表列表
@@ -140,13 +144,27 @@ public class OrderInfoController extends BaseController
 
     /**
      * 审核通过订单
-     * 管理员审核订单，可同时修改订单信息
+     * 管理员审核订单，可同时修改订单信息和更换床位
      */
     @PreAuthorize("@ss.hasPermi('order:info:audit')")
     @Log(title = "审核订单", businessType = BusinessType.UPDATE)
     @PutMapping("/approve")
     public AjaxResult approve(@RequestBody OrderInfo orderInfo)
     {
+        // 获取原订单信息
+        OrderInfo oldOrder = orderInfoService.selectOrderInfoByOrderId(orderInfo.getOrderId());
+
+        // 如果更换了床位，需要更新床位状态
+        Long newBedId = orderInfo.getBedId();
+        if (newBedId != null && !newBedId.equals(oldOrder.getBedId())) {
+            // 原床位恢复为空置
+            if (oldOrder.getBedId() != null) {
+                bedInfoService.updateBedStatus(oldOrder.getBedId(), "0");
+            }
+            // 新床位改为占用
+            bedInfoService.updateBedStatus(newBedId, "1");
+        }
+
         orderInfo.setOrderStatus("5"); // 5-审核通过
         return toAjax(orderInfoService.updateOrderInfo(orderInfo));
     }
