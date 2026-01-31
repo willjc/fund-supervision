@@ -63,7 +63,7 @@
       </div>
     </div>
 
-    <!-- 性别选择器 -->
+    <!-- ���别选择器 -->
     <van-popup v-model:show="showGenderPicker" position="bottom">
       <van-picker
         :columns="genderOptions"
@@ -71,13 +71,28 @@
         @cancel="showGenderPicker = false"
       />
     </van-popup>
+
+    <!-- 输入弹窗 -->
+    <van-popup v-model:show="showInputDialog" position="bottom" :style="{ padding: '30px' }">
+      <van-field
+        v-model="inputValue"
+        :label="inputLabel"
+        :placeholder="inputPlaceholder"
+        autofocus
+        @keyup.enter="confirmInput"
+      />
+      <div class="input-dialog-buttons">
+        <van-button plain type="default" @click="showInputDialog = false">取消</van-button>
+        <van-button type="primary" @click="confirmInput">确定</van-button>
+      </div>
+    </van-popup>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { showToast, showSuccessToast, showLoadingToast, closeToast } from 'vant'
+import { showToast, showSuccessToast, showLoadingToast, closeToast, showDialog } from 'vant'
 import { useUserStore } from '@/store/modules/user'
 import { updateUserInfo, uploadAvatar, maskPhone } from '@/api/user'
 
@@ -95,6 +110,13 @@ const userInfo = ref({
 
 // 显示性别选择器
 const showGenderPicker = ref(false)
+
+// 显示输入弹窗
+const showInputDialog = ref(false)
+const inputValue = ref('')
+const inputLabel = ref('')
+const inputPlaceholder = ref('')
+const inputFieldKey = ref('') // 用于记录当前编辑的字段
 
 // 性别选项
 const genderOptions = [
@@ -189,27 +211,32 @@ const changeAvatar = () => {
 
 // 编辑昵称
 const editNickname = () => {
-  const currentName = userInfo.value.nickName || ''
-
-  // 使用原生 prompt 代替（Vant 4 没有内置 prompt）
-  setTimeout(() => {
-    const result = prompt('请输入昵称', currentName)
-    if (result !== null && result.trim()) {
-      saveUserInfo({ nickName: result.trim() })
-    }
-  }, 100)
+  inputLabel.value = '昵称'
+  inputPlaceholder.value = '请输入昵称'
+  inputValue.value = userInfo.value.nickName || ''
+  inputFieldKey.value = 'nickName'
+  showInputDialog.value = true
 }
 
 // 编辑姓名
 const editRealName = () => {
-  const currentName = userInfo.value.realName || ''
+  inputLabel.value = '姓名'
+  inputPlaceholder.value = '请输入真实姓名'
+  inputValue.value = userInfo.value.realName || ''
+  inputFieldKey.value = 'realName'
+  showInputDialog.value = true
+}
 
-  setTimeout(() => {
-    const result = prompt('请输入真实姓名', currentName)
-    if (result !== null && result.trim()) {
-      saveUserInfo({ realName: result.trim() })
-    }
-  }, 100)
+// 确认输入
+const confirmInput = () => {
+  showInputDialog.value = false
+  const value = inputValue.value.trim()
+  if (value) {
+    const data = inputFieldKey.value === 'nickName' ? { nickName: value } : { realName: value }
+    saveUserInfo(data)
+  } else {
+    showToast('请输入内容')
+  }
 }
 
 // 性别确认
@@ -335,5 +362,17 @@ onMounted(() => {
 .arrow-icon {
   font-size: 14px;
   color: #c8c9cc;
+}
+
+/* 输入弹窗样式 */
+.input-dialog-buttons {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.input-dialog-buttons .van-button {
+  flex: 1;
 }
 </style>

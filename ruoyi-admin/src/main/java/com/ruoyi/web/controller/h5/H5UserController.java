@@ -836,7 +836,10 @@ public class H5UserController
             loginUser.setUser(user);
             String token = tokenService.createToken(loginUser);
 
-            // 5. 构建返回数据
+            // 5. 自动关联老人信息（如果郑好办返回的身份证号在elder_info表中存在）
+            autoLinkElderForZhbUser(user.getUserId(), zhbUserInfo.getIdCode());
+
+            // 6. 构建返回数据
             Map<String, Object> data = new HashMap<>();
             data.put("token", token);
             data.put("user", buildUserInfo(user));
@@ -1021,6 +1024,65 @@ public class H5UserController
             user.setUpdateTime(new Date());
             userMapper.updateUser(user);
             logger.info("更新郑好办用户信息成功，userId：{}，zid已绑定：{}", user.getUserId(), zid);
+        }
+    }
+
+    /**
+     * 自动关联老人信息（郑好办登录）
+     * 如果郑好办返回的身份证号在elder_info表中存在，自动创建elder_family关联
+     *
+     * @param userId 用户ID
+     * @param idCard 身份证号
+     */
+    private void autoLinkElderForZhbUser(Long userId, String idCard)
+    {
+        if (StringUtils.isEmpty(idCard))
+        {
+            return;
+        }
+
+        try
+        {
+            // 查询该身份证号对应的老人信息
+            ElderInfo elderInfo = elderInfoService.selectElderInfoByIdCard(idCard);
+            if (elderInfo == null)
+            {
+                logger.info("身份证号{}未在elder_info表中找到对应老人，不自动关联", idCard);
+                return;
+            }
+
+            // 检查是否已经存在关联关系
+            ElderFamily checkQuery = new ElderFamily();
+            checkQuery.setUserId(userId);
+            checkQuery.setElderId(elderInfo.getElderId());
+            List<ElderFamily> existingRelations = elderFamilyService.selectElderFamilyList(checkQuery);
+
+            if (existingRelations != null && !existingRelations.isEmpty())
+            {
+                logger.info("用户{}已关联老人{}，无需重复创建", userId, elderInfo.getElderId());
+                return;
+            }
+
+            // 创建elder_family关联关系（关系类型设为"本人"）
+            ElderFamily selfRelation = new ElderFamily();
+            selfRelation.setUserId(userId);
+            selfRelation.setElderId(elderInfo.getElderId());
+            selfRelation.setRelationType("0");  // 0表示本人
+            selfRelation.setRelationName("本人");
+            selfRelation.setIsDefault("1");   // 默认显示自己
+            selfRelation.setIsMainContact("0");  // 不是主要联系人
+            selfRelation.setStatus("0");  // 状态正常
+            selfRelation.setCreateBy("zhb_system");
+            selfRelation.setCreateTime(new Date());
+
+            elderFamilyService.insertElderFamily(selfRelation);
+            logger.info("郑好办登录自动关联老人成功，userId：{}，elderId：{}，idCard：{}",
+                userId, elderInfo.getElderId(), idCard);
+        }
+        catch (Exception e)
+        {
+            // 自动关联失败不影响登录流程，只记录日志
+            logger.error("郑好办登录自动关联老人失败，userId：{}，idCard：{}", userId, idCard, e);
         }
     }
 
