@@ -556,7 +556,8 @@ public class OrderInfoServiceImpl implements IOrderInfoService
                     orderInfo.getElderId(),
                     monthCount - 1, // 首月已处理，生成剩余月份
                     orderInfo.getServiceStartDate() != null ? orderInfo.getServiceStartDate() : new Date(),
-                    firstMonthServiceFee // 使用首月服务费作为月费参考
+                    firstMonthServiceFee, // 使用首月服务费作为月费参考
+                    false // 从次月开始
                 );
             }
         } catch (Exception e) {

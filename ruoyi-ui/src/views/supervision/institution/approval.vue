@@ -450,7 +450,7 @@ export default {
 
       const confirmMessage = isMaintenance
         ? `是否确认审批通过"${institutionName}"的维护申请？通过后机构信息将更新为最新内容。`
-        : `是否确认审批通过"${institutionName}"的入驻申请？通过后系统将自动生成机构登录账号、开通监管账户并发送通知。`;
+        : `是否确认审批通过"${institutionName}"的入驻申请？`;
 
       this.$modal.confirm(confirmMessage).then(() => {
         return approveInstitution(institutionId);

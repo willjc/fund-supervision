@@ -397,11 +397,11 @@ public class FundTransferServiceImpl implements IFundTransferService
         // 这里简化处理，实际应该从入住单获取月费用
         BigDecimal monthlyFee = new BigDecimal("3000.00"); // 默认月费用，可以从配置获取
 
-        generateMonthlyTransfersForOrder(orderId, institutionId, elderId, monthCount, startDate, monthlyFee);
+        generateMonthlyTransfersForOrder(orderId, institutionId, elderId, monthCount, startDate, monthlyFee, false);
     }
 
     /**
-     * 根据老人ID和月数生成划拨单（从次月开始，按划拨规则配置）
+     * 根据老人ID和月数生成划拨单
      *
      * @param orderId 订单ID
      * @param institutionId 机构ID
@@ -409,11 +409,13 @@ public class FundTransferServiceImpl implements IFundTransferService
      * @param monthCount 月数
      * @param startDate 起始日期
      * @param monthlyFee 月费用
+     * @param startFromCurrentMonth 是否从当月开始生成（true-从当月开始，false-从次月开始）
      */
     @Override
     @Transactional
     public void generateMonthlyTransfersForOrder(Long orderId, Long institutionId, Long elderId,
-                                                  Integer monthCount, Date startDate, BigDecimal monthlyFee)
+                                                  Integer monthCount, Date startDate, BigDecimal monthlyFee,
+                                                  boolean startFromCurrentMonth)
     {
         if (monthCount == null || monthCount <= 0) {
             monthCount = 1;
@@ -432,9 +434,12 @@ public class FundTransferServiceImpl implements IFundTransferService
         Calendar cal = Calendar.getInstance();
         cal.setTime(startDate);
 
-        // 根据划拨周期计算首月划拨后的下一个划拨月份
+        // 根据划拨周期计算起始月份
         int cycleMonths = getCycleMonths(ruleConfig.getTransferCycle());
-        cal.add(Calendar.MONTH, cycleMonths);
+        // 如果不是从当月开始，则跳过首月
+        if (!startFromCurrentMonth) {
+            cal.add(Calendar.MONTH, cycleMonths);
+        }
 
         // 生成monthCount个月的划拨单
         for (int i = 0; i < monthCount; i++) {

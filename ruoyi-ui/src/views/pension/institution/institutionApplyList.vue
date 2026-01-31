@@ -141,7 +141,7 @@
             @click="handleMaintain(scope.row)"
           >维护</el-button>
           <el-button
-            v-if="scope.row.status === '4' || scope.row.status === '2' || scope.row.status === '5' || scope.row.status === null"
+            v-if="scope.row.status === '4' || scope.row.status === '2' || scope.row.status === null"
             size="mini"
             type="text"
             icon="el-icon-edit"

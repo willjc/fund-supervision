@@ -744,16 +744,30 @@ public class H5OrderController extends BaseController
             BigDecimal depositBalance = account.getDepositBalance() != null ? account.getDepositBalance() : new BigDecimal("0");
             BigDecimal memberBalance = account.getMemberBalance() != null ? account.getMemberBalance() : new BigDecimal("0");
 
-            // 账户余额 = 服务费余额 + 押金余额（不包括会员费）
-            BigDecimal accountBalance = serviceBalance.add(depositBalance);
+            // 查询已划拨的服务费金额（从fund_transfer表查询已划拨的记录）
+            BigDecimal transferredAmount = BigDecimal.ZERO;
+            List<com.ruoyi.domain.pension.FundTransfer> serviceTransfers =
+                fundTransferService.selectByElderIdAndPaidMethods(elderId, new String[]{"auto", "manual"});
+            for (com.ruoyi.domain.pension.FundTransfer ft : serviceTransfers) {
+                if (ft.getTransferAmount() != null && "1".equals(ft.getIsPaid())) {
+                    transferredAmount = transferredAmount.add(ft.getTransferAmount());
+                }
+            }
 
-            result.put("totalBalance", accountBalance);  // 用于显示的"账户余额"
-            result.put("serviceBalance", serviceBalance);
-            result.put("depositBalance", depositBalance);
-            result.put("memberBalance", memberBalance);  // 会员费单独显示
+            // 可用服务费余额 = 原始服务费余额 - 已划拨金额
+            BigDecimal availableServiceBalance = serviceBalance.subtract(transferredAmount);
+            if (availableServiceBalance.compareTo(BigDecimal.ZERO) < 0) {
+                availableServiceBalance = BigDecimal.ZERO;
+            }
 
-            // 计算预存金额（服务费余额）
-            result.put("prepaidAmount", serviceBalance);
+            // 用户端显示的账户余额：不包含押金和会员费，只显示可用服务费余额
+            result.put("totalBalance", availableServiceBalance);  // 用于显示的"账户余额"
+            result.put("serviceBalance", availableServiceBalance);   // 可用服务费余额
+            result.put("depositBalance", depositBalance);           // 押金余额（仅供参考）
+            result.put("memberBalance", memberBalance);             // 会员费余额（仅供参考）
+
+            // 计算预存金额（可用服务费余额）
+            result.put("prepaidAmount", availableServiceBalance);
             result.put("hasAccount", true);
 
             // 添加机构信息
@@ -1112,7 +1126,8 @@ public class H5OrderController extends BaseController
                                             order.getElderId(),
                                             monthCount - 1, // 首月已处理，生成剩余月份
                                             order.getServiceStartDate() != null ? order.getServiceStartDate() : new Date(),
-                                            firstMonthServiceFee // 使用首月服务费作为月费参考
+                                            firstMonthServiceFee, // 使用首月服务费作为月费参考
+                                            false // 从次月开始
                                         );
                                         logger.info("生成后续月份拨付单成功，月数：" + (monthCount - 1) + "，订单号：" + order.getOrderNo());
                                     }
@@ -1122,6 +1137,31 @@ public class H5OrderController extends BaseController
                             } else {
                                 logger.warn("服务费余额不足以扣除首月服务费：" + firstMonthServiceFee + "元，当前余额：" + account.getServiceBalance() + "元");
                             }
+                        }
+                    }
+                    // 续费订单拨付单生成逻辑
+                    else if ("2".equals(order.getOrderType())) {
+                        try {
+                            Integer monthCount = order.getMonthCount() != null ? order.getMonthCount() : 1;
+
+                            // 计算月服务费（总金额 / 月数）
+                            BigDecimal monthlyServiceFee = order.getOrderAmount()
+                                .divide(new BigDecimal(monthCount), 2, java.math.RoundingMode.HALF_UP);
+
+                            // 生成续费月份的拨付单（从service_start_date所在月份开始）
+                            fundTransferService.generateMonthlyTransfersForOrder(
+                                order.getOrderId(),
+                                order.getInstitutionId(),
+                                order.getElderId(),
+                                monthCount,
+                                order.getServiceStartDate() != null ? order.getServiceStartDate() : new Date(),
+                                monthlyServiceFee,
+                                true // 从当月开始，不跳过首月
+                            );
+
+                            logger.info("生成续费订单拨付单成功，月数：" + monthCount + "，订单号：" + order.getOrderNo());
+                        } catch (Exception e) {
+                            logger.error("生成续费订单拨付单失败", e);
                         }
                     }
                 }
@@ -1715,13 +1755,13 @@ public class H5OrderController extends BaseController
                 }
             }
 
-            // 按时间降序排序
+            // 按时间正序排序（最早的在前）
             allRecords.sort((a, b) -> {
                 java.util.Date timeA = (java.util.Date) a.get("createTime");
                 java.util.Date timeB = (java.util.Date) b.get("createTime");
                 if (timeA == null) return 1;
                 if (timeB == null) return -1;
-                return timeB.compareTo(timeA);
+                return timeA.compareTo(timeB);
             });
 
             // 简单分页处理

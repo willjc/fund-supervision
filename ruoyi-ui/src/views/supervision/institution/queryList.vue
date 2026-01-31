@@ -367,12 +367,6 @@
         <el-form-item label="实际经营地址" prop="actualAddress">
           <el-input v-model="editForm.actualAddress" type="textarea" placeholder="请输入实际经营地址" />
         </el-form-item>
-        <el-form-item label="床位数" prop="bedCount">
-          <el-input-number v-model="editForm.bedCount" :min="1" />
-        </el-form-item>
-        <el-form-item label="机构评级" prop="rating">
-          <el-rate v-model="editForm.rating" :max="5" show-text></el-rate>
-        </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
         <el-button type="primary" @click="submitEdit">确 定</el-button>
@@ -383,7 +377,7 @@
 </template>
 
 <script>
-import { listInstitution, getInstitution, updateInstitution, approveInstitution, rejectInstitution, addToBlacklist as addToBlacklistApi } from "@/api/supervision/institution";
+import { listInstitution, getInstitution, editInstitutionAccount, approveInstitution, rejectInstitution, addToBlacklist as addToBlacklistApi } from "@/api/supervision/institution";
 import { listAttachment } from "@/api/pension/institution";
 
 export default {
@@ -499,7 +493,7 @@ export default {
     submitEdit() {
       this.$refs["editForm"].validate(valid => {
         if (valid) {
-          updateInstitution(this.editForm).then(response => {
+          editInstitutionAccount(this.editForm).then(response => {
             this.$modal.msgSuccess("修改成功");
             this.editOpen = false;
             this.getList();
@@ -535,7 +529,7 @@ export default {
     /** 冻结机构 */
     handleFreeze(row) {
       this.$modal.confirm('是否确认冻结"' + row.institutionName + '"？').then(() => {
-        return updateInstitution({ ...row, status: '2' });
+        return editInstitutionAccount({ ...row, status: '2' });
       }).then(() => {
         this.getList();
         this.$modal.msgSuccess("冻结成功");
@@ -544,7 +538,7 @@ export default {
     /** 解除冻结 */
     handleUnfreeze(row) {
       this.$modal.confirm('是否确认解除冻结"' + row.institutionName + '"？').then(() => {
-        return updateInstitution({ ...row, status: '1' });
+        return editInstitutionAccount({ ...row, status: '1' });
       }).then(() => {
         this.getList();
         this.$modal.msgSuccess("解除冻结成功");

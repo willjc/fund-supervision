@@ -179,8 +179,35 @@ public class PensionInstitutionController extends BaseController
         System.out.println("==================== 保存草稿接口被调用 ====================");
         System.out.println("统一信用代码: " + pensionInstitution.getCreditCode());
         System.out.println("机构名称: " + pensionInstitution.getInstitutionName());
+        System.out.println("传入的institutionId: " + pensionInstitution.getInstitutionId());
 
-        // 检查是否已有草稿(根据统一信用代码查询)
+        // 验证草稿必填项（数据库NOT NULL字段）
+        if (pensionInstitution.getInstitutionName() == null || pensionInstitution.getInstitutionName().trim().isEmpty()) {
+            return AjaxResult.error("请填写机构名称");
+        }
+        if (pensionInstitution.getCreditCode() == null || pensionInstitution.getCreditCode().trim().isEmpty()) {
+            return AjaxResult.error("请填写统一信用代码");
+        }
+        if (pensionInstitution.getContactPerson() == null || pensionInstitution.getContactPerson().trim().isEmpty()) {
+            return AjaxResult.error("请填写联系人");
+        }
+        if (pensionInstitution.getContactPhone() == null || pensionInstitution.getContactPhone().trim().isEmpty()) {
+            return AjaxResult.error("请填写联系电话");
+        }
+
+        // 如果传入 institutionId，说明是编辑模式，直接执行更新
+        if (pensionInstitution.getInstitutionId() != null) {
+            System.out.println("编辑模式：直接更新已有记录,ID: " + pensionInstitution.getInstitutionId());
+            pensionInstitution.setStatus("4"); // 设置为草稿状态
+            // 清除审批相关字段,确保草稿状态的纯净性
+            pensionInstitution.setApplyTime(null);
+            pensionInstitution.setApproveTime(null);
+            pensionInstitution.setApproveUser(null);
+            pensionInstitution.setApproveRemark(null);
+            return toAjax(pensionInstitutionService.updatePensionInstitution(pensionInstitution));
+        }
+
+        // 没有 institutionId，查询是否已有草稿(根据统一信用代码查询)
         if (pensionInstitution.getCreditCode() != null && !pensionInstitution.getCreditCode().isEmpty()) {
             PensionInstitution query = new PensionInstitution();
             query.setCreditCode(pensionInstitution.getCreditCode());

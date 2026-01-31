@@ -17,7 +17,7 @@
       </el-form-item>
       <el-form-item label="订单类型" prop="orderType">
         <el-select v-model="queryParams.orderType" placeholder="请选择订单类型" clearable>
-          <el-option label="入驻" value="1"></el-option>
+          <el-option label="入住" value="1"></el-option>
           <el-option label="续费" value="2"></el-option>
         </el-select>
       </el-form-item>

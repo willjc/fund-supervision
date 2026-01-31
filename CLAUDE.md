@@ -493,7 +493,7 @@ POST /h5/payment/process/{orderId}  # 处理支付
 **功能特性**:
 - ✅ 老人列表选择（仅显示当前用户关联的老人）
 - ✅ 账户余额展示（总余额、押金余额、预存金额）
-- ✅ 费用明细查询（押金使用、服务费扣款、其他费用）
+- ✅ 费用明细查询（��金使用、服务费扣款、其他费用）
 - ✅ 分类查看（全部/押金/服务费/其他）
 - ✅ 下拉加载更多
 
@@ -503,6 +503,32 @@ GET /h5/elder/list          # 获取老人列表
 GET /h5/account/{elderId}   # 获取账户余额
 GET /h5/expense/list        # 获取费用明细
 ```
+
+**账户余额逻辑** ⭐ 重要
+
+账户表（`account_info`）包含三个独立的余额字段：
+
+| 字段 | 含义 | 可用性 |
+|------|------|--------|
+| `service_balance` | 服务费余额（可用于消费） | ✅ 可用 |
+| `deposit_balance` | 押金余额（不可用于消费，只能申请使用） | ❌ 不可用 |
+| `member_balance` | 会员费余额 | ❌ 不可用 |
+| `total_balance` | 总余额（= service + deposit + member） | - |
+
+**订单支付后余额分配逻辑**：
+
+根据订单明细（`order_item`）的 `item_type` 类型分配：
+- `deposit` → `deposit_balance`（押金）
+- `member_fee` → `member_balance`（会员费）
+- `bed_fee`、`care_fee` 等 → `service_balance`（服务费）
+
+**入驻订单特殊处理**：
+入驻订单（type=1）支付成功后，自动扣除首月服务费（床位费+护理费）从 `service_balance`。
+
+**H5端显示逻辑**：
+- 顶部"账户余额"显示的是**可用服务费余额**（`service_balance` - 已划拨金额）
+- 押金单独显示，不计入可用余额
+- 预存金额 = 可用服务费余额
 
 **数据来源**:
 - 老人列表: `elder_family` 表（关联current user）+ `elder_info` 表

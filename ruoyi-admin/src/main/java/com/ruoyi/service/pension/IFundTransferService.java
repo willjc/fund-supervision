@@ -162,9 +162,11 @@ public interface IFundTransferService
      * @param monthCount 月数
      * @param startDate 起始日期
      * @param monthlyFee 月费用
+     * @param startFromCurrentMonth 是否从当月开始生成（true-从当月开始，false-从次月开始）
      */
     public void generateMonthlyTransfersForOrder(Long orderId, Long institutionId, Long elderId,
-                                                 Integer monthCount, Date startDate, java.math.BigDecimal monthlyFee);
+                                                 Integer monthCount, Date startDate, java.math.BigDecimal monthlyFee,
+                                                 boolean startFromCurrentMonth);
 
     /**
      * 根据老��ID和支付方式查询已完成的划拨记录（用于H5费用查询）

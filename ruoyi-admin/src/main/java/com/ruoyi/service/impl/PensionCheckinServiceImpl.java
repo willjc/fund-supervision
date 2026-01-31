@@ -354,7 +354,8 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
                     elderId,
                     monthCount - 1,
                     checkInDate,
-                    firstMonthServiceFee
+                    firstMonthServiceFee,
+                    false // 从次月开始
                 );
             }
 

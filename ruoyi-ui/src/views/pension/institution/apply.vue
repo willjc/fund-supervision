@@ -279,6 +279,7 @@ export default {
     return {
       submitting: false,
       isEditMode: false, // 是否为编辑模式
+      originalStatus: null, // 记录原始状态，用于保存草稿时判断
       // 区域选项
       areaOptions: [],
       streetOptions: [],
@@ -436,6 +437,8 @@ export default {
     // 加载机构数据
     loadInstitutionData(institutionId) {
       getPensionInstitution(institutionId).then(response => {
+        // 保存原始状态
+        this.originalStatus = response.data.status;
         // 复制数据到表单
         const data = response.data;
         this.applyForm = {
@@ -467,23 +470,23 @@ export default {
           supervisionAgreement: data.supervisionAgreement || ''
         };
 
-        // 处理文件列表显示
+        // 处理文件列表显示（需要转换为完整URL才能正确显示图片）
         if (data.businessLicense) {
           this.businessLicenseFiles = [{
             name: '营业执照',
-            url: data.businessLicense
+            url: this.getFullUrl(data.businessLicense)
           }];
         }
         if (data.approvalCertificate) {
           this.approvalCertificateFiles = [{
             name: '批准证书',
-            url: data.approvalCertificate
+            url: this.getFullUrl(data.approvalCertificate)
           }];
         }
         if (data.supervisionAgreement) {
           this.supervisionAgreementFiles = [{
             name: '监管协议',
-            url: data.supervisionAgreement
+            url: this.getFullUrl(data.supervisionAgreement)
           }];
         }
       });
@@ -504,16 +507,26 @@ export default {
       return true;
     },
 
+    // 获取完整的图片URL（处理相对路径）
+    getFullUrl(url) {
+      if (!url) return '';
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        return url;
+      }
+      return process.env.VUE_APP_BASE_API + url;
+    },
+
     // 文件上传成功
     handleUploadSuccess(response, file, fileList, field) {
       if (response.code === 200) {
         this.applyForm[field] = response.url;
+        const fullUrl = this.getFullUrl(response.url);
         if (field === 'businessLicense') {
-          this.businessLicenseFiles = [{ name: response.fileName, url: response.url }];
+          this.businessLicenseFiles = [{ name: response.fileName, url: fullUrl }];
         } else if (field === 'approvalCertificate') {
-          this.approvalCertificateFiles = [{ name: response.fileName, url: response.url }];
+          this.approvalCertificateFiles = [{ name: response.fileName, url: fullUrl }];
         } else if (field === 'supervisionAgreement') {
-          this.supervisionAgreementFiles = [{ name: response.fileName, url: response.url }];
+          this.supervisionAgreementFiles = [{ name: response.fileName, url: fullUrl }];
         }
         this.$modal.msgSuccess("文件上传成功");
       } else {
@@ -551,12 +564,16 @@ export default {
         if (valid) {
           this.submitting = true;
 
-          const submitPromise = this.isEditMode
+          // 根据原始状态判断调用哪个接口：
+          // - 原始状态为已入驻(1)或维护中(5) → 调用 submitMaintainApply → 状态变为维护待审批(6)
+          // - 其他情况（草稿4、已驳回2、null）→ 调用 submitInstitutionApply → 状态变为待审批(0)
+          const isMaintenance = this.originalStatus === '1' || this.originalStatus === '5';
+          const submitPromise = isMaintenance
             ? submitMaintainApply(this.applyForm)
             : submitInstitutionApply(this.applyForm);
 
           submitPromise.then(response => {
-            const successMsg = this.isEditMode
+            const successMsg = isMaintenance
               ? "维护信息提交成功，请等待民政部门审批"
               : "申请提交成功，请等待民政部门审批";
             this.$modal.msgSuccess(successMsg);
@@ -575,8 +592,10 @@ export default {
 
     // 保存草稿
     saveDraft() {
-      // 草稿不需要验证，允许部分填写
-      const savePromise = this.isEditMode
+      // 根据原始状态判断调用哪个接口：
+      // - 原始状态为已入驻(1) → 调用 saveMaintainDraft → 状态变为维护中(5)
+      // - 其他情况 → 调用 saveDraftApply → 保持原状态（草稿4、已驳回2、null）
+      const savePromise = (this.isEditMode && this.originalStatus === '1')
         ? saveMaintainDraft(this.applyForm)
         : saveDraftApply(this.applyForm);
 

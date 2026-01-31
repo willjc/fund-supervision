@@ -286,7 +286,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                 AND DATE_FORMAT(ft.create_time, '%Y-%m-%d') &lt;= #{params.endTime}
             </if>
         </where>
-        ORDER BY ft.create_time DESC
+        ORDER BY ft.billing_month ASC
     </select>
 
 </mapper>

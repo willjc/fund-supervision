@@ -22,6 +22,7 @@ import com.ruoyi.domain.vo.ResidentVO;
 import com.ruoyi.domain.pension.AccountInfo;
 import com.ruoyi.domain.pension.FundTransfer;
 import com.ruoyi.domain.pension.ExpenseRecord;
+import com.ruoyi.service.pension.IFundTransferService;
 import com.ruoyi.mapper.BedAllocationMapper;
 import com.ruoyi.mapper.ElderAttachmentMapper;
 import com.ruoyi.mapper.ElderInfoMapper;
@@ -72,6 +73,9 @@ public class ResidentServiceImpl implements IResidentService
 
     @Autowired
     private FundTransferMapper fundTransferMapper;
+
+    @Autowired
+    private IFundTransferService fundTransferService;
 
     /**
      * 查询入住人列表
@@ -468,6 +472,35 @@ public class ResidentServiceImpl implements IResidentService
                     memberRecord.setCreateTime(DateUtils.getNowDate());
                     memberRecord.setCreateBy(SecurityUtils.getUsername());
                     expenseRecordMapper.insertExpenseRecord(memberRecord);
+                }
+            }
+
+            // 9.4 生成续费订单的拨付单（线下支付时）
+            if (renewDTO.getMonthCount() != null && renewDTO.getMonthCount() > 0) {
+                try {
+                    // 计算月服务费
+                    BigDecimal monthlyFee = serviceFeeTotal
+                        .divide(new BigDecimal(renewDTO.getMonthCount()), 2, java.math.RoundingMode.HALF_UP);
+
+                    // 获取服务起始日期
+                    Date transferStartDate = orderInfo.getServiceStartDate();
+                    if (transferStartDate == null) {
+                        transferStartDate = bedAllocation.getDueDate() != null ? bedAllocation.getDueDate() : new Date();
+                    }
+
+                    // 生成续费月份的拨付单（从service_start_date所在月份开始）
+                    fundTransferService.generateMonthlyTransfersForOrder(
+                        orderId,
+                        existingOrder.getInstitutionId(),
+                        renewDTO.getElderId(),
+                        renewDTO.getMonthCount(),
+                        transferStartDate,
+                        monthlyFee,
+                        true // 从当月开始，不跳过首月
+                    );
+                } catch (Exception e) {
+                    // 拨付单生成失败不影响主流程
+                    throw new RuntimeException("续费拨付单生成失败：" + e.getMessage());
                 }
             }
         }
