@@ -678,7 +678,7 @@ export default {
     handleExport() {
       this.download('elder/bed/export', {
         ...this.queryParams
-      }, `bed_info_${new Date().getTime()}.xlsx`)
+      }, `床位信息_${new Date().getTime()}.xlsx`)
     },
     /** 加载机构列表 */
     loadInstitutionList() {

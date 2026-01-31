@@ -965,8 +965,8 @@
         </el-table-column>
         <el-table-column label="操作" align="center" width="150">
           <template slot-scope="scope">
-            <el-button size="mini" type="text" icon="el-icon-edit" @click="handleEditFamily(scope.row)">编辑</el-button>
-            <el-button size="mini" type="text" icon="el-icon-delete" @click="handleDeleteFamily(scope.row)" style="color: #F56C6C;">删除</el-button>
+            <el-button size="mini" type="text" icon="el-icon-edit" @click="handleEditFamily(scope.row)" v-hasPermi="['elder:resident:edit']">编辑</el-button>
+            <el-button size="mini" type="text" icon="el-icon-delete" @click="handleDeleteFamily(scope.row)" v-hasPermi="['elder:resident:remove']" style="color: #F56C6C;">删除</el-button>
           </template>
         </el-table-column>
       </el-table>

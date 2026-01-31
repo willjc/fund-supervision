@@ -73,11 +73,11 @@ public class BedInfo extends BaseEntity
     private BigDecimal roomArea;
 
     /** 是否有独立卫生间(0否 1是) */
-    @Excel(name = "独立卫浴", readConverterExp = "0=否,1=是", prompt = "选填,填写:是、否")
+    @Excel(name = "独立卫浴", readConverterExp = "N=否,Y=是", prompt = "选填,填写:是、否")
     private String hasBathroom;
 
     /** 是否有阳台(0否 1是) */
-    @Excel(name = "阳台", readConverterExp = "0=否,1=是", prompt = "选填,填写:是、否")
+    @Excel(name = "阳台", readConverterExp = "N=否,Y=是", prompt = "选填,填写:是、否")
     private String hasBalcony;
 
     /** 设施配置 */

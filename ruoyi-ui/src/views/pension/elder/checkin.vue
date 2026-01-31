@@ -591,35 +591,33 @@ export default {
       }
 
       // 获取床位费
-      this.form.bedFee = parseFloat(bed.price) || 0;
+      this.form.bedFee = bed.price ?? 0;
 
       // 根据护理等级获取护理费
       let careFee = 0;
       if (this.form.careLevel) {
         switch (this.form.careLevel) {
           case '1': // 自理
-            careFee = parseFloat(bed.selfCarePrice) || 500;
+            careFee = bed.selfCarePrice ?? 0;
             break;
           case '2': // 半护理
-            careFee = parseFloat(bed.halfCarePrice) || 800;
+            careFee = bed.halfCarePrice ?? 0;
             break;
           case '3': // 全护理
-            careFee = parseFloat(bed.fullCarePrice) || 1200;
+            careFee = bed.fullCarePrice ?? 0;
             break;
           default:
-            careFee = 500; // 默认自理价格
+            careFee = 0;
         }
-      } else {
-        careFee = 500; // 默认自理价格
       }
       this.form.careFee = careFee;
 
       // 同步更新 monthlyFee（用于后端存储）
       this.form.monthlyFee = this.form.bedFee + this.form.careFee;
 
-      // 同时设置默认的押金和会员费
-      this.form.depositAmount = parseFloat(bed.depositFee) || 10000;
-      this.form.memberFee = parseFloat(bed.memberFee) || 5000;
+      // 使用床位信息中设置的押金和会员费
+      this.form.depositAmount = bed.depositFee ?? 0;
+      this.form.memberFee = bed.memberFee ?? 0;
 
       // 重新计算总费用
       this.calculateTotal();
@@ -712,13 +710,13 @@ export default {
 
       switch (this.form.careLevel) {
         case '1': // 自理
-          return parseFloat(bed.selfCarePrice) || 500;
+          return bed.selfCarePrice ?? 0;
         case '2': // 半护理
-          return parseFloat(bed.halfCarePrice) || 800;
+          return bed.halfCarePrice ?? 0;
         case '3': // 全护理
-          return parseFloat(bed.fullCarePrice) || 1200;
+          return bed.fullCarePrice ?? 0;
         default:
-          return 500; // 默认自理价格
+          return 0;
       }
     },
     /** 获取护理等级文本 */

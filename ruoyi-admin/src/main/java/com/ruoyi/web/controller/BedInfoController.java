@@ -70,6 +70,8 @@ public class BedInfoController extends BaseController
     @PostMapping("/export")
     public void export(HttpServletResponse response, BedInfo bedInfo)
     {
+        // 数据权限过滤: 只导出当前用户有权限的机构的床位
+        bedInfo.setCurrentUserId(getUserId());
         List<BedInfo> list = bedInfoService.exportBedInfo(bedInfo);
         ExcelUtil<BedInfo> util = new ExcelUtil<BedInfo>(BedInfo.class);
         util.exportExcel(response, list, "床位信息数据");
