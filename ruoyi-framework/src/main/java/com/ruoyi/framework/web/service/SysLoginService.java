@@ -2,6 +2,7 @@ package com.ruoyi.framework.web.service;
 
 import javax.annotation.Resource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Component;
 import com.ruoyi.common.constant.CacheConstants;
 import com.ruoyi.common.constant.Constants;
 import com.ruoyi.common.constant.UserConstants;
+import com.ruoyi.common.core.domain.entity.SysUser;
 import com.ruoyi.common.core.domain.model.LoginUser;
 import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.exception.ServiceException;
@@ -44,12 +46,15 @@ public class SysLoginService
 
     @Autowired
     private RedisCache redisCache;
-    
+
     @Autowired
     private ISysUserService userService;
 
     @Autowired
     private ISysConfigService configService;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     /**
      * 登录验证
@@ -161,6 +166,26 @@ public class SysLoginService
         {
             AsyncManager.me().execute(AsyncFactory.recordLogininfor(username, Constants.LOGIN_FAIL, MessageUtils.message("login.blocked")));
             throw new BlackListException();
+        }
+
+        // 机构黑名单校验
+        SysUser user = userService.selectUserByUserName(username);
+        if (user != null)
+        {
+            // 检查用户关联的机构是否有在黑名单中的（检查所有关联机构）
+            try {
+                Integer blacklistCount = jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM pension_institution p " +
+                        "INNER JOIN sys_user_institution ui ON p.institution_id = ui.institution_id " +
+                        "WHERE ui.user_id = ? AND p.blacklist_flag = '1'", Integer.class, user.getUserId());
+                if (blacklistCount != null && blacklistCount > 0)
+                {
+                    AsyncManager.me().execute(AsyncFactory.recordLogininfor(username, Constants.LOGIN_FAIL, "该机构已被列入黑名单，无法登录"));
+                    throw new ServiceException("该机构已被列入黑名单，无法登录");
+                }
+            } catch (org.springframework.dao.DataAccessException e) {
+                // 只捕获数据库访问异常，不影响正常登录
+            }
         }
     }
 

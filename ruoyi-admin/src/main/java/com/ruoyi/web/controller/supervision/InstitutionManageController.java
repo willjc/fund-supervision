@@ -52,6 +52,9 @@ public class InstitutionManageController extends BaseController
     private IInstitutionRatingService ratingService;
 
     @Autowired
+    private com.ruoyi.service.IInstitutionBlacklistService institutionBlacklistService;
+
+    @Autowired
     private JdbcTemplate jdbcTemplate;
 
     // 机构管理员角色ID
@@ -187,7 +190,6 @@ public class InstitutionManageController extends BaseController
                     String legalPerson = getCellValue(row.getCell(7));
                     String contactEmail = getCellValue(row.getCell(8));
                     String bedCount = getCellValue(row.getCell(9));
-                    String institutionType = getCellValue(row.getCell(10));
 
                     // 验证必填项
                     if (institutionName == null || institutionName.trim().isEmpty()) {
@@ -224,7 +226,6 @@ public class InstitutionManageController extends BaseController
                     institution.setContactPhone(contactPhone);
                     institution.setLegalPerson(legalPerson);
                     institution.setContactEmail(contactEmail);
-                    institution.setInstitutionType(institutionType);
 
                     // 处理可选字段
                     if (registeredCapital != null && !registeredCapital.isEmpty()) {
@@ -323,7 +324,7 @@ public class InstitutionManageController extends BaseController
             String[] headers = {
                 "机构名称*", "统一信用代码*", "负责人姓名*", "联系电话*",
                 "注册资金", "注册地址", "实际地址", "法定代表人",
-                "联系邮箱", "床位数", "机构类型"
+                "联系邮箱", "床位数"
             };
 
             for (int i = 0; i < headers.length; i++) {
@@ -338,7 +339,7 @@ public class InstitutionManageController extends BaseController
             String[] examples = {
                 "幸福养老院", "91410100MA44XXXX01", "张三", "13800138000",
                 "500", "郑州市金水区XX路XX号", "郑州市金水区YY路YY号", "李四",
-                "zhangsan@example.com", "100", "1"
+                "zhangsan@example.com", "100"
             };
 
             for (int i = 0; i < examples.length; i++) {
@@ -348,7 +349,7 @@ public class InstitutionManageController extends BaseController
             // 设置响应头
             response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
             response.setCharacterEncoding("utf-8");
-            String fileName = "institution_import_template.xlsx";
+            String fileName = java.net.URLEncoder.encode("机构导入模板.xlsx", "UTF-8");
             response.setHeader("Content-disposition", "attachment;filename=" + fileName);
 
             // 写入响应流
@@ -611,5 +612,60 @@ public class InstitutionManageController extends BaseController
         List<InstitutionRating> list = ratingService.selectInstitutionRatingList(rating);
         ExcelUtil<InstitutionRating> util = new ExcelUtil<InstitutionRating>(InstitutionRating.class);
         util.exportExcel(response, list, "机构评级数据");
+    }
+
+    // ========== 黑名单管理 ==========
+
+    /**
+     * 将机构加入黑名单
+     */
+    @PreAuthorize("@ss.hasPermi('pension:institution:blacklist')")
+    @Log(title = "加入黑名单", businessType = BusinessType.UPDATE)
+    @PostMapping("/addToBlacklist")
+    public AjaxResult addToBlacklist(@RequestBody Map<String, Object> params)
+    {
+        Long[] institutionIds = null;
+        String blacklistType = (String) params.get("blacklistType");
+        String reason = (String) params.get("reason");
+
+        Object idsObj = params.get("institutionIds");
+        if (idsObj instanceof List) {
+            List<?> idsList = (List<?>) idsObj;
+            institutionIds = new Long[idsList.size()];
+            for (int i = 0; i < idsList.size(); i++) {
+                Object id = idsList.get(i);
+                if (id instanceof Integer) {
+                    institutionIds[i] = ((Integer) id).longValue();
+                } else if (id instanceof Long) {
+                    institutionIds[i] = (Long) id;
+                } else if (id instanceof String) {
+                    institutionIds[i] = Long.parseLong((String) id);
+                }
+            }
+        } else if (idsObj instanceof Long[]) {
+            institutionIds = (Long[]) idsObj;
+        } else if (idsObj instanceof Integer[]) {
+            Integer[] ids = (Integer[]) idsObj;
+            institutionIds = new Long[ids.length];
+            for (int i = 0; i < ids.length; i++) {
+                institutionIds[i] = ids[i].longValue();
+            }
+        } else if (idsObj instanceof Long) {
+            institutionIds = new Long[]{(Long) idsObj};
+        } else if (idsObj instanceof Integer) {
+            institutionIds = new Long[]{((Integer) idsObj).longValue()};
+        }
+
+        if (institutionIds == null || institutionIds.length == 0) {
+            return AjaxResult.error("请选择要加入黑名单的机构");
+        }
+
+        if (reason == null || reason.trim().isEmpty()) {
+            return AjaxResult.error("请输入原因描述");
+        }
+
+        int count = institutionBlacklistService.addToBlacklist(institutionIds, blacklistType, reason);
+
+        return AjaxResult.success("成功将 " + count + " 个机构加入黑名单");
     }
 }

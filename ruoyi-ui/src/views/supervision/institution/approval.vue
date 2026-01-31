@@ -1,27 +1,29 @@
 <template>
   <div class="app-container">
     <!-- 搜索表单 -->
-    <el-form :model="queryParams" ref="queryForm" :inline="true" v-show="showSearch" label-width="88px">
+    <el-form :model="queryParams" ref="queryForm" :inline="true" v-show="showSearch" label-width="80px">
       <el-form-item label="机构名称" prop="institutionName">
         <el-input
           v-model="queryParams.institutionName"
-          placeholder="请输入机构名称"
+          placeholder="请输入"
           clearable
           size="small"
+          style="width: 160px"
           @keyup.enter.native="handleQuery"
         />
       </el-form-item>
-      <el-form-item label="统一信用代码" prop="creditCode">
+      <el-form-item label="信用代码" prop="creditCode">
         <el-input
           v-model="queryParams.creditCode"
-          placeholder="请输入统一信用代码"
+          placeholder="请输入"
           clearable
           size="small"
+          style="width: 160px"
           @keyup.enter.native="handleQuery"
         />
       </el-form-item>
       <el-form-item label="申请状态" prop="status">
-        <el-select v-model="queryParams.status" placeholder="请选择申请状态" clearable size="small">
+        <el-select v-model="queryParams.status" placeholder="请选择" clearable size="small" style="width: 140px">
           <el-option label="待审批" value="0" />
           <el-option label="已入驻" value="1" />
           <el-option label="已驳回" value="2" />
@@ -34,12 +36,13 @@
       <el-form-item label="申请时间">
         <el-date-picker
           v-model="dateRange"
-          style="width: 240px"
+          style="width: 220px"
           value-format="yyyy-MM-dd"
           type="daterange"
           range-separator="-"
-          start-placeholder="开始日期"
-          end-placeholder="结束日期"
+          start-placeholder="开始"
+          end-placeholder="结束"
+          size="small"
         ></el-date-picker>
       </el-form-item>
       <el-form-item>
@@ -72,7 +75,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="8">
+      <el-col :span="6">
         <el-card shadow="hover" class="stat-card">
           <div class="stat-content">
             <div class="stat-number">{{ statistics.rejectedCount || 0 }}</div>
@@ -83,7 +86,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="8">
+      <el-col :span="6">
         <el-card shadow="hover" class="stat-card">
           <div class="stat-content">
             <div class="stat-number">{{ statistics.totalCount || 0 }}</div>

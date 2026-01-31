@@ -25,7 +25,7 @@
       <div class="menu-item" @click="goToTodo">
         <div class="menu-left">
           <div class="menu-icon" style="--icon-color: #FFC107;">
-            <van-icon name="star-o" size="18" color="#fff" />
+            <van-icon name="star-o" size="20" color="#fff" />
           </div>
           <span class="menu-text">待办事项</span>
         </div>
@@ -38,7 +38,7 @@
       <div class="menu-item" @click="goToElder">
         <div class="menu-left">
           <div class="menu-icon" style="--icon-color: #FF6B6B;">
-            <van-icon name="friends-o" size="18" color="#fff" />
+            <van-icon name="friends-o" size="20" color="#fff" />
           </div>
           <span class="menu-text">老人信息</span>
         </div>
@@ -51,7 +51,7 @@
       <div class="menu-item" @click="goToExpense">
         <div class="menu-left">
           <div class="menu-icon" style="--icon-color: #00BCD4;">
-            <van-icon name="balance-list-o" size="18" color="#fff" />
+            <van-icon name="balance-list-o" size="20" color="#fff" />
           </div>
           <span class="menu-text">我的费用</span>
         </div>
@@ -130,23 +130,15 @@
         </div>
       </div>
     </div>
-
-    <!-- 退出登录 -->
-    <div class="logout-section">
-      <div class="logout-btn" @click="handleLogout">
-        <van-icon name="sign-out" size="18" />
-        <span>退出登录</span>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { showToast, showConfirmDialog } from 'vant'
 import { useUserStore } from '@/store/modules/user'
 import { getTodoCount } from '@/api/todo'
+import { getElderList } from '@/api/expense'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -170,9 +162,9 @@ const maskedPhone = computed(() => {
   return phone
 })
 
-// 统计数据
+// 统计数据 - 直接从API获取，不存储
 const todoCount = ref(0)
-const elderCount = computed(() => userStore.elders?.length || 0)
+const elderCount = ref(0)
 
 // 加载待办数量
 const loadTodoCount = async () => {
@@ -183,6 +175,18 @@ const loadTodoCount = async () => {
     }
   } catch (error) {
     console.error('获取待办数量失败', error)
+  }
+}
+
+// 加载老人数量（直接从数据库获取）
+const loadElderCount = async () => {
+  try {
+    const response = await getElderList()
+    if (response.code === 200 && response.data) {
+      elderCount.value = response.data?.length || 0
+    }
+  } catch (error) {
+    console.error('获取老人数量失败', error)
   }
 }
 
@@ -235,36 +239,10 @@ const goToComplaint = () => {
   router.push('/user/complaint')
 }
 
-// 退出登录
-const handleLogout = async () => {
-  try {
-    await showConfirmDialog({
-      title: '确认退出',
-      message: '您确定要退出登录吗?',
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-    })
-
-    // 调用 userStore 的 logout 方法清除所有数据
-    userStore.logout()
-
-    showToast({
-      type: 'success',
-      message: '退出成功'
-    })
-
-    // 跳转到登录页
-    setTimeout(() => {
-      router.replace('/login')
-    }, 500)
-  } catch {
-    // 用户取消退出
-  }
-}
-
-// 页面加载时获取待办数量
-onMounted(() => {
+// 页面加载时获取待办数量和老人数量
+onMounted(async () => {
   loadTodoCount()
+  await loadElderCount()
 })
 </script>
 
@@ -279,7 +257,7 @@ onMounted(() => {
 .user-header {
   position: relative;
   background: linear-gradient(180deg, #0f73ff 0%, #4fc7ff 100%);
-  padding: 50px 24px 24px 16px;
+  padding: 50px 24px 32px 16px;
   color: #fff;
   overflow: hidden;
 }
@@ -298,7 +276,7 @@ onMounted(() => {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 24px;
   cursor: pointer;
   z-index: 1;
   transition: opacity 0.2s ease;
@@ -310,6 +288,8 @@ onMounted(() => {
 
 .user-avatar {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  margin-right: 8px;
+  flex-shrink: 0;
 }
 
 .user-details {
@@ -346,7 +326,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px;
+  padding: 18px;
   border-bottom: 1px solid #f5f5f5;
   cursor: pointer;
   transition: background 0.2s ease;
@@ -363,18 +343,20 @@ onMounted(() => {
 .menu-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 32px;
 }
 
 .menu-icon {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
+  margin-right: 8px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--icon-color);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
 }
 
 .menu-text {
@@ -524,33 +506,6 @@ onMounted(() => {
 .tool-label {
   font-size: 12px;
   color: #333;
-}
-
-/* 退出登录区域 */
-.logout-section {
-  margin: 12px;
-  padding: 0;
-}
-
-.logout-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  height: 46px;
-  background: #fff;
-  color: #ee0a24;
-  font-size: 15px;
-  font-weight: 500;
-  border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.logout-btn:active {
-  opacity: 0.8;
-  transform: scale(0.98);
 }
 
 /* 响应式优化 */

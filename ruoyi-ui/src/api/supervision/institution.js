@@ -222,6 +222,40 @@ export function removeBlacklist(id) {
   })
 }
 
+// 获取黑名单详情
+export function getBlacklist(id) {
+  return request({
+    url: '/supervision/institution/blacklist/' + id,
+    method: 'get'
+  })
+}
+
+// 修改黑名单
+export function updateBlacklist(data) {
+  return request({
+    url: '/supervision/institution/blacklist/edit',
+    method: 'put',
+    data: data
+  })
+}
+
+// 移除黑名单（将状态改为已解除）
+export function removeFromBlacklist(id) {
+  return request({
+    url: '/supervision/institution/blacklist/removeFromBlacklist/' + id,
+    method: 'put'
+  })
+}
+
+// 将机构加入黑名单
+export function addToBlacklist(data) {
+  return request({
+    url: '/supervision/institution/addToBlacklist',
+    method: 'post',
+    data: data
+  })
+}
+
 // ========== 机构入驻申请驳回补充 ==========
 
 // 驳回补充机构入驻申请

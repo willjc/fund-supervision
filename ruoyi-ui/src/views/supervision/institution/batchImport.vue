@@ -86,8 +86,8 @@
       show-icon
       style="margin-bottom: 20px;">
       <div style="line-height: 1.6;">
-        <strong>用户名生成：</strong>jg + 联系电话后6位（如：13800138000 → jg38000，如有重复则加数字后缀）<br>
-        <strong>初始密码：</strong>联系电话后6位（如：13800138000 → 38000）<br>
+        <strong>用户名生成：</strong>jg + 联系电话后6位（如：13800138000 → jg138000，如有重复则加数字后缀）<br>
+        <strong>初始密码：</strong>联系电话后6位（如：13800138000 → 138000）<br>
         <strong>默认角色：</strong>机构管理员，可直接登录使用
       </div>
     </el-alert>
@@ -507,7 +507,7 @@ export default {
         const url = window.URL.createObjectURL(new Blob([response]))
         const link = document.createElement('a')
         link.href = url
-        link.setAttribute('download', 'institution_import_template.xlsx')
+        link.setAttribute('download', '机构导入模板.xlsx')
         document.body.appendChild(link)
         link.click()
         document.body.removeChild(link)

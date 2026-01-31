@@ -383,7 +383,7 @@
 </template>
 
 <script>
-import { listInstitution, getInstitution, updateInstitution, approveInstitution, rejectInstitution } from "@/api/supervision/institution";
+import { listInstitution, getInstitution, updateInstitution, approveInstitution, rejectInstitution, addToBlacklist as addToBlacklistApi } from "@/api/supervision/institution";
 import { listAttachment } from "@/api/pension/institution";
 
 export default {
@@ -608,11 +608,10 @@ export default {
     },
     /** 移入黑名单通用方法 */
     addToBlacklist(institutionIds, reason) {
-      // 这里应该调用黑名单API，暂时模拟
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          resolve();
-        }, 1000);
+      return addToBlacklistApi({
+        institutionIds: institutionIds,
+        reason: reason,
+        blacklistType: '其他违规'
       });
     },
     /** 预警机构列表 */

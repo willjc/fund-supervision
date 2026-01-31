@@ -87,3 +87,23 @@ export async function loginByZhengHaoBan(loginApi) {
 
   return res
 }
+
+/**
+ * 自动登录（用于路由守卫）
+ * 检查郑好办环境并自动调用授权登录
+ * @returns {Promise} 返回登录结果
+ */
+export async function autoLogin() {
+  // 检查是否在郑好办环境
+  if (!isZhengHaoBanEnv()) {
+    throw new Error('非郑好办环境，无法自动登录')
+  }
+
+  // 动态导入API避免循环依赖
+  const { loginByZhengHaoBan: loginApi } = await import('@/api/zhb')
+
+  // 调用郑好办登录
+  const res = await loginByZhengHaoBan(loginApi)
+
+  return res
+}

@@ -65,6 +65,8 @@
             <el-option label="待审批" value="0" />
             <el-option label="已入驻" value="1" />
             <el-option label="已驳回" value="2" />
+            <el-option label="维护中" value="5" />
+            <el-option label="维护待审批" value="6" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -109,7 +111,7 @@
       <el-table-column label="联系电话" prop="contactPhone" width="120" align="center" />
       <el-table-column label="申请状态" prop="status" width="120" align="center">
         <template slot-scope="scope">
-          <el-tag v-if="scope.row.status === '4'" type="info">草稿</el-tag>
+          <el-tag v-if="scope.row.status === '4' || scope.row.status === null" type="info">草稿</el-tag>
           <el-tag v-else-if="scope.row.status === '0'" type="warning">待审批</el-tag>
           <el-tag v-else-if="scope.row.status === '1'" type="success">已入驻</el-tag>
           <el-tag v-else-if="scope.row.status === '2'" type="danger">已驳回</el-tag>
@@ -139,7 +141,7 @@
             @click="handleMaintain(scope.row)"
           >维护</el-button>
           <el-button
-            v-if="scope.row.status === '4' || scope.row.status === '2' || scope.row.status === '5'"
+            v-if="scope.row.status === '4' || scope.row.status === '2' || scope.row.status === '5' || scope.row.status === null"
             size="mini"
             type="text"
             icon="el-icon-edit"
@@ -205,7 +207,7 @@
       <el-divider content-position="left">申请信息</el-divider>
       <el-descriptions :column="2" border>
         <el-descriptions-item label="申请状态">
-          <el-tag v-if="currentCampus.status === '4'" type="info">草稿</el-tag>
+          <el-tag v-if="currentCampus.status === '4' || currentCampus.status === null" type="info">草稿</el-tag>
           <el-tag v-else-if="currentCampus.status === '0'" type="warning">待审批</el-tag>
           <el-tag v-else-if="currentCampus.status === '1'" type="success">已入驻</el-tag>
           <el-tag v-else-if="currentCampus.status === '2'" type="danger">已驳回</el-tag>

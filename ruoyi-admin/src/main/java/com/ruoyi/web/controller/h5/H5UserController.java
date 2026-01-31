@@ -265,6 +265,33 @@ public class H5UserController
     }
 
     /**
+     * 获取用户关联的老人列表
+     *
+     * @return 老人列表(包含关系信息)
+     */
+    @GetMapping("/elders")
+    public AjaxResult getElderList()
+    {
+        try
+        {
+            LoginUser loginUser = SecurityUtils.getLoginUser();
+            if (loginUser == null) {
+                return AjaxResult.error("用户未登录");
+            }
+
+            Long userId = loginUser.getUser().getUserId();
+            List<Map<String, Object>> elders = getEldersByUserId(userId);
+
+            return AjaxResult.success(elders);
+        }
+        catch (Exception e)
+        {
+            logger.error("获取老人列表失败", e);
+            return AjaxResult.error("获取老人列表失败:" + e.getMessage());
+        }
+    }
+
+    /**
      * 获取用户关联的老人列表(包含家属关系)
      *
      * @param userId 用户ID

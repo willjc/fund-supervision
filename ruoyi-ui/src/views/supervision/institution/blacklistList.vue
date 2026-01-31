@@ -9,15 +9,6 @@
           @keyup.enter.native="handleQuery"
         />
       </el-form-item>
-      <el-form-item label="黑名单类型" prop="blacklistType">
-        <el-select v-model="queryParams.blacklistType" placeholder="请选择黑名单类型" clearable>
-          <el-option label="违规收费" value="违规收费" />
-          <el-option label="服务质量差" value="服务质量差" />
-          <el-option label="安全隐患" value="安全隐患" />
-          <el-option label="虚假宣传" value="虚假宣传" />
-          <el-option label="其他违规" value="其他违规" />
-        </el-select>
-      </el-form-item>
       <el-form-item label="状态" prop="status">
         <el-select v-model="queryParams.status" placeholder="请选择状态" clearable>
           <el-option label="生效中" value="1" />
@@ -70,14 +61,7 @@
       <el-table-column type="selection" width="55" align="center" />
       <el-table-column label="机构ID" align="center" prop="institutionId" />
       <el-table-column label="机构名称" align="center" prop="institutionName" />
-      <el-table-column label="黑名单类型" align="center" prop="blacklistType">
-        <template slot-scope="scope">
-          <el-tag :type="getTypeTag(scope.row.blacklistType)">
-            {{ scope.row.blacklistType }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="原因描述" align="center" prop="reason" show-overflow-tooltip />
+      <el-table-column label="原因描述" align="center" prop="reason" show-overflow-tooltip min-width="200" />
       <el-table-column label="加入时间" align="center" prop="addTime" width="180">
         <template slot-scope="scope">
           <span>{{ parseTime(scope.row.addTime, '{y}-{m}-{d} {h}:{i}:{s}') }}</span>
@@ -138,15 +122,6 @@
         <el-form-item label="机构名称" prop="institutionName">
           <el-input v-model="form.institutionName" placeholder="请输入机构名称" />
         </el-form-item>
-        <el-form-item label="黑名单类型" prop="blacklistType">
-          <el-select v-model="form.blacklistType" placeholder="请选择黑名单类型">
-            <el-option label="违规收费" value="违规收费" />
-            <el-option label="服务质量差" value="服务质量差" />
-            <el-option label="安全隐患" value="安全隐患" />
-            <el-option label="虚假宣传" value="虚假宣传" />
-            <el-option label="其他违规" value="其他违规" />
-          </el-select>
-        </el-form-item>
         <el-form-item label="原因描述" prop="reason">
           <el-input v-model="form.reason" type="textarea" placeholder="请输入原因描述" />
         </el-form-item>
@@ -168,18 +143,13 @@
       <el-descriptions :column="2" border>
         <el-descriptions-item label="机构ID">{{ detailForm.institutionId }}</el-descriptions-item>
         <el-descriptions-item label="机构名称">{{ detailForm.institutionName }}</el-descriptions-item>
-        <el-descriptions-item label="黑名单类型">
-          <el-tag :type="getTypeTag(detailForm.blacklistType)">
-            {{ detailForm.blacklistType }}
-          </el-tag>
-        </el-descriptions-item>
         <el-descriptions-item label="状态">
           <el-tag :type="detailForm.status === '1' ? 'danger' : 'success'">
             {{ detailForm.status === '1' ? '生效中' : '已解除' }}
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="加入时间">{{ detailForm.addTime }}</el-descriptions-item>
-        <el-descriptions-item label="移除时间">{{ detailForm.removeTime || '未移除' }}</el-descriptions-item>
+        <el-descriptions-item label="移除时间" :span="2">{{ detailForm.removeTime || '未移除' }}</el-descriptions-item>
         <el-descriptions-item label="原因描述" :span="2">{{ detailForm.reason }}</el-descriptions-item>
         <el-descriptions-item label="处理意见" :span="2">{{ detailForm.handleOpinion || '暂无' }}</el-descriptions-item>
       </el-descriptions>
@@ -191,7 +161,7 @@
 </template>
 
 <script>
-import { listBlacklist, addBlacklist, removeBlacklist } from '@/api/supervision/institution'
+import { listBlacklist, addBlacklist, removeBlacklist, getBlacklist, updateBlacklist, removeFromBlacklist } from '@/api/supervision/institution'
 
 export default {
   name: 'BlacklistList',
@@ -222,7 +192,6 @@ export default {
         pageNum: 1,
         pageSize: 10,
         institutionName: null,
-        blacklistType: null,
         status: null
       },
       // 表单参数
@@ -233,9 +202,6 @@ export default {
       rules: {
         institutionName: [
           { required: true, message: '机构名称不能为空', trigger: 'blur' }
-        ],
-        blacklistType: [
-          { required: true, message: '黑名单类型不能为空', trigger: 'change' }
         ],
         reason: [
           { required: true, message: '原因描述不能为空', trigger: 'blur' }
@@ -254,23 +220,8 @@ export default {
     getList() {
       this.loading = true
       listBlacklist(this.queryParams).then(response => {
-        // 模拟数据
-        const mockData = {
-          total: 15,
-          rows: Array.from({ length: 15 }, (_, i) => ({
-            id: 100 + i,
-            institutionId: 1000 + i,
-            institutionName: ['阳光养老院', '康复中心', '老年之家', '福星养老院', '康乐养老中心'][i % 5] + (i + 1),
-            blacklistType: ['违规收费', '服务质量差', '安全隐患', '虚假宣传', '其他违规'][i % 5],
-            reason: '多次违规收费，情节严重，经核查属实',
-            addTime: this.parseTime(new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000), '{y}-{m}-{d} {h}:{i}:{s}'),
-            status: Math.random() > 0.3 ? '1' : '2',
-            removeTime: Math.random() > 0.7 ? this.parseTime(new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000), '{y}-{m}-{d} {h}:{i}:{s}') : null,
-            handleOpinion: '经整改检查，已符合相关要求，同意移除黑名单'
-          }))
-        }
-        this.blacklistList = mockData.rows
-        this.total = mockData.total
+        this.blacklistList = response.rows
+        this.total = response.total
         this.loading = false
       })
     },
@@ -284,7 +235,6 @@ export default {
       this.form = {
         institutionId: null,
         institutionName: null,
-        blacklistType: null,
         reason: null,
         status: '1'
       }
@@ -315,60 +265,56 @@ export default {
     /** 修改按钮操作 */
     handleUpdate(row) {
       this.reset()
-      const id = row.id || this.ids
-      this.form = { ...row }
-      this.open = true
-      this.title = '修改黑名单'
+      const id = row.id || this.ids[0]
+      getBlacklist(id).then(response => {
+        this.form = response.data
+        this.open = true
+        this.title = '修改黑名单'
+      })
     },
     /** 提交按钮 */
     submitForm() {
       this.$refs['form'].validate(valid => {
         if (valid) {
           if (this.form.id != null) {
-            this.$modal.msgSuccess('修改成功')
-            this.open = false
-            this.getList()
+            updateBlacklist(this.form).then(response => {
+              this.$modal.msgSuccess('修改成功')
+              this.open = false
+              this.getList()
+            })
           } else {
-            this.form.id = Date.now()
-            this.form.institutionId = this.form.institutionId || Math.floor(Math.random() * 9000) + 1000
-            this.form.addTime = this.parseTime(new Date(), '{y}-{m}-{d} {h}:{i}:{s}')
-            this.$modal.msgSuccess('新增成功')
-            this.open = false
-            this.getList()
+            addBlacklist(this.form).then(response => {
+              this.$modal.msgSuccess('新增成功')
+              this.open = false
+              this.getList()
+            })
           }
         }
       })
     },
-    /** 删除按钮操作 */
+    /** ��除按钮操作 */
     handleDelete(row) {
       const ids = row.id || this.ids
-      this.$modal.confirm('是否确认删除黑名单编号为"' + ids + '"的数据项？').then(() => {
-        this.$modal.msgSuccess('删除成功')
+      this.$modal.confirm('是否确认删除选中的黑名单数据项？').then(() => {
+        return removeBlacklist(ids)
+      }).then(() => {
         this.getList()
-      })
+        this.$modal.msgSuccess('删除成功')
+      }).catch(() => {})
     },
     /** 移除黑名单操作 */
     handleRemove(row) {
       this.$modal.confirm(`确认将"${row.institutionName}"从黑名单中移除吗？`).then(() => {
-        this.$modal.msgSuccess('移除成功')
+        return removeFromBlacklist(row.id)
+      }).then(() => {
         this.getList()
-      })
+        this.$modal.msgSuccess('移除成功')
+      }).catch(() => {})
     },
     /** 详情按钮操作 */
     handleDetail(row) {
       this.detailForm = { ...row }
       this.detailOpen = true
-    },
-    /** 获取类型标签颜色 */
-    getTypeTag(type) {
-      const tagMap = {
-        '违规收费': 'danger',
-        '服务质量差': 'warning',
-        '安全隐患': 'danger',
-        '虚假宣传': 'info',
-        '其他违规': 'warning'
-      }
-      return tagMap[type] || 'info'
     }
   }
 }

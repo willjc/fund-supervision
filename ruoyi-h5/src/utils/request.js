@@ -1,6 +1,13 @@
 import axios from 'axios'
-import { showToast, showDialog } from 'vant'
-import { getToken, removeToken } from './auth'
+import { showToast, showDialog, showLoadingToast, closeToast } from 'vant'
+import { getToken, removeToken, setToken, setUserInfo } from './auth'
+import { autoLogin } from './zhb'
+import { useUserStore } from '@/store/modules/user'
+
+// 标记是否正在重新授权中
+let isRefreshing = false
+// 存储待重试的请求
+let failedQueue = []
 
 // 创建axios实例
 const service = axios.create({
@@ -24,6 +31,75 @@ service.interceptors.request.use(
   }
 )
 
+// 处理401重新授权
+const handleTokenExpired = async () => {
+  if (isRefreshing) {
+    // 正在刷新token，将请求加入队列
+    return new Promise((resolve, reject) => {
+      failedQueue.push({ resolve, reject })
+    })
+  }
+
+  isRefreshing = true
+
+  try {
+    // 显示重新授权提示
+    showLoadingToast({
+      message: '正在重新授权...',
+      forbidClick: true,
+      duration: 0
+    })
+
+    // 调用郑好办重新授权
+    const res = await autoLogin()
+
+    if (res.code === 200 && res.data) {
+      // 保存新的token和用户信息
+      setToken(res.data.token)
+      setUserInfo(res.data.user)
+
+      // 更新store
+      const userStore = useUserStore()
+      userStore.setToken(res.data.token)
+      userStore.setUser(res.data.user)
+      if (res.data.elders) {
+        userStore.setElders(res.data.elders)
+      }
+
+      closeToast()
+
+      // 处理队列中的请求
+      failedQueue.forEach(prom => {
+        prom.resolve(res.data.token)
+      })
+      failedQueue = []
+
+      return res.data.token
+    } else {
+      throw new Error(res.msg || '重新授权失败')
+    }
+  } catch (error) {
+    console.error('重新授权失败:', error)
+    closeToast()
+
+    // 显示错误提示
+    showToast({
+      message: error.message || '重新授权失败，请刷新页面重试',
+      duration: 2000
+    })
+
+    // 失败后拒绝所有队列中的请求
+    failedQueue.forEach(prom => {
+      prom.reject(error)
+    })
+    failedQueue = []
+
+    throw error
+  } finally {
+    isRefreshing = false
+  }
+}
+
 // 响应拦截器
 service.interceptors.response.use(
   response => {
@@ -33,15 +109,13 @@ service.interceptors.response.use(
     if (res.code === 200) {
       return res
     } else if (res.code === 401) {
-      // 未授权,清除token并跳转登录
-      showDialog({
-        title: '提示',
-        message: '登录状态已过期,请重新登录'
-      }).then(() => {
-        removeToken()
-        window.location.href = '/login'
+      // 未授权,自动重新授权
+      return handleTokenExpired().then(() => {
+        // 重新授权成功，重试原请求
+        return service(response.config)
+      }).catch(error => {
+        return Promise.reject(new Error(res.msg || '未授权'))
       })
-      return Promise.reject(new Error(res.msg || '未授权'))
     } else {
       // 其他业务错误 - 不在这里显示toast，让具体业务页面处理
       // 这样可以提供更准确的错误信息
@@ -55,14 +129,17 @@ service.interceptors.response.use(
     if (error.response) {
       switch (error.response.status) {
         case 401:
-          message = '未授权,请重新登录'
-          removeToken()
-          window.location.href = '/login'
-          showToast({
-            message: message,
-            type: 'fail'
+          // HTTP 401,自动重新授权
+          return handleTokenExpired().then(() => {
+            // 重新授权成功，重试原请求
+            return service(error.config)
+          }).catch(err => {
+            showToast({
+              message: '未授权,请重新登录',
+              type: 'fail'
+            })
+            return Promise.reject(err)
           })
-          break
         case 403:
           message = '拒绝访问'
           showToast({
