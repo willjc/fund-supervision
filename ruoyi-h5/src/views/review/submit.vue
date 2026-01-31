@@ -1,13 +1,5 @@
 <template>
   <div class="review-submit-page">
-    <van-nav-bar
-      title="发表评价"
-      left-text="返回"
-      left-arrow
-      @click-left="$router.back()"
-      fixed
-      placeholder
-    />
 
     <div class="content" v-if="!loading">
       <!-- 机构信息 -->

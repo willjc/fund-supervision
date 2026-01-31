@@ -1,6 +1,5 @@
 <template>
   <div class="elder-page">
-    <van-nav-bar title="老人信息" fixed placeholder left-arrow @click-left="onBack" />
 
     <!-- 搜索栏 -->
     <div class="search-bar">

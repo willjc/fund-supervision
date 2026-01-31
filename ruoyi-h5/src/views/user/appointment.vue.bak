@@ -1,6 +1,5 @@
 <template>
   <div class="user-appointment-page">
-    <van-nav-bar title="我的预约" left-arrow @click-left="$router.back()" fixed placeholder />
 
     <div class="appointment-content">
       <!-- 筛选栏 -->

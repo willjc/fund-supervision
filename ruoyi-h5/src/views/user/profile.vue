@@ -1,13 +1,5 @@
 <template>
   <div class="profile-page">
-    <!-- 顶部导航栏 -->
-    <van-nav-bar
-      title="个人资料"
-      left-arrow
-      @click-left="goBack"
-      fixed
-      placeholder
-    />
 
     <!-- 内容卡片 -->
     <div class="profile-card">

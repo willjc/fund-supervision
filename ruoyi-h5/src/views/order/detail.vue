@@ -1,12 +1,5 @@
 <template>
   <div class="order-detail-page">
-    <van-nav-bar
-      title="订单详情"
-      left-arrow
-      @click-left="$router.back()"
-      fixed
-      placeholder
-    />
 
     <van-loading v-if="loading" class="loading" />
 

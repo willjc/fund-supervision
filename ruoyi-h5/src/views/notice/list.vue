@@ -1,6 +1,5 @@
 <template>
   <div class="notice-page">
-    <van-nav-bar title="通知公告" fixed placeholder left-arrow @click-left="onBack" />
 
     <!-- 通知列表 -->
     <van-pull-refresh v-model="refreshing" @refresh="onRefresh">

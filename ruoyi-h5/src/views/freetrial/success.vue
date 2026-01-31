@@ -1,6 +1,5 @@
 <template>
   <div class="freetrial-success-page">
-    <van-nav-bar title="预约入住" left-arrow @click-left="goHome" fixed placeholder />
 
     <div class="success-content">
       <!-- 成功图标 -->

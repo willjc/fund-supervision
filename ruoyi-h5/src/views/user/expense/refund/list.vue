@@ -1,12 +1,5 @@
 <template>
   <div class="refund-list-page">
-    <van-nav-bar
-      title="退款记录"
-      left-arrow
-      @click-left="$router.back()"
-      fixed
-      placeholder
-    />
 
     <!-- Tab切换 -->
     <van-tabs v-model:active="activeTab" @change="onTabChange" sticky>

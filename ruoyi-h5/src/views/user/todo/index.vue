@@ -1,6 +1,5 @@
 <template>
   <div class="todo-page">
-    <van-nav-bar title="待办事项" left-arrow @click-left="$router.back()" fixed placeholder />
 
     <div class="todo-content">
       <!-- Tab切换 -->

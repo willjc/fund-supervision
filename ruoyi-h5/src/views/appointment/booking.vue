@@ -1,6 +1,5 @@
 <template>
   <div class="appointment-booking">
-    <van-nav-bar title="预约参观" left-arrow @click-left="$router.back()" fixed placeholder />
 
     <div class="booking-content">
       <!-- 机构信息 -->

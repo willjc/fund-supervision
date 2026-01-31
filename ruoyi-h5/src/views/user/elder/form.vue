@@ -1,12 +1,5 @@
 <template>
   <div class="elder-form-page">
-    <van-nav-bar
-      :title="isEdit ? '修改老人信息' : '新增老人信息'"
-      left-arrow
-      @click-left="$router.back()"
-      fixed
-      placeholder
-    />
 
     <div class="form-content">
       <van-form @submit="onSubmit">

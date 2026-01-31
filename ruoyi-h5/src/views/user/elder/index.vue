@@ -1,6 +1,5 @@
 <template>
   <div class="elder-info-page">
-    <van-nav-bar title="老人信息" left-arrow @click-left="$router.back()" fixed placeholder />
 
     <div class="elder-list">
       <div v-if="elderList.length === 0" class="empty-state">

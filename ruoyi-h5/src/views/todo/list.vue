@@ -1,6 +1,5 @@
 <template>
   <div class="todo-page">
-    <van-nav-bar title="待办事项" fixed placeholder left-arrow @click-left="onBack" />
 
     <!-- 状态筛选 -->
     <van-tabs v-model:active="activeTab" @change="onTabChange" sticky>

@@ -1,6 +1,5 @@
 <template>
   <div class="evaluation-page">
-    <van-nav-bar title="我的评价" left-arrow @click-left="$router.back()" fixed placeholder />
 
     <div class="evaluation-content">
       <!-- Tab切换 -->

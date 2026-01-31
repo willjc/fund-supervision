@@ -1,6 +1,5 @@
 <template>
   <div class="fee-page">
-    <van-nav-bar title="费用查询" fixed placeholder left-arrow @click-left="onBack" />
 
     <!-- 筛选栏 -->
     <div class="filter-bar" v-if="elderOptions.length > 0">

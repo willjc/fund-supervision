@@ -1,6 +1,5 @@
 <template>
   <div class="order-confirm-page">
-    <van-nav-bar title="确认订单" left-arrow @click-left="$router.back()" fixed placeholder />
 
     <div class="confirm-content">
       <!-- 入住老人信息 -->

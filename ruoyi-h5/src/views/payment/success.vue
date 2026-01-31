@@ -1,6 +1,5 @@
 <template>
   <div class="payment-success-page">
-    <van-nav-bar title="支付成功" left-arrow @click-left="goHome" fixed placeholder />
 
     <div class="success-content">
       <!-- 成功图标 -->

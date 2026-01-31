@@ -1,6 +1,5 @@
 <template>
   <div class="complaint-page">
-    <van-nav-bar title="我要投诉" left-arrow @click-left="$router.back()" fixed placeholder />
 
     <div class="complaint-content">
       <!-- 投诉列表 -->

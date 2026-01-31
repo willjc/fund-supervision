@@ -1,6 +1,5 @@
 <template>
   <div class="complaint-form-page">
-    <van-nav-bar title="新增投诉" left-arrow @click-left="$router.back()" fixed placeholder />
 
     <div class="form-content" v-if="!loading">
       <van-form @submit="onSubmit">

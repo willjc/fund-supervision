@@ -1,6 +1,5 @@
 <template>
   <div class="approve-page">
-    <van-nav-bar title="押金审批" left-arrow @click-left="$router.back()" fixed placeholder />
 
     <div v-if="loading" class="loading-container">
       <van-loading size="24px">加载中...</van-loading>

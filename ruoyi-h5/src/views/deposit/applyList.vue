@@ -1,6 +1,5 @@
 <template>
   <div class="apply-list-page">
-    <van-nav-bar title="申请列表" left-arrow @click-left="$router.back()" fixed placeholder />
 
     <!-- 状态标签 -->
     <van-tabs v-model:active="activeTab" @change="onTabChange" sticky offset-top="46px">

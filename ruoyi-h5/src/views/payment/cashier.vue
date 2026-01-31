@@ -1,6 +1,5 @@
 <template>
   <div class="payment-cashier-page">
-    <van-nav-bar title="支付收银台" left-arrow @click-left="$router.back()" fixed placeholder />
 
     <div class="cashier-content">
       <!-- 支付金额 -->

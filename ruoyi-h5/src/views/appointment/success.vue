@@ -1,6 +1,5 @@
 <template>
   <div class="appointment-success">
-    <van-nav-bar title="预约成功" left-arrow @click-left="goBack" fixed placeholder />
 
     <div class="success-content">
       <!-- 成功图标 -->

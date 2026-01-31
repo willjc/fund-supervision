@@ -1,12 +1,5 @@
 <template>
   <div class="refund-review-page">
-    <van-nav-bar
-      title="退款审核"
-      left-arrow
-      @click-left="$router.back()"
-      fixed
-      placeholder
-    />
 
     <div class="review-content">
       <!-- 机构信息卡片 -->

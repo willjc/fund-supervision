@@ -1,6 +1,5 @@
 <template>
   <div class="balance-page">
-    <van-nav-bar title="押金余额" left-arrow @click-left="$router.back()" fixed placeholder />
 
     <div class="content">
       <!-- 余额卡片 -->

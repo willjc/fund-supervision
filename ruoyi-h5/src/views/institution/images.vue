@@ -1,13 +1,5 @@
 <template>
   <div class="page">
-    <van-nav-bar
-      title="全部图片"
-      left-text="返回"
-      left-arrow
-      @click-left="onClickLeft"
-      fixed
-      placeholder
-    />
 
     <div v-if="loading" class="loading-container">
       <van-loading size="24px">加载中...</van-loading>

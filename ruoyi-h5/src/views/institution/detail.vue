@@ -1,22 +1,5 @@
 <template>
   <div class="institution-detail">
-    <!-- 导航栏 -->
-    <van-nav-bar
-      :title="detail.name || '机构详情'"
-      left-text="返回"
-      left-arrow
-      @click-left="onClickLeft"
-      fixed
-      placeholder
-    >
-      <template #right>
-        <van-icon
-          name="share-o"
-          size="18"
-          @click="onShare"
-        />
-      </template>
-    </van-nav-bar>
 
     <div v-if="loading" class="loading-container">
       <van-loading size="24px">加载中</van-loading>
@@ -164,30 +147,24 @@
         </van-tab>
 
         <van-tab title="评价" name="review">
-          <!-- 评价统计摘要 -->
-          <div class="review-summary">
-            <div class="overall-rating">
-              <div class="rating-score">{{ detail.rating || 0 }}</div>
-              <van-rate v-model="detail.rating" :size="16" color="#ffd21e" void-icon="star" void-color="#eee" readonly />
-              <div class="rating-count">{{ detail.reviewCount || 0 }}条评价</div>
-            </div>
+          <!-- 加载状态 -->
+          <div v-if="reviewLoading" class="review-loading">
+            <van-loading size="20px">加载评价中...</van-loading>
+          </div>
 
-            <!-- 加载状态 -->
-            <div v-if="reviewLoading" class="review-loading">
-              <van-loading size="20px">加载评价中...</van-loading>
-            </div>
-
-            <!-- 评价统计信息 -->
-            <div v-if="reviewStatistics.totalCount > 0" class="rating-breakdown">
-              <div class="rating-item">
-                <span class="rating-label">综合</span>
-                <van-rate v-model="detail.rating" :size="12" color="#ffd21e" void-icon="star" void-color="#eee" readonly />
-                <span class="rating-score">{{ detail.rating || 0 }}</span>
+          <!-- 有评价时显示 -->
+          <template v-else-if="reviewList.length > 0">
+            <!-- 评价统计摘要 -->
+            <div class="review-summary">
+              <div class="overall-rating">
+                <div class="rating-score">{{ detail.rating || 0 }}</div>
+                <van-rate v-model="detail.rating" :size="16" color="#ffd21e" void-icon="star" void-color="#eee" readonly />
+                <div class="rating-count">{{ detail.reviewCount || 0 }}条评价</div>
               </div>
             </div>
 
             <!-- 评价列表 -->
-            <div v-if="reviewList && reviewList.length > 0" class="review-list">
+            <div class="review-list">
               <div v-for="(review, index) in reviewList" :key="review.reviewId || index" class="review-item">
                 <div class="review-header">
                   <van-image
@@ -216,11 +193,11 @@
                 </div>
               </div>
             </div>
+          </template>
 
-            <!-- 暂无评价 -->
-            <div v-else-if="!reviewLoading" class="no-reviews">
-              <van-empty description="暂无评价" image-size="80" />
-            </div>
+          <!-- 暂无评价 -->
+          <div v-else class="no-reviews">
+            <van-empty description="暂无评价" image-size="80" />
           </div>
         </van-tab>
       </van-tabs>
@@ -500,7 +477,7 @@ const loadReviews = async () => {
 
     if (statsResponse.code === 200 && statsResponse.data) {
       reviewStatistics.value = statsResponse.data
-      detail.value.rating = reviewStatistics.value.averageRating || 4.5
+      detail.value.rating = reviewStatistics.value.averageRating || 0
       detail.value.reviewCount = reviewStatistics.value.totalCount || reviewList.value.length
     }
 
@@ -537,7 +514,7 @@ const loadDetail = async () => {
       ...response.data,
       institutionId: response.data.institutionId || response.data.id || route.params.id,
       isFavorite: false,
-      rating: response.data.rating || 4.5,
+      rating: response.data.rating || 0,
       reviews: response.data.reviews || [],
       roomFacilities: response.data.roomFacilities || [],
       basicFacilities: response.data.basicFacilities || [],

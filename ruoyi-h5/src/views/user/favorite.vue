@@ -1,6 +1,5 @@
 <template>
   <div class="user-favorite-page">
-    <van-nav-bar title="我的收藏" left-arrow @click-left="$router.back()" fixed placeholder />
 
     <div class="favorite-content">
       <van-pull-refresh v-model="refreshing" @refresh="onRefresh">

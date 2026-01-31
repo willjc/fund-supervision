@@ -1,6 +1,5 @@
 <template>
   <div class="user-review-page">
-    <van-nav-bar title="我的评价" left-arrow @click-left="$router.back()" fixed placeholder />
 
     <van-tabs v-model:active="activeTab" sticky offset-top="46" @change="onTabChange">
       <van-tab title="待评价" name="pending">

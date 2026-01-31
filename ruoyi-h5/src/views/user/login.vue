@@ -6,11 +6,6 @@
       <div class="circle circle-2"></div>
     </div>
 
-    <van-nav-bar
-      title="登录"
-      fixed
-      placeholder
-    />
 
     <div class="login-content">
       <!-- Logo -->

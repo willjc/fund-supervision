@@ -1,7 +1,5 @@
 <template>
   <div class="collection-page">
-    <!-- 导航栏 -->
-    <van-nav-bar title="我的收藏" left-arrow @click-left="$router.back()" fixed placeholder />
 
     <div class="collection-content">
       <!-- 收藏列表 -->

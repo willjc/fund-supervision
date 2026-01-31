@@ -1,6 +1,5 @@
 <template>
   <div class="expense-page">
-    <van-nav-bar title="我的费用" left-arrow @click-left="$router.back()" fixed placeholder />
 
     <div class="expense-content">
       <!-- 老人选择 -->

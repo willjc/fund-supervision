@@ -1,6 +1,5 @@
 <template>
   <div class="order-page">
-    <van-nav-bar title="我的订单" left-arrow @click-left="handleBack" fixed placeholder />
 
     <!-- 搜索栏 -->
     <div class="search-bar">

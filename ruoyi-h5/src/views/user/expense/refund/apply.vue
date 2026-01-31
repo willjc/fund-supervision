@@ -1,12 +1,5 @@
 <template>
   <div class="refund-apply-page">
-    <van-nav-bar
-      title="申请退款"
-      left-arrow
-      @click-left="$router.back()"
-      fixed
-      placeholder
-    />
 
     <div class="refund-content">
       <!-- 机构信息卡片 -->

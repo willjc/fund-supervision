@@ -1,12 +1,5 @@
 <template>
   <div class="notice-detail-page">
-    <van-nav-bar
-      title="通知详情"
-      left-arrow
-      @click-left="onBack"
-      fixed
-      placeholder
-    />
 
     <van-loading v-if="loading" class="loading" />
 

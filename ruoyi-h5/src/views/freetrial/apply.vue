@@ -1,6 +1,5 @@
 <template>
   <div class="freetrial-apply-page">
-    <van-nav-bar title="免费入住" left-arrow @click-left="$router.back()" fixed placeholder />
 
     <div class="apply-content">
       <!-- 试入住流程 -->

@@ -1,6 +1,5 @@
 <template>
   <div class="deposit-page">
-    <van-nav-bar title="押金管理" left-arrow @click-left="$router.back()" fixed placeholder />
 
     <div class="content">
       <!-- 快捷入口 -->
