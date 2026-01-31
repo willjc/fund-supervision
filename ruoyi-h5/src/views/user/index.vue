@@ -276,7 +276,7 @@ onMounted(async () => {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 8px;
   cursor: pointer;
   z-index: 1;
   transition: opacity 0.2s ease;
@@ -288,7 +288,6 @@ onMounted(async () => {
 
 .user-avatar {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  margin-right: 8px;
   flex-shrink: 0;
 }
 
@@ -343,13 +342,12 @@ onMounted(async () => {
 .menu-left {
   display: flex;
   align-items: center;
-  gap: 32px;
+  gap: 8px;
 }
 
 .menu-icon {
   width: 40px;
   height: 40px;
-  margin-right: 8px;
   border-radius: 50%;
   display: flex;
   align-items: center;

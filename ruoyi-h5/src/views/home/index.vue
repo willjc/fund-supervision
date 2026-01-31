@@ -246,7 +246,7 @@ const handleIconClick = (item) => {
       router.push('/user/elder')
       break
     case 'fee':
-      router.push('/fee/query')
+      router.push('/user/expense')
       break
     default:
       console.log('点击图标:', item.name)

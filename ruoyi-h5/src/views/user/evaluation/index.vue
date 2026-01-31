@@ -8,7 +8,7 @@
         @change="onTabChange"
         color="#667eea"
         sticky
-        offset-top="46"
+        offset-top="0"
       >
         <van-tab title="待评价" name="pending">
           <div class="evaluation-list">

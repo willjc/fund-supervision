@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { getToken, setToken, setUserInfo } from '@/utils/auth'
 import { useUserStore } from '@/store/modules/user'
-import { showToast, showLoadingToast, closeToast } from 'vant'
+import { showToast } from 'vant'
 import { autoLogin } from '@/utils/zhb'
 
 // 标记是否正在登录中，避免重复触发
@@ -336,14 +336,12 @@ router.beforeEach(async (to, from, next) => {
     // 标记正在登录
     isLoggingIn = true
 
-    try {
-      // 显示登录中提示
-      showLoadingToast({
-        message: '正在登录...',
-        forbidClick: true,
-        duration: 0
-      })
+    // 显示全屏登录Loading
+    if (window.setAppLoggingIn) {
+      window.setAppLoggingIn(true)
+    }
 
+    try {
       // 调用郑好办自动登录
       const res = await autoLogin()
 
@@ -361,7 +359,9 @@ router.beforeEach(async (to, from, next) => {
         }
 
         // 登录成功，关闭loading，继续跳转
-        closeToast()
+        if (window.setAppLoggingIn) {
+          window.setAppLoggingIn(false)
+        }
         isLoggingIn = false
         next()
       } else {
@@ -369,7 +369,11 @@ router.beforeEach(async (to, from, next) => {
       }
     } catch (error) {
       console.error('自动登录失败:', error)
-      closeToast()
+
+      // 关闭loading
+      if (window.setAppLoggingIn) {
+        window.setAppLoggingIn(false)
+      }
 
       // 显示错误提示
       showToast({
