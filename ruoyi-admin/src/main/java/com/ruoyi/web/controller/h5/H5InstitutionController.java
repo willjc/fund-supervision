@@ -114,21 +114,18 @@ public class H5InstitutionController extends BaseController
                         (existing, replacement) -> existing  // 如果有重复，保留第一个
                 ));
 
-        // 优先使用公示数据，转换为H5前端期望的格式
+        // 只返回有已发布公示信息的机构（H5端仅展示已发布的公示机构）
         List<Map<String, Object>> convertedList = institutionList.stream()
+                .filter(institution -> publicityMap.containsKey(institution.getInstitutionId()))  // 只保留有公示的机构
                 .map(institution -> {
-                    // 如果有公示信息，使用公示数据；否则使用基础数据
-                    if (publicityMap.containsKey(institution.getInstitutionId())) {
-                        return convertPublicityToH5Format(publicityMap.get(institution.getInstitutionId()), institution);
-                    } else {
-                        return convertToH5Format(institution);
-                    }
+                    return convertPublicityToH5Format(publicityMap.get(institution.getInstitutionId()), institution);
                 })
                 .collect(Collectors.toList());
 
         // 使用分页信息包装转换后的数据
         TableDataInfo dataTable = getDataTable(institutionList);
         dataTable.setRows(convertedList);  // 替换为转换后的数据
+        dataTable.setTotal(convertedList.size());  // 更新总数为过滤后的数量
 
         return dataTable;
     }
