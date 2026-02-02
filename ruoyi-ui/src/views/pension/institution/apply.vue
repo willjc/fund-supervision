@@ -183,8 +183,21 @@
 
         <el-row :gutter="20">
           <el-col :span="12">
+            <el-form-item label="监管账户开户行" prop="superviseBank">
+              <el-input v-model="applyForm.superviseBank" placeholder="请输入监管账户开户行" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
             <el-form-item label="监管账户" prop="superviseAccount">
               <el-input v-model="applyForm.superviseAccount" placeholder="请输入监管账户" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="基本账户开户行" prop="basicBank">
+              <el-input v-model="applyForm.basicBank" placeholder="请输入基本账户开户行" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -318,7 +331,9 @@ export default {
         feeRange: '',
         fixedAssets: null,
         superviseAccount: '',
+        superviseBank: '',
         bankAccount: '',
+        basicBank: '',
         // 上传材料
         businessLicense: '',
         approvalCertificate: '',
@@ -393,8 +408,14 @@ export default {
         superviseAccount: [
           { required: true, message: "监管账户不能为空", trigger: "blur" }
         ],
+        superviseBank: [
+          { required: true, message: "监管账户开户行不能为空", trigger: "blur" }
+        ],
         bankAccount: [
           { required: true, message: "基本账户不能为空", trigger: "blur" }
+        ],
+        basicBank: [
+          { required: true, message: "基本账户开户行不能为空", trigger: "blur" }
         ]
       }
     };
@@ -464,7 +485,9 @@ export default {
           feeRange: data.feeRange || '',
           fixedAssets: data.fixedAssets,
           superviseAccount: data.superviseAccount || '',
+          superviseBank: data.superviseBank || '',
           bankAccount: data.bankAccount || '',
+          basicBank: data.basicBank || '',
           businessLicense: data.businessLicense || '',
           approvalCertificate: data.approvalCertificate || '',
           supervisionAgreement: data.supervisionAgreement || ''
@@ -642,7 +665,9 @@ export default {
         feeRange: '',
         fixedAssets: null,
         superviseAccount: '',
+        superviseBank: '',
         bankAccount: '',
+        basicBank: '',
         businessLicense: '',
         approvalCertificate: '',
         supervisionAgreement: ''

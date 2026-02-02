@@ -41,7 +41,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="approvalCertificate" column="approval_certificate" />
         <result property="supervisionAgreement" column="supervision_agreement" />
         <result property="bankAccount"      column="bank_account"      />
+        <result property="basicBank"        column="basic_bank"        />
         <result property="superviseAccount" column="supervise_account" />
+        <result property="superviseBank"    column="supervise_bank"    />
         <result property="status"           column="status"            />
         <result property="applyTime"        column="apply_time"        />
         <result property="approveTime"      column="approve_time"      />
@@ -65,7 +67,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                fee_range, established_date, organizer, responsible_name,
                responsible_id_card, responsible_address, responsible_phone, record_number,
                fixed_assets, business_license, approval_certificate, supervision_agreement,
-               bank_account, supervise_account, status, apply_time, approve_time,
+               bank_account, basic_bank, supervise_account, supervise_bank, status, apply_time, approve_time,
                approve_user, approve_remark, blacklist_flag, create_by, create_time,
                update_by, update_time, remark,
                CASE
@@ -182,7 +184,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="approvalCertificate != null and approvalCertificate != ''">approval_certificate,</if>
             <if test="supervisionAgreement != null and supervisionAgreement != ''">supervision_agreement,</if>
             <if test="bankAccount != null and bankAccount != ''">bank_account,</if>
+            <if test="basicBank != null and basicBank != ''">basic_bank,</if>
             <if test="superviseAccount != null and superviseAccount != ''">supervise_account,</if>
+            <if test="superviseBank != null and superviseBank != ''">supervise_bank,</if>
             <if test="status != null">status,</if>
             <if test="applyTime != null">apply_time,</if>
             <if test="approveTime != null">approve_time,</if>
@@ -231,7 +235,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="approvalCertificate != null and approvalCertificate != ''">#{approvalCertificate},</if>
             <if test="supervisionAgreement != null and supervisionAgreement != ''">#{supervisionAgreement},</if>
             <if test="bankAccount != null and bankAccount != ''">#{bankAccount},</if>
+            <if test="basicBank != null and basicBank != ''">#{basicBank},</if>
             <if test="superviseAccount != null and superviseAccount != ''">#{superviseAccount},</if>
+            <if test="superviseBank != null and superviseBank != ''">#{superviseBank},</if>
             <if test="status != null">#{status},</if>
             <if test="applyTime != null">#{applyTime},</if>
             <if test="approveTime != null">#{approveTime},</if>
@@ -284,7 +290,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="approvalCertificate != null and approvalCertificate != ''">approval_certificate = #{approvalCertificate},</if>
             <if test="supervisionAgreement != null and supervisionAgreement != ''">supervision_agreement = #{supervisionAgreement},</if>
             <if test="bankAccount != null and bankAccount != ''">bank_account = #{bankAccount},</if>
+            <if test="basicBank != null and basicBank != ''">basic_bank = #{basicBank},</if>
             <if test="superviseAccount != null and superviseAccount != ''">supervise_account = #{superviseAccount},</if>
+            <if test="superviseBank != null and superviseBank != ''">supervise_bank = #{superviseBank},</if>
             <if test="status != null">status = #{status},</if>
             <if test="applyTime != null">apply_time = #{applyTime},</if>
             <if test="approveTime != null">approve_time = #{approveTime},</if>
@@ -349,7 +357,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="approvalCertificate != null and approvalCertificate != ''">approval_certificate = #{approvalCertificate},</if>
             <if test="supervisionAgreement != null and supervisionAgreement != ''">supervision_agreement = #{supervisionAgreement},</if>
             <if test="bankAccount != null and bankAccount != ''">bank_account = #{bankAccount},</if>
+            <if test="basicBank != null and basicBank != ''">basic_bank = #{basicBank},</if>
             <if test="superviseAccount != null and superviseAccount != ''">supervise_account = #{superviseAccount},</if>
+            <if test="superviseBank != null and superviseBank != ''">supervise_bank = #{superviseBank},</if>
             status = #{status},
             apply_time = NULL,
             approve_time = NULL,

@@ -234,7 +234,9 @@
         <el-descriptions-item label="床位数">{{ currentInstitution.bedCount }}张</el-descriptions-item>
         <el-descriptions-item label="收费区间">{{ currentInstitution.feeRange }}</el-descriptions-item>
         <el-descriptions-item label="固定资产净额">{{ currentInstitution.fixedAssets }}万元</el-descriptions-item>
+        <el-descriptions-item label="监管账户开户行">{{ currentInstitution.superviseBank }}</el-descriptions-item>
         <el-descriptions-item label="监管账户">{{ currentInstitution.superviseAccount }}</el-descriptions-item>
+        <el-descriptions-item label="基本账户开户行">{{ currentInstitution.basicBank }}</el-descriptions-item>
         <el-descriptions-item label="基本账户">{{ currentInstitution.bankAccount }}</el-descriptions-item>
       </el-descriptions>
 

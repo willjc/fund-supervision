@@ -199,7 +199,9 @@
         <el-descriptions-item label="床位数">{{ currentCampus.bedCount }}张</el-descriptions-item>
         <el-descriptions-item label="收费区间">{{ currentCampus.feeRange }}</el-descriptions-item>
         <el-descriptions-item label="固定资产净额">{{ currentCampus.fixedAssets }}万元</el-descriptions-item>
+        <el-descriptions-item label="监管账户开户行">{{ currentCampus.superviseBank }}</el-descriptions-item>
         <el-descriptions-item label="监管账户">{{ currentCampus.superviseAccount }}</el-descriptions-item>
+        <el-descriptions-item label="基本账户开户行">{{ currentCampus.basicBank }}</el-descriptions-item>
         <el-descriptions-item label="基本账户">{{ currentCampus.bankAccount }}</el-descriptions-item>
       </el-descriptions>
 
