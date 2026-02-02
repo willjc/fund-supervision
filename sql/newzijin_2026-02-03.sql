@@ -7,7 +7,7 @@
 #
 # 主机: localhost (MySQL 8.0.44)
 # 数据库: newzijin
-# 生成时间: 2026-02-02 20:13:22 +0000
+# 生成时间: 2026-02-02 20:25:42 +0000
 # ************************************************************
 
 
@@ -2578,9 +2578,9 @@ LOCK TABLES `sys_menu` WRITE;
 
 INSERT INTO `sys_menu` (`menu_id`, `menu_name`, `parent_id`, `order_num`, `path`, `component`, `query`, `route_name`, `is_frame`, `is_cache`, `menu_type`, `visible`, `status`, `perms`, `icon`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`)
 VALUES
-	(1,'系统管理',0,1,'system',NULL,'','',1,0,'M','0','0','','system','admin','2025-10-28 02:47:08','',NULL,'系统管理目录'),
-	(2,'系统监控',0,2,'monitor',NULL,'','',1,0,'M','0','0','','monitor','admin','2025-10-28 02:47:08','',NULL,'系统监控目录'),
-	(3,'系统工具',0,3,'tool',NULL,'','',1,0,'M','0','0','','tool','admin','2025-10-28 02:47:08','',NULL,'系统工具目录'),
+	(1,'系统管理',0,10,'system',NULL,'','',1,0,'M','0','0','','system','admin','2025-10-28 02:47:08','admin','2026-02-03 04:20:05','系统管理目录'),
+	(2,'系统监控',0,20,'monitor',NULL,'','',1,0,'M','1','0','','monitor','admin','2025-10-28 02:47:08','admin','2026-02-03 04:23:36','系统监控目录'),
+	(3,'系统工具',0,3,'tool',NULL,'','',1,0,'M','1','0','','tool','admin','2025-10-28 02:47:08','admin','2026-02-03 04:21:51','系统工具目录'),
 	(100,'用户管理',1,1,'user','system/user/index','','',1,0,'C','0','0','system:user:list','user','admin','2025-10-28 02:47:08','',NULL,'用户管理菜单'),
 	(101,'角色管理',1,2,'role','system/role/index','','',1,0,'C','0','0','system:role:list','peoples','admin','2025-10-28 02:47:08','',NULL,'角色管理菜单'),
 	(102,'菜单管理',1,3,'menu','system/menu/index','','',1,0,'C','0','0','system:menu:list','tree-table','admin','2025-10-28 02:47:08','',NULL,'菜单管理菜单'),
@@ -2591,7 +2591,7 @@ VALUES
 	(107,'通知公告',1,8,'notice','system/notice/index','','',1,0,'C','0','0','system:notice:list','message','admin','2025-10-28 02:47:08','',NULL,'通知公告菜单'),
 	(108,'日志管理',1,9,'log','','','',1,0,'M','0','0','','log','admin','2025-10-28 02:47:08','',NULL,'日志管理菜单'),
 	(109,'在线用户',2,1,'online','monitor/online/index','','',1,0,'C','0','0','monitor:online:list','online','admin','2025-10-28 02:47:08','',NULL,'在线用户菜单'),
-	(110,'定时任务',2,2,'job','monitor/job/index','','',1,0,'C','0','0','monitor:job:list','job','admin','2025-10-28 02:47:08','',NULL,'定时任务菜单'),
+	(110,'定时任务',3000,2,'job','monitor/job/index','','',1,0,'C','0','0','monitor:job:list','job','admin','2025-10-28 02:47:08','admin','2026-02-03 04:23:29','定时任务菜单'),
 	(111,'数据监控',2,3,'druid','monitor/druid/index','','',1,0,'C','0','0','monitor:druid:list','druid','admin','2025-10-28 02:47:08','',NULL,'数据监控菜单'),
 	(112,'服务监控',2,4,'server','monitor/server/index','','',1,0,'C','0','0','monitor:server:list','server','admin','2025-10-28 02:47:08','',NULL,'服务监控菜单'),
 	(113,'缓存监控',2,5,'cache','monitor/cache/index','','',1,0,'C','0','0','monitor:cache:list','redis','admin','2025-10-28 02:47:08','',NULL,'缓存监控菜单'),
@@ -2691,7 +2691,7 @@ VALUES
 	(2072,'收单交易流水',2070,2,'payment','pension/bank/payment',NULL,NULL,1,0,'C','0','0','pension:bank:payment','money','admin','2025-11-03 16:03:36','admin','2026-01-26 17:25:32',''),
 	(2080,'公告查询',2000,9,'announcement','pension/announcement/index',NULL,NULL,1,0,'C','1','0','pension:announcement:view','button','admin','2025-11-03 16:03:36','admin','2026-01-27 02:42:46','查看公告通知'),
 	(2090,'投诉建议',2000,10,'feedback','pension/feedback/index',NULL,NULL,1,0,'C','0','0','pension:feedback:view','message','admin','2025-11-03 16:03:36','',NULL,'投诉建议管理'),
-	(2100,'老人管理',0,9,'elder',NULL,NULL,NULL,1,0,'M','0','0','','peoples','admin','2025-10-28 16:00:00','',NULL,'老人管理功能模块'),
+	(2100,'老人管理',0,9,'elder',NULL,NULL,NULL,1,0,'M','1','0','','peoples','admin','2025-10-28 16:00:00','admin','2026-02-03 04:19:29','老人管理功能模块'),
 	(2101,'老人信息',2100,1,'info','elder/info/index',NULL,NULL,1,0,'C','0','0','elder:info:list','user','admin','2025-10-28 16:00:00','',NULL,'老人信息管理菜单'),
 	(2103,'入住申请',2100,3,'checkin','elder/checkin/index',NULL,NULL,1,0,'C','0','0','elder:checkin:list','component','admin','2025-10-28 16:00:00','',NULL,'入住申请管理菜单'),
 	(2111,'老人信息查询',2101,1,'','',NULL,NULL,1,0,'F','0','0','elder:info:query','#','admin','2025-10-28 16:00:00','',NULL,''),
@@ -2710,8 +2710,8 @@ VALUES
 	(2134,'入住申请删除',2103,4,'','',NULL,NULL,1,0,'F','0','0','elder:checkin:remove','#','admin','2025-10-28 16:00:00','',NULL,''),
 	(2135,'入住申请审批',2103,5,'','',NULL,NULL,1,0,'F','0','0','elder:checkin:approve','#','admin','2025-10-28 16:00:00','',NULL,''),
 	(2136,'入住申请导出',2103,6,'','',NULL,NULL,1,0,'F','0','0','elder:checkin:export','#','admin','2025-10-28 16:00:00','',NULL,''),
-	(2137,'订单管理',0,5,'order',NULL,NULL,'',1,0,'M','0','0',NULL,'shopping','admin','2025-10-28 22:20:15','',NULL,'订单管理目录'),
-	(2138,'订单列表',2137,1,'orderInfo','order/orderInfo/index',NULL,'',1,0,'C','0','0','order:info:list','list','admin','2025-10-28 22:20:15','',NULL,'订单管理菜单'),
+	(2137,'订单管理',0,5,'order',NULL,NULL,'',1,0,'M','1','0','','shopping','admin','2025-10-28 22:20:15','admin','2026-02-03 04:19:10','订单管理目录'),
+	(2138,'订单列表',3400,1,'orderInfo','order/orderInfo/index',NULL,'',1,0,'C','0','0','order:info:list','list','admin','2025-10-28 22:20:15','admin','2026-02-03 04:18:28','订单管理菜单'),
 	(2139,'订单查询',2138,1,'#','',NULL,'',1,0,'F','0','0','order:info:query','#','admin','2025-10-28 22:20:15','',NULL,''),
 	(2140,'订单新增',2138,2,'#','',NULL,'',1,0,'F','0','0','order:info:add','#','admin','2025-10-28 22:20:15','',NULL,''),
 	(2141,'订单修改',2138,3,'#','',NULL,'',1,0,'F','0','0','order:info:edit','#','admin','2025-10-28 22:20:15','',NULL,''),
@@ -2760,7 +2760,7 @@ VALUES
 	(2204,'幻灯片删除',2200,4,'',NULL,NULL,'',1,0,'F','0','0','system:banner:remove','#','admin','2025-12-24 12:12:33','',NULL,'删除幻灯片'),
 	(2205,'清除测试数据',1,11,'cleanTestData','system/cleanTestData/index',NULL,'',1,0,'C','0','0','system:clean:execute','delete','admin','2026-01-31 20:23:07','admin','2026-01-31 20:23:07','清除测试数据功能'),
 	(2206,'清除测试数据执行',2205,1,'',NULL,NULL,'',1,0,'F','0','0','system:clean:execute','#','admin','2026-01-31 20:23:07','',NULL,'清除测试数据执行权限'),
-	(3000,'民政监管',0,2,'supervision',NULL,'','',1,0,'M','0','0','','monitor','admin','2025-11-03 16:51:30','',NULL,'民政监管目录'),
+	(3000,'民政监管',0,1,'supervision',NULL,'','',1,0,'M','0','0','','monitor','admin','2025-11-03 16:51:30','admin','2026-02-03 04:21:00','民政监管目录'),
 	(3100,'机构管理',3000,1,'institution',NULL,'','',1,0,'M','0','0','','build','admin','2025-11-03 16:51:30','',NULL,'机构管理目录'),
 	(3101,'批量导入',3100,1,'batchImport','supervision/institution/batchImport','','',1,0,'C','0','0','supervision:institution:batchImport','upload','admin','2025-11-03 16:51:30','',NULL,'机构批量导入'),
 	(3102,'机构查询',3100,4,'queryList','supervision/institution/queryList','','',1,0,'C','0','0','supervision:institution:query','search','admin','2025-11-03 16:51:30','',NULL,'机构信息查询功能，展示每个机构的当前信息，包括名称、预收服务费、预收押金、预收会员费、监管开户信息、入驻状态等'),
@@ -2788,7 +2788,7 @@ VALUES
 	(3301,'机构账户查询',3300,1,'institutionAccount','supervision/account/institutionAccount','','',1,0,'C','0','0','supervision:account:institution','list','admin','2025-11-03 16:51:30','',NULL,'机构账户查询'),
 	(3302,'会员费管理',3300,2,'memberFee','supervision/account/memberFee','','',1,0,'C','1','0','supervision:account:memberFee','money','admin','2025-11-03 16:51:30','admin','2026-02-03 03:31:52','会员费管理'),
 	(3303,'监管账户维护',3300,3,'supervisionAccount','supervision/account/supervisionAccount','','',1,0,'C','0','0','supervision:account:supervision','dict','admin','2025-11-03 16:51:30','admin','2025-11-03 17:54:29','监管账户维护'),
-	(3304,'订单管理',3400,4,'orderList','supervision/account/orderList','','',1,0,'C','0','0','supervision:account:order','list','admin','2025-11-03 16:51:30','admin','2026-02-03 03:33:50','订单管理'),
+	(3304,'订单管理',3400,4,'orderList','supervision/account/orderList','','',1,0,'C','1','0','supervision:account:order','list','admin','2025-11-03 16:51:30','admin','2026-02-03 04:17:54','订单管理'),
 	(3305,'账户余额',3300,5,'balanceList','supervision/account/balanceList','','',1,0,'C','1','0','supervision:account:balance','question','admin','2025-11-03 16:51:30','admin','2026-02-03 03:32:11','账户余额查询'),
 	(3400,'资金管理',3000,4,'fund',NULL,'','',1,0,'M','0','0','','money','admin','2025-11-03 16:51:30','',NULL,'资金管理目录'),
 	(3401,'资金记录',3400,1,'recordList','supervision/fund/recordList','','',1,0,'C','1','0','supervision:fund:record','list','admin','2025-11-03 16:51:30','admin','2026-02-03 03:35:28','资金记录查看'),
@@ -2805,7 +2805,7 @@ VALUES
 	(3602,'反馈统计',3600,2,'statistics','supervision/feedback/statistics','','',1,0,'C','1','0','supervision:feedback:statistics','chart','admin','2025-11-03 16:51:30','',NULL,'反馈统计'),
 	(3603,'热点反馈',3600,3,'hot','supervision/feedback/hot','','',1,0,'C','1','0','supervision:feedback:hot','star','admin','2025-11-03 16:51:30','',NULL,'热点反馈'),
 	(3604,'满意度评价',3600,4,'satisfaction','supervision/feedback/satisfaction','','',1,0,'C','1','0','supervision:feedback:satisfaction','education','admin','2025-11-03 16:51:30','admin','2025-11-03 17:55:19','满意度评价'),
-	(4000,'数据统计',0,8,'bigscreen',NULL,NULL,'',1,0,'M','0','0','','chart','admin','2025-10-29 22:21:46','admin','2026-01-19 01:20:56','数据大屏菜单'),
+	(4000,'数据统计',3000,8,'bigscreen',NULL,NULL,'',1,0,'M','0','0','','chart','admin','2025-10-29 22:21:46','admin','2026-02-03 04:23:59','数据大屏菜单'),
 	(4003,'预警监控大屏',4000,3,'http://localhost:8080/screen/warning-monitor.html','bigscreen/warning-monitor',NULL,'',0,0,'C','0','0','bigscreen:warning:view','user','admin','2025-10-30 01:20:52','admin','2025-10-30 01:48:48',''),
 	(4004,'List',3106,1,'',NULL,NULL,'',1,0,'F','0','0','supervision:institution:list','#','','2025-11-10 12:13:24','',NULL,''),
 	(4005,'Query',3106,2,'',NULL,NULL,'',1,0,'F','0','0','supervision:institution:query','#','','2025-11-10 12:13:24','',NULL,''),
@@ -2853,7 +2853,7 @@ VALUES
 	(4048,'入住人列表权限',2031,0,'#','',NULL,'',1,0,'F','0','0','elder:resident:list','#','admin','2025-11-16 01:46:11','',NULL,''),
 	(4049,'入住申请列表权限',2032,0,'#','',NULL,'',1,0,'F','0','0','elder:checkin:list','#','admin','2025-11-16 01:46:57','',NULL,''),
 	(4050,'订单列表权限',2041,0,'#','',NULL,'',1,0,'F','0','0','order:info:list','#','admin','2025-11-16 01:47:15','',NULL,''),
-	(4051,'设施图标配置',0,3,'icon','pension/facility/icon/index','','',1,0,'C','0','0','pension:facility:icon','tree','admin','2025-12-07 20:02:06','admin','2026-01-25 17:43:17',''),
+	(4051,'设施图标配置',3000,3,'icon','pension/facility/icon/index','','',1,0,'C','0','0','pension:facility:icon','tree','admin','2025-12-07 20:02:06','admin','2026-02-03 04:22:37',''),
 	(4052,'设施图标查询',4051,1,'','','','',1,0,'F','0','0','pension:facility:icon:list','#','admin','2025-12-07 20:02:15','',NULL,''),
 	(4053,'设施图标新增',4051,2,'','','','',1,0,'F','0','0','pension:facility:icon:add','#','admin','2025-12-07 20:02:15','',NULL,''),
 	(4054,'设施图标修改',4051,3,'','','','',1,0,'F','0','0','pension:facility:icon:edit','#','admin','2025-12-07 20:02:15','',NULL,''),
@@ -2881,7 +2881,7 @@ VALUES
 	(4076,'订单审核',2041,10,'',NULL,NULL,'',1,0,'F','0','0','order:info:audit','#','admin','2026-01-19 17:45:36','',NULL,'订单审核权限'),
 	(4077,'审核通过',2041,11,'',NULL,NULL,'',1,0,'F','0','0','order:info:approve','#','admin','2026-01-19 17:45:36','',NULL,'订单审核通过'),
 	(4078,'审核拒绝',2041,12,'',NULL,NULL,'',1,0,'F','0','0','order:info:reject','#','admin','2026-01-19 17:45:36','',NULL,'订单审核拒绝'),
-	(5000,'H5用户管理',0,11,'h5user',NULL,NULL,'',1,0,'M','0','0',NULL,'peoples','admin','2026-01-25 03:42:08','',NULL,'H5家属用户管理'),
+	(5000,'H5用户管理',3000,11,'h5user',NULL,NULL,'',1,0,'M','0','0','','peoples','admin','2026-01-25 03:42:08','admin','2026-02-03 04:23:44','H5家属用户管理'),
 	(5001,'用户列表',5000,1,'list','system/h5user/index',NULL,'',1,0,'C','0','0','h5user:list','peoples','admin','2026-01-25 03:42:11','admin','2026-01-25 17:46:12','H5家属用户列表'),
 	(5002,'用户查询',5001,1,'',NULL,NULL,'',1,0,'F','0','0','h5user:query','#','admin','2026-01-25 03:42:15','',NULL,''),
 	(5003,'用户新增',5001,2,'',NULL,NULL,'',1,0,'F','0','0','h5user:add','#','admin','2026-01-25 03:42:15','',NULL,''),
@@ -2986,7 +2986,7 @@ CREATE TABLE `sys_oper_log` (
   KEY `idx_sys_oper_log_bt` (`business_type`),
   KEY `idx_sys_oper_log_s` (`status`),
   KEY `idx_sys_oper_log_ot` (`oper_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=834 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='操作日志记录';
+) ENGINE=InnoDB AUTO_INCREMENT=847 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='操作日志记录';
 
 LOCK TABLES `sys_oper_log` WRITE;
 /*!40000 ALTER TABLE `sys_oper_log` DISABLE KEYS */;
@@ -3024,7 +3024,20 @@ VALUES
 	(830,'菜单管理',2,'com.ruoyi.web.controller.system.SysMenuController.edit()','PUT',1,'admin','研发部门','/system/menu','127.0.0.1','内网IP','{\"children\":[],\"component\":\"supervision/fund/allocationRule\",\"createTime\":\"2025-11-03 16:51:30\",\"icon\":\"email\",\"isCache\":\"0\",\"isFrame\":\"1\",\"menuId\":3403,\"menuName\":\"分配规则\",\"menuType\":\"C\",\"orderNum\":3,\"params\":{},\"parentId\":3400,\"path\":\"allocationRule\",\"perms\":\"supervision:fund:allocation\",\"query\":\"\",\"routeName\":\"\",\"status\":\"0\",\"updateBy\":\"admin\",\"visible\":\"1\"}','{\"msg\":\"操作成功\",\"code\":200}',0,NULL,'2026-02-03 03:35:42',11),
 	(831,'菜单管理',2,'com.ruoyi.web.controller.system.SysMenuController.edit()','PUT',1,'admin','研发部门','/system/menu','127.0.0.1','内网IP','{\"children\":[],\"component\":\"supervision/fund/statistics\",\"createTime\":\"2025-11-03 16:51:30\",\"icon\":\"chart\",\"isCache\":\"0\",\"isFrame\":\"1\",\"menuId\":3404,\"menuName\":\"资金统计\",\"menuType\":\"C\",\"orderNum\":4,\"params\":{},\"parentId\":3400,\"path\":\"statistics\",\"perms\":\"supervision:fund:statistics\",\"query\":\"\",\"routeName\":\"\",\"status\":\"0\",\"updateBy\":\"admin\",\"visible\":\"1\"}','{\"msg\":\"操作成功\",\"code\":200}',0,NULL,'2026-02-03 03:35:59',11),
 	(832,'菜单管理',2,'com.ruoyi.web.controller.system.SysMenuController.edit()','PUT',1,'admin','研发部门','/system/menu','127.0.0.1','内网IP','{\"children\":[],\"createTime\":\"2025-11-03 16:51:30\",\"icon\":\"message\",\"isCache\":\"0\",\"isFrame\":\"1\",\"menuId\":3500,\"menuName\":\"公告管理\",\"menuType\":\"M\",\"orderNum\":5,\"params\":{},\"parentId\":3000,\"path\":\"announcement\",\"perms\":\"\",\"query\":\"\",\"routeName\":\"\",\"status\":\"0\",\"updateBy\":\"admin\",\"visible\":\"1\"}','{\"msg\":\"操作成功\",\"code\":200}',0,NULL,'2026-02-03 03:40:56',12),
-	(833,'菜单管理',2,'com.ruoyi.web.controller.system.SysMenuController.edit()','PUT',1,'admin','研发部门','/system/menu','127.0.0.1','内网IP','{\"children\":[],\"createTime\":\"2025-10-29 01:35:22\",\"icon\":\"money\",\"isCache\":\"0\",\"isFrame\":\"1\",\"menuId\":2161,\"menuName\":\"账户资金管理\",\"menuType\":\"M\",\"orderNum\":5,\"params\":{},\"parentId\":0,\"path\":\"account\",\"perms\":\"\",\"routeName\":\"\",\"status\":\"0\",\"updateBy\":\"admin\",\"visible\":\"1\"}','{\"msg\":\"操作成功\",\"code\":200}',0,NULL,'2026-02-03 04:05:28',14);
+	(833,'菜单管理',2,'com.ruoyi.web.controller.system.SysMenuController.edit()','PUT',1,'admin','研发部门','/system/menu','127.0.0.1','内网IP','{\"children\":[],\"createTime\":\"2025-10-29 01:35:22\",\"icon\":\"money\",\"isCache\":\"0\",\"isFrame\":\"1\",\"menuId\":2161,\"menuName\":\"账户资金管理\",\"menuType\":\"M\",\"orderNum\":5,\"params\":{},\"parentId\":0,\"path\":\"account\",\"perms\":\"\",\"routeName\":\"\",\"status\":\"0\",\"updateBy\":\"admin\",\"visible\":\"1\"}','{\"msg\":\"操作成功\",\"code\":200}',0,NULL,'2026-02-03 04:05:28',14),
+	(834,'菜单管理',2,'com.ruoyi.web.controller.system.SysMenuController.edit()','PUT',1,'admin','研发部门','/system/menu','127.0.0.1','内网IP','{\"children\":[],\"component\":\"supervision/account/orderList\",\"createTime\":\"2025-11-03 16:51:30\",\"icon\":\"list\",\"isCache\":\"0\",\"isFrame\":\"1\",\"menuId\":3304,\"menuName\":\"订单管理\",\"menuType\":\"C\",\"orderNum\":4,\"params\":{},\"parentId\":3400,\"path\":\"orderList\",\"perms\":\"supervision:account:order\",\"query\":\"\",\"routeName\":\"\",\"status\":\"0\",\"updateBy\":\"admin\",\"visible\":\"1\"}','{\"msg\":\"操作成功\",\"code\":200}',0,NULL,'2026-02-03 04:17:54',13),
+	(835,'菜单管理',2,'com.ruoyi.web.controller.system.SysMenuController.edit()','PUT',1,'admin','研发部门','/system/menu','127.0.0.1','内网IP','{\"children\":[],\"component\":\"order/orderInfo/index\",\"createTime\":\"2025-10-28 22:20:15\",\"icon\":\"list\",\"isCache\":\"0\",\"isFrame\":\"1\",\"menuId\":2138,\"menuName\":\"订单列表\",\"menuType\":\"C\",\"orderNum\":1,\"params\":{},\"parentId\":3400,\"path\":\"orderInfo\",\"perms\":\"order:info:list\",\"routeName\":\"\",\"status\":\"0\",\"updateBy\":\"admin\",\"visible\":\"0\"}','{\"msg\":\"操作成功\",\"code\":200}',0,NULL,'2026-02-03 04:18:28',9),
+	(836,'菜单管理',2,'com.ruoyi.web.controller.system.SysMenuController.edit()','PUT',1,'admin','研发部门','/system/menu','127.0.0.1','内网IP','{\"children\":[],\"createTime\":\"2025-10-28 22:20:15\",\"icon\":\"shopping\",\"isCache\":\"0\",\"isFrame\":\"1\",\"menuId\":2137,\"menuName\":\"订单管理\",\"menuType\":\"M\",\"orderNum\":5,\"params\":{},\"parentId\":0,\"path\":\"order\",\"perms\":\"\",\"routeName\":\"\",\"status\":\"0\",\"updateBy\":\"admin\",\"visible\":\"1\"}','{\"msg\":\"操作成功\",\"code\":200}',0,NULL,'2026-02-03 04:19:10',11),
+	(837,'菜单管理',2,'com.ruoyi.web.controller.system.SysMenuController.edit()','PUT',1,'admin','研发部门','/system/menu','127.0.0.1','内网IP','{\"children\":[],\"createTime\":\"2025-10-28 16:00:00\",\"icon\":\"peoples\",\"isCache\":\"0\",\"isFrame\":\"1\",\"menuId\":2100,\"menuName\":\"老人管理\",\"menuType\":\"M\",\"orderNum\":9,\"params\":{},\"parentId\":0,\"path\":\"elder\",\"perms\":\"\",\"status\":\"0\",\"updateBy\":\"admin\",\"visible\":\"1\"}','{\"msg\":\"操作成功\",\"code\":200}',0,NULL,'2026-02-03 04:19:29',10),
+	(838,'菜单管理',2,'com.ruoyi.web.controller.system.SysMenuController.edit()','PUT',1,'admin','研发部门','/system/menu','127.0.0.1','内网IP','{\"children\":[],\"createTime\":\"2025-10-28 02:47:08\",\"icon\":\"system\",\"isCache\":\"0\",\"isFrame\":\"1\",\"menuId\":1,\"menuName\":\"系统管理\",\"menuType\":\"M\",\"orderNum\":10,\"params\":{},\"parentId\":0,\"path\":\"system\",\"perms\":\"\",\"query\":\"\",\"routeName\":\"\",\"status\":\"0\",\"updateBy\":\"admin\",\"visible\":\"0\"}','{\"msg\":\"操作成功\",\"code\":200}',0,NULL,'2026-02-03 04:20:05',3),
+	(839,'菜单管理',2,'com.ruoyi.web.controller.system.SysMenuController.edit()','PUT',1,'admin','研发部门','/system/menu','127.0.0.1','内网IP','{\"children\":[],\"createTime\":\"2025-10-28 02:47:08\",\"icon\":\"monitor\",\"isCache\":\"0\",\"isFrame\":\"1\",\"menuId\":2,\"menuName\":\"系统监控\",\"menuType\":\"M\",\"orderNum\":20,\"params\":{},\"parentId\":0,\"path\":\"monitor\",\"perms\":\"\",\"query\":\"\",\"routeName\":\"\",\"status\":\"0\",\"updateBy\":\"admin\",\"visible\":\"0\"}','{\"msg\":\"操作成功\",\"code\":200}',0,NULL,'2026-02-03 04:20:11',10),
+	(840,'菜单管理',2,'com.ruoyi.web.controller.system.SysMenuController.edit()','PUT',1,'admin','研发部门','/system/menu','127.0.0.1','内网IP','{\"children\":[],\"createTime\":\"2025-11-03 16:51:30\",\"icon\":\"monitor\",\"isCache\":\"0\",\"isFrame\":\"1\",\"menuId\":3000,\"menuName\":\"民政监管\",\"menuType\":\"M\",\"orderNum\":1,\"params\":{},\"parentId\":0,\"path\":\"supervision\",\"perms\":\"\",\"query\":\"\",\"routeName\":\"\",\"status\":\"0\",\"updateBy\":\"admin\",\"visible\":\"0\"}','{\"msg\":\"操作成功\",\"code\":200}',0,NULL,'2026-02-03 04:21:00',12),
+	(841,'菜单管理',2,'com.ruoyi.web.controller.system.SysMenuController.edit()','PUT',1,'admin','研发部门','/system/menu','127.0.0.1','内网IP','{\"children\":[],\"createTime\":\"2025-10-28 02:47:08\",\"icon\":\"tool\",\"isCache\":\"0\",\"isFrame\":\"1\",\"menuId\":3,\"menuName\":\"系统工具\",\"menuType\":\"M\",\"orderNum\":3,\"params\":{},\"parentId\":0,\"path\":\"tool\",\"perms\":\"\",\"query\":\"\",\"routeName\":\"\",\"status\":\"0\",\"updateBy\":\"admin\",\"visible\":\"1\"}','{\"msg\":\"操作成功\",\"code\":200}',0,NULL,'2026-02-03 04:21:51',13),
+	(842,'菜单管理',2,'com.ruoyi.web.controller.system.SysMenuController.edit()','PUT',1,'admin','研发部门','/system/menu','127.0.0.1','内网IP','{\"children\":[],\"component\":\"pension/facility/icon/index\",\"createTime\":\"2025-12-07 20:02:06\",\"icon\":\"tree\",\"isCache\":\"0\",\"isFrame\":\"1\",\"menuId\":4051,\"menuName\":\"设施图标配置\",\"menuType\":\"C\",\"orderNum\":3,\"params\":{},\"parentId\":3000,\"path\":\"icon\",\"perms\":\"pension:facility:icon\",\"query\":\"\",\"routeName\":\"\",\"status\":\"0\",\"updateBy\":\"admin\",\"visible\":\"0\"}','{\"msg\":\"操作成功\",\"code\":200}',0,NULL,'2026-02-03 04:22:37',9),
+	(843,'菜单管理',2,'com.ruoyi.web.controller.system.SysMenuController.edit()','PUT',1,'admin','研发部门','/system/menu','127.0.0.1','内网IP','{\"children\":[],\"component\":\"monitor/job/index\",\"createTime\":\"2025-10-28 02:47:08\",\"icon\":\"job\",\"isCache\":\"0\",\"isFrame\":\"1\",\"menuId\":110,\"menuName\":\"定时任务\",\"menuType\":\"C\",\"orderNum\":2,\"params\":{},\"parentId\":3000,\"path\":\"job\",\"perms\":\"monitor:job:list\",\"query\":\"\",\"routeName\":\"\",\"status\":\"0\",\"updateBy\":\"admin\",\"visible\":\"0\"}','{\"msg\":\"操作成功\",\"code\":200}',0,NULL,'2026-02-03 04:23:29',9),
+	(844,'菜单管理',2,'com.ruoyi.web.controller.system.SysMenuController.edit()','PUT',1,'admin','研发部门','/system/menu','127.0.0.1','内网IP','{\"children\":[],\"createTime\":\"2025-10-28 02:47:08\",\"icon\":\"monitor\",\"isCache\":\"0\",\"isFrame\":\"1\",\"menuId\":2,\"menuName\":\"系统监控\",\"menuType\":\"M\",\"orderNum\":20,\"params\":{},\"parentId\":0,\"path\":\"monitor\",\"perms\":\"\",\"query\":\"\",\"routeName\":\"\",\"status\":\"0\",\"updateBy\":\"admin\",\"visible\":\"1\"}','{\"msg\":\"操作成功\",\"code\":200}',0,NULL,'2026-02-03 04:23:36',8),
+	(845,'菜单管理',2,'com.ruoyi.web.controller.system.SysMenuController.edit()','PUT',1,'admin','研发部门','/system/menu','127.0.0.1','内网IP','{\"children\":[],\"createTime\":\"2026-01-25 03:42:08\",\"icon\":\"peoples\",\"isCache\":\"0\",\"isFrame\":\"1\",\"menuId\":5000,\"menuName\":\"H5用户管理\",\"menuType\":\"M\",\"orderNum\":11,\"params\":{},\"parentId\":3000,\"path\":\"h5user\",\"perms\":\"\",\"routeName\":\"\",\"status\":\"0\",\"updateBy\":\"admin\",\"visible\":\"0\"}','{\"msg\":\"操作成功\",\"code\":200}',0,NULL,'2026-02-03 04:23:44',9),
+	(846,'菜单管理',2,'com.ruoyi.web.controller.system.SysMenuController.edit()','PUT',1,'admin','研发部门','/system/menu','127.0.0.1','内网IP','{\"children\":[],\"createTime\":\"2025-10-29 22:21:46\",\"icon\":\"chart\",\"isCache\":\"0\",\"isFrame\":\"1\",\"menuId\":4000,\"menuName\":\"数据统计\",\"menuType\":\"M\",\"orderNum\":8,\"params\":{},\"parentId\":3000,\"path\":\"bigscreen\",\"perms\":\"\",\"routeName\":\"\",\"status\":\"0\",\"updateBy\":\"admin\",\"visible\":\"0\"}','{\"msg\":\"操作成功\",\"code\":200}',0,NULL,'2026-02-03 04:23:59',8);
 
 /*!40000 ALTER TABLE `sys_oper_log` ENABLE KEYS */;
 UNLOCK TABLES;
