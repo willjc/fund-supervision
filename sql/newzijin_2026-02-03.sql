@@ -7,7 +7,7 @@
 #
 # 主机: localhost (MySQL 8.0.44)
 # 数据库: newzijin
-# 生成时间: 2026-02-02 17:40:23 +0000
+# 生成时间: 2026-02-02 18:31:07 +0000
 # ************************************************************
 
 
@@ -70,8 +70,17 @@ CREATE TABLE `account_info` (
   UNIQUE KEY `uk_account_no` (`account_no`),
   KEY `idx_elder_id` (`elder_id`),
   KEY `idx_institution_id` (`institution_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=49 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='鑰佷汉璐︽埛淇℃伅琛';
+) ENGINE=InnoDB AUTO_INCREMENT=50 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='鑰佷汉璐︽埛淇℃伅琛';
 
+LOCK TABLES `account_info` WRITE;
+/*!40000 ALTER TABLE `account_info` DISABLE KEYS */;
+
+INSERT INTO `account_info` (`account_id`, `elder_id`, `institution_id`, `account_no`, `account_name`, `account_status`, `total_balance`, `service_balance`, `deposit_balance`, `member_balance`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`)
+VALUES
+	(49,91,36,'ACC1770055245743020','账户-91','1',16000.00,5500.00,10000.00,500.00,'','2026-02-03 02:00:46','','2026-02-03 02:02:01','老人入住时自动创建 | 支付订单ORD1770055245749增加余额16500.00元');
+
+/*!40000 ALTER TABLE `account_info` ENABLE KEYS */;
+UNLOCK TABLES;
 
 
 # 转储表 area_street
@@ -378,8 +387,17 @@ CREATE TABLE `bed_allocation` (
   CONSTRAINT `fk_allocation_bed` FOREIGN KEY (`bed_id`) REFERENCES `bed_info` (`bed_id`) ON DELETE CASCADE,
   CONSTRAINT `fk_allocation_elder` FOREIGN KEY (`elder_id`) REFERENCES `elder_info` (`elder_id`) ON DELETE CASCADE,
   CONSTRAINT `fk_allocation_institution` FOREIGN KEY (`institution_id`) REFERENCES `pension_institution` (`institution_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=72 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='床位分配记录表';
+) ENGINE=InnoDB AUTO_INCREMENT=73 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='床位分配记录表';
 
+LOCK TABLES `bed_allocation` WRITE;
+/*!40000 ALTER TABLE `bed_allocation` DISABLE KEYS */;
+
+INSERT INTO `bed_allocation` (`allocation_id`, `elder_id`, `bed_id`, `institution_id`, `check_in_date`, `due_date`, `check_out_date`, `allocation_status`, `monthly_fee`, `deposit_status`, `deposit_amount`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`)
+VALUES
+	(72,91,73,36,'2026-02-03','2027-02-03',NULL,'0',500.00,'0',10000.00,'zhb_1670890634337372','2026-02-03 02:00:46','',NULL,'H5小程序订单来源');
+
+/*!40000 ALTER TABLE `bed_allocation` ENABLE KEYS */;
+UNLOCK TABLES;
 
 
 # 转储表 bed_info
@@ -436,7 +454,7 @@ VALUES
 	(70,36,'109','12','1','0',400.00,500.00,1000.00,2000.00,400.00,1000.00,1,103.00,'Y','0',NULL,'','2026-01-27 23:20:59','',NULL,NULL),
 	(71,36,'303','23','1','0',800.00,500.00,1000.00,1500.00,500.00,1000.00,1,20.00,'Y','Y',NULL,'','2026-01-28 01:34:35','',NULL,NULL),
 	(72,36,'123','12','1','0',400.00,500.00,600.00,700.00,100.00,NULL,NULL,NULL,'0','0',NULL,'','2026-01-28 02:42:38','',NULL,NULL),
-	(73,36,'209','12','1','0',400.00,100.00,200.00,400.00,500.00,10000.00,NULL,NULL,'0','0',NULL,'','2026-01-28 03:19:37','',NULL,NULL),
+	(73,36,'209','12','1','1',400.00,100.00,200.00,400.00,500.00,10000.00,NULL,NULL,'0','0',NULL,'','2026-01-28 03:19:37','',NULL,NULL),
 	(74,36,'1201','12','1','0',500.00,300.00,600.00,1500.00,500.00,1500.00,12,30.00,'0','0',NULL,'','2026-01-28 19:29:02','','2026-01-28 22:54:12',NULL),
 	(75,36,'105','17','1','0',500.00,500.00,600.00,700.00,500.00,2000.00,NULL,NULL,'0','0',NULL,'','2026-01-28 20:30:52','','2026-01-28 22:16:41',NULL),
 	(76,36,'908','78','1','0',800.00,800.00,1600.00,2400.00,1000.00,10000.00,2,NULL,'0','0',NULL,'','2026-01-28 20:34:39','','2026-01-28 20:35:01',NULL),
@@ -616,8 +634,17 @@ CREATE TABLE `elder_family` (
   UNIQUE KEY `uk_user_elder` (`user_id`,`elder_id`) COMMENT '一个用户对一个老人只能有一条关联记录',
   KEY `idx_user_id` (`user_id`) COMMENT '用户ID索引',
   KEY `idx_elder_id` (`elder_id`) COMMENT '老人ID索引'
-) ENGINE=InnoDB AUTO_INCREMENT=93 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户-老人关联表';
+) ENGINE=InnoDB AUTO_INCREMENT=94 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户-老人关联表';
 
+LOCK TABLES `elder_family` WRITE;
+/*!40000 ALTER TABLE `elder_family` DISABLE KEYS */;
+
+INSERT INTO `elder_family` (`family_id`, `user_id`, `elder_id`, `relation_type`, `relation_name`, `is_default`, `is_main_contact`, `status`, `create_time`, `update_time`, `remark`)
+VALUES
+	(93,130,91,'5','朋友','0','0','0','2026-02-03 02:00:31','2026-02-03 02:00:30',NULL);
+
+/*!40000 ALTER TABLE `elder_family` ENABLE KEYS */;
+UNLOCK TABLES;
 
 
 # 转储表 elder_info
@@ -656,7 +683,7 @@ CREATE TABLE `elder_info` (
   UNIQUE KEY `uk_id_card` (`id_card`),
   KEY `idx_submit_user_id` (`submit_user_id`),
   KEY `idx_source_type` (`source_type`)
-) ENGINE=InnoDB AUTO_INCREMENT=91 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='老人基础信息表';
+) ENGINE=InnoDB AUTO_INCREMENT=92 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='老人基础信息表';
 
 LOCK TABLES `elder_info` WRITE;
 /*!40000 ALTER TABLE `elder_info` DISABLE KEYS */;
@@ -697,7 +724,8 @@ VALUES
 	(87,'何春花','0','410102195708087654','1957-08-08',67,'13800138013','河南省郑州市金水区文化路752号','何洋','13900139013','失眠症，轻度抑郁','1',NULL,NULL,NULL,NULL,'e10adc3949ba59abbe56e057f20f883e',NULL,'0','1',NULL,'jg765678','2026-01-29 10:15:09','',NULL,NULL),
 	(88,'林国栋','1','410102195002198765','1950-02-19',75,'13800138014','河南省郑州高新区长椿路357号','林晓','13900139014','青光眼','2',NULL,NULL,NULL,NULL,'e10adc3949ba59abbe56e057f20f883e',NULL,'0','1',NULL,'jg765678','2026-01-29 10:15:09','',NULL,NULL),
 	(89,'胡秀芬','0','410102196506305432','1965-06-30',59,'13800138015','河南省郑州市管城区城东路168号','胡斌','13900139015','健康，行动自如','1',NULL,NULL,NULL,NULL,'e10adc3949ba59abbe56e057f20f883e',NULL,'0','1',NULL,'jg765678','2026-01-29 10:15:09','',NULL,NULL),
-	(90,'wangwen','1','412829198908160073','1989-08-14',36,'18539279011',NULL,'chenbd','18656787890',NULL,'1',NULL,'/profile/upload/2026/01/31/image_1769739148525_20260131122054A001.png',NULL,NULL,'e10adc3949ba59abbe56e057f20f883e',NULL,'2','1',NULL,'jg765678','2026-01-31 11:41:59','jg765678','2026-01-31 12:20:55',NULL);
+	(90,'wangwen','1','412829198908160073','1989-08-14',36,'18539279011',NULL,'chenbd','18656787890',NULL,'1',NULL,'/profile/upload/2026/01/31/image_1769739148525_20260131122054A001.png',NULL,NULL,'e10adc3949ba59abbe56e057f20f883e',NULL,'2','1',NULL,'jg765678','2026-01-31 11:41:59','jg765678','2026-01-31 12:20:55',NULL),
+	(91,'哈哈','2','412829195002205326','1950-02-20',86,'18539265868',NULL,'好多好','18539658563',NULL,'1',NULL,'/profile/upload/2026/02/03/ScreenShot_2026-01-08_144242_956_20260203020030A001.png',NULL,NULL,'e10adc3949ba59abbe56e057f20f883e',NULL,'1','1',NULL,'','2026-02-03 02:00:30','zhb_1670890634337372','2026-02-03 02:00:46',NULL);
 
 /*!40000 ALTER TABLE `elder_info` ENABLE KEYS */;
 UNLOCK TABLES;
@@ -759,8 +787,20 @@ CREATE TABLE `expense_record` (
   KEY `idx_account_id` (`account_id`),
   KEY `idx_expense_type` (`expense_type`),
   KEY `idx_create_time` (`create_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=159 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='璐圭敤璁板綍琛';
+) ENGINE=InnoDB AUTO_INCREMENT=163 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='璐圭敤璁板綍琛';
 
+LOCK TABLES `expense_record` WRITE;
+/*!40000 ALTER TABLE `expense_record` DISABLE KEYS */;
+
+INSERT INTO `expense_record` (`record_id`, `elder_id`, `account_id`, `expense_type`, `transaction_type`, `amount`, `description`, `related_id`, `related_type`, `balance_before`, `balance_after`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`)
+VALUES
+	(159,91,49,'deposit','income',10000.00,'订单支付：入驻订单-押金缴纳',97,'order_info',0.00,16500.00,'system','2026-02-03 02:02:01','',NULL,NULL),
+	(160,91,49,'service','income',6000.00,'订单支付：入驻订单-服务费预存',97,'order_info',0.00,16500.00,'system','2026-02-03 02:02:01','',NULL,NULL),
+	(161,91,49,'member','income',500.00,'订单支付：入驻订单-会员费缴纳',97,'order_info',0.00,16500.00,'system','2026-02-03 02:02:01','',NULL,NULL),
+	(162,91,49,'service','expense',500.00,'订单支付：入驻订单-首月服务费扣除',97,'order_info',16500.00,16000.00,'system','2026-02-03 02:02:01','',NULL,NULL);
+
+/*!40000 ALTER TABLE `expense_record` ENABLE KEYS */;
+UNLOCK TABLES;
 
 
 # 转储表 facility_icon_config
@@ -866,8 +906,28 @@ CREATE TABLE `fund_transfer` (
   KEY `idx_billing_month` (`billing_month`),
   KEY `idx_is_paid` (`is_paid`),
   KEY `idx_status` (`status`)
-) ENGINE=InnoDB AUTO_INCREMENT=93 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='璧勯噾鍒掓嫧璁板綍琛';
+) ENGINE=InnoDB AUTO_INCREMENT=105 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='璧勯噾鍒掓嫧璁板綍琛';
 
+LOCK TABLES `fund_transfer` WRITE;
+/*!40000 ALTER TABLE `fund_transfer` DISABLE KEYS */;
+
+INSERT INTO `fund_transfer` (`transfer_id`, `institution_id`, `transfer_no`, `transfer_type`, `transfer_amount`, `transfer_date`, `transfer_period`, `elder_count`, `transfer_status`, `bank_order_no`, `failure_reason`, `approve_user`, `approve_time`, `execute_user`, `execute_time`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`, `is_paid`, `paid_time`, `paid_method`, `apply_id`, `elder_id`, `order_id`, `billing_month`, `status`)
+VALUES
+	(93,36,'TRF1770055321430FM46','1',500.00,'2026-02-03','2026-02',1,'1',NULL,NULL,NULL,NULL,'system','2026-02-03 02:02:01','system','2026-02-03 02:02:01','',NULL,'首月服务费立即划拨-ORD1770055245749','1','2026-02-03 02:02:01','auto',NULL,91,97,'2026-02','completed'),
+	(94,36,'TRF1770055321436006','1',500.00,'2026-03-01','2026-03',1,'0',NULL,NULL,NULL,NULL,NULL,NULL,'system','2026-02-03 02:02:01','',NULL,'订单支付后自动生成-2026-03','0',NULL,NULL,NULL,91,97,'2026-03','pending'),
+	(95,36,'TRF1770055321437100','1',500.00,'2026-04-01','2026-04',1,'0',NULL,NULL,NULL,NULL,NULL,NULL,'system','2026-02-03 02:02:01','',NULL,'订单支付后自动生成-2026-04','0',NULL,NULL,NULL,91,97,'2026-04','pending'),
+	(96,36,'TRF1770055321438289','1',500.00,'2026-05-01','2026-05',1,'0',NULL,NULL,NULL,NULL,NULL,NULL,'system','2026-02-03 02:02:01','',NULL,'订单支付后自动生成-2026-05','0',NULL,NULL,NULL,91,97,'2026-05','pending'),
+	(97,36,'TRF1770055321439328','1',500.00,'2026-06-01','2026-06',1,'0',NULL,NULL,NULL,NULL,NULL,NULL,'system','2026-02-03 02:02:01','',NULL,'订单支付后自动生成-2026-06','0',NULL,NULL,NULL,91,97,'2026-06','pending'),
+	(98,36,'TRF1770055321440415','1',500.00,'2026-07-01','2026-07',1,'0',NULL,NULL,NULL,NULL,NULL,NULL,'system','2026-02-03 02:02:01','',NULL,'订单支付后自动生成-2026-07','0',NULL,NULL,NULL,91,97,'2026-07','pending'),
+	(99,36,'TRF1770055321440581','1',500.00,'2026-08-01','2026-08',1,'0',NULL,NULL,NULL,NULL,NULL,NULL,'system','2026-02-03 02:02:01','',NULL,'订单支付后自动生成-2026-08','0',NULL,NULL,NULL,91,97,'2026-08','pending'),
+	(100,36,'TRF1770055321441635','1',500.00,'2026-09-01','2026-09',1,'0',NULL,NULL,NULL,NULL,NULL,NULL,'system','2026-02-03 02:02:01','',NULL,'订单支付后自动生成-2026-09','0',NULL,NULL,NULL,91,97,'2026-09','pending'),
+	(101,36,'TRF1770055321442728','1',500.00,'2026-10-01','2026-10',1,'0',NULL,NULL,NULL,NULL,NULL,NULL,'system','2026-02-03 02:02:01','',NULL,'订单支付后自动生成-2026-10','0',NULL,NULL,NULL,91,97,'2026-10','pending'),
+	(102,36,'TRF1770055321443849','1',500.00,'2026-11-01','2026-11',1,'0',NULL,NULL,NULL,NULL,NULL,NULL,'system','2026-02-03 02:02:01','',NULL,'订单支付后自动生成-2026-11','0',NULL,NULL,NULL,91,97,'2026-11','pending'),
+	(103,36,'TRF1770055321443939','1',500.00,'2026-12-01','2026-12',1,'0',NULL,NULL,NULL,NULL,NULL,NULL,'system','2026-02-03 02:02:01','',NULL,'订单支付后自动生成-2026-12','0',NULL,NULL,NULL,91,97,'2026-12','pending'),
+	(104,36,'TRF17700553214441053','1',500.00,'2027-01-01','2027-01',1,'0',NULL,NULL,NULL,NULL,NULL,NULL,'system','2026-02-03 02:02:01','',NULL,'订单支付后自动生成-2027-01','0',NULL,NULL,NULL,91,97,'2027-01','pending');
+
+/*!40000 ALTER TABLE `fund_transfer` ENABLE KEYS */;
+UNLOCK TABLES;
 
 
 # 转储表 fund_transfer_apply
@@ -1246,8 +1306,17 @@ CREATE TABLE `order_info` (
   KEY `idx_check_in_id` (`check_in_id`),
   KEY `idx_order_date` (`order_date`),
   KEY `idx_order_status` (`order_status`)
-) ENGINE=InnoDB AUTO_INCREMENT=97 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='订单主表';
+) ENGINE=InnoDB AUTO_INCREMENT=98 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='订单主表';
 
+LOCK TABLES `order_info` WRITE;
+/*!40000 ALTER TABLE `order_info` DISABLE KEYS */;
+
+INSERT INTO `order_info` (`order_id`, `order_no`, `order_type`, `elder_id`, `creator_user_id`, `institution_id`, `check_in_id`, `bed_id`, `order_amount`, `original_amount`, `discount_amount`, `paid_amount`, `order_status`, `payment_method`, `payment_time`, `order_date`, `service_start_date`, `service_end_date`, `billing_cycle`, `month_count`, `due_date`, `remark`, `create_by`, `create_time`, `update_by`, `update_time`, `payment_proof`, `payment_proof_remark`)
+VALUES
+	(97,'ORD1770055245749','1',91,130,36,NULL,73,16500.00,16500.00,0.00,16500.00,'1','微信','2026-02-03 02:02:01','2026-02-03','2026-02-03','2027-02-03','月度',12,NULL,'床位费：400元/月\\n护理费：100元/月\\n护理等级：自理\\n服务费合计：500.00元/月\\n缴费月数：12个月\\n押金：10000元\\n会员费：500元\\n总计：16500.00元','zhb_1670890634337372','2026-02-03 02:00:46','','2026-02-03 02:02:01',NULL,NULL);
+
+/*!40000 ALTER TABLE `order_info` ENABLE KEYS */;
+UNLOCK TABLES;
 
 
 # 转储表 order_item
@@ -1275,8 +1344,20 @@ CREATE TABLE `order_item` (
   `remark` varchar(500) DEFAULT NULL COMMENT '备注',
   PRIMARY KEY (`item_id`),
   KEY `idx_order_id` (`order_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=316 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='订单明细表';
+) ENGINE=InnoDB AUTO_INCREMENT=320 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='订单明细表';
 
+LOCK TABLES `order_item` WRITE;
+/*!40000 ALTER TABLE `order_item` DISABLE KEYS */;
+
+INSERT INTO `order_item` (`item_id`, `order_id`, `order_no`, `item_name`, `item_type`, `item_description`, `unit_price`, `original_unit_price`, `is_price_modified`, `quantity`, `total_amount`, `service_period`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`)
+VALUES
+	(316,97,'ORD1770055245749','床位费','bed_fee','209-12床位费',400.00,400.00,'1',12,4800.00,'月度','zhb_1670890634337372','2026-02-03 02:00:46','','2026-02-03 02:01:31',NULL),
+	(317,97,'ORD1770055245749','护理费','care_fee','自理护理费',100.00,100.00,'1',12,1200.00,'月度','zhb_1670890634337372','2026-02-03 02:00:46','','2026-02-03 02:01:31',NULL),
+	(318,97,'ORD1770055245749','押金','deposit','入住押金',10000.00,10000.00,'1',1,10000.00,NULL,'zhb_1670890634337372','2026-02-03 02:00:46','','2026-02-03 02:01:31',NULL),
+	(319,97,'ORD1770055245749','会员费','member_fee','会员卡充值',500.00,500.00,'1',1,500.00,NULL,'zhb_1670890634337372','2026-02-03 02:00:46','','2026-02-03 02:01:31',NULL);
+
+/*!40000 ALTER TABLE `order_item` ENABLE KEYS */;
+UNLOCK TABLES;
 
 
 # 转储表 payment_record
@@ -1310,8 +1391,17 @@ CREATE TABLE `payment_record` (
   KEY `idx_elder_id` (`elder_id`),
   KEY `idx_payment_time` (`payment_time`),
   KEY `idx_payment_status` (`payment_status`)
-) ENGINE=InnoDB AUTO_INCREMENT=53 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='支付记录表';
+) ENGINE=InnoDB AUTO_INCREMENT=54 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='支付记录表';
 
+LOCK TABLES `payment_record` WRITE;
+/*!40000 ALTER TABLE `payment_record` DISABLE KEYS */;
+
+INSERT INTO `payment_record` (`payment_id`, `payment_no`, `order_id`, `elder_id`, `institution_id`, `payment_amount`, `payment_method`, `payment_status`, `payment_time`, `transaction_id`, `gateway_response`, `operator`, `remark`, `create_by`, `create_time`, `update_by`, `update_time`, `payment_proof`, `payment_proof_remark`)
+VALUES
+	(53,'PAY1770055320359992',97,91,36,16500.00,'微信','1','2026-02-03 02:02:01','PAY1770055320359992',NULL,'130',NULL,'','2026-02-03 02:02:01','',NULL,NULL,NULL);
+
+/*!40000 ALTER TABLE `payment_record` ENABLE KEYS */;
+UNLOCK TABLES;
 
 
 # 转储表 pension_complaint
@@ -1828,8 +1918,18 @@ CREATE TABLE `supervision_account_log` (
   KEY `idx_institution_id` (`institution_id`),
   KEY `idx_transaction_time` (`transaction_time`),
   KEY `idx_business_type` (`business_type`)
-) ENGINE=InnoDB AUTO_INCREMENT=49 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='监管账户流水表';
+) ENGINE=InnoDB AUTO_INCREMENT=51 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='监管账户流水表';
 
+LOCK TABLES `supervision_account_log` WRITE;
+/*!40000 ALTER TABLE `supervision_account_log` DISABLE KEYS */;
+
+INSERT INTO `supervision_account_log` (`log_id`, `institution_id`, `transaction_no`, `transaction_type`, `amount`, `balance_before`, `balance_after`, `transaction_time`, `business_type`, `related_order_id`, `related_transfer_id`, `business_desc`, `counterparty`, `operator`, `create_time`)
+VALUES
+	(49,36,'LSH202602030202014038','收入',16500.00,0.00,16500.00,'2026-02-03 02:02:01','用户支付',97,NULL,'用户支付订单-哈哈','130','系统','2026-02-03 02:02:01'),
+	(50,36,'LSH202602030202018704','支出',500.00,16500.00,16000.00,'2026-02-03 02:02:01','押金划拨',NULL,97,'首月服务费划拨-ORD1770055245749','基本账户','系统','2026-02-03 02:02:01');
+
+/*!40000 ALTER TABLE `supervision_account_log` ENABLE KEYS */;
+UNLOCK TABLES;
 
 
 # 转储表 sys_banner
@@ -2316,7 +2416,7 @@ CREATE TABLE `sys_logininfor` (
   PRIMARY KEY (`info_id`),
   KEY `idx_sys_logininfor_s` (`status`),
   KEY `idx_sys_logininfor_lt` (`login_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=949 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='系统访问记录';
+) ENGINE=InnoDB AUTO_INCREMENT=957 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='系统访问记录';
 
 LOCK TABLES `sys_logininfor` WRITE;
 /*!40000 ALTER TABLE `sys_logininfor` DISABLE KEYS */;
@@ -2377,7 +2477,15 @@ VALUES
 	(945,'jg909876','127.0.0.1','内网IP','Chrome 14','Mac OS X','0','退出成功','2026-02-03 01:21:51'),
 	(946,'jg696562','127.0.0.1','内网IP','Chrome 14','Mac OS X','0','登录成功','2026-02-03 01:22:01'),
 	(947,'jg696562','127.0.0.1','内网IP','Chrome 14','Mac OS X','0','退出成功','2026-02-03 01:22:18'),
-	(948,'jg765678','127.0.0.1','内网IP','Chrome 14','Mac OS X','0','登录成功','2026-02-03 01:22:26');
+	(948,'jg765678','127.0.0.1','内网IP','Chrome 14','Mac OS X','0','登录成功','2026-02-03 01:22:26'),
+	(949,'jg765678','127.0.0.1','内网IP','Chrome 14','Mac OS X','0','退出成功','2026-02-03 01:45:17'),
+	(950,'admin','127.0.0.1','内网IP','Chrome 14','Mac OS X','0','登录成功','2026-02-03 01:53:06'),
+	(951,'admin','127.0.0.1','内网IP','Chrome 14','Mac OS X','0','退出成功','2026-02-03 02:01:02'),
+	(952,'jg765678','127.0.0.1','内网IP','Chrome 14','Mac OS X','0','登录成功','2026-02-03 02:01:10'),
+	(953,'jg765678','127.0.0.1','内网IP','Chrome 14','Mac OS X','0','退出成功','2026-02-03 02:03:22'),
+	(954,'admin','127.0.0.1','内网IP','Chrome 14','Mac OS X','0','登录成功','2026-02-03 02:03:25'),
+	(955,'admin','127.0.0.1','内网IP','Chrome 14','Mac OS X','0','退出成功','2026-02-03 02:23:14'),
+	(956,'jg765678','127.0.0.1','内网IP','Chrome 14','Mac OS X','0','登录成功','2026-02-03 02:23:28');
 
 /*!40000 ALTER TABLE `sys_logininfor` ENABLE KEYS */;
 UNLOCK TABLES;
@@ -2825,7 +2933,7 @@ CREATE TABLE `sys_oper_log` (
   KEY `idx_sys_oper_log_bt` (`business_type`),
   KEY `idx_sys_oper_log_s` (`status`),
   KEY `idx_sys_oper_log_ot` (`oper_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=818 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='操作日志记录';
+) ENGINE=InnoDB AUTO_INCREMENT=820 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='操作日志记录';
 
 LOCK TABLES `sys_oper_log` WRITE;
 /*!40000 ALTER TABLE `sys_oper_log` DISABLE KEYS */;
@@ -2847,7 +2955,9 @@ VALUES
 	(814,'提交维护申请',2,'com.ruoyi.web.controller.PensionInstitutionController.submitMaintain()','PUT',1,'jg909876',NULL,'/pension/institution/maintain/submit','127.0.0.1','内网IP','{\"actualAddress\":\"啊是短发阿道夫\",\"applyTime\":\"2026-02-03 00:56:15\",\"approvalCertificate\":\"/profile/upload/2026/02/01/5033.jpg_wh300_20260201011409A002.jpg\",\"areaCode\":\"410102\",\"bankAccount\":\"234234234\",\"bedCount\":1000,\"businessLicense\":\"/profile/upload/2026/02/01/4255.jpg_wh860_20260201011406A001.jpg\",\"contactPerson\":\"陈飞飞\",\"contactPhone\":\"18678909876\",\"creditCode\":\"914101009876789876\",\"establishedDate\":\"2020-10-13\",\"feeRange\":\"2000-5000元/月\",\"fixedAssets\":500.0,\"institutionId\":41,\"institutionName\":\"郑州惠济区养老投资集团\",\"institutionType\":\"1\",\"institutionTypeText\":\"民办机构\",\"organizer\":\"啊啊是短发啊的\",\"params\":{},\"recordNumber\":\"234234\",\"registeredAddress\":\"啊啊的\",\"registeredCapital\":500.0,\"responsibleAddress\":\"啊是短发啊是短发\",\"responsibleIdCard\":\"412829198902207654\",\"responsibleName\":\"啊是的\",\"responsiblePhone\":\"18678987656\",\"status\":\"6\",\"street\":\"航海西路街道办事处\",\"superviseAccount\":\"345234\",\"supervisionAgreement\":\"/profile/upload/2026/02/01/0112915ae19d20a80120927b516925 (1)_20260201011413A003.jpg\",\"updateTime\":\"2026-02-03 00:56:15\"}','{\"msg\":\"操作成功\",\"code\":200}',0,NULL,'2026-02-03 00:56:15',19),
 	(815,'提交机构入驻申请',1,'com.ruoyi.web.controller.PensionInstitutionController.submitApply()','POST',1,'jg909876',NULL,'/pension/institution/apply/submit','127.0.0.1','内网IP','{\"actualAddress\":\"按说\",\"applyTime\":\"2026-02-03 00:59:33\",\"approvalCertificate\":\"/profile/upload/2026/02/03/ScreenShot_2026-01-08_144242_956_20260203005927A002.png\",\"areaCode\":\"410102\",\"bankAccount\":\"234234\",\"bedCount\":100,\"businessLicense\":\"/profile/upload/2026/02/03/下载_20260203005925A001.png\",\"contactPerson\":\"陈的\",\"contactPhone\":\"18539279011\",\"createTime\":\"2026-02-03 00:59:33\",\"creditCode\":\"999999999999999999\",\"establishedDate\":\"2025-09-01\",\"feeRange\":\"1000-3000\",\"fixedAssets\":50.0,\"institutionId\":42,\"institutionName\":\"测试惠济区养老集团\",\"institutionType\":\"nursing_home\",\"institutionTypeText\":\"未知类型(nursing_home)\",\"organizer\":\"阿斯蒂芬\",\"params\":{},\"recordNumber\":\"87667\",\"registeredAddress\":\"测试地址\",\"registeredCapital\":400.0,\"responsibleAddress\":\"青蛙操场\",\"responsibleIdCard\":\"412829198902204567\",\"responsibleName\":\"快快快\",\"responsiblePhone\":\"18647890987\",\"status\":\"0\",\"street\":\"航海西路街道办事处\",\"superviseAccount\":\"88787878\",\"supervisionAgreement\":\"/profile/upload/2026/02/03/ScreenShot_2026-01-08_144242_956_20260203005931A003.png\"}','{\"msg\":\"操作成功\",\"code\":200}',0,NULL,'2026-02-03 00:59:33',10),
 	(816,'养老机构信息',2,'com.ruoyi.web.controller.PensionInstitutionController.edit()','PUT',1,'jg909876',NULL,'/pension/institution','127.0.0.1','内网IP','{\"actualAddress\":\"按说\",\"applyTime\":\"2026-02-03 00:59:33\",\"approvalCertificate\":\"/profile/upload/2026/02/03/ScreenShot_2026-01-08_144242_956_20260203005927A002.png\",\"areaCode\":\"410102\",\"bankAccount\":\"234234\",\"bedCount\":100,\"blacklistFlag\":\"0\",\"businessLicense\":\"/profile/upload/2026/02/03/下载_20260203005925A001.png\",\"contactPerson\":\"陈的\",\"contactPhone\":\"18539279011\",\"createBy\":\"\",\"createTime\":\"2026-02-03 00:59:33\",\"creditCode\":\"999999999999999999\",\"establishedDate\":\"2025-09-01\",\"feeRange\":\"1000-3000\",\"fixedAssets\":50.0,\"freeTrial\":\"0\",\"institutionId\":42,\"institutionName\":\"测试惠济区养老集团\",\"institutionNature\":\"1\",\"institutionType\":\"nursing_home\",\"institutionTypeText\":\"未知类型(nursing_home)\",\"organizer\":\"阿斯蒂芬\",\"params\":{},\"priceRangeMax\":0,\"priceRangeMin\":0,\"ratingLevel\":3,\"recordNumber\":\"87667\",\"registeredAddress\":\"测试地址\",\"registeredCapital\":400.0,\"responsibleAddress\":\"青蛙操场\",\"responsibleIdCard\":\"412829198902204567\",\"responsibleName\":\"快快快\",\"responsiblePhone\":\"18647890987\",\"status\":\"4\",\"street\":\"航海西路街道办事处\",\"superviseAccount\":\"88787878\",\"supervisionAgreement\":\"/profile/upload/2026/02/03/ScreenShot_2026-01-08_144242_956_20260203005931A003.png\",\"updateBy\":\"\",\"updateTime\":\"2026-02-03 01:06:20\"}','{\"msg\":\"操作成功\",\"code\":200}',0,NULL,'2026-02-03 01:06:20',30),
-	(817,'提交机构入驻申请',1,'com.ruoyi.web.controller.PensionInstitutionController.submitApply()','POST',1,'jg909876',NULL,'/pension/institution/apply/submit','127.0.0.1','内网IP','{\"actualAddress\":\"按说\",\"applyTime\":\"2026-02-03 01:06:29\",\"approvalCertificate\":\"/profile/upload/2026/02/03/ScreenShot_2026-01-08_144242_956_20260203005927A002.png\",\"areaCode\":\"410102\",\"bankAccount\":\"234234\",\"basicBank\":\"阿斯蒂芬\",\"bedCount\":100,\"businessLicense\":\"/profile/upload/2026/02/03/下载_20260203005925A001.png\",\"contactPerson\":\"陈的\",\"contactPhone\":\"18539279011\",\"creditCode\":\"999999999999999999\",\"establishedDate\":\"2025-09-01\",\"feeRange\":\"1000-3000\",\"fixedAssets\":50.0,\"institutionId\":42,\"institutionName\":\"测试惠济区养老集团\",\"institutionType\":\"nursing_home\",\"institutionTypeText\":\"未知类型(nursing_home)\",\"organizer\":\"阿斯蒂芬\",\"params\":{},\"recordNumber\":\"87667\",\"registeredAddress\":\"测试地址\",\"registeredCapital\":400.0,\"responsibleAddress\":\"青蛙操场\",\"responsibleIdCard\":\"412829198902204567\",\"responsibleName\":\"快快快\",\"responsiblePhone\":\"18647890987\",\"status\":\"0\",\"street\":\"航海西路街道办事处\",\"superviseAccount\":\"88787878\",\"superviseBank\":\"阿萨德\",\"supervisionAgreement\":\"/profile/upload/2026/02/03/ScreenShot_2026-01-08_144242_956_20260203005931A003.png\",\"updateTime\":\"2026-02-03 01:06:29\"}','{\"msg\":\"操作成功\",\"code\":200}',0,NULL,'2026-02-03 01:06:29',17);
+	(817,'提交机构入驻申请',1,'com.ruoyi.web.controller.PensionInstitutionController.submitApply()','POST',1,'jg909876',NULL,'/pension/institution/apply/submit','127.0.0.1','内网IP','{\"actualAddress\":\"按说\",\"applyTime\":\"2026-02-03 01:06:29\",\"approvalCertificate\":\"/profile/upload/2026/02/03/ScreenShot_2026-01-08_144242_956_20260203005927A002.png\",\"areaCode\":\"410102\",\"bankAccount\":\"234234\",\"basicBank\":\"阿斯蒂芬\",\"bedCount\":100,\"businessLicense\":\"/profile/upload/2026/02/03/下载_20260203005925A001.png\",\"contactPerson\":\"陈的\",\"contactPhone\":\"18539279011\",\"creditCode\":\"999999999999999999\",\"establishedDate\":\"2025-09-01\",\"feeRange\":\"1000-3000\",\"fixedAssets\":50.0,\"institutionId\":42,\"institutionName\":\"测试惠济区养老集团\",\"institutionType\":\"nursing_home\",\"institutionTypeText\":\"未知类型(nursing_home)\",\"organizer\":\"阿斯蒂芬\",\"params\":{},\"recordNumber\":\"87667\",\"registeredAddress\":\"测试地址\",\"registeredCapital\":400.0,\"responsibleAddress\":\"青蛙操场\",\"responsibleIdCard\":\"412829198902204567\",\"responsibleName\":\"快快快\",\"responsiblePhone\":\"18647890987\",\"status\":\"0\",\"street\":\"航海西路街道办事处\",\"superviseAccount\":\"88787878\",\"superviseBank\":\"阿萨德\",\"supervisionAgreement\":\"/profile/upload/2026/02/03/ScreenShot_2026-01-08_144242_956_20260203005931A003.png\",\"updateTime\":\"2026-02-03 01:06:29\"}','{\"msg\":\"操作成功\",\"code\":200}',0,NULL,'2026-02-03 01:06:29',17),
+	(818,'新增老人信息',1,'com.ruoyi.web.controller.h5.H5UserController.addElder()','POST',1,'zhb_1670890634337372',NULL,'/h5/user/addElder','192.168.31.67','内网IP','{\"elderName\":\"哈哈\",\"relationType\":\"5\",\"age\":\"86\",\"idCard\":\"412829195002205326\",\"phone\":\"18539265868\",\"emergencyContact\":\"好多好\",\"emergencyPhone\":\"18539658563\",\"address\":\"\",\"healthStatus\":\"\",\"medicalHistory\":\"\",\"photoPath\":\"/profile/upload/2026/02/03/ScreenShot_2026-01-08_144242_956_20260203020030A001.png\"}','{\"msg\":\"新增老人信息成功\",\"code\":200}',0,NULL,'2026-02-03 02:00:30',57),
+	(819,'审核订单',2,'com.ruoyi.web.controller.OrderInfoController.approve()','PUT',1,'jg765678',NULL,'/order/info/approve','127.0.0.1','内网IP','{\"monthCount\":12,\"orderAmount\":16500,\"orderId\":97,\"orderStatus\":\"5\",\"params\":{},\"remark\":\"床位费：400元/月\\\\n护理费：100元/月\\\\n护理等级：自理\\\\n服务费合计：500.00元/月\\\\n缴费月数：12个月\\\\n押金：10000元\\\\n会员费：500元\\\\n总计：16500.00元\",\"unpaidAmount\":0,\"updateTime\":\"2026-02-03 02:01:30\"}','{\"msg\":\"操作成功\",\"code\":200}',0,NULL,'2026-02-03 02:01:30',20);
 
 /*!40000 ALTER TABLE `sys_oper_log` ENABLE KEYS */;
 UNLOCK TABLES;
@@ -3440,7 +3550,7 @@ LOCK TABLES `sys_user` WRITE;
 
 INSERT INTO `sys_user` (`user_id`, `dept_id`, `user_name`, `nick_name`, `real_name`, `user_type`, `user_category`, `email`, `phonenumber`, `id_card`, `sex`, `avatar`, `password`, `status`, `del_flag`, `login_ip`, `login_date`, `pwd_update_date`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`, `zid`)
 VALUES
-	(1,103,'admin','超管',NULL,'00','1','chaoguan@163.com','15888888888',NULL,'1','/profile/avatar/2026/01/27/a55f1dff5be14d4eb72de40e277d375f.png','$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2','0','0','127.0.0.1','2026-02-03 01:20:06','2025-10-28 02:47:08','admin','2025-10-28 02:47:08','admin','2026-01-27 02:20:30','管理员',NULL),
+	(1,103,'admin','超管',NULL,'00','1','chaoguan@163.com','15888888888',NULL,'1','/profile/avatar/2026/01/27/a55f1dff5be14d4eb72de40e277d375f.png','$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2','0','0','127.0.0.1','2026-02-03 02:03:26','2025-10-28 02:47:08','admin','2025-10-28 02:47:08','admin','2026-01-27 02:20:30','管理员',NULL),
 	(2,105,'ry','若依',NULL,'00','1','ry@qq.com','15666666666',NULL,'1','','$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2','0','2','127.0.0.1','2025-10-28 02:47:08','2025-10-28 02:47:08','admin','2025-10-28 02:47:08','',NULL,'测试员',NULL),
 	(100,103,'supervision','民政监管员',NULL,'00','1','supervision@qq.com','13800138001',NULL,'1','','$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE/TP57rDdaTpe','0','2','127.0.0.1','2025-10-29 04:49:09',NULL,'admin','2025-10-29 04:49:09','',NULL,'民政监管测试账号，密码：admin123',NULL),
 	(101,NULL,'jigouuser','机构测试员',NULL,'00','1','','',NULL,'0','','$2a$10$xNzJB66SbFN9kTTqpZgkb..0Z.8Ex3TmjC1Yszvr5TtrDoCxL7YH6','0','2','127.0.0.1','2025-12-29 16:02:42',NULL,'admin','2025-11-10 02:23:12','',NULL,NULL,NULL),
@@ -3465,7 +3575,7 @@ VALUES
 	(120,NULL,'15981934928','张可','付晓宁','00','1','','15981934928','41132219890220532X','0','/profile/avatar/2026/01/26/872f7c6d980e475fb3521e437315b3a2.png','e10adc3949ba59abbe56e057f20f883e','0','0','',NULL,NULL,'','2026-01-25 23:01:00','zhb_system','2026-01-31 11:43:27',NULL,'1669450068350146'),
 	(121,NULL,'jg963477','郑州夕阳红养老公司-杨俊',NULL,'00','1','','13663963477',NULL,'0','','$2a$10$c.q.JKPj6PTiXoAMocxnHOZxtecCfYyA2F9xroF/SyBvAqXzJe1uS','0','0','127.0.0.1','2026-01-31 16:21:50',NULL,'admin','2026-01-26 18:20:03','',NULL,NULL,NULL),
 	(122,NULL,'jg893456','郑州市港区养老集团有限公司-汪正',NULL,'00','1','','18767893456',NULL,'0','','$2a$10$D1WnbIjA5H8ndRJvSmaJ5uxV5addoS5Gjw8K.bK9EuanF7A0/V0ui','0','0','127.0.0.1','2026-01-30 00:43:05',NULL,'admin','2026-01-27 02:19:43','',NULL,NULL,NULL),
-	(123,NULL,'jg765678','郑州高新养老集团-测试',NULL,'00','1','','18908765678',NULL,'0','','$2a$10$LiKbuhYitm2T8jf8FBl.4O6Jr0DD6DoW5zFup9RjITxprbPRoCt8C','0','0','127.0.0.1','2026-02-03 01:22:26',NULL,'admin','2026-01-27 09:52:11','',NULL,NULL,NULL),
+	(123,NULL,'jg765678','郑州高新养老集团-测试',NULL,'00','1','','18908765678',NULL,'0','','$2a$10$LiKbuhYitm2T8jf8FBl.4O6Jr0DD6DoW5zFup9RjITxprbPRoCt8C','0','0','127.0.0.1','2026-02-03 02:23:28',NULL,'admin','2026-01-27 09:52:11','',NULL,NULL,NULL),
 	(124,NULL,'elder_412829198908170098','美美',NULL,'00','1','','17890987654',NULL,'0','','e10adc3949ba59abbe56e057f20f883e','0','0','',NULL,NULL,'system','2026-01-27 23:29:14','',NULL,NULL,NULL),
 	(125,NULL,'elder_412829195002208765','啊是',NULL,'00','1','','13667898765',NULL,'0','','e10adc3949ba59abbe56e057f20f883e','0','0','',NULL,NULL,'system','2026-01-28 01:37:43','',NULL,NULL,NULL),
 	(126,NULL,'elder_412829195602207654','哈哈哈',NULL,'00','1','','18547892888',NULL,'0','','e10adc3949ba59abbe56e057f20f883e','0','0','',NULL,NULL,'system','2026-01-28 03:21:09','',NULL,NULL,NULL),

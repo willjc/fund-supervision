@@ -262,9 +262,11 @@ public class BankReconciliationController extends BaseController
     {
         startPage();
 
-        // 数据权限过滤：只查询当前用户有权限的机构
-        Long currentUserId = getUserId();
-        paymentRecord.getParams().put("currentUserId", currentUserId);
+        // 数据权限过滤: 只对机构用户过滤，监管用户可以看到所有机构的流水
+        if (!isSupervisionUser()) {
+            Long currentUserId = getUserId();
+            paymentRecord.getParams().put("currentUserId", currentUserId);
+        }
 
         List<PaymentRecord> list = paymentRecordService.selectPaymentRecordList(paymentRecord);
 

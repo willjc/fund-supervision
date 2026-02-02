@@ -5,10 +5,12 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.Random;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
+import com.ruoyi.service.pension.ISupervisionAccountLogService;
 
 /**
  * 民政监管-账户管理Controller
@@ -20,42 +22,42 @@ import com.ruoyi.common.core.page.TableDataInfo;
 @RequestMapping("/supervision/account")
 public class AccountManageController extends BaseController
 {
+    @Autowired
+    private ISupervisionAccountLogService supervisionAccountLogService;
+
+    /**
+     * 获取机构账户统计数据
+     */
+    @GetMapping("/institution/statistics")
+    public AjaxResult getInstitutionStatistics()
+    {
+        Map<String, Object> statistics = supervisionAccountLogService.getInstitutionStatistics();
+        return success(statistics);
+    }
+
     /**
      * 机构账户查询列表
      */
     @GetMapping("/institution/list")
     public TableDataInfo getInstitutionAccountList(
             @RequestParam(required = false) String institutionName,
+            @RequestParam(required = false) String accountStatus,
             @RequestParam(required = false) String accountType,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "10") Integer pageSize)
     {
-        List<Map<String, Object>> list = new ArrayList<>();
-        Random random = new Random();
+        startPage();
 
-        // TODO: 从数据库查询机构账户信息
-        String[] institutions = {"幸福养老院", "夕阳红公寓", "康乐养老中心"};
-        String[] types = {"基本存款账户", "专用存款账户", "一般存款账户"};
-
-        for (int i = 0; i < 8; i++) {
-            Map<String, Object> item = new HashMap<>();
-            item.put("institutionName", institutions[random.nextInt(institutions.length)]);
-            item.put("accountNo", "62220212345678" + (1000 + i));
-            item.put("accountName", institutions[random.nextInt(institutions.length)] + "资金账户");
-            item.put("accountType", types[random.nextInt(types.length)]);
-            item.put("bankName", "工商银行");
-            item.put("accountBalance", random.nextDouble() * 5000000 + 1000000);
-            item.put("freezeAmount", random.nextDouble() * 100000);
-            item.put("availableBalance", random.nextDouble() * 4000000 + 900000);
-            item.put("status", "正常");
-            item.put("openTime", "2024-01-" + (10 + i) + " 10:00:00");
-            list.add(item);
+        Map<String, Object> params = new HashMap<>();
+        if (institutionName != null && !institutionName.isEmpty()) {
+            params.put("institutionName", institutionName);
+        }
+        if (accountStatus != null && !accountStatus.isEmpty()) {
+            params.put("accountStatus", accountStatus);
         }
 
-        TableDataInfo dataInfo = new TableDataInfo();
-        dataInfo.setRows(list);
-        dataInfo.setTotal(list.size());
-        return dataInfo;
+        List<Map<String, Object>> list = supervisionAccountLogService.selectInstitutionAccountList(params);
+        return getDataTable(list);
     }
 
     /**

@@ -289,4 +289,119 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         ORDER BY ft.billing_month ASC
     </select>
 
+    <!-- 计算机构的监管账户余额 -->
+    <!-- 监管账户余额 = 未拨付的拨付单金额 + 所有老人押金总和 - 已拨付的押金金额 -->
+    <select id="calculateSupervisionBalance" parameterType="Long" resultType="java.math.BigDecimal">
+        SELECT COALESCE(
+            (SELECT COALESCE(SUM(transfer_amount), 0)
+             FROM fund_transfer
+             WHERE institution_id = #{institutionId}
+             AND is_paid != '1'
+             AND transfer_type != '3')  -- 未拨付的拨付单金额（不含押金划拨）
+            +
+            (SELECT COALESCE(SUM(deposit_balance), 0)
+             FROM account_info
+             WHERE institution_id = #{institutionId})  -- 所有老人押金总和
+            -
+            (SELECT COALESCE(SUM(transfer_amount), 0)
+             FROM fund_transfer
+             WHERE institution_id = #{institutionId}
+             AND transfer_type = '3'
+             AND is_paid = '1'), 0  -- 已拨付的押金金额
+        0) as balance
+    </select>
+
+    <!-- 计算机构的预收费余额（未拨付的拨付单金额，不含押金划拨） -->
+    <select id="calculatePrepaidBalance" parameterType="Long" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(transfer_amount), 0)
+        FROM fund_transfer
+        WHERE institution_id = #{institutionId}
+        AND is_paid != '1'
+        AND transfer_type != '3'  -- 不含押金划拨（特殊申请）
+    </select>
+
+    <!-- 计算机构的押金余额（该机构所有老人的 deposit_balance 总和） -->
+    <select id="calculateDepositBalance" parameterType="Long" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(deposit_balance), 0)
+        FROM account_info
+        WHERE institution_id = #{institutionId}
+    </select>
+
+    <!-- 获取所有机构的账户统计列表 -->
+    <select id="selectInstitutionAccountList" resultType="java.util.Map">
+        SELECT
+            pi.institution_id as institutionId,
+            pi.institution_name as institutionName,
+            pi.supervise_account as superviseAccount,
+            pi.supervise_bank as superviseBank,
+            pi.bank_account as bankAccount,
+            pi.basic_bank as basicBank,
+            pi.supervise_account_status as accountStatus,
+            pi.status as institutionStatus,
+            pi.approve_time as approveTime,
+            (SELECT COALESCE(SUM(transfer_amount), 0)
+             FROM fund_transfer
+             WHERE institution_id = pi.institution_id
+             AND is_paid != '1'
+             AND transfer_type != '3') as prepaidBalance,
+            (SELECT COALESCE(SUM(deposit_balance), 0)
+             FROM account_info
+             WHERE institution_id = pi.institution_id) as depositBalance,
+            ((SELECT COALESCE(SUM(transfer_amount), 0)
+              FROM fund_transfer
+              WHERE institution_id = pi.institution_id
+              AND is_paid != '1'
+              AND transfer_type != '3')
+             +
+             (SELECT COALESCE(SUM(deposit_balance), 0)
+              FROM account_info
+              WHERE institution_id = pi.institution_id)
+             -
+             (SELECT COALESCE(SUM(transfer_amount), 0)
+              FROM fund_transfer
+              WHERE institution_id = pi.institution_id
+              AND transfer_type = '3'
+              AND is_paid = '1')) as supervisionBalance
+        FROM pension_institution pi
+        <where>
+            <if test="params.institutionName != null and params.institutionName != ''">
+                AND pi.institution_name LIKE CONCAT('%', #{params.institutionName}, '%')
+            </if>
+            <if test="params.accountStatus != null and params.accountStatus != ''">
+                AND pi.supervise_account_status = #{params.accountStatus}
+            </if>
+        </where>
+        ORDER BY pi.institution_id
+    </select>
+
+    <!-- 获取所有机构的账户统计数据 -->
+    <select id="selectInstitutionStatistics" resultType="java.util.Map">
+        SELECT
+            COUNT(*) as institutionCount,
+            COALESCE(SUM(
+                (SELECT COALESCE(SUM(transfer_amount), 0)
+                 FROM fund_transfer
+                 WHERE institution_id = pi.institution_id
+                 AND is_paid != '1'
+                 AND transfer_type != '3')
+                +
+                (SELECT COALESCE(SUM(deposit_balance), 0)
+                 FROM account_info
+                 WHERE institution_id = pi.institution_id)
+                -
+                (SELECT COALESCE(SUM(transfer_amount), 0)
+                 FROM fund_transfer
+                 WHERE institution_id = pi.institution_id
+                 AND transfer_type = '3'
+                 AND is_paid = '1')
+            ), 0) as totalSupervisionBalance,
+            (SELECT COUNT(*)
+             FROM pension_institution
+             WHERE supervise_account_status = '2') as frozenAccountCount,
+            (SELECT COUNT(*)
+             FROM pension_institution
+             WHERE supervise_account_status = '3') as abnormalAccountCount
+        FROM pension_institution pi
+    </select>
+
 </mapper>

@@ -132,4 +132,46 @@ public interface ISupervisionAccountLogService
      * @return 资金划拨记录列表
      */
     public List<Map<String, Object>> selectTransferRecordList(Map<String, Object> params);
+
+    /**
+     * 计算机构的监管账户余额
+     * 监管账户余额 = 未拨付的拨付单金额 + 所有老人押金总和 - 已拨付的押金金额
+     *
+     * @param institutionId 机构ID
+     * @return 监管账户余额
+     */
+    public java.math.BigDecimal calculateSupervisionBalance(Long institutionId);
+
+    /**
+     * 计算机构的预收费余额（未拨付的拨付单金额，不含押金划拨）
+     *
+     * @param institutionId 机构ID
+     * @return 预收费余额
+     */
+    public java.math.BigDecimal calculatePrepaidBalance(Long institutionId);
+
+    /**
+     * 计算机构的押金余额（该机构所有老人的 deposit_balance 总和）
+     *
+     * @param institutionId 机构ID
+     * @return 押金余额
+     */
+    public java.math.BigDecimal calculateDepositBalance(Long institutionId);
+
+    /**
+     * 获取所有机构的账户统计列表
+     * 用于管理端机构账户查询页面
+     *
+     * @param params 查询参数（包含institutionName, accountStatus等）
+     * @return 机构账户列表
+     */
+    public List<Map<String, Object>> selectInstitutionAccountList(Map<String, Object> params);
+
+    /**
+     * 获取所有机构的账户统计数据
+     * 包含：机构总数、监管账户总余额、冻结账户数、异常账户数
+     *
+     * @return 统计数据
+     */
+    public Map<String, Object> getInstitutionStatistics();
 }

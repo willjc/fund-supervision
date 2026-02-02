@@ -1,5 +1,13 @@
 import request from '@/utils/request'
 
+// 查询机构账户统计数据
+export function getInstitutionStatistics() {
+  return request({
+    url: '/supervision/account/institution/statistics',
+    method: 'get'
+  })
+}
+
 // 查询机构账户列表
 export function listInstitutionAccount(query) {
   return request({
