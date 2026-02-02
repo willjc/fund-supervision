@@ -290,7 +290,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </select>
 
     <!-- 计算机构的监管账户余额 -->
-    <!-- 监管账户余额 = 未拨付的拨付单金额 + 所有老人押金总和 - 已拨付的押金金额 -->
+    <!-- 监管账户余额 = 未拨付的拨付单金额 + 所有老人押金总和 + 会员费 - 已拨付的押金金额 -->
     <select id="calculateSupervisionBalance" parameterType="Long" resultType="java.math.BigDecimal">
         SELECT COALESCE(
             (SELECT COALESCE(SUM(transfer_amount), 0)
@@ -302,6 +302,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             (SELECT COALESCE(SUM(deposit_balance), 0)
              FROM account_info
              WHERE institution_id = #{institutionId})  -- 所有老人押金总和
+            +
+            (SELECT COALESCE(SUM(member_balance), 0)
+             FROM account_info
+             WHERE institution_id = #{institutionId})  -- 所有老人会员费总和
             -
             (SELECT COALESCE(SUM(transfer_amount), 0)
              FROM fund_transfer
@@ -312,6 +316,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </select>
 
     <!-- 计算机构的预收费余额（未拨付的拨付单金额，不含押金划拨） -->
+    <!-- 监管账户余额 = 未拨付的拨付单金额 + 所有老人押金总和 + 所有老人会员费总和 - 已拨付的押金金额 -->
     <select id="calculatePrepaidBalance" parameterType="Long" resultType="java.math.BigDecimal">
         SELECT COALESCE(SUM(transfer_amount), 0)
         FROM fund_transfer
@@ -356,6 +361,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
              (SELECT COALESCE(SUM(deposit_balance), 0)
               FROM account_info
               WHERE institution_id = pi.institution_id)
+             +
+             (SELECT COALESCE(SUM(member_balance), 0)
+              FROM account_info
+              WHERE institution_id = pi.institution_id)
              -
              (SELECT COALESCE(SUM(transfer_amount), 0)
               FROM fund_transfer
@@ -386,6 +395,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                  AND transfer_type != '3')
                 +
                 (SELECT COALESCE(SUM(deposit_balance), 0)
+                 FROM account_info
+                 WHERE institution_id = pi.institution_id)
+                +
+                (SELECT COALESCE(SUM(member_balance), 0)
                  FROM account_info
                  WHERE institution_id = pi.institution_id)
                 -

@@ -143,23 +143,13 @@
             @click="handleDetail(scope.row)"
             v-hasPermi="['pension:institution:query']"
           >详情</el-button>
-          <el-button
-            size="mini"
-            type="text"
-            icon="el-icon-edit"
-            @click="handleEdit(scope.row)"
-            v-hasPermi="['pension:institution:edit']"
-          >编辑</el-button>
           <el-dropdown @command="(command) => handleCommand(command, scope.row)" style="margin-left: 5px;">
             <el-button size="mini" type="text">
               更多<i class="el-icon-arrow-down el-icon--right"></i>
             </el-button>
             <el-dropdown-menu slot="dropdown">
-              <el-dropdown-item command="freeze" v-if="scope.row.status === '1'" v-hasPermi="['pension:institution:freeze']">冻结机构</el-dropdown-item>
-              <el-dropdown-item command="unfreeze" v-if="scope.row.status === '2'" v-hasPermi="['pension:institution:unfreeze']">解除冻结</el-dropdown-item>
-              <el-dropdown-item command="blacklist" v-if="scope.row.status !== '5'" v-hasPermi="['pension:institution:blacklist']">移入黑名单</el-dropdown-item>
-              <el-dropdown-item command="warning" v-hasPermi="['pension:institution:warning']">预警提醒</el-dropdown-item>
-              <el-dropdown-item command="account" v-hasPermi="['pension:institution:account']">账户查看</el-dropdown-item>
+              <el-dropdown-item command="editAccount">维护监管账号</el-dropdown-item>
+              <el-dropdown-item command="blacklist">移入黑名单</el-dropdown-item>
             </el-dropdown-menu>
           </el-dropdown>
         </template>
@@ -348,36 +338,36 @@
 
       <div slot="footer" class="dialog-footer">
         <el-button @click="detailOpen = false">关闭</el-button>
-        <el-button type="primary" @click="handleEdit(currentInstitution)" v-hasPermi="['pension:institution:edit']">编辑信息</el-button>
       </div>
     </el-dialog>
 
-    <!-- 编辑机构对话框 -->
-    <el-dialog title="编辑机构信息" :visible.sync="editOpen" width="600px" append-to-body>
-      <el-form ref="editForm" :model="editForm" :rules="editRules" label-width="120px">
-        <el-form-item label="机构名称" prop="institutionName">
-          <el-input v-model="editForm.institutionName" placeholder="请输入机构名称" />
+
+    <!-- 维���监管账号对话框 -->
+    <el-dialog title="维护监管账号" :visible.sync="accountEditOpen" width="500px" append-to-body>
+      <el-form ref="accountForm" :model="accountForm" label-width="120px">
+        <el-form-item label="监管账户开户行">
+          <el-input v-model="accountForm.superviseBank" placeholder="请输入监管账户开户行" />
         </el-form-item>
-        <el-form-item label="联系人" prop="contactPerson">
-          <el-input v-model="editForm.contactPerson" placeholder="请输入联系人" />
+        <el-form-item label="监管账户">
+          <el-input v-model="accountForm.superviseAccount" placeholder="请输入监管账户" />
         </el-form-item>
-        <el-form-item label="联系电话" prop="contactPhone">
-          <el-input v-model="editForm.contactPhone" placeholder="请输入联系电话" />
+        <el-form-item label="基本账户开户行">
+          <el-input v-model="accountForm.basicBank" placeholder="请输入基本账户开户行" />
         </el-form-item>
-        <el-form-item label="实际经营地址" prop="actualAddress">
-          <el-input v-model="editForm.actualAddress" type="textarea" placeholder="请输入实际经营地址" />
+        <el-form-item label="基本账户">
+          <el-input v-model="accountForm.bankAccount" placeholder="请输入基本账户" />
         </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
-        <el-button type="primary" @click="submitEdit">确 定</el-button>
-        <el-button @click="cancelEdit">取 消</el-button>
+        <el-button @click="accountEditOpen = false">取 消</el-button>
+        <el-button type="primary" @click="submitAccountEdit">确 定</el-button>
       </div>
     </el-dialog>
   </div>
 </template>
 
 <script>
-import { listInstitution, getInstitution, editInstitutionAccount, approveInstitution, rejectInstitution, addToBlacklist as addToBlacklistApi } from "@/api/supervision/institution";
+import { listInstitution, getInstitution, approveInstitution, updateInstitution, addToBlacklist as addToBlacklistApi } from "@/api/supervision/institution";
 import { listAttachment } from "@/api/pension/institution";
 
 export default {
@@ -401,8 +391,8 @@ export default {
       title: "",
       // 是否显示详情弹出层
       detailOpen: false,
-      // 是否显示编辑弹出层
-      editOpen: false,
+      // 是否显示维护监管账号对话框
+      accountEditOpen: false,
       // 当前标签页
       activeTab: 'basic',
       // 当前机构信息
@@ -418,20 +408,8 @@ export default {
         status: null,
         hasSupervisionAccount: null
       },
-      // 编辑表单
-      editForm: {},
-      // 编辑表单校验
-      editRules: {
-        institutionName: [
-          { required: true, message: "机构名称不能为空", trigger: "blur" }
-        ],
-        contactPerson: [
-          { required: true, message: "联系人不能为空", trigger: "blur" }
-        ],
-        contactPhone: [
-          { required: true, message: "联系电话不能为空", trigger: "blur" }
-        ]
-      }
+      // 账户编辑表单
+      accountForm: {}
     };
   },
   created() {
@@ -480,81 +458,35 @@ export default {
         this.attachmentList = response.rows;
       });
     },
-    /** 编辑操作 */
-    handleEdit(row) {
-      const institutionId = row.institutionId;
-      getInstitution(institutionId).then(response => {
-        this.editForm = response.data;
-        this.editOpen = true;
-        this.detailOpen = false;
-      });
-    },
-    /** 提交编辑 */
-    submitEdit() {
-      this.$refs["editForm"].validate(valid => {
-        if (valid) {
-          editInstitutionAccount(this.editForm).then(response => {
-            this.$modal.msgSuccess("修改成功");
-            this.editOpen = false;
-            this.getList();
-          });
-        }
-      });
-    },
-    /** 取消编辑 */
-    cancelEdit() {
-      this.editOpen = false;
-      this.resetForm("editForm");
-    },
     /** 下拉菜单命令 */
     handleCommand(command, row) {
       switch (command) {
-        case 'freeze':
-          this.handleFreeze(row);
-          break;
-        case 'unfreeze':
-          this.handleUnfreeze(row);
+        case 'editAccount':
+          this.handleEditAccount(row);
           break;
         case 'blacklist':
           this.handleAddToBlacklistSingle(row);
           break;
-        case 'warning':
-          this.handleWarning(row);
-          break;
-        case 'account':
-          this.handleViewAccount(row);
-          break;
       }
     },
-    /** 冻结机构 */
-    handleFreeze(row) {
-      this.$modal.confirm('是否确认冻结"' + row.institutionName + '"？').then(() => {
-        return editInstitutionAccount({ ...row, status: '2' });
-      }).then(() => {
-        this.getList();
-        this.$modal.msgSuccess("冻结成功");
-      }).catch(() => {});
+    /** 维护监管账号 */
+    handleEditAccount(row) {
+      this.accountForm = {
+        institutionId: row.institutionId,
+        superviseBank: row.superviseBank || '',
+        superviseAccount: row.superviseAccount || '',
+        basicBank: row.basicBank || '',
+        bankAccount: row.bankAccount || ''
+      };
+      this.accountEditOpen = true;
     },
-    /** 解除冻结 */
-    handleUnfreeze(row) {
-      this.$modal.confirm('是否确认解除冻结"' + row.institutionName + '"？').then(() => {
-        return editInstitutionAccount({ ...row, status: '1' });
-      }).then(() => {
+    /** 提交账户编辑 */
+    submitAccountEdit() {
+      updateInstitution(this.accountForm).then(() => {
+        this.$modal.msgSuccess("账户信息修改成功");
+        this.accountEditOpen = false;
         this.getList();
-        this.$modal.msgSuccess("解除冻结成功");
-      }).catch(() => {});
-    },
-    /** 预警提醒 */
-    handleWarning(row) {
-      this.$modal.notify({
-        title: '预警提醒',
-        message: `已向"${row.institutionName}"发送预警提醒通知`,
-        type: 'warning'
       });
-    },
-    /** 查看账户 */
-    handleViewAccount(row) {
-      this.$modal.msgInfo("账户查看功能开发中...");
     },
     /** 批量移入黑名单 */
     handleAddToBlacklist() {
