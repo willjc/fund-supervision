@@ -85,6 +85,9 @@ public class PaymentRecord extends BaseEntity
     @Excel(name = "机构名称")
     private String institutionName;
 
+    /** 监管账户余额（该笔收单完成时的余额） */
+    private BigDecimal supervisionBalance;
+
     public void setPaymentId(Long paymentId)
     {
         this.paymentId = paymentId;
@@ -240,6 +243,16 @@ public class PaymentRecord extends BaseEntity
     public String getInstitutionName()
     {
         return institutionName;
+    }
+
+    public void setSupervisionBalance(BigDecimal supervisionBalance)
+    {
+        this.supervisionBalance = supervisionBalance;
+    }
+
+    public BigDecimal getSupervisionBalance()
+    {
+        return supervisionBalance;
     }
 
     @Override

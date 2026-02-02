@@ -270,9 +270,6 @@ public class BankReconciliationController extends BaseController
 
         List<PaymentRecord> list = paymentRecordService.selectPaymentRecordList(paymentRecord);
 
-        // 获取当前监管账户余额
-        BigDecimal currentBalance = supervisionAccountLogService.getCurrentBalance(null);
-
         // 转换为前端期望的格式
         List<Map<String, Object>> resultList = new java.util.ArrayList<>();
         for (PaymentRecord record : list) {
@@ -286,7 +283,8 @@ public class BankReconciliationController extends BaseController
             item.put("paymentChannel", record.getPaymentMethod()); // 简化处理
             item.put("fee", BigDecimal.ZERO); // 手续费暂无字段
             item.put("actualAmount", record.getPaymentAmount());
-            item.put("supervisionBalance", currentBalance); // 监管账户余额
+            // 使用从 supervision_account_log 关联查询得到的 balance_after
+            item.put("supervisionBalance", record.getSupervisionBalance() != null ? record.getSupervisionBalance() : BigDecimal.ZERO);
 
             // 支付状态转换
             String status = "处理中";
