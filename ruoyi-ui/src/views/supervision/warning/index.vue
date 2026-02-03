@@ -1,21 +1,21 @@
 <template>
   <div class="app-container">
-    <el-form :model="queryParams" ref="queryForm" size="small" :inline="true" v-show="showSearch" label-width="68px">
+    <el-form :model="queryParams" ref="queryForm" size="small" :inline="true" v-show="showSearch" label-width="80px">
       <el-form-item label="预警类型" prop="warningType">
         <el-select v-model="queryParams.warningType" placeholder="请选择预警类型" clearable>
-          <el-option label="费用超额" value="费用超额" />
-          <el-option label="押金超额" value="押金超额" />
-          <el-option label="入驻超额" value="入驻超额" />
-          <el-option label="监管超额" value="监管超额" />
-          <el-option label="风险保证金" value="风险保证金" />
-          <el-option label="大额支付" value="大额支付" />
-          <el-option label="突发风险" value="突发风险" />
+          <el-option label="预收费用超额" value="1" />
+          <el-option label="押金超额" value="2" />
+          <el-option label="入住人数超额" value="3" />
+          <el-option label="预收总额超额" value="4" />
+          <el-option label="风险保证金超低" value="5" />
+          <el-option label="大额支出" value="6" />
+          <el-option label="交易对方风险" value="7" />
         </el-select>
       </el-form-item>
       <el-form-item label="状态" prop="status">
         <el-select v-model="queryParams.status" placeholder="请选择状态" clearable>
-          <el-option label="待处理" value="待处理" />
-          <el-option label="已处理" value="已处理" />
+          <el-option label="待处理" value="0" />
+          <el-option label="已处理" value="1" />
         </el-select>
       </el-form-item>
       <el-form-item>
@@ -38,34 +38,30 @@
     </el-row>
 
     <el-table v-loading="loading" :data="warningList">
-      <el-table-column label="预警编号" align="center" prop="warningNo" />
-      <el-table-column label="预警类型" align="center" prop="warningType">
+      <el-table-column label="预警时间" align="center" width="180">
         <template slot-scope="scope">
-          <el-tag :type="getWarningTypeTag(scope.row.warningType)">
+          {{ formatDateTime(scope.row.createTime) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="机构名称" align="center" prop="institutionName" width="250" />
+      <el-table-column label="预警事项" align="center" prop="warningType" min-width="150">
+        <template slot-scope="scope">
+          <el-tag :type="getWarningTypeTag(scope.row.warningTypeCode)">
             {{ scope.row.warningType }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="机构名称" align="center" prop="institutionName" />
-      <el-table-column label="预警内容" align="center" prop="warningContent" />
-      <el-table-column label="预警级别" align="center" prop="warningLevel">
-        <template slot-scope="scope">
-          <el-tag :type="scope.row.warningLevel === '高' ? 'danger' : 'warning'">
-            {{ scope.row.warningLevel }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="预警时间" align="center" prop="warningTime" width="180" />
-      <el-table-column label="状态" align="center" prop="status">
+      <el-table-column label="预警内容" align="center" prop="warningContent" min-width="250" show-overflow-tooltip />
+      <el-table-column label="机构联系人" align="center" prop="contactPerson" width="120" />
+      <el-table-column label="联系方式" align="center" prop="contactPhone" width="130" />
+      <el-table-column label="状态" align="center" prop="status" width="100">
         <template slot-scope="scope">
           <el-tag :type="scope.row.status === '已处理' ? 'success' : 'danger'">
             {{ scope.row.status }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="联系人" align="center" prop="contactPerson" />
-      <el-table-column label="联系电话" align="center" prop="contactPhone" />
-      <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
+      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="150" fixed="right">
         <template slot-scope="scope">
           <el-button
             size="mini"
@@ -93,7 +89,7 @@
     />
 
     <!-- 预警详情对话框 -->
-    <el-dialog title="预警详情" :visible.sync="detailOpen" width="800px" append-to-body>
+    <el-dialog title="预警详情" :visible.sync="detailOpen" width="700px" append-to-body>
       <el-descriptions :column="2" border>
         <el-descriptions-item label="预警编号">{{ detailData.warningNo }}</el-descriptions-item>
         <el-descriptions-item label="预警类型">{{ detailData.warningType }}</el-descriptions-item>
@@ -104,14 +100,17 @@
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="预警内容" :span="2">{{ detailData.warningContent }}</el-descriptions-item>
-        <el-descriptions-item label="预警时间">{{ detailData.warningTime }}</el-descriptions-item>
+        <el-descriptions-item label="预警时间">{{ formatDateTime(detailData.createTime) }}</el-descriptions-item>
         <el-descriptions-item label="状态">
           <el-tag :type="detailData.status === '已处理' ? 'success' : 'danger'">
             {{ detailData.status }}
           </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="联系人">{{ detailData.contactPerson }}</el-descriptions-item>
+        <el-descriptions-item label="机构联系人">{{ detailData.contactPerson }}</el-descriptions-item>
         <el-descriptions-item label="联系电话">{{ detailData.contactPhone }}</el-descriptions-item>
+        <el-descriptions-item v-if="detailData.status === '已处理'" label="处理人">{{ detailData.handler }}</el-descriptions-item>
+        <el-descriptions-item v-if="detailData.status === '已处理'" label="处理时间">{{ formatDateTime(detailData.handleTime) }}</el-descriptions-item>
+        <el-descriptions-item v-if="detailData.status === '已处理'" label="处理备注" :span="2">{{ detailData.handleRemark || '无' }}</el-descriptions-item>
       </el-descriptions>
       <div slot="footer" class="dialog-footer">
         <el-button @click="detailOpen = false">关 闭</el-button>
@@ -119,24 +118,21 @@
     </el-dialog>
 
     <!-- 处理预警对话框 -->
-    <el-dialog title="处理预警" :visible.sync="processOpen" width="600px" append-to-body>
-      <el-form ref="processForm" :model="processForm" :rules="processRules" label-width="120px">
+    <el-dialog title="处理预警" :visible.sync="processOpen" width="500px" append-to-body>
+      <el-form ref="processForm" :model="processForm" label-width="100px">
         <el-form-item label="预警编号">
           <el-input v-model="processForm.warningNo" disabled />
         </el-form-item>
-        <el-form-item label="处理方式" prop="handleType">
-          <el-select v-model="processForm.handleType" placeholder="请选择处理方式">
-            <el-option label="电话沟通" value="电话沟通" />
-            <el-option label="现场检查" value="现场检查" />
-            <el-option label="下发通知" value="下发通知" />
-            <el-option label="限期整改" value="限期整改" />
-          </el-select>
+        <el-form-item label="预警内容">
+          <div class="warning-content">{{ processForm.warningContent }}</div>
         </el-form-item>
-        <el-form-item label="处理结果" prop="handleResult">
-          <el-input v-model="processForm.handleResult" type="textarea" placeholder="请输入处理结果" />
-        </el-form-item>
-        <el-form-item label="备注" prop="remark">
-          <el-input v-model="processForm.remark" type="textarea" placeholder="请输入备注" />
+        <el-form-item label="备注">
+          <el-input
+            v-model="processForm.handleRemark"
+            type="textarea"
+            :rows="3"
+            placeholder="请输入处理备注（选填）"
+          />
         </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
@@ -169,17 +165,8 @@ export default {
       },
       processForm: {
         warningNo: '',
-        handleType: '',
-        handleResult: '',
-        remark: ''
-      },
-      processRules: {
-        handleType: [
-          { required: true, message: '处理方式不能为空', trigger: 'change' }
-        ],
-        handleResult: [
-          { required: true, message: '处理结果不能为空', trigger: 'blur' }
-        ]
+        warningContent: '',
+        handleRemark: ''
       }
     }
   },
@@ -213,21 +200,20 @@ export default {
     handleProcess(row) {
       this.processForm = {
         warningNo: row.warningNo,
-        handleType: '',
-        handleResult: '',
-        remark: ''
+        warningContent: row.warningContent,
+        handleRemark: ''
       }
       this.processOpen = true
     },
     submitProcess() {
-      this.$refs['processForm'].validate(valid => {
-        if (valid) {
-          processWarning(this.processForm).then(response => {
-            this.$modal.msgSuccess('处理成功')
-            this.processOpen = false
-            this.getList()
-          })
-        }
+      const data = {
+        warningNo: this.processForm.warningNo,
+        handleRemark: this.processForm.handleRemark
+      }
+      processWarning(data).then(response => {
+        this.$modal.msgSuccess('处理成功')
+        this.processOpen = false
+        this.getList()
       })
     },
     handleExport() {
@@ -235,18 +221,38 @@ export default {
         ...this.queryParams
       }, `warning_${new Date().getTime()}.xlsx`)
     },
-    getWarningTypeTag(type) {
+    getWarningTypeTag(typeCode) {
       const typeMap = {
-        '费用超额': 'danger',
-        '押金超额': 'danger',
-        '入驻超额': 'danger',
-        '监管超额': 'danger',
-        '风险保证金': 'warning',
-        '大额支付': 'warning',
-        '突发风险': 'danger'
+        '1': 'danger',
+        '2': 'warning',
+        '3': 'danger',
+        '4': 'warning',
+        '5': 'danger',
+        '6': 'warning',
+        '7': 'danger'
       }
-      return typeMap[type] || 'info'
+      return typeMap[typeCode] || 'info'
+    },
+    formatDateTime(dateTime) {
+      if (!dateTime) return ''
+      // 处理ISO格式时间字符串
+      const date = new Date(dateTime)
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      const hours = String(date.getHours()).padStart(2, '0')
+      const minutes = String(date.getMinutes()).padStart(2, '0')
+      const seconds = String(date.getSeconds()).padStart(2, '0')
+      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
     }
   }
 }
 </script>
+
+<style scoped>
+.warning-content {
+  color: #606266;
+  font-size: 14px;
+  line-height: 1.5;
+}
+</style>
