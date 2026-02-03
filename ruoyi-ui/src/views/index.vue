@@ -1,5 +1,130 @@
 <template>
   <div class="app-container dashboard">
+    <!-- 机构管理员专属首页 -->
+    <div v-if="isInstitutionManager" class="institution-dashboard">
+
+      <!-- 数据统计卡片区域 -->
+      <div class="info-cards">
+        <!-- 订单统计 -->
+        <div class="info-card">
+          <div class="card-icon blue"><i class="el-icon-document"></i></div>
+          <div class="card-body">
+            <div class="card-title">今日订单</div>
+            <div class="card-value">{{ institutionData.orderStats.orderCount || 0 }} 笔</div>
+            <div class="card-sub">¥{{ formatNumber(institutionData.orderStats.orderAmount) }}</div>
+          </div>
+        </div>
+
+        <!-- 服务费拨付 -->
+        <div class="info-card">
+          <div class="card-icon green"><i class="el-icon-bank-card"></i></div>
+          <div class="card-body">
+            <div class="card-title">本月拨付</div>
+            <div class="card-value">¥{{ formatNumber(institutionData.transferStats.transferAmount) }}</div>
+            <div class="card-sub">{{ institutionData.transferStats.transferCount || 0 }} 笔</div>
+          </div>
+        </div>
+
+        <!-- 押��申请 -->
+        <div class="info-card">
+          <div class="card-icon orange"><i class="el-icon-edit-outline"></i></div>
+          <div class="card-body">
+            <div class="card-title">待审批</div>
+            <div class="card-value">{{ institutionData.depositStats.pending.count || 0 }} 笔</div>
+            <div class="card-sub">¥{{ formatNumber(institutionData.depositStats.pending.amount) }}</div>
+          </div>
+        </div>
+
+        <!-- 已批准 -->
+        <div class="info-card">
+          <div class="card-icon cyan"><i class="el-icon-circle-check"></i></div>
+          <div class="card-body">
+            <div class="card-title">已批准</div>
+            <div class="card-value">{{ institutionData.depositStats.approved.count || 0 }} 笔</div>
+            <div class="card-sub">¥{{ formatNumber(institutionData.depositStats.approved.amount) }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 账户余额区域 -->
+      <div class="balance-section">
+        <div class="section-title">
+          <i class="el-icon-wallet"></i> 账户余额
+        </div>
+        <div class="balance-grid">
+          <div class="balance-item">
+            <div class="balance-label">服务费余额</div>
+            <div class="balance-amount primary">¥{{ formatNumber(institutionData.balanceStats.serviceBalance) }}</div>
+          </div>
+          <div class="balance-item">
+            <div class="balance-label">押金余额</div>
+            <div class="balance-amount warning">¥{{ formatNumber(institutionData.balanceStats.depositBalance) }}</div>
+          </div>
+          <div class="balance-item">
+            <div class="balance-label">会员费余额</div>
+            <div class="balance-amount info">¥{{ formatNumber(institutionData.balanceStats.memberBalance) }}</div>
+          </div>
+          <div class="balance-item">
+            <div class="balance-label">基本户余额</div>
+            <div class="balance-amount success">¥{{ formatNumber(institutionData.balanceStats.basicAccountBalance) }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 入驻人结构分析 -->
+      <div class="structure-section">
+        <div class="section-title">
+          <i class="el-icon-user"></i> 入驻人结构分析
+        </div>
+        <div class="structure-grid">
+          <!-- 性别分布 -->
+          <div class="structure-box">
+            <div class="structure-title">性别分布</div>
+            <div class="structure-list">
+              <div v-for="(item, index) in institutionData.residentStructure.gender" :key="'gender-'+index" class="progress-item">
+                <span class="progress-label">{{ item.name }}</span>
+                <div class="progress-bar">
+                  <div class="progress-fill" :style="{ width: getPercentage(item.value, getTotalGender()) + '%', background: getGenderColor(index) }"></div>
+                </div>
+                <span class="progress-value">{{ item.value }}人</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 年龄分布 -->
+          <div class="structure-box">
+            <div class="structure-title">年龄分布</div>
+            <div class="structure-list">
+              <div v-for="(item, index) in institutionData.residentStructure.age" :key="'age-'+index" class="progress-item">
+                <span class="progress-label">{{ item.ageGroup }}</span>
+                <div class="progress-bar">
+                  <div class="progress-fill" :style="{ width: getPercentage(item.count, getTotalAge()) + '%', background: getAgeColor(index) }"></div>
+                </div>
+                <span class="progress-value">{{ item.count }}人</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 护理等级分布 -->
+          <div class="structure-box">
+            <div class="structure-title">护理等级</div>
+            <div class="structure-list">
+              <div v-for="(item, index) in institutionData.residentStructure.careLevel" :key="'care-'+index" class="progress-item">
+                <span class="progress-label">{{ item.name }}</span>
+                <div class="progress-bar">
+                  <div class="progress-fill" :style="{ width: getPercentage(item.value, getTotalCareLevel()) + '%', background: getCareColor(index) }"></div>
+                </div>
+                <span class="progress-value">{{ item.value }}人</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 原有首页（超管/民政监管员） -->
+    <div v-else class="supervision-dashboard">
     <!-- 核心业务统计卡片 -->
     <el-row :gutter="20" class="statistics-cards">
       <el-col :span="4">
@@ -286,17 +411,62 @@
         </el-card>
       </el-col>
     </el-row>
+    </div>
   </div>
 </template>
 
 <script>
 import * as echarts from 'echarts'
-import { getDashboardOverview, getFundsOverview, getOperationsOverview, getRiskOverview } from '@/api/pension/dashboard'
+import {
+  getDashboardOverview,
+  getFundsOverview,
+  getOperationsOverview,
+  getRiskOverview,
+  getInstitutionOverview,
+  getInstitutionBalance,
+  getInstitutionTransfer,
+  getInstitutionDeposit,
+  getResidentStructure
+} from '@/api/pension/dashboard'
 
 export default {
   name: "Dashboard",
   data() {
     return {
+      // 是否为机构管理员
+      isInstitutionManager: false,
+
+      // 机构管理员首页数据
+      institutionData: {
+        orderStats: {
+          orderCount: 0,
+          orderAmount: 0
+        },
+        balanceStats: {
+          accountCount: 0,
+          serviceBalance: 0,
+          depositBalance: 0,
+          memberBalance: 0,
+          totalBalance: 0,
+          basicAccountBalance: 0
+        },
+        transferStats: {
+          transferCount: 0,
+          transferAmount: 0
+        },
+        depositStats: {
+          pending: { count: 0, amount: 0 },
+          approved: { count: 0, amount: 0 },
+          rejected: { count: 0, amount: 0 }
+        },
+        residentStructure: {
+          gender: [],
+          age: [],
+          careLevel: []
+        }
+      },
+
+      // 原有首页数据（超管/民政监管员）
       overview: {
         institutionCount: 0,
         elderlyCount: 0,
@@ -326,7 +496,7 @@ export default {
     }
   },
   mounted() {
-    this.loadDashboardData()
+    this.detectRoleAndLoad()
     this.initTimer()
   },
   beforeDestroy() {
@@ -338,6 +508,121 @@ export default {
     }
   },
   methods: {
+    /**
+     * 检测用户角色并加载对应首页数据
+     */
+    detectRoleAndLoad() {
+      const roles = this.$store.getters.roles
+      // 判断是否为机构管理员
+      if (roles.includes('jigoumanage')) {
+        this.isInstitutionManager = true
+        this.loadInstitutionDashboard()
+      } else {
+        this.loadDashboardData()
+      }
+    },
+
+    /**
+     * 加载机构管理员首页数据
+     */
+    async loadInstitutionDashboard() {
+      try {
+        const [overview, balance, transfer, deposit, structure] = await Promise.all([
+          getInstitutionOverview(),
+          getInstitutionBalance(),
+          getInstitutionTransfer(),
+          getInstitutionDeposit(),
+          getResidentStructure()
+        ])
+
+        // 订单统计
+        if (overview.data && overview.data.orderStats) {
+          this.institutionData.orderStats = overview.data.orderStats
+        }
+
+        // 账户余额
+        if (balance.data) {
+          this.institutionData.balanceStats = {
+            ...balance.data.accountBalance,
+            basicAccountBalance: balance.data.basicAccountBalance || 0
+          }
+        }
+
+        // 服务费拨付
+        if (transfer.data) {
+          this.institutionData.transferStats = transfer.data
+        }
+
+        // 押金申请统计
+        if (deposit.data) {
+          this.institutionData.depositStats = deposit.data
+        }
+
+        // 入驻人结构分析
+        if (structure.data) {
+          this.institutionData.residentStructure = structure.data
+        }
+
+      } catch (error) {
+        console.error('加载机构首页数据失败:', error)
+      }
+    },
+
+    // ==================== 机构首页辅助方法 ====================
+
+    /**
+     * 计算百分比
+     */
+    getPercentage(value, total) {
+      if (!total || total === 0) return 0
+      return Math.round((value / total) * 100)
+    },
+
+    /**
+     * 获取性别总数
+     */
+    getTotalGender() {
+      return this.institutionData.residentStructure.gender.reduce((sum, item) => sum + (item.value || 0), 0)
+    },
+
+    /**
+     * 获取年龄分布总数
+     */
+    getTotalAge() {
+      return this.institutionData.residentStructure.age.reduce((sum, item) => sum + (item.count || 0), 0)
+    },
+
+    /**
+     * 获取护理等级总数
+     */
+    getTotalCareLevel() {
+      return this.institutionData.residentStructure.careLevel.reduce((sum, item) => sum + (item.value || 0), 0)
+    },
+
+    /**
+     * 获取性别颜色
+     */
+    getGenderColor(index) {
+      const colors = ['#409EFF', '#67C23A', '#E6A23C']
+      return colors[index] || '#909399'
+    },
+
+    /**
+     * 获取年龄颜色
+     */
+    getAgeColor(index) {
+      const colors = ['#409EFF', '#67C23A', '#E6A23C', '#F56C6C']
+      return colors[index] || '#909399'
+    },
+
+    /**
+     * 获取护理等级颜色
+     */
+    getCareColor(index) {
+      const colors = ['#67C23A', '#E6A23C', '#F56C6C']
+      return colors[index] || '#909399'
+    },
+
     formatNumber(num) {
       if (!num) return '0'
       return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
@@ -582,6 +867,47 @@ export default {
   &.applications {
     background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
   }
+
+  // 机构首页新增卡片样式
+  &.order {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+
+  &.amount {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  }
+
+  &.transfer {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  }
+
+  &.transfer-count {
+    background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+  }
+
+  &.service {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  }
+
+  &.deposit {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+  }
+
+  &.member {
+    background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
+  }
+
+  &.basic {
+    background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+  }
+
+  &.pending-apply {
+    background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+  }
+
+  &.approved-apply {
+    background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
+  }
 }
 
 .stat-icon {
@@ -602,6 +928,12 @@ export default {
 .stat-label {
   font-size: 14px;
   opacity: 0.9;
+}
+
+.stat-sub {
+  font-size: 12px;
+  opacity: 0.8;
+  margin-top: 4px;
 }
 
 .main-content {
@@ -912,5 +1244,268 @@ export default {
     background: #fafafa;
     border-bottom: 1px solid #ebeef5;
   }
+}
+
+// 机构首页结构分析��域样式
+.structure-section {
+  margin-top: 20px;
+}
+
+.structure-row {
+  margin-bottom: 0;
+}
+
+.structure-card {
+  .el-card__header {
+    background: #fafafa;
+    border-bottom: 1px solid #ebeef5;
+  }
+
+  .chart-container {
+    height: 250px;
+  }
+}
+
+// 小尺寸结构分析卡片
+.structure-card-small {
+  height: 200px;
+
+  .el-card__header {
+    background: #fafafa;
+    border-bottom: 1px solid #ebeef5;
+    padding: 10px 15px;
+  }
+
+  .el-card__body {
+    padding: 10px;
+    height: calc(100% - 45px);
+  }
+
+  .chart-container-sm {
+    height: 150px;
+  }
+}
+
+.card-header-sm {
+  font-size: 13px;
+  font-weight: bold;
+  color: #303133;
+
+  i {
+    margin-right: 4px;
+    color: #409EFF;
+  }
+}
+
+// ==================== 机构首页简化布局样式 ====================
+
+// 信息卡片区域
+.info-cards {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.info-card {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 18px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  }
+}
+
+.card-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 15px;
+  flex-shrink: 0;
+
+  i {
+    font-size: 22px;
+    color: white;
+  }
+
+  &.blue {
+    background: linear-gradient(135deg, #409EFF 0%, #5DADE2 100%);
+  }
+
+  &.green {
+    background: linear-gradient(135deg, #67C23A 0%, #85E060 100%);
+  }
+
+  &.orange {
+    background: linear-gradient(135deg, #E6A23C 0%, #F5B041 100%);
+  }
+
+  &.cyan {
+    background: linear-gradient(135deg, #36D1DC 0%, #5B9BD5 100%);
+  }
+}
+
+.card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-title {
+  font-size: 13px;
+  color: #909399;
+  margin-bottom: 6px;
+}
+
+.card-value {
+  font-size: 22px;
+  font-weight: bold;
+  color: #303133;
+  margin-bottom: 4px;
+}
+
+.card-sub {
+  font-size: 12px;
+  color: #C0C4CC;
+}
+
+// 余额区域
+.balance-section {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+
+  .section-title {
+    font-size: 15px;
+    font-weight: bold;
+    color: #303133;
+    margin-bottom: 15px;
+
+    i {
+      margin-right: 6px;
+      color: #409EFF;
+    }
+  }
+}
+
+.balance-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 15px;
+}
+
+.balance-item {
+  .balance-label {
+    font-size: 13px;
+    color: #909399;
+    margin-bottom: 8px;
+  }
+
+  .balance-amount {
+    font-size: 20px;
+    font-weight: bold;
+
+    &.primary {
+      color: #409EFF;
+    }
+
+    &.warning {
+      color: #E6A23C;
+    }
+
+    &.success {
+      color: #67C23A;
+    }
+
+    &.info {
+      color: #909399;
+    }
+  }
+}
+
+// 结构分析区域
+.structure-section {
+  margin-top: 20px;
+
+  .section-title {
+    font-size: 15px;
+    font-weight: bold;
+    color: #303133;
+    margin-bottom: 15px;
+
+    i {
+      margin-right: 6px;
+      color: #409EFF;
+    }
+  }
+}
+
+.structure-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+}
+
+.structure-box {
+  background: white;
+  border-radius: 8px;
+  padding: 18px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+
+  .structure-title {
+    font-size: 14px;
+    font-weight: bold;
+    color: #303133;
+    margin-bottom: 15px;
+  }
+}
+
+.structure-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.progress-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.progress-label {
+  min-width: 60px;
+  font-size: 13px;
+  color: #606266;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 8px;
+  background: #F2F6FC;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.progress-value {
+  min-width: 50px;
+  text-align: right;
+  font-size: 13px;
+  font-weight: bold;
+  color: #303133;
 }
 </style>

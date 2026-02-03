@@ -31,3 +31,45 @@ export function getRiskOverview() {
     method: 'get'
   })
 }
+
+// ==================== 机构管理员首页API ====================
+
+// 获取机构首页概览数据（订单统计）
+export function getInstitutionOverview() {
+  return request({
+    url: '/pension/dashboard/institution/overview',
+    method: 'get'
+  })
+}
+
+// 获取机构账户余额汇总
+export function getInstitutionBalance() {
+  return request({
+    url: '/pension/dashboard/institution/balance',
+    method: 'get'
+  })
+}
+
+// 获取机构服务费拨付统计
+export function getInstitutionTransfer() {
+  return request({
+    url: '/pension/dashboard/institution/transfer',
+    method: 'get'
+  })
+}
+
+// 获取机构押金申请统计
+export function getInstitutionDeposit() {
+  return request({
+    url: '/pension/dashboard/institution/deposit',
+    method: 'get'
+  })
+}
+
+// 获取机构入驻人结构分析
+export function getResidentStructure() {
+  return request({
+    url: '/pension/dashboard/institution/resident-structure',
+    method: 'get'
+  })
+}

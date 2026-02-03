@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.mapper.pension.DashboardMapper">
+
+    <!-- 根据用户ID获取关联的机构ID列表 -->
+    <select id="selectInstitutionIdsByUserId" resultType="java.lang.Long">
+        SELECT institution_id FROM sys_user_institution WHERE user_id = #{userId}
+    </select>
+
+    <!-- 查询当日订单统计（订单数、总额） -->
+    <select id="selectTodayOrderStats" resultType="java.util.Map">
+        SELECT
+            COUNT(*) as orderCount,
+            COALESCE(SUM(order_amount), 0) as orderAmount
+        FROM order_info
+        WHERE 1=1
+        <if test="institutionIds != null and institutionIds.size() > 0">
+            AND institution_id IN
+            <foreach collection="institutionIds" item="id" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+        </if>
+        AND DATE(order_date) = CURDATE()
+    </select>
+
+    <!-- 查询账户余额汇总（服务费、押金、会员费） -->
+    <select id="selectAccountBalanceSummary" resultType="java.util.Map">
+        SELECT
+            COUNT(*) as accountCount,
+            COALESCE(SUM(service_balance), 0) as serviceBalance,
+            COALESCE(SUM(deposit_balance), 0) as depositBalance,
+            COALESCE(SUM(member_balance), 0) as memberBalance,
+            COALESCE(SUM(total_balance), 0) as totalBalance
+        FROM account_info
+        WHERE account_status = '1'
+        <if test="institutionIds != null and institutionIds.size() > 0">
+            AND institution_id IN
+            <foreach collection="institutionIds" item="id" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+        </if>
+    </select>
+
+    <!-- 查询基本户余额（监管账户支出到基本账户的累计金额） -->
+    <select id="selectBasicAccountBalance" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(amount), 0)
+        FROM supervision_account_log
+        WHERE transaction_type = '支出'
+        AND counterparty = '基本账户'
+        <if test="institutionIds != null and institutionIds.size() > 0">
+            AND institution_id IN
+            <foreach collection="institutionIds" item="id" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+        </if>
+    </select>
+
+    <!-- 查询当月服务费拨付统计 -->
+    <select id="selectMonthTransferStats" resultType="java.util.Map">
+        SELECT
+            COUNT(*) as transferCount,
+            COALESCE(SUM(transfer_amount), 0) as transferAmount
+        FROM fund_transfer
+        WHERE is_paid = '1'
+        AND DATE_FORMAT(transfer_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')
+        <if test="institutionIds != null and institutionIds.size() > 0">
+            AND institution_id IN
+            <foreach collection="institutionIds" item="id" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+        </if>
+    </select>
+
+    <!-- 查询押金申请统计（按状态分组） -->
+    <select id="selectDepositApplyStats" resultType="java.util.Map">
+        SELECT
+            apply_status,
+            COUNT(*) as count,
+            COALESCE(SUM(apply_amount), 0) as amount
+        FROM deposit_apply
+        WHERE 1=1
+        <if test="institutionIds != null and institutionIds.size() > 0">
+            AND institution_id IN
+            <foreach collection="institutionIds" item="id" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+        </if>
+        GROUP BY apply_status
+    </select>
+
+    <!-- 查询性别分布 -->
+    <select id="selectGenderDistribution" resultType="java.util.Map">
+        SELECT
+            e.gender,
+            COUNT(*) as count
+        FROM elder_info e
+        INNER JOIN elder_check_in ec ON e.elder_id = ec.elder_id
+        WHERE ec.check_in_status = '1'
+        AND e.status != '2'
+        <if test="institutionIds != null and institutionIds.size() > 0">
+            AND ec.institution_id IN
+            <foreach collection="institutionIds" item="id" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+        </if>
+        GROUP BY e.gender
+    </select>
+
+    <!-- 查询年龄分布 -->
+    <select id="selectAgeDistribution" resultType="java.util.Map">
+        SELECT
+            CASE
+                WHEN e.age BETWEEN 60 AND 69 THEN '60-70岁'
+                WHEN e.age BETWEEN 70 AND 79 THEN '70-80岁'
+                WHEN e.age BETWEEN 80 AND 89 THEN '80-90岁'
+                WHEN e.age >= 90 THEN '90岁以上'
+                ELSE '其他'
+            END as ageGroup,
+            COUNT(*) as count
+        FROM elder_info e
+        INNER JOIN elder_check_in ec ON e.elder_id = ec.elder_id
+        WHERE ec.check_in_status = '1'
+        AND e.status != '2'
+        <if test="institutionIds != null and institutionIds.size() > 0">
+            AND ec.institution_id IN
+            <foreach collection="institutionIds" item="id" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+        </if>
+        GROUP BY ageGroup
+        ORDER BY ageGroup
+    </select>
+
+    <!-- 查询护理等级分布 -->
+    <select id="selectCareLevelDistribution" resultType="java.util.Map">
+        SELECT
+            ec.care_level,
+            COUNT(*) as count
+        FROM elder_check_in ec
+        WHERE ec.check_in_status = '1'
+        <if test="institutionIds != null and institutionIds.size() > 0">
+            AND ec.institution_id IN
+            <foreach collection="institutionIds" item="id" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+        </if>
+        GROUP BY ec.care_level
+    </select>
+
+</mapper>
