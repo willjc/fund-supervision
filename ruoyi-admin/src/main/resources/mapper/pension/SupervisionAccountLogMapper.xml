@@ -192,13 +192,16 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             (SELECT COALESCE(sal.balance_after, 0)
              FROM supervision_account_log sal
              WHERE sal.institution_id = ft.institution_id
+               AND sal.transaction_time &lt;= ft.paid_time
              ORDER BY sal.transaction_time DESC
              LIMIT 1) as supervisionBalance,
             (SELECT COALESCE(SUM(ft2.transfer_amount), 0)
              FROM fund_transfer ft2
              WHERE ft2.institution_id = ft.institution_id
                AND ft2.status = 'completed'
-               AND ft2.is_paid = '1') as basicBalance
+               AND ft2.is_paid = '1'
+               AND ft2.paid_time &lt;= ft.paid_time
+               AND ft2.transfer_id &lt;= ft.transfer_id) as basicBalance
         FROM fund_transfer ft
         LEFT JOIN elder_info ei ON ft.elder_id = ei.elder_id
         LEFT JOIN pension_institution pi ON ft.institution_id = pi.institution_id
@@ -207,7 +210,6 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             -- 只查询已划拨完成的记录（监管账户转到基本账户）
             ft.status = 'completed'
             AND ft.is_paid = '1'
-            AND ft.elder_id IS NOT NULL
             <if test="params.currentUserId != null">
                 AND ft.institution_id IN (
                     SELECT institution_id FROM sys_user_institution WHERE user_id = #{params.currentUserId}

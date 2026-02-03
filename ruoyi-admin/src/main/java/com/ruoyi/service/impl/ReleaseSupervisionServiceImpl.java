@@ -15,6 +15,8 @@ import com.ruoyi.service.IReleaseSupervisionService;
 import com.ruoyi.service.IPensionInstitutionService;
 import com.ruoyi.service.pension.ISupervisionAccountLogService;
 import com.ruoyi.common.utils.SecurityUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 机构解除监管申请Service业务层处理
@@ -25,6 +27,8 @@ import com.ruoyi.common.utils.SecurityUtils;
 @Service
 public class ReleaseSupervisionServiceImpl implements IReleaseSupervisionService
 {
+    private static final Logger logger = LoggerFactory.getLogger(ReleaseSupervisionServiceImpl.class);
+
     @Autowired
     private ReleaseSupervisionMapper releaseSupervisionMapper;
 
@@ -210,6 +214,9 @@ public class ReleaseSupervisionServiceImpl implements IReleaseSupervisionService
                     "解除监管划拨-" + apply.getApplyNo(),
                     "基本账户"
             );
+
+            // 3.1 生成fund_transfer拨付单，使解除监管记录在监管账户流水页面可见
+            createReleaseTransferOrder(institutionId, releaseId, supervisionBalance, apply);
         }
 
         // 4. 更新机构状态为"解除监管"
@@ -316,5 +323,42 @@ public class ReleaseSupervisionServiceImpl implements IReleaseSupervisionService
         }
 
         return count;
+    }
+
+    /**
+     * 创建解除监管拨付单
+     * 用于在批准解除监管时生成fund_transfer记录，使划拨记录在监管账户流水页面可见
+     *
+     * @param institutionId 机构ID
+     * @param releaseId 解除监管申请ID
+     * @param amount 划拨金额
+     * @param apply 解除监管申请信息
+     */
+    private void createReleaseTransferOrder(Long institutionId, Long releaseId,
+                                           BigDecimal amount, ReleaseSupervision apply)
+    {
+        // 生成拨付单号
+        String transferNo = "TRF" + System.currentTimeMillis();
+
+        // 插入fund_transfer记录
+        // transfer_type='3' 表示特殊申请（解除监管）
+        // elder_id=NULL 表示这是机构级别的划拨，不关联具体老人
+        String sql = "INSERT INTO fund_transfer " +
+                "(institution_id, transfer_no, transfer_type, transfer_amount, " +
+                "transfer_date, transfer_status, is_paid, paid_time, paid_method, " +
+                "elder_id, order_id, billing_month, status, remark, create_by, create_time) " +
+                "VALUES (?, ?, ?, ?, CURDATE(), '0', '1', NOW(), '银行转账', " +
+                "NULL, NULL, NULL, 'completed', ?, 'system', NOW())";
+
+        jdbcTemplate.update(sql,
+                institutionId,
+                transferNo,
+                "3",  // transfer_type='3' 表示特殊申请（解除监管）
+                amount,
+                "解除监管全额划拨-" + apply.getApplyNo()
+        );
+
+        logger.info("创建解除监管拨付单成功: transferNo={}, amount={}, institutionId={}",
+                transferNo, amount, institutionId);
     }
 }
