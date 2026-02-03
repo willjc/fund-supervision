@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.mapper.pension.DataStatisticsMapper">
+
+    <!-- 总体概览列表 -->
+    <select id="selectOverallList" resultType="java.util.Map">
+        SELECT ar.area_code as district_code, ar.area_name as district_name,
+               COUNT(DISTINCT p.institution_id) as institution_count,
+               COALESCE(SUM(ai.total_balance), 0) as total_fund,
+               COALESCE(SUM(ai.service_balance), 0) as service_balance,
+               COALESCE(SUM(ai.deposit_balance), 0) as deposit_balance,
+               COALESCE(SUM(ai.member_balance), 0) as member_balance,
+               COALESCE(COUNT(DISTINCT ai.elder_id), 0) as elder_count
+        FROM area_street ar
+        LEFT JOIN pension_institution p ON p.area_code COLLATE utf8mb4_general_ci = ar.area_code COLLATE utf8mb4_general_ci
+        LEFT JOIN account_info ai ON ai.institution_id = p.institution_id
+        WHERE ar.area_name IS NOT NULL
+        <if test="districtCode != null and districtCode != ''">
+            AND ar.area_code COLLATE utf8mb4_general_ci = #{districtCode}
+        </if>
+        GROUP BY ar.area_code, ar.area_name
+        ORDER BY MIN(ar.sort_order)
+    </select>
+
+    <!-- 机构情况列表 -->
+    <select id="selectInstitutionList" resultType="java.util.Map">
+        SELECT ar.area_code as district_code, ar.area_name as district_name,
+               COUNT(DISTINCT p.institution_id) as institution_count,
+               COALESCE(COUNT(DISTINCT ai.elder_id), 0) as elder_count,
+               COALESCE(SUM(CASE WHEN p.status = '3' THEN 1 ELSE 0 END), 0) as rejected_count,
+               COALESCE(SUM(CASE WHEN p.blacklist_flag = '1' THEN 1 ELSE 0 END), 0) as blacklist_count,
+               COALESCE(COUNT(DISTINCT CASE WHEN p.supervise_bank IS NOT NULL AND p.supervise_bank != '' THEN p.supervise_bank END), 0) as bank_count,
+               COALESCE(COUNT(DISTINCT pc.complaint_id), 0) as complaint_count
+        FROM area_street ar
+        LEFT JOIN pension_institution p ON p.area_code COLLATE utf8mb4_general_ci = ar.area_code COLLATE utf8mb4_general_ci
+        LEFT JOIN account_info ai ON ai.institution_id = p.institution_id
+        LEFT JOIN pension_complaint pc ON pc.institution_id = p.institution_id
+        WHERE ar.area_name IS NOT NULL
+        <if test="districtCode != null and districtCode != ''">
+            AND ar.area_code COLLATE utf8mb4_general_ci = #{districtCode}
+        </if>
+        <if test="startDate != null and startDate != ''">
+            AND (p.create_time &gt;= #{startDate} OR pc.create_time &gt;= #{startDate})
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND (p.create_time &lt;= #{endDate} OR pc.create_time &lt;= #{endDate})
+        </if>
+        GROUP BY ar.area_code, ar.area_name
+        ORDER BY MIN(ar.sort_order)
+    </select>
+
+    <!-- 资金情况列表 -->
+    <select id="selectFundList" resultType="java.util.Map">
+        SELECT ar.area_code as district_code, ar.area_name as district_name,
+               COALESCE(SUM(CASE WHEN sal.transaction_type = '收入' THEN sal.amount ELSE 0 END), 0) as total_income,
+               COALESCE(SUM(CASE WHEN sal.transaction_type = '支出' THEN sal.amount ELSE 0 END), 0) as total_outcome,
+               COALESCE(SUM(sal.amount), 0) as total_flow,
+               COALESCE(COUNT(DISTINCT sal.log_id), 0) as transaction_count,
+               COALESCE(SUM(CASE WHEN pr.payment_method = '微信' THEN 1 ELSE 0 END), 0) as wechat_count,
+               COALESCE(SUM(CASE WHEN pr.payment_method = '支付宝' THEN 1 ELSE 0 END), 0) as alipay_count,
+               COALESCE(SUM(CASE WHEN pr.payment_method = '银行' THEN 1 ELSE 0 END), 0) as bank_count,
+               COALESCE(SUM(CASE WHEN pr.payment_method = '现金' THEN 1 ELSE 0 END), 0) as cash_count
+        FROM area_street ar
+        LEFT JOIN pension_institution p ON p.area_code COLLATE utf8mb4_general_ci = ar.area_code COLLATE utf8mb4_general_ci
+        LEFT JOIN supervision_account_log sal ON sal.institution_id = p.institution_id
+        LEFT JOIN payment_record pr ON pr.institution_id = p.institution_id
+        WHERE ar.area_name IS NOT NULL
+        <if test="districtCode != null and districtCode != ''">
+            AND ar.area_code COLLATE utf8mb4_general_ci = #{districtCode}
+        </if>
+        <if test="startDate != null and startDate != ''">
+            AND (DATE(sal.transaction_time) &gt;= #{startDate} OR DATE(pr.payment_time) &gt;= #{startDate})
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND (DATE(sal.transaction_time) &lt;= #{endDate} OR DATE(pr.payment_time) &lt;= #{endDate})
+        </if>
+        GROUP BY ar.area_code, ar.area_name
+        ORDER BY MIN(ar.sort_order)
+    </select>
+
+    <!-- 预警情况列表 -->
+    <select id="selectWarningList" resultType="java.util.Map">
+        SELECT ar.area_code as district_code, ar.area_name as district_name,
+               COALESCE(SUM(CASE WHEN bw.warning_type = '最低余额' THEN 1 ELSE 0 END), 0) as low_balance_count,
+               COALESCE(SUM(CASE WHEN sw.warning_type = '大额动账' THEN 1 ELSE 0 END), 0) as large_transaction_count,
+               COALESCE(SUM(CASE WHEN bw.warning_type = '可用余额不足' THEN 1 ELSE 0 END), 0) as insufficient_balance_count,
+               COALESCE(COUNT(DISTINCT bw.warning_id), 0) + COALESCE(COUNT(DISTINCT sw.warning_id), 0) as total_warning_count,
+               COALESCE(SUM(CASE WHEN bw.warning_status = '0' THEN 1 ELSE 0 END), 0) +
+               COALESCE(SUM(CASE WHEN sw.warning_status = '0' THEN 1 ELSE 0 END), 0) as pending_count,
+               COALESCE(COUNT(DISTINCT rr.refund_id), 0) as high_refund_count
+        FROM area_street ar
+        LEFT JOIN pension_institution p ON p.area_code COLLATE utf8mb4_general_ci = ar.area_code COLLATE utf8mb4_general_ci
+        LEFT JOIN balance_warning bw ON bw.institution_id = p.institution_id
+        LEFT JOIN supervision_warning sw ON sw.institution_id = p.institution_id
+        LEFT JOIN refund_record rr ON rr.institution_id = p.institution_id AND rr.refund_amount &gt;= 5000
+        WHERE ar.area_name IS NOT NULL
+        <if test="districtCode != null and districtCode != ''">
+            AND ar.area_code COLLATE utf8mb4_general_ci = #{districtCode}
+        </if>
+        <if test="startDate != null and startDate != ''">
+            AND (bw.create_time &gt;= #{startDate} OR sw.create_time &gt;= #{startDate} OR rr.create_time &gt;= #{startDate})
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND (bw.create_time &lt;= #{endDate} OR sw.create_time &lt;= #{endDate} OR rr.create_time &lt;= #{endDate})
+        </if>
+        GROUP BY ar.area_code, ar.area_name
+        ORDER BY MIN(ar.sort_order)
+    </select>
+
+    <!-- 机构详细列表 -->
+    <select id="selectInstitutionDetailList" resultType="java.util.Map">
+        SELECT p.institution_id, p.institution_name, ar.area_name as district_name,
+               p.area_code, p.supervise_bank, p.basic_bank, p.contact_person, p.contact_phone,
+               p.status, p.blacklist_flag, p.bed_count,
+               COALESCE(SUM(ai.total_balance), 0) as total_supervision_fund,
+               COALESCE(COUNT(DISTINCT ai.elder_id), 0) as elder_count
+        FROM pension_institution p
+        LEFT JOIN (SELECT area_code, area_name, MIN(sort_order) as sort_order
+                   FROM area_street
+                   WHERE area_name IS NOT NULL
+                   GROUP BY area_code, area_name) ar
+            ON p.area_code COLLATE utf8mb4_general_ci = ar.area_code COLLATE utf8mb4_general_ci
+        LEFT JOIN account_info ai ON ai.institution_id = p.institution_id
+        WHERE 1=1
+        <if test="districtCode != null and districtCode != ''">
+            AND p.area_code COLLATE utf8mb4_general_ci = #{districtCode}
+        </if>
+        <if test="institutionName != null and institutionName != ''">
+            AND p.institution_name LIKE CONCAT('%', #{institutionName}, '%')
+        </if>
+        GROUP BY p.institution_id, p.institution_name, ar.area_name, p.area_code,
+                 p.supervise_bank, p.basic_bank, p.contact_person, p.contact_phone, p.status, p.blacklist_flag, p.bed_count
+        ORDER BY MIN(ar.sort_order), p.institution_id
+    </select>
+
+    <!-- 老人详细列表 -->
+    <select id="selectElderDetailList" resultType="java.util.Map">
+        SELECT e.elder_id, e.elder_name, e.gender, e.id_card, e.age, e.phone,
+               e.health_status, e.care_level, e.status as elder_status,
+               ar.area_name as district_name,
+               p.institution_id, p.institution_name,
+               ai.total_balance, ai.service_balance, ai.deposit_balance, ai.member_balance
+        FROM elder_info e
+        INNER JOIN account_info ai ON ai.elder_id = e.elder_id
+        INNER JOIN pension_institution p ON p.institution_id = ai.institution_id
+        LEFT JOIN (SELECT DISTINCT area_code, area_name
+                   FROM area_street
+                   WHERE area_name IS NOT NULL) ar
+            ON p.area_code COLLATE utf8mb4_general_ci = ar.area_code COLLATE utf8mb4_general_ci
+        WHERE 1=1
+        <if test="districtCode != null and districtCode != ''">
+            AND p.area_code COLLATE utf8mb4_general_ci = #{districtCode}
+        </if>
+        <if test="elderName != null and elderName != ''">
+            AND e.elder_name LIKE CONCAT('%', #{elderName}, '%')
+        </if>
+        <if test="institutionId != null and institutionId != ''">
+            AND p.institution_id = #{institutionId}
+        </if>
+        GROUP BY e.elder_id, e.elder_name, e.gender, e.id_card, e.age, e.phone,
+                 e.health_status, e.care_level, e.status,
+                 ar.area_name, p.institution_id, p.institution_name,
+                 ai.total_balance, ai.service_balance, ai.deposit_balance, ai.member_balance
+        ORDER BY MIN(ai.create_time) DESC
+    </select>
+
+    <!-- 资金详细列表 -->
+    <select id="selectFundDetailList" resultType="java.util.Map">
+        SELECT e.elder_id, e.elder_name, e.id_card,
+               ar.area_name as district_name,
+               p.institution_id, p.institution_name,
+               ai.total_balance, ai.service_balance, ai.deposit_balance, ai.member_balance,
+               ai.account_no, ai.account_status, MAX(ai.create_time) as account_create_time
+        FROM elder_info e
+        INNER JOIN account_info ai ON ai.elder_id = e.elder_id
+        INNER JOIN pension_institution p ON p.institution_id = ai.institution_id
+        LEFT JOIN (SELECT DISTINCT area_code, area_name
+                   FROM area_street
+                   WHERE area_name IS NOT NULL) ar
+            ON p.area_code COLLATE utf8mb4_general_ci = ar.area_code COLLATE utf8mb4_general_ci
+        WHERE 1=1
+        <if test="districtCode != null and districtCode != ''">
+            AND p.area_code COLLATE utf8mb4_general_ci = #{districtCode}
+        </if>
+        <if test="elderName != null and elderName != ''">
+            AND e.elder_name LIKE CONCAT('%', #{elderName}, '%')
+        </if>
+        GROUP BY e.elder_id, e.elder_name, e.id_card,
+                 ar.area_name, p.institution_id, p.institution_name,
+                 ai.total_balance, ai.service_balance, ai.deposit_balance, ai.member_balance,
+                 ai.account_no, ai.account_status
+        ORDER BY ai.total_balance DESC
+    </select>
+
+</mapper>

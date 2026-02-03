@@ -41,10 +41,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </select>
 
     <select id="selectAllAreas" resultMap="AreaStreetResult">
-        select distinct area_code, area_name
+        select id, area_code, area_name
         from area_street
-        where status = '0'
-        order by area_code
+        where status = '0' and street_name is null
+        order by sort_order
     </select>
 
     <select id="selectStreetsByAreaCode" parameterType="String" resultMap="AreaStreetResult">
