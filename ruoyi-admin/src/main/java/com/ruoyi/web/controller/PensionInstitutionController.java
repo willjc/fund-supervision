@@ -1,6 +1,7 @@
 package com.ruoyi.web.controller;
 
 import java.util.List;
+import java.util.Map;
 import javax.servlet.http.HttpServletResponse;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +19,9 @@ import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.domain.PensionInstitution;
+import com.ruoyi.domain.ReleaseSupervision;
 import com.ruoyi.service.IPensionInstitutionService;
+import com.ruoyi.service.IReleaseSupervisionService;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.common.core.page.TableDataInfo;
 
@@ -34,6 +37,9 @@ public class PensionInstitutionController extends BaseController
 {
     @Autowired
     private IPensionInstitutionService pensionInstitutionService;
+
+    @Autowired
+    private IReleaseSupervisionService releaseSupervisionService;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -298,5 +304,132 @@ public class PensionInstitutionController extends BaseController
             jdbcTemplate.update(insertSql, userId, institutionId);
             logger.info("创建用户-机构关联: userId={}, institutionId={}", userId, institutionId);
         }
+    }
+
+    /**
+     * 提交解除监管申请
+     */
+    @Log(title = "提交解除监管申请", businessType = BusinessType.INSERT)
+    @PostMapping("/release/apply")
+    public AjaxResult submitReleaseApply(@RequestBody ReleaseSupervision releaseSupervision)
+    {
+        // 获取前端传来的机构ID
+        Long institutionId = releaseSupervision.getInstitutionId();
+        if (institutionId == null) {
+            return AjaxResult.error("机构ID不能为空");
+        }
+
+        // 1. 验证机构是否存在
+        PensionInstitution institution = pensionInstitutionService.selectPensionInstitutionByInstitutionId(institutionId);
+        if (institution == null) {
+            return AjaxResult.error("机构不存在");
+        }
+
+        // 2. 验证机构状态，只有已入驻(status=1)的机构才能申请解除监管
+        if (!"1".equals(institution.getStatus())) {
+            return AjaxResult.error("只有已入驻的机构才能申请解除监管");
+        }
+
+        // 3. 验证用户是否有权操作此机构
+        Long currentUserId = getUserId();
+        String checkSql = "SELECT COUNT(*) FROM sys_user_institution WHERE user_id = ? AND institution_id = ?";
+        Integer count = jdbcTemplate.queryForObject(checkSql, Integer.class, currentUserId, institutionId);
+        if (count == null || count == 0) {
+            return AjaxResult.error("无权操作此机构");
+        }
+
+        // 4. 检查是否有待审批或已批准的申请
+        ReleaseSupervision checkQuery = new ReleaseSupervision();
+        checkQuery.setInstitutionId(institutionId);
+        List<ReleaseSupervision> existingApplies = releaseSupervisionService.selectReleaseSupervisionList(checkQuery);
+        for (ReleaseSupervision existing : existingApplies) {
+            if ("0".equals(existing.getApplyStatus())) {
+                return AjaxResult.error("您有待审批的解除监管申请，请等待审批结果");
+            }
+            if ("1".equals(existing.getApplyStatus())) {
+                return AjaxResult.error("您的解除监管申请已通过批准");
+            }
+        }
+
+        // 设置申请信息
+        releaseSupervision.setInstitutionName(institution.getInstitutionName());
+        releaseSupervision.setCreditCode(institution.getCreditCode());
+        releaseSupervision.setLegalPerson(institution.getLegalPerson());
+        releaseSupervision.setContactPerson(institution.getContactPerson());
+        releaseSupervision.setContactPhone(institution.getContactPhone());
+        releaseSupervision.setSupervisionBank(institution.getSuperviseBank());
+        releaseSupervision.setSupervisionAccount(institution.getSuperviseAccount());
+        releaseSupervision.setBasicBank(institution.getBasicBank());
+        releaseSupervision.setBasicAccount(institution.getBankAccount());
+
+        // 生成申请编号
+        String applyNo = "REL" + System.currentTimeMillis();
+        releaseSupervision.setApplyNo(applyNo);
+
+        // 设置申请状态为待审批
+        releaseSupervision.setApplyStatus("0");
+        releaseSupervision.setApplyTime(new java.util.Date());
+
+        // 插入申请记录
+        int result = releaseSupervisionService.insertReleaseSupervision(releaseSupervision);
+
+        if (result > 0) {
+            // 保存附件
+            releaseSupervisionService.saveAttachments(releaseSupervision.getReleaseId(), releaseSupervision.getAttachments());
+
+            // 更新机构状态为"解除监管审批中"
+            PensionInstitution updateInst = new PensionInstitution();
+            updateInst.setInstitutionId(institutionId);
+            updateInst.setStatus("7"); // 7=解除监管审批中
+            pensionInstitutionService.updatePensionInstitution(updateInst);
+        }
+
+        return toAjax(result);
+    }
+
+    /**
+     * 查询机构的解除监管申请状态
+     */
+    @GetMapping("/release/status/{institutionId}")
+    public AjaxResult getReleaseApplyStatus(@PathVariable Long institutionId)
+    {
+        ReleaseSupervision query = new ReleaseSupervision();
+        query.setInstitutionId(institutionId);
+        List<ReleaseSupervision> list = releaseSupervisionService.selectReleaseSupervisionList(query);
+
+        if (list == null || list.isEmpty()) {
+            return AjaxResult.success().put("hasApply", false);
+        }
+
+        // 返回最新的申请详情
+        ReleaseSupervision latest = list.get(0);
+
+        // 动态查询机构监管账户余额
+        String balanceSql = "SELECT " +
+                             "COALESCE(SUM(total_balance), 0) as supervisionBalance, " +
+                             "COALESCE(SUM(service_balance), 0) as serviceFeeBalance, " +
+                             "COALESCE(SUM(deposit_balance), 0) as depositBalance, " +
+                             "COALESCE(SUM(member_balance), 0) as memberFeeBalance " +
+                             "FROM account_info WHERE institution_id = ?";
+        Map<String, Object> balance = jdbcTemplate.queryForMap(balanceSql, institutionId);
+
+        // 获取附件列表
+        List<Map<String, Object>> attachments = releaseSupervisionService.selectAttachmentsByReleaseId(latest.getReleaseId());
+
+        return AjaxResult.success()
+                .put("hasApply", true)
+                .put("applyStatus", latest.getApplyStatus())
+                .put("applyNo", latest.getApplyNo())
+                .put("applyTime", latest.getApplyTime())
+                .put("approveTime", latest.getApproveTime())
+                .put("approver", latest.getApprover())
+                .put("releaseReason", latest.getReleaseReason())
+                .put("rejectReason", latest.getRejectReason())
+                .put("approveRemark", latest.getApproveRemark())
+                .put("supervisionBalance", balance.get("supervisionBalance"))
+                .put("serviceFeeBalance", balance.get("serviceFeeBalance"))
+                .put("depositBalance", balance.get("depositBalance"))
+                .put("memberFeeBalance", balance.get("memberFeeBalance"))
+                .put("attachments", attachments);
     }
 }

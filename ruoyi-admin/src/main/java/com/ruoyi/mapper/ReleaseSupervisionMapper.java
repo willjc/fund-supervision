@@ -66,4 +66,12 @@ public interface ReleaseSupervisionMapper
      * @return 统计数据
      */
     public Map<String, Object> selectReleaseStatistics();
+
+    /**
+     * 查询解除监管申请的附件列表
+     *
+     * @param releaseId 解除监管申请ID
+     * @return 附件列表
+     */
+    public List<Map<String, Object>> selectAttachmentsByReleaseId(Long releaseId);
 }

@@ -2,6 +2,8 @@ package com.ruoyi.domain;
 
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.List;
+import java.util.Map;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
@@ -110,6 +112,9 @@ public class ReleaseSupervision extends BaseEntity
     /** 驳回原因 */
     @Excel(name = "驳回原因")
     private String rejectReason;
+
+    /** 附件列表（不映射到数据库，仅用于接收前端���据） */
+    private List<Map<String, String>> attachments;
 
     public void setReleaseId(Long releaseId)
     {
@@ -339,6 +344,16 @@ public class ReleaseSupervision extends BaseEntity
     public String getRejectReason()
     {
         return rejectReason;
+    }
+
+    public void setAttachments(List<Map<String, String>> attachments)
+    {
+        this.attachments = attachments;
+    }
+
+    public List<Map<String, String>> getAttachments()
+    {
+        return attachments;
     }
 
     @Override

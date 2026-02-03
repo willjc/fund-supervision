@@ -214,6 +214,13 @@
             @click="handleUpdate(scope.row)"
           >修改</el-button>
           <el-button
+            v-if="scope.row.status == 1 || scope.row.status === '1'"
+            size="mini"
+            type="text"
+            icon="el-icon-download"
+            @click="handleReleaseApply(scope.row)"
+          >申请解除监管</el-button>
+          <el-button
             size="mini"
             type="text"
             icon="el-icon-delete"
@@ -604,13 +611,66 @@
         <el-button @click="approveOpen = false">取 消</el-button>
       </div>
     </el-dialog>
+
+    <!-- 申请解除监管对话框 -->
+    <el-dialog title="申请解除监管" :visible.sync="releaseApplyOpen" width="600px" append-to-body>
+      <el-alert
+        title="重要提示"
+        type="warning"
+        description="解除监管后，机构所有监管账户资金将划拨至基本账户，机构状态将变为"解除监管"，此操作不可撤销！"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 20px;">
+      </el-alert>
+      <el-form ref="releaseApplyForm" :model="releaseApplyForm" :rules="releaseApplyRules" label-width="100px">
+        <el-form-item label="机构名称">
+          <el-input v-model="releaseApplyForm.institutionName" :disabled="true" />
+        </el-form-item>
+        <el-form-item label="统一信用代码">
+          <el-input v-model="releaseApplyForm.creditCode" :disabled="true" />
+        </el-form-item>
+        <el-form-item label="监管账户余额" v-if="releaseApplyForm.supervisionBalance !== undefined">
+          <span style="color: #F56C6C; font-weight: bold; font-size: 16px;">
+            ¥{{ formatMoney(releaseApplyForm.supervisionBalance || 0) }}
+          </span>
+          <div style="color: #909399; font-size: 12px; margin-top: 5px;">
+            审批通过后，此金额将全部划拨至基本账户
+          </div>
+        </el-form-item>
+        <el-form-item label="解除原因" prop="releaseReason">
+          <el-input v-model="releaseApplyForm.releaseReason" type="textarea" :rows="4" placeholder="请输入解除监管的原因（必填）" />
+        </el-form-item>
+        <el-form-item label="附件材料">
+          <el-upload
+            ref="upload"
+            :action="upload.url"
+            :headers="upload.headers"
+            :file-list="upload.fileList"
+            :on-success="handleUploadSuccess"
+            :on-remove="handleUploadRemove"
+            :before-upload="handleBeforeUpload"
+            :limit="5"
+            multiple>
+            <el-button size="small" icon="el-icon-upload" type="primary">点击上传</el-button>
+            <div slot="tip" class="el-upload__tip">
+              支持上传证明材料，如：解除监管申请书、主管部门意见等，最多5个文件
+            </div>
+          </el-upload>
+        </el-form-item>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button type="primary" @click="submitReleaseApply" :loading="releaseApplyLoading">提交申请</el-button>
+        <el-button @click="releaseApplyOpen = false">取 消</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script>
-import { listInstitution, getInstitution, delInstitution, addInstitution, updateInstitution, approveInstitution } from "@/api/pension/institution";
+import { listInstitution, getInstitution, delInstitution, addInstitution, updateInstitution, approveInstitution, submitReleaseApply } from "@/api/pension/institution";
 import { getDictData } from "@/api/pension/institution";
 import { listAreas, listStreetsByArea } from "@/api/pension/areaStreet";
+import { getToken } from "@/utils/auth";
 
 export default {
   name: "PensionInstitution",
@@ -628,6 +688,8 @@ export default {
       open: false,
       approveOpen: false,
       isView: false,
+      releaseApplyOpen: false,
+      releaseApplyLoading: false,
       // 字典选项数据
       areaOptions: [],
       streetOptions: [],
@@ -655,6 +717,21 @@ export default {
       form: {},
       // 审批表单参数
       approveForm: {},
+      // 申请解除监管表单参数
+      releaseApplyForm: {
+        institutionId: null,
+        institutionName: null,
+        creditCode: null,
+        supervisionBalance: 0,
+        releaseReason: null,
+        attachments: []
+      },
+      // 文件上传配置
+      upload: {
+        url: process.env.VUE_APP_BASE_API + "/common/upload",
+        headers: { Authorization: "Bearer " + getToken() },
+        fileList: []
+      },
       // 表单校验
       rules: {
         institutionName: [
@@ -680,6 +757,12 @@ export default {
         ],
         approveRemark: [
           { required: true, message: "审批意见不能为空", trigger: "blur" }
+        ]
+      },
+      // 申请解除监管表单校验
+      releaseApplyRules: {
+        releaseReason: [
+          { required: true, message: "解除原因不能为空", trigger: "blur" }
         ]
       }
     };
@@ -985,6 +1068,83 @@ export default {
     getCareLevelLabel(value) {
       const item = this.careLevelOptions.find(c => c.dictValue === value);
       return item ? item.dictLabel : value;
+    },
+    /** 申请解除监管按钮操作 */
+    handleReleaseApply(row) {
+      this.resetReleaseApplyForm();
+      this.releaseApplyForm.institutionId = row.institutionId;
+      this.releaseApplyForm.institutionName = row.institutionName;
+      this.releaseApplyForm.creditCode = row.creditCode;
+      this.releaseApplyForm.supervisionBalance = row.supervisionBalance || 0;
+      this.releaseApplyOpen = true;
+    },
+    /** 重置申请解除监管表单 */
+    resetReleaseApplyForm() {
+      this.releaseApplyForm = {
+        institutionId: null,
+        institutionName: null,
+        creditCode: null,
+        supervisionBalance: 0,
+        releaseReason: null,
+        attachments: []
+      };
+      this.upload.fileList = [];
+      if (this.$refs.releaseApplyForm) {
+        this.$refs.releaseApplyForm.resetFields();
+      }
+    },
+    /** 提交解除监管申请 */
+    submitReleaseApply() {
+      this.$refs["releaseApplyForm"].validate(valid => {
+        if (valid) {
+          this.releaseApplyLoading = true;
+          const submitData = {
+            institutionId: this.releaseApplyForm.institutionId,
+            releaseReason: this.releaseApplyForm.releaseReason,
+            attachments: this.upload.fileList.map(f => ({
+              fileName: f.name,
+              filePath: f.response?.url || f.url
+            }))
+          };
+          submitReleaseApply(submitData).then(response => {
+            this.$modal.msgSuccess("申请提交成功，请等待监管部门审批");
+            this.releaseApplyOpen = false;
+            this.getList();
+          }).finally(() => {
+            this.releaseApplyLoading = false;
+          });
+        }
+      });
+    },
+    /** 文件上传成功回调 */
+    handleUploadSuccess(res, file, fileList) {
+      this.upload.fileList = fileList;
+    },
+    /** 文件移除回调 */
+    handleUploadRemove(file, fileList) {
+      this.upload.fileList = fileList;
+    },
+    /** 文件上传前校验 */
+    handleBeforeUpload(file) {
+      const isValidType = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'].includes(file.type);
+      const isLt10M = file.size / 1024 / 1024 < 10;
+      if (!isValidType) {
+        this.$modal.msgError('只能上传JPG、PNG、PDF格式的文件!');
+        return false;
+      }
+      if (!isLt10M) {
+        this.$modal.msgError('上传文件大小不能超过 10MB!');
+        return false;
+      }
+      return true;
+    },
+    /** 格式化金额显示 */
+    formatMoney(amount) {
+      if (!amount) return '0.00';
+      return Number(amount).toLocaleString('zh-CN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
     }
   }
 };

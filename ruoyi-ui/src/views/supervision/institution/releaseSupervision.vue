@@ -276,8 +276,7 @@
         <!-- 附件材料 -->
         <el-tab-pane label="附件材料" name="attachments">
           <el-table :data="attachmentList" border>
-            <el-table-column label="附件类型" prop="attachType" width="120" />
-            <el-table-column label="文件名称" prop="fileName" min-width="200" />
+            <el-table-column label="文件名称" prop="fileName" min-width="250" />
             <el-table-column label="上传时间" prop="uploadTime" width="160">
               <template slot-scope="scope">
                 <span>{{ parseTime(scope.row.uploadTime, '{y}-{m}-{d} {h}:{i}') }}</span>
@@ -294,6 +293,7 @@
               </template>
             </el-table-column>
           </el-table>
+          <el-empty v-if="!attachmentList || attachmentList.length === 0" description="暂无附件"></el-empty>
         </el-tab-pane>
       </el-tabs>
 
@@ -362,8 +362,7 @@
 </template>
 
 <script>
-import { listReleaseSupervision, getReleaseSupervision, approveRelease, rejectRelease, getReleaseStatistics } from "@/api/supervision/institution";
-import { listAttachment } from "@/api/pension/institution";
+import { listReleaseSupervision, getReleaseSupervision, approveRelease, rejectRelease, getReleaseStatistics, listReleaseAttachments } from "@/api/supervision/institution";
 
 export default {
   name: "ReleaseSupervision",
@@ -485,8 +484,8 @@ export default {
     },
     /** 加载附件列表 */
     loadAttachments(releaseId) {
-      listAttachment({ releaseId: releaseId }).then(response => {
-        this.attachmentList = response.rows;
+      listReleaseAttachments(releaseId).then(response => {
+        this.attachmentList = response.rows || [];
       });
     },
     /** 批准操作 */
@@ -555,7 +554,12 @@ export default {
     },
     /** 查看附件 */
     handleViewAttachment(row) {
-      this.$modal.msgInfo("附件查看功能开发中...");
+      if (row.filePath) {
+        // 打开新窗口预览文件
+        window.open(process.env.VUE_APP_BASE_API + row.filePath, '_blank');
+      } else {
+        this.$modal.msgError("文件路径不存在");
+      }
     },
     /** 导出按钮操作 */
     handleExport() {

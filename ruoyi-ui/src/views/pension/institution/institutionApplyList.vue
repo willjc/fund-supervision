@@ -109,7 +109,7 @@
       </el-table-column>
       <el-table-column label="联系人" prop="contactPerson" width="100" align="center" />
       <el-table-column label="联系电话" prop="contactPhone" width="120" align="center" />
-      <el-table-column label="申请状态" prop="status" width="120" align="center">
+      <el-table-column label="申请状态" prop="status" width="140" align="center">
         <template slot-scope="scope">
           <el-tag v-if="scope.row.status === '4' || scope.row.status === null" type="info">草稿</el-tag>
           <el-tag v-else-if="scope.row.status === '0'" type="warning">待审批</el-tag>
@@ -117,6 +117,7 @@
           <el-tag v-else-if="scope.row.status === '2'" type="danger">已驳回</el-tag>
           <el-tag v-else-if="scope.row.status === '5'" type="primary">维护中</el-tag>
           <el-tag v-else-if="scope.row.status === '6'" type="warning">维护待审批</el-tag>
+          <el-tag v-else-if="scope.row.status === '7'" type="warning">解除监管审批中</el-tag>
           <el-tag v-else type="info">未知</el-tag>
         </template>
       </el-table-column>
@@ -154,6 +155,20 @@
             icon="el-icon-close"
             @click="handleWithdraw(scope.row)"
           >撤回</el-button>
+          <el-button
+            v-if="scope.row.status === '1'"
+            size="mini"
+            type="text"
+            icon="el-icon-download"
+            @click="handleReleaseApply(scope.row)"
+          >申请解除监管</el-button>
+          <el-button
+            v-if="scope.row.status === '7'"
+            size="mini"
+            type="text"
+            icon="el-icon-view"
+            @click="handleViewReleaseApply(scope.row)"
+          >查看申请</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -215,6 +230,7 @@
           <el-tag v-else-if="currentCampus.status === '2'" type="danger">已驳回</el-tag>
           <el-tag v-else-if="currentCampus.status === '5'" type="primary">维护中</el-tag>
           <el-tag v-else-if="currentCampus.status === '6'" type="warning">维护待审批</el-tag>
+          <el-tag v-else-if="currentCampus.status === '7'" type="warning">解除监管审批中</el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="申请时间">{{ parseTime(currentCampus.applyTime, '{y}-{m}-{d} {h}:{i}') }}</el-descriptions-item>
         <el-descriptions-item label="审批人" v-if="currentCampus.approveUser">{{ currentCampus.approveUser }}</el-descriptions-item>
@@ -266,11 +282,100 @@
       </div>
     </el-dialog>
 
+    <!-- 申请解除监管对话框 -->
+    <el-dialog title="申请解除监管" :visible.sync="releaseApplyOpen" width="600px" append-to-body>
+      <el-alert
+        title="重要提示"
+        type="warning"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 20px;">
+        解除监管后，机构所有监管账户资金将划拨至基本账户，机构状态将变为"解除监管"，此操作不可撤销！
+      </el-alert>
+      <el-form ref="releaseApplyForm" :model="releaseApplyForm" :rules="releaseApplyRules" label-width="100px">
+        <el-form-item label="机构名称">
+          <el-input v-model="releaseApplyForm.institutionName" :disabled="true" />
+        </el-form-item>
+        <el-form-item label="统一信用代码">
+          <el-input v-model="releaseApplyForm.creditCode" :disabled="true" />
+        </el-form-item>
+        <el-form-item label="解除原因" prop="releaseReason">
+          <el-input v-model="releaseApplyForm.releaseReason" type="textarea" :rows="4" placeholder="请输入解除监管的原因（必填）" />
+        </el-form-item>
+        <el-form-item label="附件材料">
+          <el-upload
+            ref="upload"
+            :action="upload.url"
+            :headers="upload.headers"
+            :file-list="upload.fileList"
+            :on-success="handleUploadSuccess"
+            :on-remove="handleUploadRemove"
+            :before-upload="handleBeforeUpload"
+            :limit="5"
+            multiple>
+            <el-button size="small" icon="el-icon-upload" type="primary">点击上传</el-button>
+            <div slot="tip" class="el-upload__tip">
+              支持上传证明材料，如：解除监管申请书、主管部门意见等，最多5个文件
+            </div>
+          </el-upload>
+        </el-form-item>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button type="primary" @click="submitReleaseApply" :loading="releaseApplyLoading">提交申请</el-button>
+        <el-button @click="releaseApplyOpen = false">取 消</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 查看解除监管申请详情对话框 -->
+    <el-dialog title="解除监管申请详情" :visible.sync="releaseDetailOpen" width="800px" append-to-body>
+      <el-descriptions :column="2" border>
+        <el-descriptions-item label="申请编号">{{ releaseDetail.applyNo }}</el-descriptions-item>
+        <el-descriptions-item label="申请状态">
+          <el-tag v-if="releaseDetail.applyStatus === '0'" type="warning">待审批</el-tag>
+          <el-tag v-else-if="releaseDetail.applyStatus === '1'" type="success">已批准</el-tag>
+          <el-tag v-else-if="releaseDetail.applyStatus === '2'" type="danger">已驳回</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="申请时间">{{ parseTime(releaseDetail.applyTime, '{y}-{m}-{d} {h}:{i}') }}</el-descriptions-item>
+        <el-descriptions-item label="审批时间" v-if="releaseDetail.approveTime">
+          {{ parseTime(releaseDetail.approveTime, '{y}-{m}-{d} {h}:{i}') }}
+        </el-descriptions-item>
+        <el-descriptions-item label="审批人" v-if="releaseDetail.approver">{{ releaseDetail.approver }}</el-descriptions-item>
+        <el-descriptions-item label="解除原因" :span="2">{{ releaseDetail.releaseReason }}</el-descriptions-item>
+        <el-descriptions-item label="驳回原因" :span="2" v-if="releaseDetail.applyStatus === '2' && releaseDetail.rejectReason">
+          {{ releaseDetail.rejectReason }}
+        </el-descriptions-item>
+        <el-descriptions-item label="审批意见" :span="2" v-if="releaseDetail.applyStatus === '1' && releaseDetail.approveRemark">
+          {{ releaseDetail.approveRemark }}
+        </el-descriptions-item>
+      </el-descriptions>
+
+      <el-divider content-position="left">申请附件</el-divider>
+      <el-table :data="releaseDetail.attachments" border v-loading="releaseDetailLoading">
+        <el-table-column label="文件名称" prop="fileName" min-width="200" />
+        <el-table-column label="上传时间" prop="uploadTime" width="160">
+          <template slot-scope="scope">
+            <span>{{ parseTime(scope.row.uploadTime, '{y}-{m}-{d} {h}:{i}') }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="100">
+          <template slot-scope="scope">
+            <el-button size="mini" type="text" @click="handleViewFile(scope.row)">查看</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <el-empty v-if="!releaseDetail.attachments || releaseDetail.attachments.length === 0" description="暂无附件"></el-empty>
+
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="releaseDetailOpen = false">关 闭</el-button>
+      </div>
+    </el-dialog>
+
   </div>
 </template>
 
 <script>
-import { listPensionInstitution, getPensionInstitution, updatePensionInstitution, delPensionInstitution } from "@/api/pension/institution";
+import { listPensionInstitution, getPensionInstitution, updatePensionInstitution, delPensionInstitution, submitReleaseApply, getReleaseApplyStatus } from "@/api/pension/institution";
+import { getToken } from "@/utils/auth";
 
 export default {
   name: "InstitutionApplyList",
@@ -286,6 +391,8 @@ export default {
       title: "",
       // 是否显示弹出层
       detailOpen: false,
+      releaseApplyOpen: false,
+      releaseApplyLoading: false,
       // 查询参数
       queryParams: {
         pageNum: 1,
@@ -294,7 +401,40 @@ export default {
         status: null
       },
       // 当前园区
-      currentCampus: {}
+      currentCampus: {},
+      // 申请解除监管表单
+      releaseApplyForm: {
+        institutionId: null,
+        institutionName: null,
+        creditCode: null,
+        releaseReason: null
+      },
+      // 文件上传配置
+      upload: {
+        url: process.env.VUE_APP_BASE_API + "/common/upload",
+        headers: { Authorization: "Bearer " + getToken() },
+        fileList: []
+      },
+      // 表单校验规则
+      releaseApplyRules: {
+        releaseReason: [
+          { required: true, message: "解除原因不能为空", trigger: "blur" }
+        ]
+      },
+      // 解除监管申请详情
+      releaseDetailOpen: false,
+      releaseDetailLoading: false,
+      releaseDetail: {
+        applyNo: '',
+        applyStatus: '',
+        applyTime: null,
+        approveTime: null,
+        approver: '',
+        releaseReason: '',
+        rejectReason: '',
+        approveRemark: '',
+        attachments: []
+      }
     };
   },
   computed: {
@@ -402,11 +542,118 @@ export default {
         '3': '公建民营',
         'nursing_home': '养老院',
         'service_center': '养老服务中心',
-        'day_care': '日间照料中心',
+        'day_care': '日���照料中心',
         'senior_apartment': '养老公寓',
         'other': '其他'
       };
       return typeMap[type] || type;
+    },
+    /** 申请解除监管按钮操作 */
+    handleReleaseApply(row) {
+      this.resetReleaseApplyForm();
+      this.releaseApplyForm.institutionId = row.institutionId;
+      this.releaseApplyForm.institutionName = row.institutionName;
+      this.releaseApplyForm.creditCode = row.creditCode;
+      this.releaseApplyOpen = true;
+    },
+    /** 重置申请解除监管表单 */
+    resetReleaseApplyForm() {
+      this.releaseApplyForm = {
+        institutionId: null,
+        institutionName: null,
+        creditCode: null,
+        releaseReason: null
+      };
+      this.upload.fileList = [];
+      if (this.$refs.releaseApplyForm) {
+        this.$refs.releaseApplyForm.resetFields();
+      }
+    },
+    /** 提交解除监管申请 */
+    submitReleaseApply() {
+      this.$refs["releaseApplyForm"].validate(valid => {
+        if (valid) {
+          this.releaseApplyLoading = true;
+          const submitData = {
+            institutionId: this.releaseApplyForm.institutionId,
+            releaseReason: this.releaseApplyForm.releaseReason,
+            attachments: this.upload.fileList.map(f => ({
+              fileName: f.name,
+              filePath: f.response?.url || f.url
+            }))
+          };
+          submitReleaseApply(submitData).then(response => {
+            this.$modal.msgSuccess("申请提交成功，请等待监管部门审批");
+            this.releaseApplyOpen = false;
+            this.getList();
+          }).finally(() => {
+            this.releaseApplyLoading = false;
+          });
+        }
+      });
+    },
+    /** 文件上传成功回调 */
+    handleUploadSuccess(res, file, fileList) {
+      this.upload.fileList = fileList;
+    },
+    /** 文件移除回调 */
+    handleUploadRemove(file, fileList) {
+      this.upload.fileList = fileList;
+    },
+    /** 文件上传前校验 */
+    handleBeforeUpload(file) {
+      const isValidType = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'].includes(file.type);
+      const isLt10M = file.size / 1024 / 1024 < 10;
+      if (!isValidType) {
+        this.$modal.msgError('只能上传JPG、PNG、PDF格式的文件!');
+        return false;
+      }
+      if (!isLt10M) {
+        this.$modal.msgError('上传文件大小不能超过 10MB!');
+        return false;
+      }
+      return true;
+    },
+    /** 查看解除监管申请详情 */
+    handleViewReleaseApply(row) {
+      this.releaseDetailLoading = true;
+      this.releaseDetailOpen = true;
+
+      // 调用API获取申请详情
+      getReleaseApplyStatus(row.institutionId).then(res => {
+        console.log('解除监管申请详情返回:', res);
+        // axios拦截器已返回 res.data，所以直接使用 res 而不是 res.data
+        if (res && res.hasApply) {
+          // 使用 Object.assign 确保 Vue 响应式更新
+          this.releaseDetail = Object.assign({}, {
+            applyNo: res.applyNo || '',
+            applyStatus: res.applyStatus || '0',
+            applyTime: res.applyTime,
+            approveTime: res.approveTime,
+            approver: res.approver || '',
+            releaseReason: res.releaseReason || '',
+            rejectReason: res.rejectReason || '',
+            approveRemark: res.approveRemark || '',
+            attachments: Array.isArray(res.attachments) ? res.attachments : []
+          });
+          console.log('处理后的详情数据:', this.releaseDetail);
+        } else {
+          this.$modal.msgWarning("未找到申请信息");
+        }
+      }).catch((error) => {
+        console.error('获取申请详情失败:', error);
+        this.$modal.msgError("获取申请详情失败");
+      }).finally(() => {
+        this.releaseDetailLoading = false;
+      });
+    },
+    /** 查看附件文件 */
+    handleViewFile(file) {
+      if (file.filePath) {
+        window.open(process.env.VUE_APP_BASE_API + file.filePath, '_blank');
+      } else {
+        this.$modal.msgError("文件路径不存在");
+      }
     }
   }
 };

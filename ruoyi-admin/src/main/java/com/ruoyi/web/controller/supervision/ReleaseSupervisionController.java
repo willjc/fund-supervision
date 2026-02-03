@@ -145,4 +145,15 @@ public class ReleaseSupervisionController extends BaseController
         Map<String, Object> data = releaseSupervisionService.getReleaseStatistics();
         return success(data);
     }
+
+    /**
+     * 查询解除监管申请的附件列表
+     */
+    @PreAuthorize("@ss.hasPermi('supervision:release:query')")
+    @GetMapping("/attachments/{releaseId}")
+    public AjaxResult getAttachments(@PathVariable("releaseId") Long releaseId)
+    {
+        List<Map<String, Object>> attachments = releaseSupervisionService.selectAttachmentsByReleaseId(releaseId);
+        return success().put("rows", attachments).put("total", attachments.size());
+    }
 }

@@ -43,6 +43,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <select id="selectReleaseSupervisionList" parameterType="ReleaseSupervision" resultMap="ReleaseSupervisionResult">
         <include refid="selectReleaseSupervisionVo"/>
         <where>
+            <if test="institutionId != null"> and institution_id = #{institutionId}</if>
             <if test="institutionName != null  and institutionName != ''"> and institution_name like concat('%', #{institutionName}, '%')</if>
             <if test="applyStatus != null  and applyStatus != ''"> and apply_status = #{applyStatus}</if>
             <if test="params.beginTime != null and params.beginTime != ''">
@@ -137,6 +138,19 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             sum(case when apply_status = '1' then 1 else 0 end) as approvedCount,
             sum(case when apply_status = '2' then 1 else 0 end) as rejectedCount
         from release_supervision
+    </select>
+
+    <!-- 查询解除监管申请的附件列表 -->
+    <select id="selectAttachmentsByReleaseId" parameterType="Long" resultType="java.util.Map">
+        select
+            attach_id as attachId,
+            file_name as fileName,
+            file_path as filePath,
+            file_size as fileSize,
+            upload_time as uploadTime
+        from release_supervision_attach
+        where release_id = #{releaseId}
+        order by upload_time asc
     </select>
 
 </mapper>

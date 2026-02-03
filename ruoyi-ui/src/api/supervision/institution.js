@@ -339,6 +339,14 @@ export function getReleaseStatistics() {
   })
 }
 
+// 查询解除监管申请的附件列表
+export function listReleaseAttachments(releaseId) {
+  return request({
+    url: '/supervision/institution/release/attachments/' + releaseId,
+    method: 'get'
+  })
+}
+
 // ========== 机构入驻审批 & 维护审批 ==========
 
 // 审批通过机构入驻申请（支持待审批0和维护待审批6）

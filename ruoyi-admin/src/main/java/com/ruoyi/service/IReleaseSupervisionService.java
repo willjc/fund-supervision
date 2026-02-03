@@ -84,4 +84,21 @@ public interface IReleaseSupervisionService
      * @return 统计数据
      */
     public Map<String, Object> getReleaseStatistics();
+
+    /**
+     * 查询解除监管申请的附件列表
+     *
+     * @param releaseId 解除监管申请ID
+     * @return 附件列表
+     */
+    public List<Map<String, Object>> selectAttachmentsByReleaseId(Long releaseId);
+
+    /**
+     * 保存解除监管申请的附件
+     *
+     * @param releaseId 解除监管申请ID
+     * @param attachments 附件列表
+     * @return 结果
+     */
+    public int saveAttachments(Long releaseId, List<Map<String, String>> attachments);
 }

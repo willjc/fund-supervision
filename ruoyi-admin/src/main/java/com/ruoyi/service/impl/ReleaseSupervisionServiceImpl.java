@@ -1,13 +1,19 @@
 package com.ruoyi.service.impl;
 
+import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import com.ruoyi.mapper.ReleaseSupervisionMapper;
+import com.ruoyi.domain.PensionInstitution;
 import com.ruoyi.domain.ReleaseSupervision;
 import com.ruoyi.service.IReleaseSupervisionService;
+import com.ruoyi.service.IPensionInstitutionService;
+import com.ruoyi.service.pension.ISupervisionAccountLogService;
 import com.ruoyi.common.utils.SecurityUtils;
 
 /**
@@ -22,6 +28,15 @@ public class ReleaseSupervisionServiceImpl implements IReleaseSupervisionService
     @Autowired
     private ReleaseSupervisionMapper releaseSupervisionMapper;
 
+    @Autowired
+    private ISupervisionAccountLogService supervisionAccountLogService;
+
+    @Autowired
+    private IPensionInstitutionService pensionInstitutionService;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     /**
      * 查询机构解除监管申请
      *
@@ -31,7 +46,62 @@ public class ReleaseSupervisionServiceImpl implements IReleaseSupervisionService
     @Override
     public ReleaseSupervision selectReleaseSupervisionByReleaseId(Long releaseId)
     {
-        return releaseSupervisionMapper.selectReleaseSupervisionByReleaseId(releaseId);
+        ReleaseSupervision supervision = releaseSupervisionMapper.selectReleaseSupervisionByReleaseId(releaseId);
+        if (supervision != null && supervision.getInstitutionId() != null) {
+            // 动态查询机构监管账户余额
+            fillInstitutionBalance(supervision);
+        }
+        return supervision;
+    }
+
+    /**
+     * 动态查询并填充机构监管账户余额
+     * 从 account_info 表汇总该机构所有老人的账户余额
+     *
+     * @param supervision 解除监管申请对象
+     */
+    private void fillInstitutionBalance(ReleaseSupervision supervision)
+    {
+        Long institutionId = supervision.getInstitutionId();
+        String sql = "SELECT " +
+                     "COALESCE(SUM(total_balance), 0) as total, " +
+                     "COALESCE(SUM(service_balance), 0) as service, " +
+                     "COALESCE(SUM(deposit_balance), 0) as deposit, " +
+                     "COALESCE(SUM(member_balance), 0) as member " +
+                     "FROM account_info WHERE institution_id = ?";
+
+        Map<String, Object> balance = jdbcTemplate.queryForMap(sql, institutionId);
+
+        supervision.setSupervisionBalance((BigDecimal) balance.get("total"));
+        supervision.setServiceFeeBalance((BigDecimal) balance.get("service"));
+        supervision.setDepositBalance((BigDecimal) balance.get("deposit"));
+        supervision.setMemberFeeBalance((BigDecimal) balance.get("member"));
+    }
+
+    /**
+     * 动态查询机构监管账户余额
+     * 用于审批时获取当前实时余额
+     *
+     * @param institutionId 机构ID
+     * @return 余额信息 map
+     */
+    public Map<String, BigDecimal> getInstitutionBalance(Long institutionId)
+    {
+        String sql = "SELECT " +
+                     "COALESCE(SUM(total_balance), 0) as total, " +
+                     "COALESCE(SUM(service_balance), 0) as service, " +
+                     "COALESCE(SUM(deposit_balance), 0) as deposit, " +
+                     "COALESCE(SUM(member_balance), 0) as member " +
+                     "FROM account_info WHERE institution_id = ?";
+
+        Map<String, Object> result = jdbcTemplate.queryForMap(sql, institutionId);
+        Map<String, BigDecimal> balance = Map.of(
+            "total", (BigDecimal) result.get("total"),
+            "service", (BigDecimal) result.get("service"),
+            "deposit", (BigDecimal) result.get("deposit"),
+            "member", (BigDecimal) result.get("member")
+        );
+        return balance;
     }
 
     /**
@@ -43,7 +113,16 @@ public class ReleaseSupervisionServiceImpl implements IReleaseSupervisionService
     @Override
     public List<ReleaseSupervision> selectReleaseSupervisionList(ReleaseSupervision releaseSupervision)
     {
-        return releaseSupervisionMapper.selectReleaseSupervisionList(releaseSupervision);
+        List<ReleaseSupervision> list = releaseSupervisionMapper.selectReleaseSupervisionList(releaseSupervision);
+        // 为列表中的每条记录动态填充余额
+        if (list != null && !list.isEmpty()) {
+            for (ReleaseSupervision supervision : list) {
+                if (supervision.getInstitutionId() != null) {
+                    fillInstitutionBalance(supervision);
+                }
+            }
+        }
+        return list;
     }
 
     /**
@@ -104,8 +183,42 @@ public class ReleaseSupervisionServiceImpl implements IReleaseSupervisionService
      * @return 结果
      */
     @Override
+    @Transactional
     public int approveRelease(Long releaseId, ReleaseSupervision releaseSupervision)
     {
+        // 1. 查询申请信息
+        ReleaseSupervision apply = releaseSupervisionMapper.selectReleaseSupervisionByReleaseId(releaseId);
+        if (apply == null) {
+            throw new RuntimeException("解除监管申请不存在");
+        }
+        if (!"0".equals(apply.getApplyStatus())) {
+            throw new RuntimeException("该申请已被处理，无法再次审批");
+        }
+
+        Long institutionId = apply.getInstitutionId();
+
+        // 2. 动态查询当前监管账户余额（实时数据）
+        Map<String, BigDecimal> balance = getInstitutionBalance(institutionId);
+        BigDecimal supervisionBalance = balance.get("total");
+
+        // 3. 记录监管账户支出流水
+        if (supervisionBalance != null && supervisionBalance.compareTo(BigDecimal.ZERO) > 0) {
+            supervisionAccountLogService.recordTransferOut(
+                    institutionId,
+                    releaseId,
+                    supervisionBalance,
+                    "解除监管划拨-" + apply.getApplyNo(),
+                    "基本账户"
+            );
+        }
+
+        // 4. 更新机构状态为"解除监管"
+        PensionInstitution institution = new PensionInstitution();
+        institution.setInstitutionId(institutionId);
+        institution.setStatus("3"); // 3=解除监管
+        pensionInstitutionService.updatePensionInstitution(institution);
+
+        // 5. 更新申请状态为已批准
         ReleaseSupervision update = new ReleaseSupervision();
         update.setReleaseId(releaseId);
         update.setApplyStatus("1"); // 已批准
@@ -113,9 +226,6 @@ public class ReleaseSupervisionServiceImpl implements IReleaseSupervisionService
         update.setApproveTime(new Date());
         update.setApproveRemark(releaseSupervision.getApproveRemark());
         update.setUpdateTime(new Date());
-
-        // TODO: 这里应该调用银行接口通知资金划拨
-        // bankService.notifyTransferFunds(releaseId);
 
         return releaseSupervisionMapper.updateReleaseSupervision(update);
     }
@@ -128,8 +238,16 @@ public class ReleaseSupervisionServiceImpl implements IReleaseSupervisionService
      * @return 结果
      */
     @Override
+    @Transactional
     public int rejectRelease(Long releaseId, ReleaseSupervision releaseSupervision)
     {
+        // 查询申请信息，获取机构ID
+        ReleaseSupervision apply = releaseSupervisionMapper.selectReleaseSupervisionByReleaseId(releaseId);
+        if (apply == null) {
+            throw new RuntimeException("解除监管申请不存在");
+        }
+
+        // 更新申请状态为已驳回
         ReleaseSupervision update = new ReleaseSupervision();
         update.setReleaseId(releaseId);
         update.setApplyStatus("2"); // 已驳回
@@ -137,8 +255,17 @@ public class ReleaseSupervisionServiceImpl implements IReleaseSupervisionService
         update.setApproveTime(new Date());
         update.setRejectReason(releaseSupervision.getRejectReason());
         update.setUpdateTime(new Date());
+        int result = releaseSupervisionMapper.updateReleaseSupervision(update);
 
-        return releaseSupervisionMapper.updateReleaseSupervision(update);
+        // 恢复机构状态为已入驻
+        if (result > 0) {
+            PensionInstitution institution = new PensionInstitution();
+            institution.setInstitutionId(apply.getInstitutionId());
+            institution.setStatus("1"); // 恢复为已入驻
+            pensionInstitutionService.updatePensionInstitution(institution);
+        }
+
+        return result;
     }
 
     /**
@@ -150,5 +277,44 @@ public class ReleaseSupervisionServiceImpl implements IReleaseSupervisionService
     public Map<String, Object> getReleaseStatistics()
     {
         return releaseSupervisionMapper.selectReleaseStatistics();
+    }
+
+    /**
+     * 查询解除监管申请的附件列表
+     *
+     * @param releaseId 解除监管申请ID
+     * @return 附件列表
+     */
+    @Override
+    public List<Map<String, Object>> selectAttachmentsByReleaseId(Long releaseId)
+    {
+        return releaseSupervisionMapper.selectAttachmentsByReleaseId(releaseId);
+    }
+
+    /**
+     * 保存解除监管申请的附件
+     *
+     * @param releaseId 解除监管申请ID
+     * @param attachments 附件列表
+     * @return 结果
+     */
+    @Override
+    public int saveAttachments(Long releaseId, List<Map<String, String>> attachments)
+    {
+        if (attachments == null || attachments.isEmpty()) {
+            return 0;
+        }
+
+        String insertSql = "INSERT INTO release_supervision_attach (release_id, file_name, file_path, upload_time) VALUES (?, ?, ?, NOW())";
+        int count = 0;
+
+        for (Map<String, String> attachment : attachments) {
+            String fileName = attachment.get("fileName");
+            String filePath = attachment.get("filePath");
+            jdbcTemplate.update(insertSql, releaseId, fileName, filePath);
+            count++;
+        }
+
+        return count;
     }
 }

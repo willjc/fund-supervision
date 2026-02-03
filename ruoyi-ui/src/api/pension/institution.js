@@ -68,6 +68,25 @@ export function listAllInstitutions() {
   })
 }
 
+// ========== 解除监管申请 ==========
+
+// 提交解除监管申请
+export function submitReleaseApply(data) {
+  return request({
+    url: '/pension/institution/release/apply',
+    method: 'post',
+    data: data
+  })
+}
+
+// 查询机构的解除监管申请记录
+export function getReleaseApplyStatus(institutionId) {
+  return request({
+    url: '/pension/institution/release/status/' + institutionId,
+    method: 'get'
+  })
+}
+
 // 以下是别名导出,与index.vue中的导入保持一致
 export const listInstitution = listPensionInstitution
 export const getInstitution = getPensionInstitution
