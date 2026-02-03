@@ -73,3 +73,29 @@ export function getResidentStructure() {
     method: 'get'
   })
 }
+
+// ==================== 超管/监��端首页API ====================
+
+// 获取超管首页概览数据
+export function getSupervisionOverview() {
+  return request({
+    url: '/pension/supervision/dashboard/simple/overview',
+    method: 'get'
+  })
+}
+
+// 获取超管首页账户余额汇总
+export function getSupervisionBalance() {
+  return request({
+    url: '/pension/supervision/dashboard/simple/balance',
+    method: 'get'
+  })
+}
+
+// 获取超管首页入住人结构分析
+export function getSupervisionStructure() {
+  return request({
+    url: '/pension/supervision/dashboard/simple/structure',
+    method: 'get'
+  })
+}
