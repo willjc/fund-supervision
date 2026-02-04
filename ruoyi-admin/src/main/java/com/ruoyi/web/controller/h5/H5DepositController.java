@@ -393,12 +393,25 @@ public class H5DepositController extends BaseController
                 return error("当前状态不允许家属审批");
             }
 
-            // 获取家属信息（用于记录）
+            // 获取家属信息（用于记录）- 优先使用真实姓名，其次昵称
             String familyName = SecurityUtils.getUsername();
+            try {
+                SysUser user = userService.selectUserById(currentUserId);
+                if (user != null) {
+                    if (user.getRealName() != null && !user.getRealName().trim().isEmpty()) {
+                        familyName = user.getRealName();
+                    } else if (user.getNickName() != null && !user.getNickName().trim().isEmpty()) {
+                        familyName = user.getNickName();
+                    }
+                }
+            } catch (Exception e) {
+                logger.warn("获取用户真实姓名失败，使用用户名: {}", familyName);
+            }
 
             // 调用家属审批方法
-            String opinion = "rejected".equals(approvalResult) ? rejectReason : "同意";
-            int result = depositApplyService.familyApprove(applyId, opinion, familyName);
+            // 直接传递明确的审批标志，不使用文本内容判断
+            String opinion = "approved".equals(approvalResult) ? "approved" : "rejected";
+            int result = depositApplyService.familyApprove(applyId, opinion, familyName, rejectReason);
 
             if (result > 0) {
                 return success("审批成功");

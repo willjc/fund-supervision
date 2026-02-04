@@ -79,11 +79,12 @@ public interface IDepositApplyService
      * 家属审批押金使用申请
      *
      * @param applyId 押金使用申请主键
-     * @param opinion 审批意见
-     * @param approver 审批人
+     * @param opinion 审批意见 (approved-同意, rejected-拒绝)
+     * @param approver 审批人姓名
+     * @param rejectReason 拒绝原因（拒绝时必填）
      * @return 结果
      */
-    public int familyApprove(Long applyId, String opinion, String approver);
+    public int familyApprove(Long applyId, String opinion, String approver, String rejectReason);
 
     /**
      * 监管部门审批押金使用申请

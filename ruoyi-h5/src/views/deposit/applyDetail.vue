@@ -122,13 +122,38 @@
 
     <!-- 底部操作栏 -->
     <div v-if="detail.applyStatus === 'pending_family'" class="action-bar">
-      <van-button type="default" size="large" @click="handleReject">
+      <van-button type="default" size="large" @click="showRejectDialog = true">
         拒绝
       </van-button>
       <van-button type="primary" size="large" @click="handleApprove">
         同意
       </van-button>
     </div>
+
+    <!-- 拒绝原因弹窗 -->
+    <van-dialog
+      v-model:show="showRejectDialog"
+      title="拒绝申请"
+      show-cancel-button
+      confirm-button-text="确认拒绝"
+      cancel-button-text="取消"
+      :before-close="onRejectDialogClose"
+      class="reject-dialog"
+    >
+      <div class="reject-dialog-content">
+        <p class="reject-tip">请输入拒绝原因（必填）</p>
+        <van-field
+          v-model="rejectReasonInput"
+          rows="4"
+          autosize
+          type="textarea"
+          maxlength="200"
+          placeholder="请详细说明拒绝原因，这将帮助机构了解您的意见..."
+          show-word-limit
+          class="reject-textarea"
+        />
+      </div>
+    </van-dialog>
   </div>
 </template>
 
@@ -144,6 +169,8 @@ const router = useRouter()
 
 const loading = ref(false)
 const detail = ref({})
+const showRejectDialog = ref(false)
+const rejectReasonInput = ref('')
 
 // 获取当前审批步骤
 const getCurrentStep = () => {
@@ -302,43 +329,43 @@ const handleApprove = async () => {
 }
 
 // 拒绝申请
-const handleReject = async () => {
-  try {
-    // 使用 prompt 获取拒绝原因（更可靠的方式）
-    const rejectReason = window.prompt('请输入拒绝原因', '')
+const handleReject = () => {
+  // 清空之前的输入
+  rejectReasonInput.value = ''
+  showRejectDialog.value = true
+}
 
-    // 用户取消输入
-    if (rejectReason === null) {
-      return
-    }
-
+// 拒绝弹窗关闭前的处理
+const onRejectDialogClose = async (action) => {
+  if (action === 'confirm') {
     // 验证拒绝原因必填
-    if (!rejectReason || !rejectReason.trim()) {
+    if (!rejectReasonInput.value || !rejectReasonInput.value.trim()) {
       showToast('请输入拒绝原因')
-      return
+      return false // 阻止关闭
     }
 
-    const res = await submitFamilyApproval({
-      applyId: route.params.id,
-      approvalResult: 'rejected',
-      rejectReason: rejectReason.trim()
-    })
+    // 提交拒绝审批
+    try {
+      const res = await submitFamilyApproval({
+        applyId: route.params.id,
+        approvalResult: 'rejected',
+        rejectReason: rejectReasonInput.value.trim()
+      })
 
-    if (res.code === 200) {
-      showToast({
-        type: 'success',
-        message: '审批成功'
-      })
-      // 刷新详情
-      await loadDetail()
-    } else {
-      showToast({
-        type: 'fail',
-        message: res.msg || '审批失败'
-      })
-    }
-  } catch (error) {
-    if (error !== 'cancel') {
+      if (res.code === 200) {
+        showToast({
+          type: 'success',
+          message: '审批成功'
+        })
+        // 刷新详情
+        await loadDetail()
+      } else {
+        showToast({
+          type: 'fail',
+          message: res.msg || '审批失败'
+        })
+      }
+    } catch (error) {
       console.error('审批失败:', error)
       showToast({
         type: 'fail',
@@ -346,6 +373,7 @@ const handleReject = async () => {
       })
     }
   }
+  return true // 允许关闭
 }
 
 // 加载详情
@@ -455,5 +483,28 @@ onMounted(() => {
 
 .action-bar .van-button {
   flex: 1;
+}
+
+/* 拒绝弹窗样式 */
+.reject-dialog-content {
+  padding: 20px 16px;
+}
+
+.reject-tip {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #646566;
+  font-weight: 500;
+}
+
+.reject-textarea {
+  background-color: #f7f8fa;
+  border-radius: 8px;
+}
+
+.reject-textarea :deep(.van-field__control) {
+  background-color: #f7f8fa;
+  padding: 8px;
+  border-radius: 8px;
 }
 </style>

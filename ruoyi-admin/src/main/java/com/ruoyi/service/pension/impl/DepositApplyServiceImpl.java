@@ -141,12 +141,13 @@ public class DepositApplyServiceImpl implements IDepositApplyService
      * 家属审批押金使用申请
      *
      * @param applyId 押金使用申请主键
-     * @param opinion 审批意见
-     * @param approver 审批人
+     * @param opinion 审批意见 (approved-同意, rejected-拒绝)
+     * @param approver 审批人姓名
+     * @param rejectReason 拒绝原因（拒绝时必填）
      * @return 结果
      */
     @Override
-    public int familyApprove(Long applyId, String opinion, String approver)
+    public int familyApprove(Long applyId, String opinion, String approver, String rejectReason)
     {
         // 1. 查询申请信息
         DepositApply apply = depositApplyMapper.selectDepositApplyByApplyId(applyId);
@@ -159,19 +160,21 @@ public class DepositApplyServiceImpl implements IDepositApplyService
             throw new RuntimeException("当前状态不允许家属审批");
         }
 
-        // 3. 判断审批结果
+        // 3. 判断审批结果（简化逻辑，直接根据明确标志判断）
         String approveStatus;
-        // 判断是同意还是拒绝
-        if ("approved".equals(opinion) || opinion.contains("同意") || opinion.equals("agree")) {
+        String familyOpinion; // 实际存储的审批意见
+        if ("approved".equals(opinion)) {
             approveStatus = "family_approved"; // 家属同意，等待监管部门审批
+            familyOpinion = "同意"; // 家属同意时的意见
         } else {
             approveStatus = "rejected"; // 家属拒绝
+            familyOpinion = (rejectReason != null && !rejectReason.trim().isEmpty()) ? rejectReason.trim() : "拒绝"; // 使用用户输入的拒绝原因
         }
 
         // 4. 更新审批信息
         DepositApply updateApply = new DepositApply();
         updateApply.setApplyId(applyId);
-        updateApply.setFamilyApproveOpinion(opinion);
+        updateApply.setFamilyApproveOpinion(familyOpinion); // 存储实际的审批意见/拒绝原因
         updateApply.setFamilyConfirmName(approver); // 记录家属审批人
         updateApply.setFamilyApproveTime(DateUtils.getNowDate());
         updateApply.setApplyStatus(approveStatus);

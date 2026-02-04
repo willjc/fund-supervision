@@ -201,8 +201,20 @@ public class DepositApplyController extends BaseController
         String opinion = depositApply.getFamilyApproveOpinion();
         String approver = SecurityUtils.getUsername();
 
+        // 解析审批意见：判断是同意还是拒绝
+        // 如果opinion包含"同意"或等于"approved"，则视为同意；否则视为拒绝，opinion内容作为拒绝原因
+        String statusFlag;
+        String rejectReason;
+        if ("approved".equals(opinion) || (opinion != null && opinion.contains("同意"))) {
+            statusFlag = "approved";
+            rejectReason = "";
+        } else {
+            statusFlag = "rejected";
+            rejectReason = (opinion != null && !opinion.trim().isEmpty()) ? opinion : "拒绝";
+        }
+
         try {
-            int result = depositApplyService.familyApprove(applyId, opinion, approver);
+            int result = depositApplyService.familyApprove(applyId, statusFlag, approver, rejectReason);
             return toAjax(result);
         } catch (RuntimeException e) {
             return AjaxResult.error(e.getMessage());
