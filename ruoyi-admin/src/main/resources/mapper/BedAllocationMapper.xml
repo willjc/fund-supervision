@@ -103,4 +103,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where allocation_id = #{allocationId}
     </update>
 
+    <!-- 根据床位ID删除床位分配记录（取消订单时释放床位） -->
+    <delete id="deleteBedAllocationByBedId">
+        delete from bed_allocation where bed_id = #{bedId}
+    </delete>
+
+    <!-- 根据老人ID删除床位分配记录 -->
+    <delete id="deleteBedAllocationByElderId">
+        delete from bed_allocation where elder_id = #{elderId}
+    </delete>
+
 </mapper>

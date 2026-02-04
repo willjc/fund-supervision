@@ -96,6 +96,9 @@ public class H5OrderController extends BaseController
     @Autowired
     private com.ruoyi.service.pension.IFundTransferService fundTransferService;
 
+    @Autowired
+    private com.ruoyi.mapper.BedAllocationMapper bedAllocationMapper;
+
     /**
      * 获取订单列表
      * 根据当前登录用户关联的老人查询订单（家属或老人本人）
@@ -698,11 +701,16 @@ public class H5OrderController extends BaseController
 
     /**
      * 获取老人账户余额信息
+     *
+     * 计算公式（用户端H5）：
+     * - 账户余额 = 未拨付拨付单金额 + 会员费 + 押金
+     * - 押金 = 老人押金 - 已拨付押金金额（即账户表deposit_balance当前值）
+     * - 预存 = 未拨付拨付单金额
      */
     @GetMapping("/account/{elderId}")
     public AjaxResult getAccountInfo(@PathVariable Long elderId) {
         try {
-            // 获取当���用户ID
+            // 获取当前用户ID
             Long currentUserId = getCurrentUserId();
             if (currentUserId == null) {
                 return error("用户未登录或身份验证失败");
@@ -726,7 +734,7 @@ public class H5OrderController extends BaseController
                 defaultAccount.put("accountId", null);
                 defaultAccount.put("accountNo", null);
                 BigDecimal zeroBalance = new BigDecimal("0");
-                defaultAccount.put("totalBalance", zeroBalance);  // 账户余额（服务费+押金）
+                defaultAccount.put("totalBalance", zeroBalance);
                 defaultAccount.put("serviceBalance", zeroBalance);
                 defaultAccount.put("depositBalance", zeroBalance);
                 defaultAccount.put("memberBalance", zeroBalance);
@@ -740,34 +748,40 @@ public class H5OrderController extends BaseController
             result.put("accountId", account.getAccountId());
             result.put("accountNo", account.getAccountNo());
 
+            // 获取账户表余额
             BigDecimal serviceBalance = account.getServiceBalance() != null ? account.getServiceBalance() : new BigDecimal("0");
             BigDecimal depositBalance = account.getDepositBalance() != null ? account.getDepositBalance() : new BigDecimal("0");
             BigDecimal memberBalance = account.getMemberBalance() != null ? account.getMemberBalance() : new BigDecimal("0");
 
-            // 查询已划拨的服务费金额（从fund_transfer表查询已划拨的记录）
-            BigDecimal transferredAmount = BigDecimal.ZERO;
+            // 计算已划拨的服务费金额（paid_method IN ('auto', 'manual') 且 status='completed' 且 is_paid='1'）
+            BigDecimal transferredServiceAmount = BigDecimal.ZERO;
             List<com.ruoyi.domain.pension.FundTransfer> serviceTransfers =
                 fundTransferService.selectByElderIdAndPaidMethods(elderId, new String[]{"auto", "manual"});
             for (com.ruoyi.domain.pension.FundTransfer ft : serviceTransfers) {
-                if (ft.getTransferAmount() != null && "1".equals(ft.getIsPaid())) {
-                    transferredAmount = transferredAmount.add(ft.getTransferAmount());
+                if ("completed".equals(ft.getStatus()) && "1".equals(ft.getIsPaid()) && ft.getTransferAmount() != null) {
+                    transferredServiceAmount = transferredServiceAmount.add(ft.getTransferAmount());
                 }
             }
 
-            // 可用服务费余额 = 原始服务费余额 - 已划拨金额
-            BigDecimal availableServiceBalance = serviceBalance.subtract(transferredAmount);
-            if (availableServiceBalance.compareTo(BigDecimal.ZERO) < 0) {
-                availableServiceBalance = BigDecimal.ZERO;
+            // 未拨付拨付单金额 = 服务费余额 - 已划拨服务费
+            BigDecimal unpaidTransferAmount = serviceBalance.subtract(transferredServiceAmount);
+            if (unpaidTransferAmount.compareTo(BigDecimal.ZERO) < 0) {
+                unpaidTransferAmount = BigDecimal.ZERO;
             }
 
-            // 用户端显示的账户余额：不包含押金和会员费，只显示可用服务费余额
-            result.put("totalBalance", availableServiceBalance);  // 用于显示的"账户余额"
-            result.put("serviceBalance", availableServiceBalance);   // 可用服务费余额
-            result.put("depositBalance", depositBalance);           // 押金余额（仅供参考）
-            result.put("memberBalance", memberBalance);             // 会员费余额（仅供参考）
+            // 押金显示值 = 老人押金 - 已拨付押金金额
+            // 注意：账户表的deposit_balance在押金审批通过时已经被扣除，所以直接使用即可
+            result.put("depositBalance", depositBalance);
 
-            // 计算预存金额（可用服务费余额）
-            result.put("prepaidAmount", availableServiceBalance);
+            // 预存 = 未拨付拨付单金额
+            result.put("prepaidAmount", unpaidTransferAmount);
+
+            // 账户余额 = 未拨付拨付单金额 + 会员费 + 押金
+            BigDecimal totalBalance = unpaidTransferAmount.add(memberBalance).add(depositBalance);
+            result.put("totalBalance", totalBalance);
+
+            result.put("serviceBalance", serviceBalance);  // 原始服务费余额（仅供参考）
+            result.put("memberBalance", memberBalance);    // 会员费余额
             result.put("hasAccount", true);
 
             // 添加机构信息
@@ -836,6 +850,22 @@ public class H5OrderController extends BaseController
 
             int result = orderInfoService.updateOrderInfo(order);
             if (result > 0) {
+                // 释放床位资源
+                if (order.getBedId() != null) {
+                    try {
+                        // 1. 删除床位分配记录
+                        bedAllocationMapper.deleteBedAllocationByBedId(order.getBedId());
+                        logger.info("删除床位分配记录成功，床位ID：{}", order.getBedId());
+
+                        // 2. 更新床位状态为空置
+                        bedInfoService.updateBedStatus(order.getBedId(), "0");
+                        logger.info("床位状态已更新为空置，床位ID：{}", order.getBedId());
+                    } catch (Exception e) {
+                        logger.error("释放床位资源失败，床位ID：{}", order.getBedId(), e);
+                        // 床位释放失败不影响订单取消流程
+                    }
+                }
+
                 logger.info("订单{}取消成功，订单号：{}", orderId, order.getOrderNo());
                 return success("订单取消成功");
             } else {

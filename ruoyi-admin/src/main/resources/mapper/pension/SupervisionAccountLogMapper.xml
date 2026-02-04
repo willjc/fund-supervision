@@ -192,7 +192,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             (SELECT COALESCE(sal.balance_after, 0)
              FROM supervision_account_log sal
              WHERE sal.institution_id = ft.institution_id
-               AND sal.transaction_time &lt;= ft.paid_time
+               AND sal.transaction_time &lt;= DATE_ADD(ft.paid_time, INTERVAL 10 SECOND)
              ORDER BY sal.transaction_time DESC
              LIMIT 1) as supervisionBalance,
             (SELECT COALESCE(SUM(ft2.transfer_amount), 0)

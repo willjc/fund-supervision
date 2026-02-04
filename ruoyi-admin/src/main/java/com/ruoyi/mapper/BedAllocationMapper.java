@@ -50,4 +50,20 @@ public interface BedAllocationMapper
      * @return 结果
      */
     public int updateBedAllocation(BedAllocation bedAllocation);
+
+    /**
+     * 根据床位ID删除床位分配记录（取消订单时释放床位）
+     *
+     * @param bedId 床位ID
+     * @return 结果
+     */
+    public int deleteBedAllocationByBedId(Long bedId);
+
+    /**
+     * 根据老人ID删除床位分配记录
+     *
+     * @param elderId 老人ID
+     * @return 结果
+     */
+    public int deleteBedAllocationByElderId(Long elderId);
 }
