@@ -1,6 +1,7 @@
 package com.ruoyi.domain.pension;
 
 import java.util.Date;
+import java.util.List;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
@@ -32,6 +33,9 @@ public class InstitutionVisitReservation extends BaseEntity
     /** 机构ID */
     @Excel(name = "机构ID")
     private Long institutionId;
+
+    /** 机构ID列表（用于数据��限过滤，多个机构ID的IN查询） */
+    private List<Long> institutionIds;
 
     /** 预约用户ID */
     @Excel(name = "预约用户ID")
@@ -120,6 +124,16 @@ public class InstitutionVisitReservation extends BaseEntity
     public Long getInstitutionId()
     {
         return institutionId;
+    }
+
+    public void setInstitutionIds(List<Long> institutionIds)
+    {
+        this.institutionIds = institutionIds;
+    }
+
+    public List<Long> getInstitutionIds()
+    {
+        return institutionIds;
     }
 
     public void setUserId(Long userId)

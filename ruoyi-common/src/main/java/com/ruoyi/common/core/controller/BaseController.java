@@ -2,9 +2,11 @@ package com.ruoyi.common.core.controller;
 
 import java.beans.PropertyEditorSupport;
 import java.util.Date;
+import java.util.ArrayList;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.InitBinder;
 import com.github.pagehelper.PageHelper;
@@ -198,5 +200,40 @@ public class BaseController
     public String getUsername()
     {
         return getLoginUser().getUsername();
+    }
+
+    /**
+     * 使用JdbcTemplate获取当前用户关联的机构ID列表
+     * 子类需要注入JdbcTemplate后调用此方法
+     *
+     * @param jdbcTemplate JdbcTemplate实例
+     * @return 机构ID列表，admin返回null表示不限制
+     */
+    protected List<Long> getUserInstitutionIds(JdbcTemplate jdbcTemplate)
+    {
+        try
+        {
+            String username = SecurityUtils.getUsername();
+            // 超级管理员不限制数据权限
+            if ("admin".equals(username))
+            {
+                return null;
+            }
+
+            Long userId = SecurityUtils.getUserId();
+            if (userId == null)
+            {
+                return new ArrayList<>();
+            }
+
+            String sql = "SELECT institution_id FROM sys_user_institution WHERE user_id = ?";
+            List<Long> institutionIds = jdbcTemplate.queryForList(sql, Long.class, userId);
+            return institutionIds;
+        }
+        catch (Exception e)
+        {
+            logger.error("获取用户机构ID列表失败", e);
+            return new ArrayList<>();
+        }
     }
 }

@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -39,6 +40,9 @@ public class FeedbackController extends BaseController
     @Autowired
     private IPensionComplaintService complaintService;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     /**
      * 查询投诉建议列表
      */
@@ -46,6 +50,13 @@ public class FeedbackController extends BaseController
     @GetMapping("/list")
     public TableDataInfo list(PensionComplaint complaint)
     {
+        // 数据权限过滤：获取当前用户关联的机构ID列表
+        List<Long> institutionIds = getUserInstitutionIds(jdbcTemplate);
+        if (institutionIds != null && !institutionIds.isEmpty())
+        {
+            complaint.setInstitutionIds(institutionIds);
+        }
+
         startPage();
         List<PensionComplaint> list = complaintService.selectPensionComplaintList(complaint);
         List<Map<String, Object>> resultList = list.stream()
@@ -127,6 +138,13 @@ public class FeedbackController extends BaseController
     public AjaxResult getStatistics()
     {
         PensionComplaint query = new PensionComplaint();
+
+        // 数据权限过滤：获取当前用户关联的机构ID列表
+        List<Long> institutionIds = getUserInstitutionIds(jdbcTemplate);
+        if (institutionIds != null && !institutionIds.isEmpty())
+        {
+            query.setInstitutionIds(institutionIds);
+        }
 
         // 总数
         List<PensionComplaint> allList = complaintService.selectPensionComplaintList(query);

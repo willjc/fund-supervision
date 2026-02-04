@@ -46,6 +46,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="institutionId != null">
                 and c.institution_id = #{institutionId}
             </if>
+            <if test="institutionIds != null and institutionIds.size() > 0">
+                and c.institution_id in
+                <foreach item="item" index="index" collection="institutionIds" open="(" separator="," close=")">
+                    #{item}
+                </foreach>
+            </if>
             <if test="institutionName != null and institutionName != ''">
                 and c.institution_name like concat('%', #{institutionName}, '%')
             </if>

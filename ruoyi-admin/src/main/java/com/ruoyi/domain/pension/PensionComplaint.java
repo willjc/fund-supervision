@@ -2,6 +2,7 @@ package com.ruoyi.domain.pension;
 
 import java.util.Date;
 import java.util.Arrays;
+import java.util.List;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
@@ -33,6 +34,9 @@ public class PensionComplaint extends BaseEntity
     /** 机构ID */
     @Excel(name = "机构ID")
     private Long institutionId;
+
+    /** 机构ID列表（用于数据权限过滤，多个机构ID的IN查询） */
+    private List<Long> institutionIds;
 
     /** 机构名称 */
     @Excel(name = "机构名称")
@@ -116,6 +120,16 @@ public class PensionComplaint extends BaseEntity
     public Long getInstitutionId()
     {
         return institutionId;
+    }
+
+    public void setInstitutionIds(List<Long> institutionIds)
+    {
+        this.institutionIds = institutionIds;
+    }
+
+    public List<Long> getInstitutionIds()
+    {
+        return institutionIds;
     }
 
     public void setInstitutionName(String institutionName)

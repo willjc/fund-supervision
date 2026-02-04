@@ -69,6 +69,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <where>
             <if test="reservationNo != null and reservationNo != ''"> and r.reservation_no = #{reservationNo}</if>
             <if test="institutionId != null"> and r.institution_id = #{institutionId}</if>
+            <if test="institutionIds != null and institutionIds.size() > 0">
+                and r.institution_id in
+                <foreach item="item" index="index" collection="institutionIds" open="(" separator="," close=")">
+                    #{item}
+                </foreach>
+            </if>
             <if test="userId != null"> and r.user_id = #{userId}</if>
             <if test="visitorName != null and visitorName != ''"> and r.visitor_name like concat('%', #{visitorName}, '%')</if>
             <if test="visitorPhone != null and visitorPhone != ''"> and r.visitor_phone = #{visitorPhone}</if>
