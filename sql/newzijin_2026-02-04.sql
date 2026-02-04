@@ -41,7 +41,7 @@ CREATE TABLE `account_balance_log` (
   KEY `idx_account_id` (`account_id`),
   KEY `idx_transaction_id` (`transaction_id`),
   KEY `idx_create_time` (`create_time`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='璐︽埛浣欓?鍙樺姩璁板綍琛';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='璐︽埛浣欓?鍙樺姩璁板綍琛';
 
 
 
@@ -70,7 +70,7 @@ CREATE TABLE `account_info` (
   UNIQUE KEY `uk_account_no` (`account_no`),
   KEY `idx_elder_id` (`elder_id`),
   KEY `idx_institution_id` (`institution_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=51 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='鑰佷汉璐︽埛淇℃伅琛';
+) ENGINE=InnoDB AUTO_INCREMENT=51 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='鑰佷汉璐︽埛淇℃伅琛';
 
 LOCK TABLES `account_info` WRITE;
 /*!40000 ALTER TABLE `account_info` DISABLE KEYS */;
@@ -354,7 +354,7 @@ CREATE TABLE `balance_warning` (
   KEY `idx_warning_type` (`warning_type`),
   KEY `idx_warning_status` (`warning_status`),
   KEY `idx_create_time` (`create_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='浣欓?棰勮?璁板綍琛';
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='浣欓?棰勮?璁板綍琛';
 
 
 
@@ -388,7 +388,7 @@ CREATE TABLE `bed_allocation` (
   CONSTRAINT `fk_allocation_bed` FOREIGN KEY (`bed_id`) REFERENCES `bed_info` (`bed_id`) ON DELETE CASCADE,
   CONSTRAINT `fk_allocation_elder` FOREIGN KEY (`elder_id`) REFERENCES `elder_info` (`elder_id`) ON DELETE CASCADE,
   CONSTRAINT `fk_allocation_institution` FOREIGN KEY (`institution_id`) REFERENCES `pension_institution` (`institution_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=74 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='床位分配记录表';
+) ENGINE=InnoDB AUTO_INCREMENT=74 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='床位分配记录表';
 
 LOCK TABLES `bed_allocation` WRITE;
 /*!40000 ALTER TABLE `bed_allocation` DISABLE KEYS */;
@@ -434,7 +434,7 @@ CREATE TABLE `bed_info` (
   UNIQUE KEY `uk_institution_room_bed` (`institution_id`,`room_number`,`bed_number`),
   KEY `idx_institution_id` (`institution_id`),
   CONSTRAINT `fk_bed_institution` FOREIGN KEY (`institution_id`) REFERENCES `pension_institution` (`institution_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=120 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='床位信息表';
+) ENGINE=InnoDB AUTO_INCREMENT=120 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='床位信息表';
 
 LOCK TABLES `bed_info` WRITE;
 /*!40000 ALTER TABLE `bed_info` DISABLE KEYS */;
@@ -507,7 +507,7 @@ CREATE TABLE `bed_type` (
   `update_time` datetime DEFAULT NULL COMMENT '鏇存柊鏃堕棿',
   PRIMARY KEY (`bed_type_id`),
   KEY `idx_institution_id` (`institution_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='搴婁綅绫诲瀷琛';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='搴婁綅绫诲瀷琛';
 
 
 
@@ -553,7 +553,7 @@ CREATE TABLE `deposit_apply` (
   KEY `idx_account_id` (`account_id`),
   KEY `idx_apply_status` (`apply_status`),
   KEY `idx_create_time` (`create_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='押金使用申请表';
+) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='押金使用申请表';
 
 
 
@@ -572,7 +572,7 @@ CREATE TABLE `elder_attachment` (
   `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`attachment_id`),
   KEY `idx_elder_id` (`elder_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='老人附件表';
+) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='老人附件表';
 
 
 
@@ -611,7 +611,7 @@ CREATE TABLE `elder_check_in` (
   CONSTRAINT `fk_checkin_bed` FOREIGN KEY (`bed_id`) REFERENCES `bed_info` (`bed_id`) ON DELETE SET NULL,
   CONSTRAINT `fk_checkin_elder` FOREIGN KEY (`elder_id`) REFERENCES `elder_info` (`elder_id`) ON DELETE CASCADE,
   CONSTRAINT `fk_checkin_institution` FOREIGN KEY (`institution_id`) REFERENCES `pension_institution` (`institution_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='老人入住申请表';
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='老人入住申请表';
 
 
 
@@ -636,7 +636,7 @@ CREATE TABLE `elder_family` (
   UNIQUE KEY `uk_user_elder` (`user_id`,`elder_id`) COMMENT '一个用户对一个老人只能有一条关联记录',
   KEY `idx_user_id` (`user_id`) COMMENT '用户ID索引',
   KEY `idx_elder_id` (`elder_id`) COMMENT '老人ID索引'
-) ENGINE=InnoDB AUTO_INCREMENT=95 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户-老人关联表';
+) ENGINE=InnoDB AUTO_INCREMENT=95 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='用户-老人关联表';
 
 LOCK TABLES `elder_family` WRITE;
 /*!40000 ALTER TABLE `elder_family` DISABLE KEYS */;
@@ -686,7 +686,7 @@ CREATE TABLE `elder_info` (
   UNIQUE KEY `uk_id_card` (`id_card`),
   KEY `idx_submit_user_id` (`submit_user_id`),
   KEY `idx_source_type` (`source_type`)
-) ENGINE=InnoDB AUTO_INCREMENT=93 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='老人基础信息表';
+) ENGINE=InnoDB AUTO_INCREMENT=93 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='老人基础信息表';
 
 LOCK TABLES `elder_info` WRITE;
 /*!40000 ALTER TABLE `elder_info` DISABLE KEYS */;
@@ -760,7 +760,7 @@ CREATE TABLE `elder_photo` (
   KEY `idx_photo_type` (`photo_type`),
   KEY `idx_elder_type` (`elder_id`,`photo_type`),
   CONSTRAINT `fk_elder_photo_elder_info` FOREIGN KEY (`elder_id`) REFERENCES `elder_info` (`elder_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='老人照片表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='老人照片表';
 
 
 
@@ -791,7 +791,7 @@ CREATE TABLE `expense_record` (
   KEY `idx_account_id` (`account_id`),
   KEY `idx_expense_type` (`expense_type`),
   KEY `idx_create_time` (`create_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=167 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='璐圭敤璁板綍琛';
+) ENGINE=InnoDB AUTO_INCREMENT=167 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='璐圭敤璁板綍琛';
 
 LOCK TABLES `expense_record` WRITE;
 /*!40000 ALTER TABLE `expense_record` DISABLE KEYS */;
@@ -914,7 +914,7 @@ CREATE TABLE `fund_transfer` (
   KEY `idx_billing_month` (`billing_month`),
   KEY `idx_is_paid` (`is_paid`),
   KEY `idx_status` (`status`)
-) ENGINE=InnoDB AUTO_INCREMENT=117 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='璧勯噾鍒掓嫧璁板綍琛';
+) ENGINE=InnoDB AUTO_INCREMENT=117 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='璧勯噾鍒掓嫧璁板綍琛';
 
 LOCK TABLES `fund_transfer` WRITE;
 /*!40000 ALTER TABLE `fund_transfer` DISABLE KEYS */;
@@ -987,7 +987,7 @@ CREATE TABLE `fund_transfer_apply` (
   KEY `idx_elder_id` (`elder_id`),
   KEY `idx_apply_status` (`apply_status`),
   KEY `idx_create_time` (`create_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='资金划拨申请表';
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='资金划拨申请表';
 
 
 
@@ -1008,7 +1008,7 @@ CREATE TABLE `fund_transfer_apply_detail` (
   KEY `idx_apply_id` (`apply_id`),
   KEY `idx_transfer_id` (`transfer_id`),
   KEY `idx_elder_id` (`elder_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='资金划拨申请明细表';
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='资金划拨申请明细表';
 
 
 
@@ -1033,7 +1033,7 @@ CREATE TABLE `fund_transfer_detail` (
   KEY `idx_transfer_id` (`transfer_id`),
   KEY `idx_account_id` (`account_id`),
   KEY `idx_billing_month` (`billing_month`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='璧勯噾鍒掓嫧鏄庣粏琛';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='璧勯噾鍒掓嫧鏄庣粏琛';
 
 
 
@@ -1057,7 +1057,7 @@ CREATE TABLE `fund_transfer_rule` (
   `update_time` datetime DEFAULT NULL COMMENT '鏇存柊鏃堕棿',
   `remark` varchar(500) DEFAULT NULL COMMENT '澶囨敞',
   PRIMARY KEY (`rule_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='璧勯噾鍒掓嫧瑙勫垯閰嶇疆琛';
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='璧勯噾鍒掓嫧瑙勫垯閰嶇疆琛';
 
 LOCK TABLES `fund_transfer_rule` WRITE;
 /*!40000 ALTER TABLE `fund_transfer_rule` DISABLE KEYS */;
@@ -1203,7 +1203,7 @@ CREATE TABLE `institution_rating` (
   KEY `idx_credit_code` (`credit_code`),
   KEY `idx_rating_status` (`rating_status`),
   CONSTRAINT `fk_rating_institution` FOREIGN KEY (`institution_id`) REFERENCES `pension_institution` (`institution_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='机构评级表';
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='机构评级表';
 
 LOCK TABLES `institution_rating` WRITE;
 /*!40000 ALTER TABLE `institution_rating` DISABLE KEYS */;
@@ -1249,7 +1249,7 @@ CREATE TABLE `institution_review` (
   KEY `idx_user_id` (`user_id`),
   KEY `idx_status` (`status`),
   KEY `idx_create_time` (`create_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='鏈烘瀯璇勪环琛';
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='鏈烘瀯璇勪环琛';
 
 
 
@@ -1281,7 +1281,7 @@ CREATE TABLE `institution_visit_reservation` (
   KEY `idx_user_id` (`user_id`),
   KEY `idx_visit_date` (`visit_date`),
   KEY `idx_status` (`status`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='机构预约参观表';
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='机构预约参观表';
 
 
 
@@ -1326,7 +1326,7 @@ CREATE TABLE `order_info` (
   KEY `idx_check_in_id` (`check_in_id`),
   KEY `idx_order_date` (`order_date`),
   KEY `idx_order_status` (`order_status`)
-) ENGINE=InnoDB AUTO_INCREMENT=99 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='订单主表';
+) ENGINE=InnoDB AUTO_INCREMENT=99 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='订单主表';
 
 LOCK TABLES `order_info` WRITE;
 /*!40000 ALTER TABLE `order_info` DISABLE KEYS */;
@@ -1365,7 +1365,7 @@ CREATE TABLE `order_item` (
   `remark` varchar(500) DEFAULT NULL COMMENT '备注',
   PRIMARY KEY (`item_id`),
   KEY `idx_order_id` (`order_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=324 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='订单明细表';
+) ENGINE=InnoDB AUTO_INCREMENT=324 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='订单明细表';
 
 LOCK TABLES `order_item` WRITE;
 /*!40000 ALTER TABLE `order_item` DISABLE KEYS */;
@@ -1416,7 +1416,7 @@ CREATE TABLE `payment_record` (
   KEY `idx_elder_id` (`elder_id`),
   KEY `idx_payment_time` (`payment_time`),
   KEY `idx_payment_status` (`payment_status`)
-) ENGINE=InnoDB AUTO_INCREMENT=55 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='支付记录表';
+) ENGINE=InnoDB AUTO_INCREMENT=55 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='支付记录表';
 
 LOCK TABLES `payment_record` WRITE;
 /*!40000 ALTER TABLE `payment_record` DISABLE KEYS */;
@@ -1460,7 +1460,7 @@ CREATE TABLE `pension_complaint` (
   KEY `idx_institution` (`institution_id`),
   KEY `idx_user` (`user_id`),
   KEY `idx_status` (`status`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='投诉建议表';
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='投诉建议表';
 
 
 
@@ -1536,7 +1536,7 @@ CREATE TABLE `pension_institution` (
   KEY `idx_medical_condition` (`medical_condition`),
   KEY `idx_rating_level` (`rating_level`),
   KEY `idx_price_range` (`price_range_min`,`price_range_max`)
-) ENGINE=InnoDB AUTO_INCREMENT=44 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='鍏昏?鏈烘瀯淇℃伅琛';
+) ENGINE=InnoDB AUTO_INCREMENT=44 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='鍏昏?鏈烘瀯淇℃伅琛';
 
 LOCK TABLES `pension_institution` WRITE;
 /*!40000 ALTER TABLE `pension_institution` DISABLE KEYS */;
@@ -1576,7 +1576,7 @@ CREATE TABLE `pension_institution_attach` (
   `create_time` datetime DEFAULT NULL COMMENT '涓婁紶鏃堕棿',
   PRIMARY KEY (`attach_id`),
   KEY `idx_institution_id` (`institution_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='鏈烘瀯闄勪欢鏉愭枡琛';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='鏈烘瀯闄勪欢鏉愭枡琛';
 
 
 
@@ -1619,7 +1619,7 @@ CREATE TABLE `pension_institution_public` (
   `daily_services` text COMMENT '每日服务安排(JSON数组)',
   PRIMARY KEY (`public_id`),
   KEY `idx_institution_id` (`institution_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='鏈烘瀯鍏?ず淇℃伅琛';
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='鏈烘瀯鍏?ず淇℃伅琛';
 
 LOCK TABLES `pension_institution_public` WRITE;
 /*!40000 ALTER TABLE `pension_institution_public` DISABLE KEYS */;
@@ -1876,7 +1876,7 @@ CREATE TABLE `refund_record` (
   KEY `idx_payment_id` (`payment_id`),
   KEY `idx_elder_id` (`elder_id`),
   KEY `idx_refund_status` (`refund_status`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='退款记录表';
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='退款记录表';
 
 
 
@@ -1915,7 +1915,7 @@ CREATE TABLE `release_supervision` (
   KEY `idx_institution_id` (`institution_id`),
   KEY `idx_apply_status` (`apply_status`),
   KEY `idx_apply_time` (`apply_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='机构解除监管申请表';
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='机构解除监管申请表';
 
 LOCK TABLES `release_supervision` WRITE;
 /*!40000 ALTER TABLE `release_supervision` DISABLE KEYS */;
@@ -1947,7 +1947,7 @@ CREATE TABLE `release_supervision_attach` (
   `create_by` varchar(64) DEFAULT '' COMMENT '创建者',
   PRIMARY KEY (`attach_id`),
   KEY `idx_release_id` (`release_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='解除监管申请附件表';
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='解除监管申请附件表';
 
 LOCK TABLES `release_supervision_attach` WRITE;
 /*!40000 ALTER TABLE `release_supervision_attach` DISABLE KEYS */;
@@ -1988,7 +1988,7 @@ CREATE TABLE `supervision_account_log` (
   KEY `idx_institution_id` (`institution_id`),
   KEY `idx_transaction_time` (`transaction_time`),
   KEY `idx_business_type` (`business_type`)
-) ENGINE=InnoDB AUTO_INCREMENT=54 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='监管账户流水表';
+) ENGINE=InnoDB AUTO_INCREMENT=54 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='监管账户流水表';
 
 LOCK TABLES `supervision_account_log` WRITE;
 /*!40000 ALTER TABLE `supervision_account_log` DISABLE KEYS */;
@@ -2037,7 +2037,7 @@ CREATE TABLE `supervision_warning` (
   KEY `idx_type` (`warning_type`),
   KEY `idx_status` (`warning_status`),
   KEY `idx_create_time` (`create_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=58 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='预警信息表';
+) ENGINE=InnoDB AUTO_INCREMENT=58 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='预警信息表';
 
 LOCK TABLES `supervision_warning` WRITE;
 /*!40000 ALTER TABLE `supervision_warning` DISABLE KEYS */;
@@ -2084,7 +2084,7 @@ CREATE TABLE `sys_banner` (
   `update_time` datetime DEFAULT NULL COMMENT '更新时间',
   `remark` varchar(500) DEFAULT NULL COMMENT '备注',
   PRIMARY KEY (`banner_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2103 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='幻灯片管理表';
+) ENGINE=InnoDB AUTO_INCREMENT=2103 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='幻灯片管理表';
 
 LOCK TABLES `sys_banner` WRITE;
 /*!40000 ALTER TABLE `sys_banner` DISABLE KEYS */;
@@ -3979,7 +3979,7 @@ CREATE TABLE `sys_user_institution` (
   KEY `idx_institution_id` (`institution_id`),
   CONSTRAINT `fk_user_inst_institution` FOREIGN KEY (`institution_id`) REFERENCES `pension_institution` (`institution_id`) ON DELETE CASCADE,
   CONSTRAINT `fk_user_inst_user` FOREIGN KEY (`user_id`) REFERENCES `sys_user` (`user_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='鐢ㄦ埛-鏈烘瀯鍏宠仈琛';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='鐢ㄦ埛-鏈烘瀯鍏宠仈琛';
 
 LOCK TABLES `sys_user_institution` WRITE;
 /*!40000 ALTER TABLE `sys_user_institution` DISABLE KEYS */;
@@ -4085,7 +4085,7 @@ CREATE TABLE `transaction_record` (
   KEY `idx_elder_id` (`elder_id`),
   KEY `idx_transaction_date` (`transaction_date`),
   KEY `idx_business_type` (`business_type`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='浜ゆ槗娴佹按璁板綍琛';
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='浜ゆ槗娴佹按璁板綍琛';
 
 
 
@@ -4108,7 +4108,7 @@ CREATE TABLE `transfer_rule_config` (
   `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`rule_id`),
   UNIQUE KEY `uk_rule_name` (`rule_name`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='划付规则配置表';
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='划付规则配置表';
 
 LOCK TABLES `transfer_rule_config` WRITE;
 /*!40000 ALTER TABLE `transfer_rule_config` DISABLE KEYS */;
@@ -4135,7 +4135,7 @@ CREATE TABLE `user_favorite` (
   UNIQUE KEY `uk_user_institution` (`user_id`,`institution_id`) COMMENT '用户机构收藏唯一约束',
   KEY `idx_user_id` (`user_id`) COMMENT '用户ID索引',
   KEY `idx_institution_id` (`institution_id`) COMMENT '机构ID索引'
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户机构收藏表';
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='用户机构收藏表';
 
 LOCK TABLES `user_favorite` WRITE;
 /*!40000 ALTER TABLE `user_favorite` DISABLE KEYS */;
@@ -4171,7 +4171,7 @@ CREATE TABLE `warning_rule_config` (
   `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`rule_id`),
   UNIQUE KEY `uk_rule_code` (`rule_code`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='预警规则配置表';
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='预警规则配置表';
 
 LOCK TABLES `warning_rule_config` WRITE;
 /*!40000 ALTER TABLE `warning_rule_config` DISABLE KEYS */;

@@ -158,45 +158,57 @@
         <el-divider content-position="left">费用信息</el-divider>
 
         <!-- 护理费 -->
-        <el-form-item label="护理费(元/月)" prop="nursingFee">
+        <el-form-item label="护理费(元/月)">
           <el-row :gutter="20">
-            <el-col :span="8">
-              <el-input-number v-model="form.nursingFeeMin" :min="0" :precision="2" placeholder="最低护理费用" style="width: 100%;" />
+            <el-col :span="10">
+              <el-form-item prop="nursingFeeMin" style="margin-bottom: 0;">
+                <el-input-number v-model="form.nursingFeeMin" :min="0" :precision="2" placeholder="最低护理费用" style="width: 100%;" />
+              </el-form-item>
             </el-col>
-            <el-col :span="8">
-              <el-input-number v-model="form.nursingFeeMax" :min="0" :precision="2" placeholder="最高护理费用" style="width: 100%;" />
+            <el-col :span="10">
+              <el-form-item prop="nursingFeeMax" style="margin-bottom: 0;">
+                <el-input-number v-model="form.nursingFeeMax" :min="0" :precision="2" placeholder="最高护理费用" style="width: 100%;" />
+              </el-form-item>
             </el-col>
-            <el-col :span="8">
+            <el-col :span="4">
               <div class="form-tip" style="line-height: 32px;">护理费最低和最高费用</div>
             </el-col>
           </el-row>
         </el-form-item>
 
         <!-- 床位费 -->
-        <el-form-item label="床位费(元/月)" prop="bedFee">
+        <el-form-item label="床位费(元/月)">
           <el-row :gutter="20">
-            <el-col :span="8">
-              <el-input-number v-model="form.bedFeeMin" :min="0" :precision="2" placeholder="最低床位费用" style="width: 100%;" />
+            <el-col :span="10">
+              <el-form-item prop="bedFeeMin" style="margin-bottom: 0;">
+                <el-input-number v-model="form.bedFeeMin" :min="0" :precision="2" placeholder="最低床位费用" style="width: 100%;" />
+              </el-form-item>
             </el-col>
-            <el-col :span="8">
-              <el-input-number v-model="form.bedFeeMax" :min="0" :precision="2" placeholder="最高床位费用" style="width: 100%;" />
+            <el-col :span="10">
+              <el-form-item prop="bedFeeMax" style="margin-bottom: 0;">
+                <el-input-number v-model="form.bedFeeMax" :min="0" :precision="2" placeholder="最高床位费用" style="width: 100%;" />
+              </el-form-item>
             </el-col>
-            <el-col :span="8">
+            <el-col :span="4">
               <div class="form-tip" style="line-height: 32px;">床位费最低和最高费用</div>
             </el-col>
           </el-row>
         </el-form-item>
 
         <!-- 膳食费 -->
-        <el-form-item label="膳食费(元/月)" prop="mealFee">
+        <el-form-item label="膳食费(元/月)">
           <el-row :gutter="20">
-            <el-col :span="8">
-              <el-input-number v-model="form.mealFeeMin" :min="0" :precision="2" placeholder="最低膳食费用" style="width: 100%;" />
+            <el-col :span="10">
+              <el-form-item prop="mealFeeMin" style="margin-bottom: 0;">
+                <el-input-number v-model="form.mealFeeMin" :min="0" :precision="2" placeholder="最低膳食费用" style="width: 100%;" />
+              </el-form-item>
             </el-col>
-            <el-col :span="8">
-              <el-input-number v-model="form.mealFeeMax" :min="0" :precision="2" placeholder="最高膳食费用" style="width: 100%;" />
+            <el-col :span="10">
+              <el-form-item prop="mealFeeMax" style="margin-bottom: 0;">
+                <el-input-number v-model="form.mealFeeMax" :min="0" :precision="2" placeholder="最高膳食费用" style="width: 100%;" />
+              </el-form-item>
             </el-col>
-            <el-col :span="8">
+            <el-col :span="4">
               <div class="form-tip" style="line-height: 32px;">膳食费最低和最高费用</div>
             </el-col>
           </el-row>
@@ -822,8 +834,88 @@ export default {
         institutionIntro: [
           { required: true, message: "请输入机构简介", trigger: "blur" }
         ]
+        // 费用验证规则在 created 钩子中动态添加，因为此时 methods 还未定义
       }
     };
+  },
+  // 添加数据监听，当费用变化时触发验证
+  watch: {
+    // 监听费用变化，实时更新总费用显示并触发验证
+    'form.nursingFeeMin': {
+      handler() {
+        this.$forceUpdate();
+        this.$nextTick(() => {
+          if (this.open && this.$refs.form) {
+            this.$refs.form.validateField('nursingFeeMin');
+            this.$refs.form.validateField('nursingFeeMax');
+          }
+        });
+      },
+      deep: true
+    },
+    'form.nursingFeeMax': {
+      handler() {
+        this.$forceUpdate();
+        // 触发护理费验证
+        this.$nextTick(() => {
+          if (this.open && this.$refs.form) {
+            this.$refs.form.validateField('nursingFeeMax');
+            this.$refs.form.validateField('nursingFeeMin');
+          }
+        });
+      },
+      deep: true
+    },
+    'form.bedFeeMin': {
+      handler() {
+        this.$forceUpdate();
+        this.$nextTick(() => {
+          if (this.open && this.$refs.form) {
+            this.$refs.form.validateField('bedFeeMin');
+            this.$refs.form.validateField('bedFeeMax');
+          }
+        });
+      },
+      deep: true
+    },
+    'form.bedFeeMax': {
+      handler() {
+        this.$forceUpdate();
+        // 触发床位费验证
+        this.$nextTick(() => {
+          if (this.open && this.$refs.form) {
+            this.$refs.form.validateField('bedFeeMax');
+            this.$refs.form.validateField('bedFeeMin');
+          }
+        });
+      },
+      deep: true
+    },
+    'form.mealFeeMin': {
+      handler() {
+        this.$forceUpdate();
+        this.$nextTick(() => {
+          if (this.open && this.$refs.form) {
+            this.$refs.form.validateField('mealFeeMin');
+            this.$refs.form.validateField('mealFeeMax');
+          }
+        });
+      },
+      deep: true
+    },
+    'form.mealFeeMax': {
+      handler() {
+        this.$forceUpdate();
+        // 触发膳食费验证
+        this.$nextTick(() => {
+          if (this.open && this.$refs.form) {
+            this.$refs.form.validateField('mealFeeMax');
+            this.$refs.form.validateField('mealFeeMin');
+          }
+        });
+      },
+      deep: true
+    }
   },
   computed: {
     // 计算总费用最低价
@@ -841,46 +933,9 @@ export default {
       return (nursing + bed + meal).toFixed(2);
     }
   },
-  watch: {
-    // 监听费用变化，实时更新总费用显示
-    'form.nursingFeeMin': {
-      handler() {
-        this.$forceUpdate();
-      },
-      deep: true
-    },
-    'form.nursingFeeMax': {
-      handler() {
-        this.$forceUpdate();
-      },
-      deep: true
-    },
-    'form.bedFeeMin': {
-      handler() {
-        this.$forceUpdate();
-      },
-      deep: true
-    },
-    'form.bedFeeMax': {
-      handler() {
-        this.$forceUpdate();
-      },
-      deep: true
-    },
-    'form.mealFeeMin': {
-      handler() {
-        this.$forceUpdate();
-      },
-      deep: true
-    },
-    'form.mealFeeMax': {
-      handler() {
-        this.$forceUpdate();
-      },
-      deep: true
-    }
-  },
   created() {
+    // 动态添加费用验证规则（必须在 created 中添加，因为此时 methods 才已定义）
+    this.addFeeValidationRules()
     this.getList();
     this.getInstitutionList();
   },
@@ -888,6 +943,110 @@ export default {
     this.loadFacilityIconConfig();
   },
   methods: {
+    // 添加费用验证规则
+    addFeeValidationRules() {
+      // 护理费验证
+      this.rules['nursingFeeMin'] = [
+        { required: true, message: "请输入护理费最低费用", trigger: "blur" },
+        { validator: (rule, value, callback) => {
+          if (value === null || value === undefined || value === '' || value === 0) {
+            callback(new Error('请输入护理费最低费用'))
+          } else if (this.form.nursingFeeMax !== null && this.form.nursingFeeMax !== 0 && this.form.nursingFeeMax < value) {
+            callback(new Error('最低费用不能大于最高费用'))
+          } else {
+            callback()
+          }
+        }, trigger: 'blur' }
+      ]
+      this.rules['nursingFeeMax'] = [
+        { required: true, message: "请输入护理费最高费用", trigger: "blur" },
+        { validator: (rule, value, callback) => {
+          if (value === null || value === undefined || value === '' || value === 0) {
+            callback(new Error('请输入护理费最高费用'))
+          } else if (this.form.nursingFeeMin !== null && this.form.nursingFeeMin !== 0 && value < this.form.nursingFeeMin) {
+            callback(new Error('最高费用不能小于最低费用'))
+          } else {
+            callback()
+          }
+        }, trigger: 'blur' }
+      ]
+      // 床位费验证
+      this.rules['bedFeeMin'] = [
+        { required: true, message: "请输入床位费最低费用", trigger: "blur" },
+        { validator: (rule, value, callback) => {
+          if (value === null || value === undefined || value === '' || value === 0) {
+            callback(new Error('请输入床位费最低费用'))
+          } else if (this.form.bedFeeMax !== null && this.form.bedFeeMax !== 0 && this.form.bedFeeMax < value) {
+            callback(new Error('最低费用不能大于最高费用'))
+          } else {
+            callback()
+          }
+        }, trigger: 'blur' }
+      ]
+      this.rules['bedFeeMax'] = [
+        { required: true, message: "请输入床位费最高费用", trigger: "blur" },
+        { validator: (rule, value, callback) => {
+          if (value === null || value === undefined || value === '' || value === 0) {
+            callback(new Error('请输入床位费最高费用'))
+          } else if (this.form.bedFeeMin !== null && this.form.bedFeeMin !== 0 && value < this.form.bedFeeMin) {
+            callback(new Error('最高费用不能小于最低费用'))
+          } else {
+            callback()
+          }
+        }, trigger: 'blur' }
+      ]
+      // 膳食费验证
+      this.rules['mealFeeMin'] = [
+        { required: true, message: "请输入膳食费最低费用", trigger: "blur" },
+        { validator: (rule, value, callback) => {
+          if (value === null || value === undefined || value === '' || value === 0) {
+            callback(new Error('请输入膳食费最低费用'))
+          } else if (this.form.mealFeeMax !== null && this.form.mealFeeMax !== 0 && this.form.mealFeeMax < value) {
+            callback(new Error('最低费用不能大于最高费用'))
+          } else {
+            callback()
+          }
+        }, trigger: 'blur' }
+      ]
+      this.rules['mealFeeMax'] = [
+        { required: true, message: "请输入膳食费最高费用", trigger: "blur" },
+        { validator: (rule, value, callback) => {
+          if (value === null || value === undefined || value === '' || value === 0) {
+            callback(new Error('请输入膳食费最高费用'))
+          } else if (this.form.mealFeeMin !== null && this.form.mealFeeMin !== 0 && value < this.form.mealFeeMin) {
+            callback(new Error('最高费用不能小于最低费用'))
+          } else {
+            callback()
+          }
+        }, trigger: 'blur' }
+      ]
+    },
+    /**
+     * 费用最高价验证器（保留用于兼容）
+     * @param {String} minField - 最低价字段名
+     * @returns {Function} 验证函数
+     */
+    validateFeeMax(minField) {
+      return (rule, value, callback) => {
+        const minVal = this.form[minField];
+        const maxVal = value;
+        // 如果两个都有值，检查最高价是否大于等于最低价
+        if (minVal !== null && minVal !== undefined && maxVal !== null && maxVal !== undefined) {
+          if (parseFloat(maxVal) < parseFloat(minVal)) {
+            const feeNames = {
+              'nursingFeeMin': '护理费',
+              'bedFeeMin': '床位费',
+              'mealFeeMin': '膳食费'
+            };
+            callback(new Error(`${feeNames[minField]}最高价不能小于最低价`));
+          } else {
+            callback();
+          }
+        } else {
+          callback();
+        }
+      };
+    },
     /** 查询公示信息列表 */
     getList() {
       this.loading = true;
@@ -926,13 +1085,13 @@ export default {
         roomFacilities: null,
         basicFacilities: null,
         parkFacilities: null,
-        // 结构化费用字段
-        nursingFeeMin: 0,
-        nursingFeeMax: 0,
-        bedFeeMin: 0,
-        bedFeeMax: 0,
-        mealFeeMin: 0,
-        mealFeeMax: 0,
+        // 结构化费用字段（初始值为 null，0 会被认为是有效值）
+        nursingFeeMin: null,
+        nursingFeeMax: null,
+        bedFeeMin: null,
+        bedFeeMax: null,
+        mealFeeMin: null,
+        mealFeeMax: null,
         acceptElderType: null,
         isPublished: '0'
       };
@@ -1002,6 +1161,13 @@ export default {
       const publicId = row.publicId || this.ids[0];
       getPublicity(publicId).then(response => {
         this.form = response.data;
+        // 将费用字段的 0 转换为 null，以便验证器能正确识别未填写状态
+        if (this.form.nursingFeeMin === 0) this.form.nursingFeeMin = null;
+        if (this.form.nursingFeeMax === 0) this.form.nursingFeeMax = null;
+        if (this.form.bedFeeMin === 0) this.form.bedFeeMin = null;
+        if (this.form.bedFeeMax === 0) this.form.bedFeeMax = null;
+        if (this.form.mealFeeMin === 0) this.form.mealFeeMin = null;
+        if (this.form.mealFeeMax === 0) this.form.mealFeeMax = null;
         // 解析收住对象能力
         if (this.form.acceptElderType) {
           this.acceptElderTypeList = this.form.acceptElderType.split(',');

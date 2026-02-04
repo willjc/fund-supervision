@@ -139,8 +139,21 @@ public class PensionInstitutionController extends BaseController
         System.out.println("==================== 提交申请接口被调用 ====================");
         System.out.println("统一信用代码: " + pensionInstitution.getCreditCode());
         System.out.println("机构名称: " + pensionInstitution.getInstitutionName());
+        System.out.println("传入的institutionId: " + pensionInstitution.getInstitutionId());
 
-        // 检查是否是从草稿提交(根据统一信用代码查询草稿)
+        // 如果传入 institutionId，说明是编辑现有记录（草稿、已驳回等状态）
+        if (pensionInstitution.getInstitutionId() != null) {
+            System.out.println("编辑模式：直接更新现有记录,ID: " + pensionInstitution.getInstitutionId());
+            pensionInstitution.setStatus("0"); // 设置为待审批
+            pensionInstitution.setApplyTime(new java.util.Date());
+            // 清除之前的审批信息，重新进入审批流程
+            pensionInstitution.setApproveTime(null);
+            pensionInstitution.setApproveUser(null);
+            pensionInstitution.setApproveRemark(null);
+            return toAjax(pensionInstitutionService.updatePensionInstitution(pensionInstitution));
+        }
+
+        // 没有 institutionId，检查是否有草稿记录（根据统一信用代码查询）
         if (pensionInstitution.getCreditCode() != null && !pensionInstitution.getCreditCode().isEmpty()) {
             PensionInstitution query = new PensionInstitution();
             query.setCreditCode(pensionInstitution.getCreditCode());
@@ -154,7 +167,6 @@ public class PensionInstitutionController extends BaseController
                 pensionInstitution.setInstitutionId(exist.getInstitutionId());
                 pensionInstitution.setStatus("0"); // 设置为待审批
                 pensionInstitution.setApplyTime(new java.util.Date());
-                System.out.println("设置status=0, applyTime=" + pensionInstitution.getApplyTime());
                 return toAjax(pensionInstitutionService.updatePensionInstitution(pensionInstitution));
             }
         }
@@ -163,7 +175,6 @@ public class PensionInstitutionController extends BaseController
         System.out.println("执行新增并提交申请");
         pensionInstitution.setStatus("0");  // 0表示待审批状态
         pensionInstitution.setApplyTime(new java.util.Date());
-        System.out.println("设置status=0, applyTime=" + pensionInstitution.getApplyTime());
         int result = pensionInstitutionService.insertPensionInstitution(pensionInstitution);
         System.out.println("插入结果: " + result);
 

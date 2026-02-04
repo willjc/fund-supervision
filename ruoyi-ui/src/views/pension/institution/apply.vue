@@ -416,6 +416,15 @@ export default {
         ],
         basicBank: [
           { required: true, message: "基本账户开户行不能为空", trigger: "blur" }
+        ],
+        businessLicense: [
+          { required: true, message: "请上传营业执照", trigger: "change" }
+        ],
+        approvalCertificate: [
+          { required: true, message: "请上传社会福利机构设置批准证书", trigger: "change" }
+        ],
+        supervisionAgreement: [
+          { required: true, message: "请上传三方监管协议", trigger: "change" }
         ]
       }
     };
@@ -480,7 +489,7 @@ export default {
           responsibleIdCard: data.responsibleIdCard || '',
           responsibleAddress: data.responsibleAddress || '',
           responsiblePhone: data.responsiblePhone || '',
-          institutionType: data.institutionType || '',
+          institutionType: (data.institutionType && !['nursing_home', 'service_center', 'day_care', 'senior_apartment', 'other'].includes(data.institutionType)) ? '' : (data.institutionType || ''),
           bedCount: data.bedCount,
           feeRange: data.feeRange || '',
           fixedAssets: data.fixedAssets,
@@ -551,6 +560,10 @@ export default {
         } else if (field === 'supervisionAgreement') {
           this.supervisionAgreementFiles = [{ name: response.fileName, url: fullUrl }];
         }
+        // 触发该字段的验证，清除必填错误提示
+        this.$nextTick(() => {
+          this.$refs["applyForm"].validateField(field);
+        });
         this.$modal.msgSuccess("文件上传成功");
       } else {
         this.$modal.msgError(response.msg || "文件上传失败");
@@ -577,12 +590,6 @@ export default {
 
     // 提交申请/维护
     submitApply() {
-      // 检查是否上传了所有必需材料
-      if (!this.applyForm.businessLicense || !this.applyForm.approvalCertificate || !this.applyForm.supervisionAgreement) {
-        this.$modal.msgError("请上传所有必需材料（营业执照、批准证书、三方监管协议）后再提交");
-        return;
-      }
-
       this.$refs["applyForm"].validate(valid => {
         if (valid) {
           this.submitting = true;
