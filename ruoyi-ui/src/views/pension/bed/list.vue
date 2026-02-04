@@ -524,13 +524,28 @@ export default {
         ],
         price: [
           { required: true, message: "价格不能为空", trigger: "blur" },
-          { pattern: /^\d+(\.\d{1,2})?$/, message: "请输入正确的价格", trigger: "blur" }
+          { pattern: /^(0|[1-9]\d*)(\.\d{1,2})?$/, message: "价格不能为负数", trigger: "blur" }
+        ],
+        selfCarePrice: [
+          { pattern: /^(0|[1-9]\d*)(\.\d{1,2})?$/, message: "自理护理费不能为负数", trigger: "blur" }
+        ],
+        halfCarePrice: [
+          { pattern: /^(0|[1-9]\d*)(\.\d{1,2})?$/, message: "半护理费不能为负数", trigger: "blur" }
+        ],
+        fullCarePrice: [
+          { pattern: /^(0|[1-9]\d*)(\.\d{1,2})?$/, message: "全护理费不能为负数", trigger: "blur" }
+        ],
+        memberFee: [
+          { pattern: /^(0|[1-9]\d*)(\.\d{1,2})?$/, message: "会员费不能为负数", trigger: "blur" }
+        ],
+        depositFee: [
+          { pattern: /^(0|[1-9]\d*)(\.\d{1,2})?$/, message: "押金不能为负数", trigger: "blur" }
         ],
         floorNumber: [
           { pattern: /^\d+$/, message: "请输入正确的楼层", trigger: "blur" }
         ],
         roomArea: [
-          { pattern: /^\d+(\.\d{1,2})?$/, message: "请输入正确的房间面积", trigger: "blur" }
+          { pattern: /^(0|[1-9]\d*)(\.\d{1,2})?$/, message: "房间面积不能为负数", trigger: "blur" }
         ]
       }
     };
@@ -571,8 +586,8 @@ export default {
         depositFee: null,
         floorNumber: null,
         roomArea: null,
-        hasBathroom: "0",
-        hasBalcony: "0",
+        hasBathroom: "N",
+        hasBalcony: "N",
         facilities: null,
         createBy: null,
         createTime: null,

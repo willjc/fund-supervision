@@ -281,12 +281,12 @@ const transformInstitutionData = (institution) => {
   // 使用生活设施作为标签
   const tags = institution.lifeFacilities || []
 
-  // 获取床位费范围（如果没有则使用总费用）
+  // 获取总费用范围（优先使用总费用）
   let minPrice = 0
-  if (institution.priceRanges && institution.priceRanges.bed) {
-    minPrice = institution.priceRanges.bed.min || 0
-  } else if (institution.priceRanges && institution.priceRanges.total) {
+  if (institution.priceRanges && institution.priceRanges.total) {
     minPrice = institution.priceRanges.total.min || 0
+  } else if (institution.priceRanges && institution.priceRanges.bed) {
+    minPrice = institution.priceRanges.bed.min || 0
   }
 
   return {

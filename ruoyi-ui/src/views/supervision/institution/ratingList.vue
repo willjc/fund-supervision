@@ -335,6 +335,9 @@ export default {
         ],
         safetyScore: [
           { required: true, message: '安全卫生评分不能为空', trigger: 'blur' }
+        ],
+        ratingDate: [
+          { required: true, message: '评级日期不能为空', trigger: 'change' }
         ]
       }
     }

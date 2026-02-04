@@ -132,9 +132,34 @@ public class OrderInfoServiceImpl implements IOrderInfoService
         // 解析新价格
         BigDecimal newBedFee = parsePriceFromRemark(remark, "床位费");
         BigDecimal newCareFee = parsePriceFromRemark(remark, "护理费");
+        BigDecimal newMealFee = parsePriceFromRemark(remark, "餐费");
         BigDecimal newDepositFee = parsePriceFromRemark(remark, "押金");
         BigDecimal newMemberFee = parsePriceFromRemark(remark, "会员费");
         Integer newMonthCount = parseMonthCountFromRemark(remark);
+
+        // 检查是否已存在餐费明细
+        boolean hasMealFeeItem = items.stream().anyMatch(item -> "meal_fee".equals(item.getItemType()));
+
+        // 如果有餐费但没有对应明细，创建餐费明细
+        if (newMealFee != null && newMealFee.compareTo(BigDecimal.ZERO) > 0 && !hasMealFeeItem) {
+            OrderItem mealItem = new OrderItem();
+            mealItem.setOrderId(orderInfo.getOrderId());
+            mealItem.setOrderNo(orderInfo.getOrderNo());
+            mealItem.setItemName("餐费");
+            mealItem.setItemType("meal_fee");
+            mealItem.setItemDescription("餐费-" + parseMealLevelFromRemark(remark));
+            mealItem.setUnitPrice(newMealFee);
+            mealItem.setOriginalUnitPrice(newMealFee);
+            mealItem.setQuantity(newMonthCount != null ? newMonthCount.longValue() : 1L);
+            mealItem.setTotalAmount(newMealFee.multiply(new BigDecimal(newMonthCount != null ? newMonthCount : 1)));
+            mealItem.setServicePeriod("月度");
+            mealItem.setIsPriceModified("0");
+            mealItem.setCreateBy(orderInfo.getUpdateBy());
+            mealItem.setCreateTime(DateUtils.getNowDate());
+            orderItemMapper.insertOrderItem(mealItem);
+            // 重新加载明细列表
+            items = orderItemMapper.selectOrderItemsByOrderId(orderInfo.getOrderId());
+        }
 
         for (OrderItem item : items) {
             BigDecimal newPrice = null;
@@ -153,6 +178,9 @@ public class OrderInfoServiceImpl implements IOrderInfoService
             } else if ("member_fee".equals(item.getItemType()) && newMemberFee != null) {
                 newPrice = newMemberFee;
                 priceChanged = true;
+            } else if ("meal_fee".equals(item.getItemType()) && newMealFee != null) {
+                newPrice = newMealFee;
+                priceChanged = true;
             }
 
             // 如果价格发生变化，更新订单明细
@@ -167,9 +195,9 @@ public class OrderInfoServiceImpl implements IOrderInfoService
 
                 // 重新计算总额
                 int quantity = item.getQuantity() != null ? item.getQuantity().intValue() : 1;
-                // 如果是床位费或护理费，且修改了月数，需要更新数量
+                // 如果是床位费、护理费或餐费，且修改了月数，需要更新数量
                 if ((newMonthCount != null && newMonthCount > 0) &&
-                    ("bed_fee".equals(item.getItemType()) || "care_fee".equals(item.getItemType()))) {
+                    ("bed_fee".equals(item.getItemType()) || "care_fee".equals(item.getItemType()) || "meal_fee".equals(item.getItemType()))) {
                     quantity = newMonthCount;
                     item.setQuantity((long) quantity);
                 }
@@ -228,6 +256,24 @@ public class OrderInfoServiceImpl implements IOrderInfoService
             }
         }
         return null;
+    }
+
+    /**
+     * 从remark中解析餐费档次
+     *
+     * @param remark 费用说明
+     * @return 餐费档次
+     */
+    private String parseMealLevelFromRemark(String remark) {
+        if (remark == null || !remark.contains("餐费档次：")) {
+            return "";
+        }
+        Pattern pattern = Pattern.compile("餐费档次：(\\S+)");
+        Matcher matcher = pattern.matcher(remark);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        return "";
     }
 
     /**
@@ -608,7 +654,7 @@ public class OrderInfoServiceImpl implements IOrderInfoService
 
     /**
      * 计算首月服务费
-     * 根据订单明细中的床位费和护理费计算首月费用
+     * 根据订单明细中的床位费、护理费和餐费计算首月费用
      *
      * @param orderId 订单ID
      * @return 首月服务费金额
@@ -624,7 +670,7 @@ public class OrderInfoServiceImpl implements IOrderInfoService
                     BigDecimal totalAmount = item.getTotalAmount() != null ? item.getTotalAmount() : BigDecimal.ZERO;
                     Integer quantity = item.getQuantity() != null ? item.getQuantity().intValue() : 1;
 
-                    if ("bed_fee".equals(itemType) || "care_fee".equals(itemType)) {
+                    if ("bed_fee".equals(itemType) || "care_fee".equals(itemType) || "meal_fee".equals(itemType)) {
                         // 计算单月费用：总金额 / 数量（月份数）
                         if (quantity > 0) {
                             BigDecimal monthlyFee = totalAmount.divide(new BigDecimal(quantity), 2, BigDecimal.ROUND_HALF_UP);

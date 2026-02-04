@@ -173,7 +173,7 @@
           <i class="el-icon-wallet"></i> 费用设置
         </el-divider>
         <el-row :gutter="20">
-          <el-col :span="8">
+          <el-col :span="6">
             <el-form-item label="床位费" prop="bedFee">
               <el-input-number
                 v-model="form.bedFee"
@@ -187,7 +187,7 @@
               </div>
             </el-form-item>
           </el-col>
-          <el-col :span="8">
+          <el-col :span="6">
             <el-form-item label="护理费" prop="careFee">
               <el-input-number
                 v-model="form.careFee"
@@ -201,7 +201,24 @@
               </div>
             </el-form-item>
           </el-col>
-          <el-col :span="8">
+          <el-col :span="6">
+            <el-form-item label="餐费档次" prop="mealConfigId">
+              <el-select
+                v-model="form.mealConfigId"
+                placeholder="请选择餐费档次"
+                style="width: 100%;"
+                @change="handleMealChange"
+                clearable>
+                <el-option
+                  v-for="meal in availableMeals"
+                  :key="meal.configId"
+                  :label="`${meal.mealLevel} - ¥${meal.price}/月`"
+                  :value="meal.configId">
+                </el-option>
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
             <el-form-item label="月服务费">
               <el-input
                 :value="formatMoney(monthlyFeeTotal)"
@@ -209,7 +226,7 @@
                 style="width: 100%;" />
               <span style="margin-left: 10px; color: #909399;">元/月</span>
               <div style="font-size: 12px; color: #409EFF; margin-top: 4px;">
-                = 床位费 + 护理费
+                = 床位费 + 护理费 + 餐费
               </div>
             </el-form-item>
           </el-col>
@@ -276,13 +293,17 @@
           <div slot="header">
             <i class="el-icon-s-finance"></i> 费用汇总
           </div>
-          <el-descriptions :column="2" border>
+          <el-descriptions :column="3" border>
             <el-descriptions-item label="床位费">
               <span style="color: #409EFF; font-weight: bold;">¥{{ formatMoney(form.bedFee) }}</span>/月
             </el-descriptions-item>
             <el-descriptions-item label="护理费">
               <span style="color: #409EFF; font-weight: bold;">¥{{ formatMoney(form.careFee) }}</span>/月
               <span style="margin-left: 8px; color: #909399;">({{ getCareLevelText() }})</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="餐费">
+              <span style="color: #409EFF; font-weight: bold;">¥{{ formatMoney(form.mealFee) }}</span>/月
+              <span style="margin-left: 8px; color: #909399;">{{ form.mealLevel || '未选择' }}</span>
             </el-descriptions-item>
             <el-descriptions-item label="月服务费">
               <span style="font-weight: bold; color: #409EFF;">¥{{ formatMoney(monthlyFeeTotal) }} × {{ form.monthCount }}个月</span>
@@ -355,6 +376,7 @@ import { listPensionInstitution } from "@/api/pension/institution";
 import { listBedInfo } from "@/api/pension/bed";
 import { createCheckin } from "@/api/pension/checkin";
 import { getElderOptions, getElderManage } from "@/api/pension/elderManage";
+import { listAvailableMeals } from "@/api/pension/mealFeeConfig";
 
 export default {
   name: "PensionElderCheckin",
@@ -363,6 +385,7 @@ export default {
     return {
       submitLoading: false,
       availableBeds: [],
+      availableMeals: [],
       institutionList: [],
       elderOptions: [],
       selectedElderId: null,
@@ -388,7 +411,10 @@ export default {
         // 费用信息
         bedFee: 0,           // 床位费
         careFee: 0,          // 护理费
-        monthlyFee: 0,       // 月服务费(自动计算=床位费+护理费)
+        mealConfigId: null,   // 餐费配置ID
+        mealFee: 0,          // 餐费
+        mealLevel: '',       // 餐费档次
+        monthlyFee: 0,       // 月服务费(自动计算=床位费+护理费+餐费)
         monthCount: 1,
         depositAmount: 0,
         memberFee: 0,
@@ -475,9 +501,9 @@ export default {
       const item = dict.find(d => d.value === this.form.careLevel);
       return item ? item.label : '';
     },
-    // 月服务费 = 床位费 + 护理费
+    // 月服务费 = 床位费 + 护理费 + 餐费
     monthlyFeeTotal() {
-      return (this.form.bedFee || 0) + (this.form.careFee || 0);
+      return (this.form.bedFee || 0) + (this.form.careFee || 0) + (this.form.mealFee || 0);
     },
     // 服务费小计 = 月服务费 × 入驻月数
     serviceFeeTotal() {
@@ -553,14 +579,18 @@ export default {
     },
     /** 养老机构改变 */
     handleInstitutionChange(institutionId) {
-      // 清空床位选择
+      // 清空床位选择和餐费选择
       this.form.bedId = null;
+      this.form.mealConfigId = null;
+      this.form.mealFee = 0;
       this.form.monthlyFee = 0;
       this.availableBeds = [];
+      this.availableMeals = [];
 
-      // 根据所选机构加载床位
+      // 根据所选机构加载床位和餐费配置
       if (institutionId) {
         this.loadAvailableBeds(institutionId);
+        this.loadAvailableMeals(institutionId);
       }
     },
     /** 加载可用床位(根据机构ID过滤) */
@@ -570,6 +600,19 @@ export default {
         institutionId: institutionId
       }).then(response => {
         this.availableBeds = response.rows || [];
+      });
+    },
+    /** 加载可用餐费配置(根据机构ID过滤) */
+    loadAvailableMeals(institutionId) {
+      listAvailableMeals(institutionId).then(response => {
+        this.availableMeals = response.data || [];
+        // 默认选择第一个餐费档次
+        if (this.availableMeals.length > 0) {
+          this.form.mealConfigId = this.availableMeals[0].configId;
+          this.form.mealFee = this.availableMeals[0].price || 0;
+          this.form.mealLevel = this.availableMeals[0].mealLevel || '';
+          this.calculateMonthlyFee();
+        }
       });
     },
     /** 床位改变 */
@@ -613,7 +656,7 @@ export default {
       this.form.careFee = careFee;
 
       // 同步更新 monthlyFee（用于后端存储）
-      this.form.monthlyFee = this.form.bedFee + this.form.careFee;
+      this.form.monthlyFee = this.form.bedFee + this.form.careFee + this.form.mealFee;
 
       // 使用床位信息中设置的押金和会员费
       this.form.depositAmount = bed.depositFee ?? 0;
@@ -622,16 +665,32 @@ export default {
       // 重新计算总费用
       this.calculateTotal();
     },
+    /** 餐费档次改变 */
+    handleMealChange(configId) {
+      const meal = this.availableMeals.find(m => m.configId === configId);
+      if (meal) {
+        this.form.mealFee = meal.price || 0;
+        this.form.mealLevel = meal.mealLevel || '';
+        // 同步更新 monthlyFee（用于后端存储）
+        this.form.monthlyFee = this.form.bedFee + this.form.careFee + this.form.mealFee;
+        this.calculateTotal();
+      } else {
+        this.form.mealFee = 0;
+        this.form.mealLevel = '';
+        this.form.monthlyFee = this.form.bedFee + this.form.careFee;
+        this.calculateTotal();
+      }
+    },
     /** 床位费改变 */
     onBedFeeChange() {
       // 同步更新 monthlyFee
-      this.form.monthlyFee = this.form.bedFee + this.form.careFee;
+      this.form.monthlyFee = this.form.bedFee + this.form.careFee + this.form.mealFee;
       this.calculateTotal();
     },
     /** 护理费改变 */
     onCareFeeChange() {
       // 同步更新 monthlyFee
-      this.form.monthlyFee = this.form.bedFee + this.form.careFee;
+      this.form.monthlyFee = this.form.bedFee + this.form.careFee + this.form.mealFee;
       this.calculateTotal();
     },
     /** 计算总费用 */

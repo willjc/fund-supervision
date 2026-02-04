@@ -92,7 +92,7 @@
           </div>
           <div class="price-item">
             <span class="price-label">床位费</span>
-            <span class="price-value">¥{{ detail.priceRanges?.bed?.min || 500 }} ~ ¥{{ detail.priceRanges?.bed?.max || 800 }}</span>
+            <span class="price-value">¥{{ detail.priceRanges?.total?.min || detail.priceRanges?.bed?.min || 500 }} ~ ¥{{ detail.priceRanges?.total?.max || detail.priceRanges?.bed?.max || 800 }}</span>
           </div>
           <div class="price-item">
             <span class="price-label">护理费</span>

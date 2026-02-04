@@ -65,7 +65,13 @@ public class PensionCheckinDTO
     /** 护理费 */
     private BigDecimal careFee;
 
-    /** 月服务费(床位费+护理费，用于存储合计) */
+    /** 餐费 */
+    private BigDecimal mealFee;
+
+    /** 餐费档�� */
+    private String mealLevel;
+
+    /** 月服务费(床位费+护理费+餐费，用于存储合计) */
     private BigDecimal monthlyFee;
 
     /** 入驻月数 */
@@ -216,6 +222,22 @@ public class PensionCheckinDTO
 
     public void setCareFee(BigDecimal careFee) {
         this.careFee = careFee;
+    }
+
+    public BigDecimal getMealFee() {
+        return mealFee;
+    }
+
+    public void setMealFee(BigDecimal mealFee) {
+        this.mealFee = mealFee;
+    }
+
+    public String getMealLevel() {
+        return mealLevel;
+    }
+
+    public void setMealLevel(String mealLevel) {
+        this.mealLevel = mealLevel;
     }
 
     public BigDecimal getMonthlyFee() {

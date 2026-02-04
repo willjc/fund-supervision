@@ -45,10 +45,27 @@
         </van-field>
       </van-cell-group>
 
+      <!-- 餐费档次选择 -->
+      <van-cell-group inset title="餐费档次">
+        <van-field
+          v-model="mealLevelText"
+          label="餐费档次"
+          readonly
+          required
+          @click="showMealPicker = true"
+          placeholder="请选择餐费档次"
+        >
+          <template #button>
+            <van-icon name="arrow-down" />
+          </template>
+        </van-field>
+      </van-cell-group>
+
       <!-- 费用明细 -->
       <van-cell-group inset title="费用明细">
         <van-cell title="床位费" :value="`${bedFee}元/月`" />
         <van-cell title="护理费" :value="`${careFee}元/月`" />
+        <van-cell title="餐费" :value="`${mealFee}元/月`" />
         <van-cell title="服务费合计" :value="`${monthlyPrice}元/月`" class="bold-text" />
         <van-cell title="缴纳月数">
           <template #right-icon>
@@ -123,6 +140,15 @@
         @cancel="showCareLevelPicker = false"
       />
     </van-popup>
+
+    <!-- 餐费档次选择器 -->
+    <van-popup v-model:show="showMealPicker" position="bottom">
+      <van-picker
+        :columns="mealOptions"
+        @confirm="onMealConfirm"
+        @cancel="showMealPicker = false"
+      />
+    </van-popup>
   </div>
 </template>
 
@@ -132,7 +158,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { showToast, showLoadingToast } from 'vant'
 import dayjs from 'dayjs'
 import { getInstitutionDetail } from '@/api/institution'
-import { submitOrder as submitOrderApi, getBedPrice as getBedPriceApi, getElderList } from '@/api/order'
+import { submitOrder as submitOrderApi, getBedPrice as getBedPriceApi, getElderList, getAvailableMeals } from '@/api/order'
 
 const router = useRouter()
 const route = useRoute()
@@ -143,6 +169,7 @@ const formData = ref({
   elderName: '',
   roomType: '1',
   careLevel: '自理',
+  mealLevelCode: '1',
   months: 1,
   remark: ''
 })
@@ -151,6 +178,7 @@ const formData = ref({
 const showElderPicker = ref(false)
 const showRoomPicker = ref(false)
 const showCareLevelPicker = ref(false)
+const showMealPicker = ref(false)
 
 // 床位信息
 const bedInfo = ref({
@@ -166,6 +194,12 @@ const bedInfo = ref({
 const careLevelText = computed(() => {
   const option = careLevelOptions.find(item => item.value === formData.value.careLevel)
   return option ? option.text : '请选择护理等级'
+})
+
+// 餐费档次显示文本
+const mealLevelText = computed(() => {
+  const option = mealOptions.value.find(item => item.value === formData.value.mealLevelCode)
+  return option ? option.text : '请选择餐费档次'
 })
 
 // 老人选项数据（从API获取）
@@ -188,6 +222,21 @@ const roomOptions = [
   { text: '豪华床位', value: '2' },
   { text: '医疗床位', value: '3' }
 ]
+
+// 餐费档次选项（从API获取）
+const mealOptions = ref([
+  { text: '一级餐', value: '1' },
+  { text: '二级餐', value: '2' },
+  { text: '三级餐', value: '3' }
+])
+
+// 餐费信息
+const mealInfo = ref({
+  configId: null,
+  mealLevel: '一级餐',
+  mealLevelCode: '1',
+  price: 500
+})
 
 // 获取床位费用
 const bedFee = computed(() => {
@@ -222,6 +271,11 @@ const careFee = computed(() => {
   }
 })
 
+// 获取餐费
+const mealFee = computed(() => {
+  return mealInfo.value.price || 0
+})
+
 // 押金金额
 const depositAmount = computed(() => {
   return bedInfo.value.depositFee
@@ -232,9 +286,9 @@ const memberFee = computed(() => {
   return bedInfo.value.memberFee
 })
 
-// 计算月服务费（床位费 + 护理费）
+// 计算月服务费（床位费 + 护理费 + 餐费）
 const monthlyPrice = computed(() => {
-  return bedFee.value + careFee.value
+  return bedFee.value + careFee.value + mealFee.value
 })
 
 // 计算总金额
@@ -264,6 +318,49 @@ const fetchElderList = async () => {
   } catch (error) {
     console.error('获取老人列表失败:', error)
     showToast('获取老人列表失败')
+  }
+}
+
+// 获取餐费配置
+const fetchMealOptions = async () => {
+  if (!route.params.institutionId) {
+    console.warn('缺少必要参数: institutionId')
+    return
+  }
+
+  try {
+    const institutionId = parseInt(route.params.institutionId)
+    const response = await getAvailableMeals(institutionId)
+    if (response.code === 200 && response.data) {
+      const meals = response.data
+      if (meals && meals.length > 0) {
+        // 更新餐费选项
+        mealOptions.value = meals.map(meal => ({
+          text: meal.mealLevel,
+          value: meal.mealLevelCode,
+          price: meal.price,
+          configId: meal.configId
+        }))
+
+        // 默认选择第一个（一级餐）
+        if (meals.length > 0) {
+          formData.value.mealLevelCode = meals[0].mealLevelCode
+          mealInfo.value = {
+            configId: meals[0].configId,
+            mealLevel: meals[0].mealLevel,
+            mealLevelCode: meals[0].mealLevelCode,
+            price: meals[0].price
+          }
+        }
+      } else {
+        // 没有配置餐费
+        mealOptions.value = []
+        showToast('该机构暂未配置餐费')
+      }
+    }
+  } catch (error) {
+    console.error('获取餐费配置失败:', error)
+    showToast('获取餐费配置失败')
   }
 }
 
@@ -370,6 +467,19 @@ const onCareLevelConfirm = (value) => {
   showCareLevelPicker.value = false
 }
 
+// 餐费档次确认
+const onMealConfirm = (value) => {
+  const selected = value.selectedOptions[0]
+  formData.value.mealLevelCode = selected.value
+  mealInfo.value = {
+    configId: selected.configId,
+    mealLevel: selected.text,
+    mealLevelCode: selected.value,
+    price: selected.price
+  }
+  showMealPicker.value = false
+}
+
 // 增加月数
 const increaseMonth = () => {
   if (formData.value.months < 12) {
@@ -399,6 +509,10 @@ const submitOrder = async () => {
     showToast('请选择护理等级')
     return
   }
+  if (!formData.value.mealLevelCode || mealOptions.value.length === 0) {
+    showToast('该机构暂未配置餐费，无法提交订单')
+    return
+  }
 
   showLoadingToast({
     message: '正在提交订单...',
@@ -412,6 +526,7 @@ const submitOrder = async () => {
       elderId: formData.value.elderId, // 使用真实的老人ID
       elderName: formData.value.elderName,
       careLevel: formData.value.careLevel, // 护理等级
+      mealLevelCode: formData.value.mealLevelCode, // 餐费档次
       roomType: formData.value.roomType,
       monthCount: formData.value.months, // 后端期望的参数名是monthCount
       remark: formData.value.remark
@@ -454,6 +569,9 @@ onMounted(async () => {
   if (formData.value.roomType) {
     getBedPrice()
   }
+
+  // 获取餐费配置
+  await fetchMealOptions()
 })
 </script>
 

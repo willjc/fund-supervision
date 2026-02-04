@@ -102,6 +102,31 @@
 
         <el-row>
           <el-col :span="12">
+            <el-form-item label="餐费档次">
+              <el-select v-model="form.mealConfigId" placeholder="请选择餐费档次（可选）" clearable @change="onMealChange" style="width: 100%">
+                <el-option
+                  v-for="meal in availableMeals"
+                  :key="meal.configId"
+                  :label="meal.mealLevel + ' - ¥' + meal.price + '/月'"
+                  :value="meal.configId">
+                  <span>{{ meal.mealLevel }}</span>
+                  <span style="color: #8492a6; font-size: 12px; margin-left: 10px">
+                    ¥{{ meal.price }}/月
+                  </span>
+                </el-option>
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="餐费(元)">
+              <span v-if="form.mealFee > 0" style="color: #67C23A; font-weight: bold">¥{{ form.mealFee }}/月</span>
+              <span v-else style="color: #909399">未选择</span>
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-row>
+          <el-col :span="12">
             <el-form-item label="缴纳月数" prop="monthCount">
               <el-input-number v-model="form.monthCount" :min="1" :max="120" @change="calculateTotal" />
             </el-form-item>
@@ -158,6 +183,7 @@
 <script>
 import { getOrder, approveOrder, rejectOrder } from "@/api/order/orderInfo";
 import { listBed } from "@/api/elder/bed";
+import { listAvailableMeals } from "@/api/pension/mealFeeConfig";
 
 export default {
   name: "AuditDialog",
@@ -167,6 +193,7 @@ export default {
       loading: false,
       submitting: false,
       availableBeds: [],  // 可用床位列表
+      availableMeals: [], // 可用餐费配置列表
       form: {
         orderId: null,
         orderNo: '',
@@ -179,10 +206,13 @@ export default {
         careLevel: '自理',
         bedFee: 500,
         careFee: 500,
+        mealFee: 0,
+        mealConfigId: null,
         monthCount: 1,
         depositFee: 10000,
         memberFee: 5000,
-        approveRemark: ''
+        approveRemark: '',
+        rawRemark: ''        // 缓存原始remark，用于异步加载餐费配置后重新解析
       },
       rules: {
         bedType: [
@@ -210,11 +240,12 @@ export default {
     };
   },
   computed: {
-    // 月服务费 = 床位费 + 护理费
+    // 月服务费 = 床位费 + 护理费 + 餐费
     monthlyServiceFee() {
       const bedFee = this.form.bedFee || 0;
       const careFee = this.form.careFee || 0;
-      return (bedFee + careFee).toFixed(2);
+      const mealFee = this.form.mealFee || 0;
+      return (bedFee + careFee + mealFee).toFixed(2);
     },
     // 总金额 = 月服务费 * 月数 + 押金 + 会员费
     totalAmount() {
@@ -246,11 +277,17 @@ export default {
           : '';
         this.form.originalBedId = order.bedId;
 
-        // 从remark中解析费用信息
+        // 缓存原始remark，用于后续解析餐费档次
+        this.form.rawRemark = order.remark;
+
+        // 从remark中解析费用信息（此时餐费配置还未加载，餐费档次稍后解析）
         this.parseFeesFromRemark(order.remark);
 
         // 加载可用床位列表
         this.loadAvailableBeds(order.institutionId, order.bedId);
+
+        // 加载餐费配置列表（异步，加载完成后会解析餐费档次）
+        this.loadAvailableMeals(order.institutionId);
 
         this.loading = false;
       }).catch(() => {
@@ -272,6 +309,59 @@ export default {
           !currentBedId || bed.bedId !== currentBedId
         );
       });
+    },
+    // 加载餐费配置列表
+    loadAvailableMeals(institutionId) {
+      if (!institutionId) return;
+
+      listAvailableMeals(institutionId).then(response => {
+        this.availableMeals = response.data || [];
+        // 餐费配置加载完成后，重新解析餐费档次
+        this.resolveMealConfigFromRemark();
+        // 如果没有解析到餐费，默认不选择任何档次的餐费
+        if (!this.form.mealConfigId && this.availableMeals.length > 0) {
+          // 不自动选择，让用户手动选择
+          this.form.mealFee = 0;
+        }
+      }).catch(() => {
+        this.availableMeals = [];
+      });
+    },
+    // 解析餐费档次配置（在餐费配置加载完成后调用）
+    resolveMealConfigFromRemark() {
+      if (!this.form.rawRemark || !this.form.rawRemark.includes("餐费档次：")) {
+        return;
+      }
+
+      if (this.availableMeals.length === 0) {
+        return;
+      }
+
+      try {
+        // 从缓存的remark中解析餐费档次
+        const match = this.form.rawRemark.match(/餐费档次：(\S+)/);
+        if (match) {
+          const mealLevel = match[1];
+          // 查找对应的配置ID
+          const mealConfig = this.availableMeals.find(m => m.mealLevel === mealLevel);
+          if (mealConfig) {
+            this.form.mealConfigId = mealConfig.configId;
+          }
+        }
+      } catch (e) {
+        console.warn("解析餐费档次失败", e);
+      }
+    },
+    // 餐费档次选择变化时更新餐费
+    onMealChange(configId) {
+      if (configId) {
+        const selectedMeal = this.availableMeals.find(m => m.configId === configId);
+        if (selectedMeal) {
+          this.form.mealFee = selectedMeal.price || 0;
+        }
+      } else {
+        this.form.mealFee = 0;
+      }
     },
     // 床位选择变化时更新床位费
     onBedChange(newBedId) {
@@ -337,6 +427,27 @@ export default {
           const match = remark.match(/护理等级：(\S+)/);
           if (match) {
             this.form.careLevel = match[1];
+          }
+        }
+
+        // 解析餐费
+        if (remark.includes("餐费：")) {
+          const match = remark.match(/餐费：([\d.]+)元/);
+          if (match) {
+            this.form.mealFee = parseFloat(match[1]);
+          }
+        }
+
+        // 解析餐费档次
+        if (remark.includes("餐费档次：")) {
+          const match = remark.match(/餐费档次：(\S+)/);
+          if (match) {
+            const mealLevel = match[1];
+            // 查找对应的配置ID
+            const mealConfig = this.availableMeals.find(m => m.mealLevel === mealLevel);
+            if (mealConfig) {
+              this.form.mealConfigId = mealConfig.configId;
+            }
           }
         }
       } catch (e) {
@@ -420,6 +531,15 @@ export default {
       const sb = [];
       sb.push("床位费：" + this.form.bedFee + "元/月\\n");
       sb.push("护理费：" + this.form.careFee + "元/月\\n");
+      if (this.form.mealFee > 0) {
+        const mealConfig = this.availableMeals.find(m => m.configId === this.form.mealConfigId);
+        const mealLevelName = mealConfig ? mealConfig.mealLevel : '';
+        sb.push("餐费：" + this.form.mealFee + "元/月");
+        if (mealLevelName) {
+          sb.push("（" + mealLevelName + "）");
+        }
+        sb.push("\\n");
+      }
       sb.push("护理等级：" + this.form.careLevel + "\\n");
       sb.push("服务费合计：" + this.monthlyServiceFee + "元/月\\n");
       sb.push("缴费月数：" + this.form.monthCount + "个月\\n");
@@ -446,12 +566,16 @@ export default {
         careLevel: '自理',
         bedFee: 500,
         careFee: 500,
+        mealFee: 0,
+        mealConfigId: null,
         monthCount: 1,
         depositFee: 10000,
         memberFee: 5000,
-        approveRemark: ''
+        approveRemark: '',
+        rawRemark: ''
       };
       this.availableBeds = [];
+      this.availableMeals = [];
       if (this.$refs.form) {
         this.$refs.form.resetFields();
       }

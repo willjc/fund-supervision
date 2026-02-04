@@ -97,7 +97,7 @@
                   </span>
                 </div>
                 <div class="listing-price" v-if="institution.priceRanges">
-                  <span class="price-number">{{ institution.priceRanges.bed?.min || institution.priceRanges.total?.min || 0 }}</span>
+                  <span class="price-number">{{ institution.priceRanges.total?.min || institution.priceRanges.bed?.min || 0 }}</span>
                   <span class="price-unit">元</span>
                   <span class="price-suffix">/月起</span>
                 </div>

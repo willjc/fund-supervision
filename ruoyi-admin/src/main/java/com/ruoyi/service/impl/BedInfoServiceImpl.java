@@ -1,10 +1,12 @@
 package com.ruoyi.service.impl;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import com.ruoyi.mapper.BedInfoMapper;
 import com.ruoyi.domain.BedInfo;
@@ -68,9 +70,17 @@ public class BedInfoServiceImpl implements IBedInfoService
     @Override
     public int insertBedInfo(BedInfo bedInfo)
     {
+        // 校验费���字段
+        validatePrices(bedInfo);
+
         bedInfo.setCreateTime(DateUtils.getNowDate());
         bedInfo.setBedStatus("0"); // 默认状态为空置
-        return bedInfoMapper.insertBedInfo(bedInfo);
+
+        try {
+            return bedInfoMapper.insertBedInfo(bedInfo);
+        } catch (DuplicateKeyException e) {
+            throw new ServiceException("该房间号和床位号已存在，请检查后重新提交");
+        }
     }
 
     /**
@@ -82,8 +92,43 @@ public class BedInfoServiceImpl implements IBedInfoService
     @Override
     public int updateBedInfo(BedInfo bedInfo)
     {
+        // 校验费用字段
+        validatePrices(bedInfo);
+
         bedInfo.setUpdateTime(DateUtils.getNowDate());
-        return bedInfoMapper.updateBedInfo(bedInfo);
+
+        try {
+            return bedInfoMapper.updateBedInfo(bedInfo);
+        } catch (DuplicateKeyException e) {
+            throw new ServiceException("该房间号和床位号已存在，请检查后重新提交");
+        }
+    }
+
+    /**
+     * 校验费用字段不能为负数
+     *
+     * @param bedInfo 床位信息
+     */
+    private void validatePrices(BedInfo bedInfo)
+    {
+        if (bedInfo.getPrice() != null && bedInfo.getPrice().compareTo(BigDecimal.ZERO) < 0) {
+            throw new ServiceException("床位费不能为负数");
+        }
+        if (bedInfo.getSelfCarePrice() != null && bedInfo.getSelfCarePrice().compareTo(BigDecimal.ZERO) < 0) {
+            throw new ServiceException("自理护理费不能为负数");
+        }
+        if (bedInfo.getHalfCarePrice() != null && bedInfo.getHalfCarePrice().compareTo(BigDecimal.ZERO) < 0) {
+            throw new ServiceException("半护理费不能为负数");
+        }
+        if (bedInfo.getFullCarePrice() != null && bedInfo.getFullCarePrice().compareTo(BigDecimal.ZERO) < 0) {
+            throw new ServiceException("全护理费不能为负数");
+        }
+        if (bedInfo.getMemberFee() != null && bedInfo.getMemberFee().compareTo(BigDecimal.ZERO) < 0) {
+            throw new ServiceException("会员费不能为负数");
+        }
+        if (bedInfo.getDepositFee() != null && bedInfo.getDepositFee().compareTo(BigDecimal.ZERO) < 0) {
+            throw new ServiceException("押金不能为负数");
+        }
     }
 
     /**
@@ -280,40 +325,54 @@ public class BedInfoServiceImpl implements IBedInfoService
             }
         }
 
-        // 转换独立卫浴
+        // 转换独立卫浴（使用Y/N匹配数据字典sys_yes_no）
         if (StringUtils.isNotEmpty(bedInfo.getHasBathroom()))
         {
             switch (bedInfo.getHasBathroom().trim())
             {
                 case "是":
-                    bedInfo.setHasBathroom("1");
+                    bedInfo.setHasBathroom("Y");
                     break;
                 case "否":
-                    bedInfo.setHasBathroom("0");
+                    bedInfo.setHasBathroom("N");
                     break;
-                // 如果已经是数字,保持不变
+                // 如果已经是Y/N，保持不变
+                case "Y":
+                case "N":
+                    break;
+                // 兼容旧的0/1格式
                 case "0":
+                    bedInfo.setHasBathroom("N");
+                    break;
                 case "1":
+                    bedInfo.setHasBathroom("Y");
                     break;
                 default:
                     throw new ServiceException("独立卫浴格式错误,请填写: 是/否");
             }
         }
 
-        // 转换阳台
+        // 转换阳台（使用Y/N匹配数据字典sys_yes_no）
         if (StringUtils.isNotEmpty(bedInfo.getHasBalcony()))
         {
             switch (bedInfo.getHasBalcony().trim())
             {
                 case "是":
-                    bedInfo.setHasBalcony("1");
+                    bedInfo.setHasBalcony("Y");
                     break;
                 case "否":
-                    bedInfo.setHasBalcony("0");
+                    bedInfo.setHasBalcony("N");
                     break;
-                // 如果已经是数字,保持不变
+                // 如果已经是Y/N，保持不变
+                case "Y":
+                case "N":
+                    break;
+                // 兼容旧的0/1格式
                 case "0":
+                    bedInfo.setHasBalcony("N");
+                    break;
                 case "1":
+                    bedInfo.setHasBalcony("Y");
                     break;
                 default:
                     throw new ServiceException("阳台格式错误,请填写: 是/否");

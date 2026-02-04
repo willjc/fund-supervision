@@ -44,6 +44,8 @@ import com.ruoyi.service.pension.IAccountInfoService;
 import com.ruoyi.service.pension.IDepositApplyService;
 import com.ruoyi.service.pension.IExpenseRecordService;
 import com.ruoyi.service.IPaymentRecordService;
+import com.ruoyi.domain.pension.MealFeeConfig;
+import com.ruoyi.service.IMealFeeConfigService;
 
 /**
  * H5订单Controller
@@ -89,6 +91,9 @@ public class H5OrderController extends BaseController
 
     @Autowired
     private IPaymentRecordService paymentRecordService;
+
+    @Autowired
+    private IMealFeeConfigService mealFeeConfigService;
 
     @Autowired
     private com.ruoyi.service.pension.ISupervisionAccountLogService supervisionAccountLogService;
@@ -1323,6 +1328,25 @@ public class H5OrderController extends BaseController
     }
 
     /**
+     * 获取机构可用的餐费配置列表
+     */
+    @GetMapping("/meal/available/{institutionId}")
+    public AjaxResult getAvailableMeals(@PathVariable Long institutionId)
+    {
+        try {
+            MealFeeConfig query = new MealFeeConfig();
+            query.setInstitutionId(institutionId);
+            query.setIsAvailable("1"); // 只查询启用的
+
+            List<MealFeeConfig> mealList = mealFeeConfigService.selectMealFeeConfigList(query);
+            return success(mealList);
+        } catch (Exception e) {
+            logger.error("获取餐费配置失败", e);
+            return error("获取餐费配置失败");
+        }
+    }
+
+    /**
      * 提交订单
      * 自动分配最便宜的可用床位并创建入住申请
      */
@@ -1337,10 +1361,28 @@ public class H5OrderController extends BaseController
             String careLevel = orderData.get("careLevel").toString(); // 自理/半护理/全护理
             Integer monthCount = Integer.valueOf(orderData.get("monthCount").toString());
 
+            // 获取餐费档次
+            String mealLevelCode = orderData.get("mealLevelCode") != null
+                ? orderData.get("mealLevelCode").toString()
+                : null;
+
+            // 验证餐费配置
+            if (mealLevelCode == null) {
+                return error("请选择餐费档次");
+            }
+
+            // 查询餐费配置
+            MealFeeConfig mealConfig = mealFeeConfigService.selectMealByLevelCode(institutionId, mealLevelCode);
+            if (mealConfig == null) {
+                return error("该机构暂未配置餐费，无法提交订单");
+            }
+
+            BigDecimal mealFee = mealConfig.getPrice(); // 餐费
+
             // 验证老人信息
             ElderInfo elder = elderInfoService.selectElderInfoByElderId(elderId);
             if (elder == null) {
-                return error("抱歉，未找到该老人信息。请重新选择或联系客服。");
+                return error("抱歉，未找到该��人信息。请重新选择或联系客服。");
             }
 
             // 查找最优价格床位
@@ -1382,10 +1424,10 @@ public class H5OrderController extends BaseController
             checkinDTO.setBedId(selectedBed.getBedId());
             checkinDTO.setCheckInDate(new Date()); // 默认今天入住
 
-            // 费用计算（根据新的定价模式：服务费 = 床位费 + 护理费）
+            // 费用计算（服务费 = 床位费 + 护理费 + 餐费）
             BigDecimal bedFee = selectedBed.getPrice(); // 床位费
             BigDecimal careFee = getCareFeeByLevel(selectedBed, careLevel); // 护理费
-            BigDecimal monthlyFee = bedFee.add(careFee); // 月服务费 = 床位费 + 护理费
+            BigDecimal monthlyFee = bedFee.add(careFee).add(mealFee); // 月服务费 = 床位费 + 护理费 + 餐费
             BigDecimal depositAmount = selectedBed.getDepositFee() != null ? selectedBed.getDepositFee() : new BigDecimal("10000");
             BigDecimal memberFee = selectedBed.getMemberFee() != null ? selectedBed.getMemberFee() : new BigDecimal("5000");
             BigDecimal finalAmount = monthlyFee.multiply(new BigDecimal(monthCount))
@@ -1396,12 +1438,14 @@ public class H5OrderController extends BaseController
             checkinDTO.setMonthCount(monthCount);
             checkinDTO.setDepositAmount(depositAmount);
             checkinDTO.setMemberFee(memberFee);
+            checkinDTO.setMealFee(mealFee);
+            checkinDTO.setMealLevel(mealConfig.getMealLevel());
             checkinDTO.setFinalAmount(finalAmount);
-            checkinDTO.setFeeDescription(buildFeeDescription(bedFee, careFee, monthlyFee, depositAmount, memberFee, monthCount));
+            checkinDTO.setFeeDescription(buildFeeDescription(bedFee, careFee, mealFee, mealConfig.getMealLevel(), monthlyFee, depositAmount, memberFee, monthCount));
 
             // 支付方式（默认稍后支付）
             checkinDTO.setPaymentMethod("later");
-            checkinDTO.setRemark("H5小程序订单来源");
+            checkinDTO.setRemark("H5小程序订单来源，餐费档次：" + mealConfig.getMealLevel());
 
             // 创建入住申请 - 使用当前登录用户ID
             Long userId = getCurrentUserId();
@@ -1594,12 +1638,16 @@ public class H5OrderController extends BaseController
     /**
      * 构建费用说明
      */
-    private String buildFeeDescription(BigDecimal bedFee, BigDecimal careFee, BigDecimal monthlyFee,
-                                     BigDecimal depositAmount, BigDecimal memberFee,
+    private String buildFeeDescription(BigDecimal bedFee, BigDecimal careFee, BigDecimal mealFee, String mealLevelName,
+                                     BigDecimal monthlyFee, BigDecimal depositAmount, BigDecimal memberFee,
                                      Integer monthCount) {
         StringBuilder sb = new StringBuilder();
         sb.append("床位费：").append(bedFee).append("元/月\n");
         sb.append("护理费：").append(careFee).append("元/月\n");
+        sb.append("餐费：").append(mealFee).append("元/月\n");
+        if (mealFee.compareTo(BigDecimal.ZERO) > 0 && mealLevelName != null && !mealLevelName.isEmpty()) {
+            sb.append("餐费档次：").append(mealLevelName).append("\n");
+        }
         sb.append("服务费合计：").append(monthlyFee).append("元/月\n");
         sb.append("缴费月数：").append(monthCount).append("个月\n");
         sb.append("押金：").append(depositAmount).append("元\n");
@@ -1935,7 +1983,7 @@ public class H5OrderController extends BaseController
 
     /**
      * 计算首月服务费
-     * 根据订单明细中的床位费和护理费计算首月费用
+     * 根据订单明细中的床位费、护理费和餐费计算首月费用
      *
      * @param orderId 订单ID
      * @return 首月服务费金额
@@ -1951,7 +1999,7 @@ public class H5OrderController extends BaseController
                     BigDecimal totalAmount = item.getTotalAmount() != null ? item.getTotalAmount() : BigDecimal.ZERO;
                     Integer quantity = item.getQuantity() != null ? item.getQuantity().intValue() : 1;
 
-                    if ("bed_fee".equals(itemType) || "care_fee".equals(itemType)) {
+                    if ("bed_fee".equals(itemType) || "care_fee".equals(itemType) || "meal_fee".equals(itemType)) {
                         // 计算单月费用：总金额 / 数量（月份数）
                         if (quantity > 0) {
                             BigDecimal monthlyFee = totalAmount.divide(new BigDecimal(quantity), 2, BigDecimal.ROUND_HALF_UP);

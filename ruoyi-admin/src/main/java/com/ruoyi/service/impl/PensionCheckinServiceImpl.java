@@ -318,6 +318,25 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
             orderItemMapper.insertOrderItem(memberItem);
         }
 
+        // 4.5 餐费明细
+        BigDecimal mealFee = dto.getMealFee() != null ? dto.getMealFee() : BigDecimal.ZERO;
+        if (mealFee.compareTo(BigDecimal.ZERO) > 0) {
+            OrderItem mealItem = new OrderItem();
+            mealItem.setOrderId(orderId);
+            mealItem.setOrderNo(orderNo);
+            mealItem.setItemName("餐费");
+            mealItem.setItemType("meal_fee");
+            String mealLevelText = dto.getMealLevel() != null ? dto.getMealLevel() : "标准餐";
+            mealItem.setItemDescription(mealLevelText + "餐费");
+            mealItem.setUnitPrice(mealFee);
+            mealItem.setQuantity(monthCount.longValue());  // 数量=入驻月数
+            mealItem.setTotalAmount(mealFee.multiply(new BigDecimal(monthCount)));  // 小计=餐费×月数
+            mealItem.setServicePeriod("月度");
+            mealItem.setCreateTime(DateUtils.getNowDate());
+            mealItem.setCreateBy(getUsernameSafely());
+            orderItemMapper.insertOrderItem(mealItem);
+        }
+
         // ========== 5. 创建支付记录(仅当非"稍后支付"时) ==========
         if (!"later".equals(dto.getPaymentMethod())) {
             PaymentRecord paymentRecord = new PaymentRecord();
@@ -338,10 +357,11 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
 
         // ========== 6. 更新账户余额并生成拨付单（仅当已支付时）==========
         if (!"later".equals(dto.getPaymentMethod()) && "1".equals(orderInfo.getOrderType())) {
-            // 6.1 计算首月服务费 = 床位费 + 护理费（null安全处理）
+            // 6.1 计算首月服务费 = 床位费 + 护理费 + 餐费（null安全处理）
             BigDecimal safeBedFee = bedFee != null ? bedFee : BigDecimal.ZERO;
             BigDecimal safeCareFee = careFee != null ? careFee : BigDecimal.ZERO;
-            BigDecimal firstMonthServiceFee = safeBedFee.add(safeCareFee);
+            BigDecimal safeMealFee = mealFee != null ? mealFee : BigDecimal.ZERO;
+            BigDecimal firstMonthServiceFee = safeBedFee.add(safeCareFee).add(safeMealFee);
 
             // 6.2 生成首月拨付单（已完成状态，表示首月服务费已消耗）
             createFirstMonthTransfer(orderInfo, elderId, institutionId, firstMonthServiceFee, checkInDate);

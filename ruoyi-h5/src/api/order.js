@@ -108,6 +108,17 @@ export function getElderList() {
 }
 
 /**
+ * 获取机构可用的餐费配置
+ * @param {Number} institutionId - 机构ID
+ */
+export function getAvailableMeals(institutionId) {
+  return request({
+    url: `/h5/meal/available/${institutionId}`,
+    method: 'get'
+  })
+}
+
+/**
  * 获取订单统计
  * @param {Number} elderId - 老人ID
  */
