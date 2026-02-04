@@ -15,14 +15,27 @@
         <!-- 基本信息 -->
         <el-divider content-position="left">基本信息</el-divider>
         <el-row :gutter="20">
-          <el-col :span="12">
+          <el-col :span="8">
             <el-form-item label="机构名称" prop="institutionName">
               <el-input v-model="form.institutionName" disabled></el-input>
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <el-col :span="8">
             <el-form-item label="统一社会信用代码" prop="creditCode">
               <el-input v-model="form.creditCode" disabled></el-input>
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="机构评级">
+              <div style="display: flex; align-items: center;">
+                <el-rate v-model="form.ratingLevel" disabled show-score text-color="#ff9900"></el-rate>
+                <span v-if="form.totalScore" style="margin-left: 10px; color: #909399; font-size: 13px;">
+                  (总分: {{ form.totalScore }}分)
+                </span>
+              </div>
+              <div v-if="form.ratingDate" style="font-size: 12px; color: #909399; margin-top: 4px;">
+                评级日期: {{ form.ratingDate }} | 有效期至: {{ form.expireDate }}
+              </div>
             </el-form-item>
           </el-col>
         </el-row>
@@ -437,7 +450,12 @@ export default {
         parkFacilities: null,
         lifeFacilities: null,
         medicalFacilities: null,
-        dailyServices: null
+        dailyServices: null,
+        // 评级信息字段
+        ratingLevel: 3,
+        totalScore: null,
+        ratingDate: null,
+        expireDate: null
       },
       rules: {
         legalPerson: [
@@ -732,7 +750,12 @@ export default {
             lifeFacilities: data.lifeFacilities,
             medicalFacilities: data.medicalFacilities,
             dailyServices: data.dailyServices,
-            vrImage: data.vrImage
+            vrImage: data.vrImage,
+            // 评级信息字段
+            ratingLevel: data.ratingLevel || 3,
+            totalScore: data.totalScore,
+            ratingDate: data.ratingDate,
+            expireDate: data.expireDate
           }
 
           // 处理VR全景图片

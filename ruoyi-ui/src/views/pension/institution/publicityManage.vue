@@ -142,6 +142,30 @@
             </el-form-item>
           </el-col>
         </el-row>
+
+        <!-- 机构评级展示区域 -->
+        <el-row :gutter="20" v-if="form.institutionId">
+          <el-col :span="24">
+            <el-form-item label="机构评级">
+              <div v-if="ratingLoading" class="rating-loading">加载中...</div>
+              <div v-else-if="ratingData.ratingLevel" class="rating-display">
+                <div class="rating-stars">
+                  <el-rate
+                    :value="ratingData.ratingLevel || 0"
+                    :max="5"
+                    disabled
+                    show-score
+                    text-color="#ff9900"
+                    score-template="{value}星">
+                  </el-rate>
+                  <span class="rating-score">{{ ratingData.totalScore }}分</span>
+                </div>
+                <div class="rating-date">评级日期: {{ formatDate(ratingData.ratingDate) }} | 有效期至: {{ formatDate(ratingData.expireDate) }}</div>
+              </div>
+              <div v-else class="rating-empty">暂无评级</div>
+            </el-form-item>
+          </el-col>
+        </el-row>
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="占地面积(㎡)" prop="landArea">
@@ -765,6 +789,7 @@
 <script>
 import { listPublicity, getPublicity, addPublicity, updatePublicity, delPublicity, publishPublicity, unpublishPublicity, batchPublish } from "@/api/pension/publicityManage";
 import { listInstitution } from "@/api/pension/institution";
+import { getRatingByInstitutionId } from "@/api/supervision/institution";
 import { getLifeFacilities, getMedicalFacilities } from '@/api/pension/facility/icon';
 import ImageUpload from '@/components/ImageUpload';
 import ImagePreview from '@/components/ImagePreview';
@@ -823,6 +848,9 @@ export default {
       // 设施图标配置数据
       lifeFacilities: [],
       medicalFacilities: [],
+      // 机构评级数据
+      ratingData: {},
+      ratingLoading: false,
       // 表单校验
       rules: {
         landArea: [
@@ -1144,6 +1172,8 @@ export default {
         superviseAccount: row.superviseAccount,
         feeRange: row.feeRange
       };
+      // 加载机构评级数据
+      this.loadRatingData(row.institutionId);
       this.open = true;
       this.title = "维护公示信息 - " + row.institutionName;
     },
@@ -1206,6 +1236,8 @@ export default {
           superviseAccount: response.data.superviseAccount,
           feeRange: response.data.feeRange
         };
+        // 加载机构评级数据
+        this.loadRatingData(this.form.institutionId);
         this.open = true;
         this.title = "修改公示信息";
       });
@@ -1443,12 +1475,82 @@ export default {
         this.lifeFacilities = []
         this.medicalFacilities = []
       })
+    },
+
+    // 加载机构评级数据
+    loadRatingData(institutionId) {
+      if (!institutionId) {
+        this.ratingData = {}
+        return
+      }
+      this.ratingLoading = true
+      getRatingByInstitutionId(institutionId).then(response => {
+        if (response.data) {
+          this.ratingData = response.data
+        } else {
+          this.ratingData = {}
+        }
+      }).catch(() => {
+        this.ratingData = {}
+      }).finally(() => {
+        this.ratingLoading = false
+      })
+    },
+    // 格式化日期
+    formatDate(date) {
+      if (!date) return '-'
+      const d = new Date(date)
+      const year = d.getFullYear()
+      const month = String(d.getMonth() + 1).padStart(2, '0')
+      const day = String(d.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
     }
   }
 };
 </script>
 
 <style scoped>
+/* 机构评级展示样式 */
+.rating-display {
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #fff9f0 0%, #fff5e6 100%);
+  border: 1px solid #ffe7ba;
+  border-radius: 8px;
+}
+
+.rating-stars {
+  display: flex;
+  align-items: center;
+}
+
+.rating-score {
+  margin-left: 15px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ff9900;
+}
+
+.rating-date {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #909399;
+}
+
+.rating-empty {
+  padding: 12px 16px;
+  background: #f5f7fa;
+  border: 1px dashed #dcdfe6;
+  border-radius: 8px;
+  color: #909399;
+  font-size: 14px;
+}
+
+.rating-loading {
+  padding: 12px 16px;
+  color: #909399;
+  font-size: 14px;
+}
+
 .publicity-detail,
 .publicity-preview {
   max-height: 700px;

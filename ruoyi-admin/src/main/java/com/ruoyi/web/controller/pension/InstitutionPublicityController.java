@@ -10,8 +10,10 @@ import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.domain.PensionInstitution;
 import com.ruoyi.domain.PensionInstitutionPublic;
+import com.ruoyi.domain.InstitutionRating;
 import com.ruoyi.service.IPensionInstitutionService;
 import com.ruoyi.service.IPensionInstitutionPublicService;
+import com.ruoyi.service.IInstitutionRatingService;
 
 /**
  * 机构公示信息Controller
@@ -28,6 +30,9 @@ public class InstitutionPublicityController extends BaseController
 
     @Autowired
     private IPensionInstitutionPublicService pensionInstitutionPublicService;
+
+    @Autowired
+    private IInstitutionRatingService institutionRatingService;
 
     /**
      * 获取机构公示信息
@@ -88,6 +93,21 @@ public class InstitutionPublicityController extends BaseController
 
             // 机构图片（JSON格式存储）
             data.put("coverImages", institution.getCoverImages());
+
+            // 查询当前有效评级信息
+            InstitutionRating validRating = institutionRatingService.selectLatestValidRatingByInstitutionId(institution.getInstitutionId());
+            if (validRating != null) {
+                data.put("ratingLevel", validRating.getRatingLevel());
+                data.put("totalScore", validRating.getTotalScore());
+                data.put("ratingDate", validRating.getRatingDate());
+                data.put("expireDate", validRating.getExpireDate());
+            } else {
+                // 如果没有评��记录，使用机构表的默认评级
+                data.put("ratingLevel", institution.getRatingLevel() != null ? institution.getRatingLevel() : 3);
+                data.put("totalScore", null);
+                data.put("ratingDate", null);
+                data.put("expireDate", null);
+            }
 
             // 查询公示信息表数据
             PensionInstitutionPublic publicity = pensionInstitutionPublicService.selectPensionInstitutionPublicByInstitutionId(institution.getInstitutionId());

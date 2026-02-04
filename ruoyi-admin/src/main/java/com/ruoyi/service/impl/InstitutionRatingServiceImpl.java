@@ -8,6 +8,7 @@ import com.ruoyi.common.utils.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.ruoyi.mapper.InstitutionRatingMapper;
+import com.ruoyi.mapper.PensionInstitutionMapper;
 import com.ruoyi.domain.InstitutionRating;
 import com.ruoyi.service.IInstitutionRatingService;
 
@@ -22,6 +23,9 @@ public class InstitutionRatingServiceImpl implements IInstitutionRatingService
 {
     @Autowired
     private InstitutionRatingMapper institutionRatingMapper;
+
+    @Autowired
+    private PensionInstitutionMapper pensionInstitutionMapper;
 
     /**
      * 查询机构评级
@@ -79,7 +83,14 @@ public class InstitutionRatingServiceImpl implements IInstitutionRatingService
 
         institutionRating.setCreateTime(DateUtils.getNowDate());
         institutionRating.setRatingStatus("1"); // 默认有效状态
-        return institutionRatingMapper.insertInstitutionRating(institutionRating);
+        int result = institutionRatingMapper.insertInstitutionRating(institutionRating);
+
+        // 同步更新 pension_institution 表的 rating_level
+        if (result > 0 && institutionRating.getInstitutionId() != null) {
+            syncRatingToInstitution(institutionRating.getInstitutionId(), institutionRating.getRatingLevel());
+        }
+
+        return result;
     }
 
     /**
@@ -113,7 +124,14 @@ public class InstitutionRatingServiceImpl implements IInstitutionRatingService
         }
 
         institutionRating.setUpdateTime(DateUtils.getNowDate());
-        return institutionRatingMapper.updateInstitutionRating(institutionRating);
+        int result = institutionRatingMapper.updateInstitutionRating(institutionRating);
+
+        // 同步更新 pension_institution 表的 rating_level
+        if (result > 0 && institutionRating.getInstitutionId() != null) {
+            syncRatingToInstitution(institutionRating.getInstitutionId(), institutionRating.getRatingLevel());
+        }
+
+        return result;
     }
 
     /**
@@ -125,7 +143,26 @@ public class InstitutionRatingServiceImpl implements IInstitutionRatingService
     @Override
     public int deleteInstitutionRatingByRatingIds(Long[] ratingIds)
     {
-        return institutionRatingMapper.deleteInstitutionRatingByRatingIds(ratingIds);
+        // 获取要删除的评级记录（获取institution_id）
+        for (Long ratingId : ratingIds) {
+            InstitutionRating rating = institutionRatingMapper.selectInstitutionRatingByRatingId(ratingId);
+            if (rating != null && rating.getInstitutionId() != null) {
+                // 先执行删除
+                institutionRatingMapper.deleteInstitutionRatingByRatingId(ratingId);
+
+                // 查找该机构最新的有效评级（评级日期最新的）
+                InstitutionRating latestRating = institutionRatingMapper.selectLatestValidRatingByInstitutionId(rating.getInstitutionId());
+
+                if (latestRating != null) {
+                    // 有其他有效评级，更新为最新的评级
+                    syncRatingToInstitution(rating.getInstitutionId(), latestRating.getRatingLevel());
+                } else {
+                    // 没有其他有效评级，恢复默认值3
+                    syncRatingToInstitution(rating.getInstitutionId(), 3);
+                }
+            }
+        }
+        return ratingIds.length;
     }
 
     /**
@@ -249,5 +286,33 @@ public class InstitutionRatingServiceImpl implements IInstitutionRatingService
             return false;
         }
         return score.compareTo(min) >= 0 && score.compareTo(max) <= 0;
+    }
+
+    /**
+     * 同步评级到机构表
+     *
+     * @param institutionId 机构ID
+     * @param ratingLevel 评级等级
+     */
+    private void syncRatingToInstitution(Long institutionId, Integer ratingLevel)
+    {
+        try {
+            pensionInstitutionMapper.updateRatingLevel(institutionId, ratingLevel);
+        } catch (Exception e) {
+            // 同步失败不应影响主流程，记录日志即可
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 查询机构最新有效评级（评级日期最新的）
+     *
+     * @param institutionId 机构ID
+     * @return 机构评级
+     */
+    @Override
+    public InstitutionRating selectLatestValidRatingByInstitutionId(Long institutionId)
+    {
+        return institutionRatingMapper.selectLatestValidRatingByInstitutionId(institutionId);
     }
 }

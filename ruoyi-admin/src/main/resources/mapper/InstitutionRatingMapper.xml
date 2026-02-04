@@ -149,4 +149,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             #{ratingId}
         </foreach>
     </delete>
+
+    <!-- 查询机构最新有效评级（评级日期最新的） -->
+    <select id="selectLatestValidRatingByInstitutionId" parameterType="Long" resultMap="InstitutionRatingResult">
+        <include refid="selectInstitutionRatingVo"/>
+        WHERE institution_id = #{institutionId}
+        AND rating_status = '1'
+        ORDER BY rating_date DESC
+        LIMIT 1
+    </select>
 </mapper>

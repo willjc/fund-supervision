@@ -383,4 +383,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         </foreach>
     </delete>
 
+    <!-- 更新机构评级等级（用于机构评级模块同步） -->
+    <update id="updateRatingLevel">
+        UPDATE pension_institution
+        SET rating_level = #{ratingLevel},
+            update_time = NOW()
+        WHERE institution_id = #{institutionId}
+    </update>
+
 </mapper>

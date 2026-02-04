@@ -194,6 +194,14 @@ export function exportRating(query) {
   })
 }
 
+// 获取机构评级信息（无需权限，用于前端展示）
+export function getRatingByInstitutionId(institutionId) {
+  return request({
+    url: '/supervision/institution/rating/info/' + institutionId,
+    method: 'get'
+  })
+}
+
 // ========== 黑名单管理 ==========
 
 // 查询黑名单管理列表

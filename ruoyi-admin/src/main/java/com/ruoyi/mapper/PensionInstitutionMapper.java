@@ -1,6 +1,7 @@
 package com.ruoyi.mapper;
 
 import java.util.List;
+import org.apache.ibatis.annotations.Param;
 import com.ruoyi.domain.PensionInstitution;
 
 /**
@@ -74,4 +75,13 @@ public interface PensionInstitutionMapper
      * @return 结果
      */
     public int updateDraft(PensionInstitution pensionInstitution);
+
+    /**
+     * 更新机构评级等级（用于机构评级模块同步）
+     *
+     * @param institutionId 机构ID
+     * @param ratingLevel 评级等级
+     * @return 结果
+     */
+    public int updateRatingLevel(@Param("institutionId") Long institutionId, @Param("ratingLevel") Integer ratingLevel);
 }

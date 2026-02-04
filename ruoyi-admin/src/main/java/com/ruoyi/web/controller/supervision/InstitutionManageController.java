@@ -614,6 +614,16 @@ public class InstitutionManageController extends BaseController
         util.exportExcel(response, list, "机构评级数据");
     }
 
+    /**
+     * 获取机构评级信息（无需权限，用于前端展示）
+     */
+    @GetMapping("/rating/info/{institutionId}")
+    public AjaxResult getRatingByInstitutionId(@PathVariable("institutionId") Long institutionId)
+    {
+        InstitutionRating rating = ratingService.selectLatestValidRatingByInstitutionId(institutionId);
+        return success(rating);
+    }
+
     // ========== 黑名单管理 ==========
 
     /**

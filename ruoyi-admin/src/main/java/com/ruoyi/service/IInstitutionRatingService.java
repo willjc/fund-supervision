@@ -82,4 +82,12 @@ public interface IInstitutionRatingService
      * @return 验证结果
      */
     public boolean validateRatingScores(InstitutionRating institutionRating);
+
+    /**
+     * 查询机构最新有效评级（评级日期最新的）
+     *
+     * @param institutionId 机构ID
+     * @return 机构评级
+     */
+    public InstitutionRating selectLatestValidRatingByInstitutionId(Long institutionId);
 }

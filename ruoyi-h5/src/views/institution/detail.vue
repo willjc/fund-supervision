@@ -36,7 +36,7 @@
         <div class="institution-info-header">
           <span class="institution-title">{{ detail.name }}</span>
           <div class="institution-price">
-            <span class="price-number">{{ detail.priceRangeMin || 1000 }}</span>
+            <span class="price-number">{{ detail.priceRanges?.total?.min || 1000 }}</span>
             <span class="price-unit">元/月起</span>
           </div>
         </div>
