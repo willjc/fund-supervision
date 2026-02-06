@@ -197,10 +197,12 @@ public class ResidentServiceImpl implements IResidentService
         ElderCurrentPriceVO currentPrice = getCurrentPrice(renewDTO.getElderId());
         BigDecimal currentBedFee = currentPrice.getBedFee() != null ? currentPrice.getBedFee() : BigDecimal.ZERO;
         BigDecimal currentCareFee = currentPrice.getCareFee() != null ? currentPrice.getCareFee() : BigDecimal.ZERO;
-        BigDecimal monthlyServiceFee = currentBedFee.add(currentCareFee); // 当前月服务费 = 床位费 + 护理费
+        BigDecimal currentMealFee = currentPrice.getMealFee() != null ? currentPrice.getMealFee() : BigDecimal.ZERO;
+        // 当前月服务费 = 床位费 + 护理费 + 餐费
+        BigDecimal monthlyServiceFee = currentBedFee.add(currentCareFee).add(currentMealFee);
 
         // 5. 计算订单金额
-        // 应收总计 = (床位费 + 护理费) × 续费月数 + 补交押金 + 补交会员费
+        // 应收总计 = (床位费 + 护理费 + 餐费) × 续费月数 + 补交押金 + 补交会员费
         BigDecimal serviceFeeTotal = BigDecimal.ZERO;
         if (renewDTO.getMonthCount() != null && renewDTO.getMonthCount() > 0) {
             serviceFeeTotal = monthlyServiceFee.multiply(new BigDecimal(renewDTO.getMonthCount()));
@@ -545,14 +547,17 @@ public class ResidentServiceImpl implements IResidentService
 
         BigDecimal currentBedFee = null;
         BigDecimal currentCareFee = null;
+        BigDecimal currentMealFee = null;
         BigDecimal currentDeposit = null;
         BigDecimal currentMemberFee = null;
         BigDecimal bedFeeOriginal = null;
         BigDecimal careFeeOriginal = null;
+        BigDecimal mealFeeOriginal = null;
         BigDecimal depositOriginal = null;
         BigDecimal memberFeeOriginal = null;
         Boolean bedFeeModified = false;
         Boolean careFeeModified = false;
+        Boolean mealFeeModified = false;
         Boolean depositModified = false;
         Boolean memberFeeModified = false;
         String lastPaymentTime = null;
@@ -609,6 +614,12 @@ public class ResidentServiceImpl implements IResidentService
                             careFeeOriginal = item.getOriginalUnitPrice();
                             careFeeModified = true;
                         }
+                    } else if ("meal_fee".equals(item.getItemType())) {
+                        currentMealFee = item.getUnitPrice();
+                        if ("1".equals(item.getIsPriceModified()) && item.getOriginalUnitPrice() != null) {
+                            mealFeeOriginal = item.getOriginalUnitPrice();
+                            mealFeeModified = true;
+                        }
                     } else if ("deposit".equals(item.getItemType())) {
                         currentDeposit = item.getUnitPrice();
                         if ("1".equals(item.getIsPriceModified()) && item.getOriginalUnitPrice() != null) {
@@ -645,6 +656,10 @@ public class ResidentServiceImpl implements IResidentService
         priceVO.setCareFeeOriginal(careFeeOriginal);
         priceVO.setCareFeeModified(careFeeModified);
 
+        priceVO.setMealFee(currentMealFee != null ? currentMealFee : BigDecimal.ZERO);
+        priceVO.setMealFeeOriginal(mealFeeOriginal);
+        priceVO.setMealFeeModified(mealFeeModified);
+
         priceVO.setDepositFee(currentDeposit != null ? currentDeposit : BigDecimal.ZERO);
         priceVO.setDepositFeeOriginal(depositOriginal);
         priceVO.setDepositFeeModified(depositModified);
@@ -653,13 +668,16 @@ public class ResidentServiceImpl implements IResidentService
         priceVO.setMemberFeeOriginal(memberFeeOriginal);
         priceVO.setMemberFeeModified(memberFeeModified);
 
-        // 计算月服务费总计
+        // 计算月服务费总计（床位费+护理费+餐费）
         BigDecimal monthlyTotal = BigDecimal.ZERO;
         if (priceVO.getBedFee() != null) {
             monthlyTotal = monthlyTotal.add(priceVO.getBedFee());
         }
         if (priceVO.getCareFee() != null) {
             monthlyTotal = monthlyTotal.add(priceVO.getCareFee());
+        }
+        if (priceVO.getMealFee() != null) {
+            monthlyTotal = monthlyTotal.add(priceVO.getMealFee());
         }
         priceVO.setMonthlyFeeTotal(monthlyTotal);
         priceVO.setLastPaymentTime(lastPaymentTime);

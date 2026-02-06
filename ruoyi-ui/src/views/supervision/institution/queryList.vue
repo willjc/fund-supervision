@@ -193,7 +193,9 @@
                 :max="5"
               ></el-rate>
             </el-descriptions-item>
-            <el-descriptions-item label="入驻时间">{{ parseTime(currentInstitution.createTime) }}</el-descriptions-item>
+            <el-descriptions-item label="入驻时间">
+              {{ parseTime(currentInstitution.applyTime || currentInstitution.createTime) || '暂无' }}
+            </el-descriptions-item>
             <el-descriptions-item label="监管账户">
               <span v-if="currentInstitution.hasSupervisionAccount" style="color: #67C23A;">
                 <i class="el-icon-check"></i> 已开户
@@ -279,60 +281,225 @@
 
         <!-- 公示信息 -->
         <el-tab-pane label="公示信息" name="publicity">
-          <el-descriptions :column="2" border>
-            <el-descriptions-item label="备案号">{{ currentInstitution.recordNumber || '暂无' }}</el-descriptions-item>
-            <el-descriptions-item label="成立日期">{{ parseTime(currentInstitution.establishedDate, '{y}-{m}-{d}') || '暂无' }}</el-descriptions-item>
-            <el-descriptions-item label="兴办机构">{{ currentInstitution.organizer || '暂无' }}</el-descriptions-item>
-            <el-descriptions-item label="固定资产">{{ currentInstitution.fixedAssets }}万元</el-descriptions-item>
-            <el-descriptions-item label="负责人姓名">{{ currentInstitution.responsibleName || '暂无' }}</el-descriptions-item>
-            <el-descriptions-item label="负责人电话">{{ currentInstitution.responsiblePhone || '暂无' }}</el-descriptions-item>
-            <el-descriptions-item label="负责人身份证" :span="2">{{ currentInstitution.responsibleIdCard || '暂无' }}</el-descriptions-item>
-            <el-descriptions-item label="负责人地址" :span="2">{{ currentInstitution.responsibleAddress || '暂无' }}</el-descriptions-item>
-            <el-descriptions-item label="业务范围" :span="2">{{ currentInstitution.businessScope || '暂无' }}</el-descriptions-item>
-            <el-descriptions-item label="收费区间">{{ currentInstitution.feeRange || '暂无' }}</el-descriptions-item>
-            <el-descriptions-item label="价格区间">¥{{ currentInstitution.priceRangeMin || 0 }} - ¥{{ currentInstitution.priceRangeMax || 0 }}元/月</el-descriptions-item>
-            <el-descriptions-item label="护理费">¥{{ currentInstitution.nursingFeeMin || 0 }} - ¥{{ currentInstitution.nursingFeeMax || 0 }}元/月</el-descriptions-item>
-            <el-descriptions-item label="床位费">¥{{ currentInstitution.bedFeeMin || 0 }} - ¥{{ currentInstitution.bedFeeMax || 0 }}元/月</el-descriptions-item>
-            <el-descriptions-item label="膳食费">¥{{ currentInstitution.mealFeeMin || 0 }} - ¥{{ currentInstitution.mealFeeMax || 0 }}元/月</el-descriptions-item>
-            <el-descriptions-item label="收住类型">{{ currentInstitution.careLevels || '暂无' }}</el-descriptions-item>
-            <el-descriptions-item label="医疗条件">
-              <span v-if="currentInstitution.medicalCondition === '1'">内设医疗机构</span>
-              <span v-else-if="currentInstitution.medicalCondition === '2'">与医疗机构合作</span>
-              <span v-else-if="currentInstitution.medicalCondition === '3'">自营医疗机构</span>
-              <span v-else>无医养结合</span>
-            </el-descriptions-item>
-            <el-descriptions-item label="免费试住">
-              <el-tag v-if="currentInstitution.freeTrial === '1'" type="success" size="small">支持</el-tag>
-              <el-tag v-else type="info" size="small">不支持</el-tag>
-            </el-descriptions-item>
-          </el-descriptions>
-        </el-tab-pane>
+          <el-alert
+            v-if="!publicityInfo"
+            title="该机构暂未维护公示信息"
+            type="info"
+            show-icon
+            :closable="false"
+            style="margin-bottom: 20px;">
+          </el-alert>
+          <div v-else class="publicity-detail">
+            <!-- 基本信息 -->
+            <el-descriptions title="基本信息" :column="2" border>
+              <el-descriptions-item label="机构名称" :span="2">{{ publicityInfo.institutionName || currentInstitution.institutionName || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="统一信用代码">{{ currentInstitution.creditCode || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="机构备案号">{{ publicityInfo.recordNumber || currentInstitution.recordNumber || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="机构地址" :span="2">{{ currentInstitution.actualAddress || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="联系人">{{ currentInstitution.contactPerson || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="联系电话">{{ currentInstitution.contactPhone || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="监管账户" :span="2">{{ currentInstitution.superviseAccount || '-' }}</el-descriptions-item>
+            </el-descriptions>
 
-        <!-- 其他信息 -->
-        <el-tab-pane label="其他信息" name="other">
-          <el-descriptions :column="1" border>
-            <el-descriptions-item label="备注">{{ currentInstitution.remark || '暂无' }}</el-descriptions-item>
-          </el-descriptions>
-          <el-divider content-position="left">附件材料</el-divider>
-          <el-table :data="attachmentList" border>
-            <el-table-column label="附件类型" prop="attachType" width="120" />
-            <el-table-column label="文件名称" prop="fileName" min-width="200" />
-            <el-table-column label="上传时间" prop="uploadTime" width="160">
-              <template slot-scope="scope">
-                <span>{{ parseTime(scope.row.uploadTime, '{y}-{m}-{d} {h}:{i}') }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="100">
-              <template slot-scope="scope">
-                <el-button
-                  size="mini"
-                  type="text"
-                  icon="el-icon-view"
-                  @click="handleViewAttachment(scope.row)"
-                >查看</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
+            <!-- 规模信息 -->
+            <el-descriptions title="规模信息" :column="3" border style="margin-top: 20px;">
+              <el-descriptions-item label="占地面积">
+                <span v-if="publicityInfo.landArea">{{ publicityInfo.landArea }}㎡</span>
+                <span v-else>-</span>
+              </el-descriptions-item>
+              <el-descriptions-item label="建筑面积">
+                <span v-if="publicityInfo.buildingArea">{{ publicityInfo.buildingArea }}㎡</span>
+                <span v-else>-</span>
+              </el-descriptions-item>
+              <el-descriptions-item label="床位数">
+                <span v-if="currentInstitution.bedCount">{{ currentInstitution.bedCount }}张</span>
+                <span v-else>-</span>
+              </el-descriptions-item>
+            </el-descriptions>
+
+            <!-- 服务信息 -->
+            <el-descriptions title="服务信息" :column="2" border style="margin-top: 20px;">
+              <el-descriptions-item label="收住类型" :span="2">
+                <span v-if="publicityInfo.acceptElderType">{{ formatAcceptElderType(publicityInfo.acceptElderType) }}</span>
+                <span v-else-if="currentInstitution.careLevels">{{ formatCareLevels(currentInstitution.careLevels) }}</span>
+                <span v-else>暂无</span>
+              </el-descriptions-item>
+            </el-descriptions>
+
+            <!-- 费用信息 -->
+            <el-descriptions title="费用信息(元/月)" :column="2" border style="margin-top: 20px;">
+              <el-descriptions-item label="护理费">
+                <span v-if="publicityInfo.nursingFeeMin != null && publicityInfo.nursingFeeMax != null">
+                  {{ publicityInfo.nursingFeeMin }} - {{ publicityInfo.nursingFeeMax }}
+                </span>
+                <span v-else>-</span>
+              </el-descriptions-item>
+              <el-descriptions-item label="床位费">
+                <span v-if="publicityInfo.bedFeeMin != null && publicityInfo.bedFeeMax != null">
+                  {{ publicityInfo.bedFeeMin }} - {{ publicityInfo.bedFeeMax }}
+                </span>
+                <span v-else>-</span>
+              </el-descriptions-item>
+              <el-descriptions-item label="膳食费">
+                <span v-if="publicityInfo.mealFeeMin != null && publicityInfo.mealFeeMax != null">
+                  {{ publicityInfo.mealFeeMin }} - {{ publicityInfo.mealFeeMax }}
+                </span>
+                <span v-else>-</span>
+              </el-descriptions-item>
+              <el-descriptions-item label="总费用">
+                <span v-if="publicityInfo.nursingFeeMin != null && publicityInfo.nursingFeeMax != null &&
+                          publicityInfo.bedFeeMin != null && publicityInfo.bedFeeMax != null &&
+                          publicityInfo.mealFeeMin != null && publicityInfo.mealFeeMax != null">
+                  {{ (Number(publicityInfo.nursingFeeMin) + Number(publicityInfo.bedFeeMin) + Number(publicityInfo.mealFeeMin)).toFixed(2) }} -
+                  {{ (Number(publicityInfo.nursingFeeMax) + Number(publicityInfo.bedFeeMax) + Number(publicityInfo.mealFeeMax)).toFixed(2) }}
+                </span>
+                <span v-else>-</span>
+              </el-descriptions-item>
+            </el-descriptions>
+
+            <!-- 机构简介 -->
+            <div v-if="publicityInfo.institutionIntro" class="detail-section">
+              <h4>机构简介</h4>
+              <p>{{ publicityInfo.institutionIntro }}</p>
+            </div>
+
+            <!-- 服务范围 -->
+            <div v-if="publicityInfo.serviceScope" class="detail-section">
+              <h4>服务范围</h4>
+              <p>{{ publicityInfo.serviceScope }}</p>
+            </div>
+
+            <!-- 特色服务 -->
+            <div v-if="publicityInfo.serviceFeatures" class="detail-section">
+              <h4>特色服务</h4>
+              <p>{{ publicityInfo.serviceFeatures }}</p>
+            </div>
+
+            <!-- 机构主图 -->
+            <div v-if="publicityInfo.mainPicture" class="detail-section">
+              <h4>机构主图</h4>
+              <div class="main-image-container">
+                <el-image
+                  :src="processImageUrl(publicityInfo.mainPicture)"
+                  :preview-src-list="[processImageUrl(publicityInfo.mainPicture)]"
+                  fit="cover"
+                  style="width: 300px; height: 200px; border-radius: 5px;"
+                ></el-image>
+              </div>
+            </div>
+
+            <!-- VR全景图片 -->
+            <div v-if="publicityInfo.vrImage" class="detail-section">
+              <h4>VR全景图片</h4>
+              <div class="main-image-container">
+                <el-image
+                  :src="processImageUrl(publicityInfo.vrImage)"
+                  :preview-src-list="[processImageUrl(publicityInfo.vrImage)]"
+                  fit="cover"
+                  style="width: 300px; height: 200px; border-radius: 5px;"
+                ></el-image>
+              </div>
+            </div>
+
+            <!-- 环境图片 -->
+            <div v-if="publicityInfo.environmentImgs" class="detail-section">
+              <h4>环境图片</h4>
+              <div class="image-gallery">
+                <el-image
+                  v-for="(img, index) in getImageList(publicityInfo.environmentImgs)"
+                  :key="index"
+                  :src="img"
+                  :preview-src-list="getImageList(publicityInfo.environmentImgs)"
+                  fit="cover"
+                  class="gallery-image"
+                ></el-image>
+              </div>
+            </div>
+
+            <!-- 设施图片 -->
+            <div v-if="publicityInfo.roomFacilities && getImageList(publicityInfo.roomFacilities).length > 0" class="detail-section">
+              <h4>房间设施图片</h4>
+              <div class="image-gallery">
+                <el-image
+                  v-for="(img, index) in getImageList(publicityInfo.roomFacilities)"
+                  :key="index"
+                  :src="img"
+                  :preview-src-list="getImageList(publicityInfo.roomFacilities)"
+                  fit="cover"
+                  class="gallery-image"
+                ></el-image>
+              </div>
+            </div>
+
+            <div v-if="publicityInfo.basicFacilities && getImageList(publicityInfo.basicFacilities).length > 0" class="detail-section">
+              <h4>基础设施图片</h4>
+              <div class="image-gallery">
+                <el-image
+                  v-for="(img, index) in getImageList(publicityInfo.basicFacilities)"
+                  :key="index"
+                  :src="img"
+                  :preview-src-list="getImageList(publicityInfo.basicFacilities)"
+                  fit="cover"
+                  class="gallery-image"
+                ></el-image>
+              </div>
+            </div>
+
+            <div v-if="publicityInfo.parkFacilities && getImageList(publicityInfo.parkFacilities).length > 0" class="detail-section">
+              <h4>园址设施图片</h4>
+              <div class="image-gallery">
+                <el-image
+                  v-for="(img, index) in getImageList(publicityInfo.parkFacilities)"
+                  :key="index"
+                  :src="img"
+                  :preview-src-list="getImageList(publicityInfo.parkFacilities)"
+                  fit="cover"
+                  class="gallery-image"
+                ></el-image>
+              </div>
+            </div>
+
+            <!-- 生活设施 -->
+            <div v-if="parseJsonArray(publicityInfo.lifeFacilities).length > 0" class="detail-section">
+              <h4>生活设施</h4>
+              <div class="facility-list">
+                <el-tag
+                  v-for="(facility, index) in parseJsonArray(publicityInfo.lifeFacilities)"
+                  :key="index"
+                  type="success"
+                  size="medium"
+                  style="margin: 2px 5px 2px 0;">
+                  {{ facility }}
+                </el-tag>
+              </div>
+            </div>
+
+            <!-- 医疗设施 -->
+            <div v-if="parseJsonArray(publicityInfo.medicalFacilities).length > 0" class="detail-section">
+              <h4>医疗设施</h4>
+              <div class="facility-list">
+                <el-tag
+                  v-for="(facility, index) in parseJsonArray(publicityInfo.medicalFacilities)"
+                  :key="index"
+                  type="primary"
+                  size="medium"
+                  style="margin: 2px 5px 2px 0;">
+                  {{ facility }}
+                </el-tag>
+              </div>
+            </div>
+
+            <!-- 每日服务时间安排 -->
+            <div v-if="parseJsonArray(publicityInfo.dailyServices).length > 0" class="detail-section">
+              <h4>每日服务时间安排</h4>
+              <div class="service-schedule">
+                <div v-for="(service, index) in parseJsonArray(publicityInfo.dailyServices)" :key="index" class="service-item">
+                  <el-tag type="info" size="small">{{ service.time }}</el-tag>
+                  <span class="service-content">{{ service.content }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </el-tab-pane>
       </el-tabs>
 
@@ -368,7 +535,7 @@
 
 <script>
 import { listInstitution, getInstitution, approveInstitution, updateInstitution, addToBlacklist as addToBlacklistApi } from "@/api/supervision/institution";
-import { listAttachment } from "@/api/pension/institution";
+import { getPublicityByInstitutionId } from "@/api/pension/publicityManage";
 
 export default {
   name: "InstitutionQueryList",
@@ -397,8 +564,8 @@ export default {
       activeTab: 'basic',
       // 当前机构信息
       currentInstitution: {},
-      // 附件列表
-      attachmentList: [],
+      // 公示信息
+      publicityInfo: null,
       // 查询参数
       queryParams: {
         pageNum: 1,
@@ -448,14 +615,20 @@ export default {
         this.detailOpen = true;
         this.activeTab = 'basic';
 
-        // 加载附件列表
-        this.loadAttachments(institutionId);
+        // 加载公示信息
+        this.loadPublicityInfo(institutionId);
       });
     },
-    /** 加载附件列表 */
-    loadAttachments(institutionId) {
-      listAttachment({ institutionId: institutionId }).then(response => {
-        this.attachmentList = response.rows;
+    /** 加载公示信息 */
+    loadPublicityInfo(institutionId) {
+      getPublicityByInstitutionId(institutionId).then(response => {
+        if (response.data) {
+          this.publicityInfo = response.data;
+        } else {
+          this.publicityInfo = null;
+        }
+      }).catch(() => {
+        this.publicityInfo = null;
       });
     },
     /** 下拉菜单命令 */
@@ -545,10 +718,6 @@ export default {
       this.queryParams.status = '4';
       this.handleQuery();
     },
-    /** 查看附件 */
-    handleViewAttachment(row) {
-      this.$modal.msgInfo("附件查看功能开发中...");
-    },
     /** 审批操作 */
     handleApprove() {
       const institutionIds = this.ids;
@@ -616,6 +785,68 @@ export default {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
       });
+    },
+    /** 格式化收住类型（从acceptElderType） */
+    formatAcceptElderType(acceptElderType) {
+      if (!acceptElderType) return '';
+      // 判断是旧格式（英文代码）还是新格式（数字代码）
+      const isNewFormat = /^\d+(,\d+)*$/.test(acceptElderType);
+      if (isNewFormat) {
+        // 新格式：使用数字代码映射
+        const typeMap = {
+          '1': '自理',
+          '2': '半护��',
+          '3': '全护理',
+          '4': '失能',
+          '5': '失智'
+        };
+        return acceptElderType.split(',').map(item => typeMap[item] || item).join('、');
+      } else {
+        // 旧格式：英文代码
+        const typeMap = {
+          'self_care': '自理',
+          'semi_disabled': '半护理',
+          'disabled': '失能',
+          'dementia': '失智'
+        };
+        return acceptElderType.split(',').map(item => typeMap[item] || item).join('、');
+      }
+    },
+    /** 格式化收住类型（从careLevels） */
+    formatCareLevels(careLevels) {
+      if (!careLevels) return '';
+      const typeMap = {
+        '1': '自理',
+        '2': '半护理',
+        '3': '全护理',
+        '4': '失能',
+        '5': '失智'
+      };
+      return careLevels.split(',').map(item => typeMap[item] || item).join('、');
+    },
+    /** 解析图片列表（逗号分隔） */
+    getImageList(imageStr) {
+      if (!imageStr) return [];
+      return imageStr.split(',').map(img => this.processImageUrl(img));
+    },
+    /** 处理图片URL（添加服务器前缀） */
+    processImageUrl(imgUrl) {
+      if (!imgUrl) return '';
+      // 如果已经是完整URL，直接返回
+      if (imgUrl.startsWith('http') || imgUrl.startsWith('/profile')) {
+        return process.env.VUE_APP_BASE_API + imgUrl;
+      }
+      return imgUrl;
+    },
+    /** 解析JSON数组 */
+    parseJsonArray(jsonStr) {
+      if (!jsonStr) return [];
+      try {
+        const parsed = JSON.parse(jsonStr);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        return [];
+      }
     }
   }
 };
@@ -679,5 +910,66 @@ export default {
 .financial-desc {
   font-size: 12px;
   color: #C0C4CC;
+}
+
+/* 公示信息详情样式 */
+.publicity-detail {
+  padding: 10px 0;
+}
+
+.detail-section {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f5f7fa;
+  border-radius: 5px;
+}
+
+.detail-section h4 {
+  margin: 0 0 15px 0;
+  font-size: 16px;
+  font-weight: bold;
+  color: #303133;
+}
+
+.detail-section p {
+  margin: 0;
+  line-height: 1.6;
+  color: #606266;
+}
+
+.main-image-container {
+  display: inline-block;
+}
+
+.image-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.gallery-image {
+  width: 120px;
+  height: 120px;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.facility-list {
+  margin-top: 10px;
+}
+
+.service-schedule {
+  margin-top: 10px;
+}
+
+.service-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.service-content {
+  margin-left: 10px;
+  color: #606266;
 }
 </style>

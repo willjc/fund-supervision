@@ -49,7 +49,16 @@ public class ElderCurrentPriceVO
     /** 会员费是否被修改过 */
     private Boolean memberFeeModified;
 
-    /** 月服务费总计（床位费+护理费） */
+    /** 餐费 */
+    private BigDecimal mealFee;
+
+    /** 餐费原始价格（如果有修改） */
+    private BigDecimal mealFeeOriginal;
+
+    /** 餐费是否被修改过 */
+    private Boolean mealFeeModified;
+
+    /** 月服务费总计（床位费+护理费+餐费） */
     private BigDecimal monthlyFeeTotal;
 
     /** 最后支付时间 */
@@ -157,6 +166,30 @@ public class ElderCurrentPriceVO
 
     public void setMemberFeeModified(Boolean memberFeeModified) {
         this.memberFeeModified = memberFeeModified;
+    }
+
+    public BigDecimal getMealFee() {
+        return mealFee;
+    }
+
+    public void setMealFee(BigDecimal mealFee) {
+        this.mealFee = mealFee;
+    }
+
+    public BigDecimal getMealFeeOriginal() {
+        return mealFeeOriginal;
+    }
+
+    public void setMealFeeOriginal(BigDecimal mealFeeOriginal) {
+        this.mealFeeOriginal = mealFeeOriginal;
+    }
+
+    public Boolean getMealFeeModified() {
+        return mealFeeModified;
+    }
+
+    public void setMealFeeModified(Boolean mealFeeModified) {
+        this.mealFeeModified = mealFeeModified;
     }
 
     public BigDecimal getMonthlyFeeTotal() {

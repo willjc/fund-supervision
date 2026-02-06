@@ -254,13 +254,18 @@
             </el-col>
           </el-row>
         </el-form-item>
-        <el-form-item label="收住对象能力" prop="acceptElderType">
+        <el-form-item label="收住类型" prop="acceptElderType">
           <el-checkbox-group v-model="acceptElderTypeList">
-            <el-checkbox label="self_care">自理老人</el-checkbox>
-            <el-checkbox label="semi_disabled">半失能老人</el-checkbox>
-            <el-checkbox label="disabled">失能老人</el-checkbox>
-            <el-checkbox label="dementia">失智老人</el-checkbox>
+            <el-checkbox
+              v-for="item in careLevelOptions"
+              :key="item.dictValue"
+              :label="item.dictValue">
+              {{ item.dictLabel }}
+            </el-checkbox>
           </el-checkbox-group>
+          <div style="color: #999; font-size: 12px; margin-top: 8px;">
+            选择机构可收住的老人类型，将同步到机构信息中的收住类型字段
+          </div>
         </el-form-item>
         <el-form-item label="机构主图">
           <image-upload v-model="form.mainPicture" :limit="1" />
@@ -788,7 +793,7 @@
 
 <script>
 import { listPublicity, getPublicity, addPublicity, updatePublicity, delPublicity, publishPublicity, unpublishPublicity, batchPublish } from "@/api/pension/publicityManage";
-import { listInstitution } from "@/api/pension/institution";
+import { listInstitution, getDictData } from "@/api/pension/institution";
 import { getRatingByInstitutionId } from "@/api/supervision/institution";
 import { getLifeFacilities, getMedicalFacilities } from '@/api/pension/facility/icon';
 import ImageUpload from '@/components/ImageUpload';
@@ -839,8 +844,10 @@ export default {
       },
       // 表单参数
       form: {},
-      // 收住对象能力列表
+      // 收住类型列表（使用字典 pension_care_level）
       acceptElderTypeList: [],
+      // 收住类型字典选项
+      careLevelOptions: [],
       // 新增设施数据
       selectedLifeFacilities: [],
       selectedMedicalFacilities: [],
@@ -966,6 +973,7 @@ export default {
     this.addFeeValidationRules()
     this.getList();
     this.getInstitutionList();
+    this.loadCareLevelDict();
   },
   mounted() {
     this.loadFacilityIconConfig();
@@ -1198,9 +1206,26 @@ export default {
         if (this.form.bedFeeMax === 0) this.form.bedFeeMax = null;
         if (this.form.mealFeeMin === 0) this.form.mealFeeMin = null;
         if (this.form.mealFeeMax === 0) this.form.mealFeeMax = null;
-        // 解析收住对象能力
+        // 解析收住对象能力（兼容新旧格式）
         if (this.form.acceptElderType) {
-          this.acceptElderTypeList = this.form.acceptElderType.split(',');
+          const rawList = this.form.acceptElderType.split(',');
+          // 判断是否为新格式（纯数字）
+          if (/^\d+$/.test(rawList[0])) {
+            // 新格式：直接使用
+            this.acceptElderTypeList = rawList;
+          } else {
+            // 旧格式：转换英文代码为数字代码
+            const oldToNewMap = {
+              'self_care': '1',
+              'semi_disabled': '2',
+              'disabled': '3',
+              'dementia': '5'
+            };
+            // 注意：旧格式没有"全护理(4)"对应的选项，需要手动添加
+            this.acceptElderTypeList = rawList
+              .map(item => oldToNewMap[item] || item)
+              .filter(item => item); // 过滤掉空值
+          }
         }
         // 解析生活设施选择
         if (this.form.lifeFacilities) {
@@ -1312,13 +1337,14 @@ export default {
     /** 格式化预览的收住对象能力 */
     previewAcceptElderType() {
       if (!this.acceptElderTypeList || this.acceptElderTypeList.length === 0) return '-';
-      const typeMap = {
-        'self_care': '自理老人',
-        'semi_disabled': '半失能老人',
-        'disabled': '失能老人',
-        'dementia': '失智老人'
-      };
-      return this.acceptElderTypeList.map(item => typeMap[item] || item).join('、');
+
+      // 使用字典数据进行转换
+      const result = this.acceptElderTypeList.map(item => {
+        const dictItem = this.careLevelOptions.find(opt => opt.dictValue === item);
+        return dictItem ? dictItem.dictLabel : item;
+      });
+
+      return result.join('、');
     },
     /** 提交按钮 */
     submitForm() {
@@ -1398,13 +1424,26 @@ export default {
     /** 格式化收住对象能力 */
     formatAcceptElderType(acceptElderType) {
       if (!acceptElderType) return '-';
-      const typeMap = {
-        'self_care': '自理老人',
-        'semi_disabled': '半失能老人',
-        'disabled': '失能老人',
-        'dementia': '失智老人'
-      };
-      return acceptElderType.split(',').map(item => typeMap[item] || item).join('、');
+
+      // 判断是旧格式（英文代码）还是新格式（数字代码）
+      const isNewFormat = /^\d+(,\d+)*$/.test(acceptElderType);
+
+      if (isNewFormat) {
+        // 新格式：使用字典转换数字代码
+        return acceptElderType.split(',').map(item => {
+          const dictItem = this.careLevelOptions.find(opt => opt.dictValue === item);
+          return dictItem ? dictItem.dictLabel : item;
+        }).join('、');
+      } else {
+        // 旧格式：兼容处理
+        const typeMap = {
+          'self_care': '自理',
+          'semi_disabled': '半护理',
+          'disabled': '失能',
+          'dementia': '失智'
+        };
+        return acceptElderType.split(',').map(item => typeMap[item] || item).join('、');
+      }
     },
     /** 获取图片列表 */
     getImageList(imgStr) {
@@ -1438,6 +1477,15 @@ export default {
     // 删除每日服务项
     removeService(index) {
       this.dailyServices.splice(index, 1);
+    },
+
+    // 加载收住类型字典
+    loadCareLevelDict() {
+      getDictData('pension_care_level').then(response => {
+        this.careLevelOptions = response.data || [];
+      }).catch(error => {
+        console.error('加载收住类型字典失败:', error);
+      });
     },
 
     // 加载设施图标配置

@@ -460,6 +460,11 @@ public class H5InstitutionController extends BaseController
         }
         result.put("lifeFacilities", lifeFacilitiesList);
 
+        // 添加收住类型（从机构基础信息获取，用于前端筛选）
+        if (institution != null) {
+            result.put("careLevels", institution.getCareLevels());
+        }
+
         return result;
     }
 
@@ -996,7 +1001,9 @@ public class H5InstitutionController extends BaseController
 
     /**
      * 解析收住对象类型，转换为中文
-     * accept_elder_type格式: self_care,semi_disabled,disabled,dementia
+     * 支持两种格式:
+     * 1. 旧格式(英文代码): self_care,semi_disabled,disabled,dementia
+     * 2. 新格式(数字代码): 1,2,3,4,5 (对应: 自理,半护理,全护理,失能,失智)
      */
     private String parseAcceptElderType(String acceptElderType) {
         if (!StringUtils.hasText(acceptElderType)) {
@@ -1006,26 +1013,54 @@ public class H5InstitutionController extends BaseController
         String[] types = acceptElderType.split(",");
         StringBuilder result = new StringBuilder();
 
+        // 判断是数字格式还是英文格式
+        boolean isNumericFormat = types.length > 0 && types[0].trim().matches("\\d+");
+
         for (String type : types) {
             String trimmedType = type.trim();
             String chinese = "";
 
-            switch (trimmedType) {
-                case "self_care":
-                    chinese = "自理";
-                    break;
-                case "semi_disabled":
-                    chinese = "半失能";
-                    break;
-                case "disabled":
-                    chinese = "失能";
-                    break;
-                case "dementia":
-                    chinese = "失智";
-                    break;
-                default:
-                    chinese = trimmedType;
-                    break;
+            if (isNumericFormat) {
+                // 数字格式: 1=自理, 2=半护理, 3=全护理, 4=失能, 5=失智
+                switch (trimmedType) {
+                    case "1":
+                        chinese = "自理";
+                        break;
+                    case "2":
+                        chinese = "半护理";
+                        break;
+                    case "3":
+                        chinese = "全护理";
+                        break;
+                    case "4":
+                        chinese = "失能";
+                        break;
+                    case "5":
+                        chinese = "失智";
+                        break;
+                    default:
+                        chinese = trimmedType;
+                        break;
+                }
+            } else {
+                // 英文格式
+                switch (trimmedType) {
+                    case "self_care":
+                        chinese = "自理";
+                        break;
+                    case "semi_disabled":
+                        chinese = "半护理";
+                        break;
+                    case "disabled":
+                        chinese = "失能";
+                        break;
+                    case "dementia":
+                        chinese = "失智";
+                        break;
+                    default:
+                        chinese = trimmedType;
+                        break;
+                }
             }
 
             if (result.length() > 0 && !chinese.isEmpty()) {

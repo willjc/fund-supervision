@@ -172,14 +172,6 @@
           <el-button
             size="mini"
             type="text"
-            icon="el-icon-close"
-            @click="handleCancel(scope.row)"
-            v-if="scope.row.orderStatus === '4' || scope.row.orderStatus === '5'"
-            v-hasPermi="['order:info:cancel']"
-          >取消</el-button>
-          <el-button
-            size="mini"
-            type="text"
             icon="el-icon-delete"
             @click="handleDelete(scope.row)"
             v-hasPermi="['order:info:remove']"

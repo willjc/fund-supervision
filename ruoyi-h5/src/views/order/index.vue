@@ -78,7 +78,7 @@
             <!-- 订单操作 -->
             <div class="order-footer">
               <van-button
-                v-if="order.orderStatus === '4'"
+                v-if="order.orderStatus === '0' || order.orderStatus === '5'"
                 size="small"
                 plain
                 @click.stop="handleCancel(order)"

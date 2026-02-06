@@ -336,7 +336,10 @@
           <el-descriptions-item label="护理费">
             <span style="color: #67C23A; font-weight: bold;">￥{{ getCareFee() }}</span>
           </el-descriptions-item>
-          <el-descriptions-item label="服务费(床位费+护理费)">
+          <el-descriptions-item label="餐费">
+            <span style="color: #F56C6C; font-weight: bold;">￥{{ getMealFee() }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="服务费(床位费+护理费+餐费)">
             <span style="color: #E6A23C; font-weight: bold;">￥{{ getServiceFee() }}</span>
           </el-descriptions-item>
         </el-descriptions>
@@ -578,11 +581,17 @@
                 <div class="fee-extra" v-if="renewForm.careLevelText">{{ renewForm.careLevelText }}</div>
               </div>
             </el-col>
-            <el-col :span="8">
+            <el-col :span="6">
+              <div class="fee-item">
+                <div class="fee-label">餐费</div>
+                <div class="fee-value" style="color: #F56C6C;">¥{{ formatMoney(renewForm.mealFee || 0) }}</div>
+              </div>
+            </el-col>
+            <el-col :span="6">
               <div class="fee-item">
                 <div class="fee-label">月服务费</div>
                 <div class="fee-value primary">¥{{ formatMoney(renewForm.monthlyFee) }}</div>
-                <div class="fee-extra">床位费 + 护理费</div>
+                <div class="fee-extra">床位费 + 护理费 + 餐费</div>
               </div>
             </el-col>
           </el-row>
@@ -667,6 +676,17 @@
               </el-col>
             </el-row>
             <!-- 第二行 -->
+            <el-row :gutter="10" style="margin-bottom: 8px;">
+              <el-col :span="12" v-if="currentPrice.mealFeeModified">
+                <div class="price-change-item">
+                  <span class="price-label">餐费</span>
+                  <span class="price-old">¥{{ formatMoney(currentPrice.mealFeeOriginal) }}</span>
+                  <i class="el-icon-right" style="margin: 0 6px;"></i>
+                  <span class="price-new">¥{{ formatMoney(currentPrice.mealFee) }}</span>
+                </div>
+              </el-col>
+            </el-row>
+            <!-- 第三行 -->
             <el-row :gutter="10">
               <el-col :span="12" v-if="currentPrice.depositFeeModified">
                 <div class="price-change-item">
@@ -1173,6 +1193,10 @@ export default {
         elderName: null,
         bedInfo: null,
         monthlyFee: 0,
+        bedFee: 0,
+        careFee: 0,
+        mealFee: 0,
+        careLevelText: null,
         serviceBalance: 0,
         depositBalance: 0,
         memberBalance: 0,
@@ -1194,6 +1218,9 @@ export default {
         careFee: 0,
         careFeeOriginal: null,
         careFeeModified: false,
+        mealFee: 0,
+        mealFeeOriginal: null,
+        mealFeeModified: false,
         depositFee: 0,
         depositFeeOriginal: null,
         depositFeeModified: false,
@@ -1349,7 +1376,7 @@ export default {
     // 是否有价格变更记录
     hasPriceModified() {
       return this.currentPrice.bedFeeModified || this.currentPrice.careFeeModified ||
-             this.currentPrice.depositFeeModified || this.currentPrice.memberFeeModified;
+             this.currentPrice.mealFeeModified || this.currentPrice.depositFeeModified || this.currentPrice.memberFeeModified;
     }
   },
   created() {
@@ -1449,6 +1476,9 @@ export default {
           careFee: priceData.careFee || 0,
           careFeeOriginal: priceData.careFeeOriginal,
           careFeeModified: priceData.careFeeModified || false,
+          mealFee: priceData.mealFee || 0,
+          mealFeeOriginal: priceData.mealFeeOriginal,
+          mealFeeModified: priceData.mealFeeModified || false,
           depositFee: priceData.depositFee || 0,
           depositFeeOriginal: priceData.depositFeeOriginal,
           depositFeeModified: priceData.depositFeeModified || false,
@@ -1484,6 +1514,7 @@ export default {
           monthlyFee: this.currentPrice.monthlyFeeTotal || 0,
           bedFee: this.currentPrice.bedFee || 0,
           careFee: this.currentPrice.careFee || 0,
+          mealFee: this.currentPrice.mealFee || 0,
           careLevelText: careLevelText,
           serviceBalance: data.serviceBalance || 0,
           depositBalance: data.depositBalance || 0,
@@ -1833,7 +1864,7 @@ export default {
         if (latestOrder.orderItems) {
           const bedItem = latestOrder.orderItems.find(item => item.itemType === 'bed_fee');
           if (bedItem) {
-            return this.formatMoney(bedItem.totalAmount);
+            return this.formatMoney(bedItem.unitPrice);
           }
         }
       }
@@ -1856,7 +1887,7 @@ export default {
         if (latestOrder.orderItems) {
           const careItem = latestOrder.orderItems.find(item => item.itemType === 'care_fee');
           if (careItem) {
-            return this.formatMoney(careItem.totalAmount);
+            return this.formatMoney(careItem.unitPrice);
           }
         }
       }
@@ -1871,11 +1902,36 @@ export default {
 
       return '0.00';
     },
-    // 获取服务费（床位费 + 护理费）
+    // 获取餐费
+    getMealFee() {
+      // 如果有订单数据，从订单中获取餐费
+      if (this.residentDetail.orders && this.residentDetail.orders.length > 0) {
+        const latestOrder = this.residentDetail.orders[0]; // 假设第一个订单是最新订单
+        if (latestOrder.orderItems) {
+          const mealItem = latestOrder.orderItems.find(item => item.itemType === 'meal_fee');
+          if (mealItem) {
+            return this.formatMoney(mealItem.unitPrice);
+          }
+        }
+      }
+      return '0.00';
+    },
+    // 获取服务费（床位费 + 护理费 + 餐费）
     getServiceFee() {
-      const bedFee = parseFloat(this.getBedFee()) || 0;
-      const careFee = parseFloat(this.getCareFee()) || 0;
-      return this.formatMoney(bedFee + careFee);
+      // 直接从订单原始数据计算，使用单价作为月度价格
+      let total = 0;
+      if (this.residentDetail.orders && this.residentDetail.orders.length > 0) {
+        const latestOrder = this.residentDetail.orders[0];
+        if (latestOrder.orderItems) {
+          const bedItem = latestOrder.orderItems.find(item => item.itemType === 'bed_fee');
+          const careItem = latestOrder.orderItems.find(item => item.itemType === 'care_fee');
+          const mealItem = latestOrder.orderItems.find(item => item.itemType === 'meal_fee');
+          total = (bedItem ? parseFloat(bedItem.unitPrice) || 0 : 0) +
+                   (careItem ? parseFloat(careItem.unitPrice) || 0 : 0) +
+                   (mealItem ? parseFloat(mealItem.unitPrice) || 0 : 0);
+        }
+      }
+      return this.formatMoney(total);
     },
     // 获取订单中被修改价格的项目
     getOrderPriceModified(order) {

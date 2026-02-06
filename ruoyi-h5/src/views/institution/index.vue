@@ -157,11 +157,11 @@
           <div class="filter-section-panel">
             <div class="filter-section-title">
               <van-icon name="shop-o" />
-              机构性质
+              机构类型
             </div>
-            <van-radio-group v-model="filterParams.institutionNature">
+            <van-radio-group v-model="filterParams.institutionType">
               <van-radio
-                v-for="item in natureOptions"
+                v-for="item in institutionTypeOptions"
                 :key="item.value"
                 :name="item.value"
                 class="filter-radio-item"
@@ -187,24 +187,6 @@
                 {{ item.text }}
               </van-checkbox>
             </van-checkbox-group>
-          </div>
-
-          <!-- 医疗条件 -->
-          <div class="filter-section-panel">
-            <div class="filter-section-title">
-              <van-icon name="medicine-o" />
-              医疗条件
-            </div>
-            <van-radio-group v-model="filterParams.medicalCondition">
-              <van-radio
-                v-for="item in medicalOptions"
-                :key="item.value"
-                :name="item.value"
-                class="filter-radio-item"
-              >
-                {{ item.text }}
-              </van-radio>
-            </van-radio-group>
           </div>
 
           <!-- 机构星级 -->
@@ -385,8 +367,8 @@ const filterParams = ref({
   areaCodes: [],        // 区域代码多选
   streetNames: [],      // 街道名称多选
   institutionNature: '',
+  institutionType: '',  // 机构类型
   careLevels: [],
-  medicalCondition: '',
   ratingLevel: null,
   institutionName: '',
   priceRange: ''        // 价格区间
@@ -439,20 +421,21 @@ const natureOptions = ref([
   { text: '公建民营', value: '3' }
 ])
 
+const institutionTypeOptions = ref([
+  { text: '全部', value: '' },
+  { text: '养老院', value: 'nursing_home' },
+  { text: '养老服务中心', value: 'service_center' },
+  { text: '日间照料中心', value: 'day_care' },
+  { text: '养老公寓', value: 'senior_apartment' },
+  { text: '其他', value: 'other' }
+])
+
 const careLevelOptions = ref([
   { text: '自理', value: '1' },
   { text: '半护理', value: '2' },
   { text: '全护理', value: '3' },
   { text: '失能', value: '4' },
   { text: '失智', value: '5' }
-])
-
-const medicalOptions = ref([
-  { text: '全部', value: '' },
-  { text: '内设医疗机构', value: '1' },
-  { text: '与医疗机构合作', value: '2' },
-  { text: '自营医疗机构', value: '3' },
-  { text: '无医养结合', value: '4' }
 ])
 
 const ratingOptions = ref([
@@ -480,8 +463,8 @@ const refreshing = ref(false)
 const getFilterCount = () => {
   let count = 0
   if (filterParams.value.institutionNature) count++
+  if (filterParams.value.institutionType) count++
   if (filterParams.value.careLevels.length > 0) count++
-  if (filterParams.value.medicalCondition) count++
   if (filterParams.value.ratingLevel !== null) count++
   if (filterParams.value.priceRange) count++
   return count
@@ -548,8 +531,8 @@ const resetFilter = () => {
   filterParams.value.areaCodes = []
   filterParams.value.streetNames = []
   filterParams.value.institutionNature = ''
+  filterParams.value.institutionType = ''
   filterParams.value.careLevels = []
-  filterParams.value.medicalCondition = ''
   filterParams.value.ratingLevel = null
   filterParams.value.priceRange = ''
 }
@@ -629,8 +612,9 @@ const loadInstitutions = async () => {
         areaCode: item.areaCode,
         street: item.street,
         institutionNature: item.institutionNature || item.institutionType || '1',
-        careLevels: item.careLevels || '1,2,3',
-        medicalCondition: item.medicalCondition || '1',
+        institutionType: item.institutionType || item.institution_type || '',
+        careLevels: item.careLevels || null,
+        acceptElderType: item.acceptElderType || null,
         ratingLevel: item.ratingLevel || 3,
         priceRangeMin: item.priceRanges?.total?.min || item.priceRangeMin || 1500,
         priceRangeMax: item.priceRanges?.total?.max || item.priceRangeMax || 3500,
@@ -653,17 +637,31 @@ const loadInstitutions = async () => {
         processedList = processedList.filter(item => item.institutionNature === filterParams.value.institutionNature)
       }
 
-      // 按收住类型筛选
-      if (filterParams.value.careLevels.length > 0) {
+      // 按机构类型筛选
+      if (filterParams.value.institutionType) {
         processedList = processedList.filter(item => {
-          const itemLevels = (item.careLevels || '').split(',')
-          return filterParams.value.careLevels.some(level => itemLevels.includes(level))
+          // 兼容两种格式：数字值(1)和英文代码(nursing_home)
+          const itemType = item.institutionType || item.institution_type || ''
+          return itemType === filterParams.value.institutionType
         })
       }
 
-      // 按医疗条件筛选
-      if (filterParams.value.medicalCondition) {
-        processedList = processedList.filter(item => item.medicalCondition === filterParams.value.medicalCondition)
+      // 按收住类型筛选（兼容 careLevels 和 acceptElderType 两种字段）
+      if (filterParams.value.careLevels.length > 0) {
+        processedList = processedList.filter(item => {
+          // 优先使用 careLevels 字段
+          if (item.careLevels) {
+            const itemLevels = (item.careLevels || '').split(',')
+            return filterParams.value.careLevels.some(level => itemLevels.includes(level))
+          }
+          // 如果 careLevels 为空，尝试使用 acceptElderType 字段
+          if (item.acceptElderType) {
+            const itemLevels = (item.acceptElderType || '').split(',')
+            return filterParams.value.careLevels.some(level => itemLevels.includes(level))
+          }
+          // 如果两者都为空，返回 false（不匹配）
+          return false
+        })
       }
 
       // 按星级筛选
