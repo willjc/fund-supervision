@@ -183,6 +183,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="serviceStartDate != null">service_start_date = #{serviceStartDate},</if>
             <if test="serviceEndDate != null">service_end_date = #{serviceEndDate},</if>
             <if test="billingCycle != null and billingCycle != ''">billing_cycle = #{billingCycle},</if>
+            <if test="monthCount != null">month_count = #{monthCount},</if>
             <if test="dueDate != null">due_date = #{dueDate},</if>
             <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>

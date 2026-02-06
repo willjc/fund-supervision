@@ -76,7 +76,7 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="护理等级" prop="careLevel">
-              <el-select v-model="form.careLevel" placeholder="请选择护理等级" @change="calculateTotal">
+              <el-select v-model="form.careLevel" placeholder="请选择护理等级" @change="onCareLevelChange">
                 <el-option label="自理" value="自理" />
                 <el-option label="半护理" value="半护理" />
                 <el-option label="全护理" value="全护理" />
@@ -182,7 +182,7 @@
 
 <script>
 import { getOrder, approveOrder, rejectOrder } from "@/api/order/orderInfo";
-import { listBed } from "@/api/elder/bed";
+import { listBed, getBed } from "@/api/elder/bed";
 import { listAvailableMeals } from "@/api/pension/mealFeeConfig";
 
 export default {
@@ -194,6 +194,7 @@ export default {
       submitting: false,
       availableBeds: [],  // 可用床位列表
       availableMeals: [], // 可用餐费配置列表
+      currentBed: null,   // 当前床位详细信息（包含护理费价格）
       form: {
         orderId: null,
         orderNo: '',
@@ -283,6 +284,11 @@ export default {
         // 从remark中解析费用信息（此时餐费配置还未加载，餐费档次稍后解析）
         this.parseFeesFromRemark(order.remark);
 
+        // 加载当前床位详细信息（获取护理费价格）
+        if (order.bedId) {
+          this.loadCurrentBedInfo(order.bedId);
+        }
+
         // 加载可用床位列表
         this.loadAvailableBeds(order.institutionId, order.bedId);
 
@@ -293,6 +299,49 @@ export default {
       }).catch(() => {
         this.loading = false;
       });
+    },
+    // 加载当前床位详细信息
+    loadCurrentBedInfo(bedId) {
+      getBed(bedId).then(response => {
+        this.currentBed = response.data;
+        // 护理等级变化时，根据床位信息更新护理费
+        this.updateCareFeeByLevel();
+      }).catch(err => {
+        console.warn("加载床位信息失败", err);
+        this.currentBed = null;
+      });
+    },
+    // 根据护理等级更新护理费
+    updateCareFeeByLevel() {
+      if (!this.currentBed) {
+        return;
+      }
+
+      const careLevel = this.form.careLevel;
+      let newCareFee = this.form.careFee; // 默认保持不变
+
+      // 根据床位信息中的护理等级价格更新护理费
+      switch (careLevel) {
+        case '自理':
+          newCareFee = this.currentBed.selfCarePrice || this.currentBed.price || 500;
+          break;
+        case '半护理':
+          newCareFee = this.currentBed.halfCarePrice || 800;
+          break;
+        case '全护理':
+          newCareFee = this.currentBed.fullCarePrice || 1200;
+          break;
+        default:
+          newCareFee = this.currentBed.selfCarePrice || this.currentBed.price || 500;
+      }
+
+      // 如果床位价格为空，使用默认值
+      if (!newCareFee || newCareFee <= 0) {
+        const defaultPrices = { '自理': 500, '半护理': 800, '全护理': 1200 };
+        newCareFee = defaultPrices[careLevel] || 500;
+      }
+
+      this.form.careFee = newCareFee;
     },
     // 加载可用床位列表
     loadAvailableBeds(institutionId, currentBedId) {
@@ -469,6 +518,11 @@ export default {
       this.form.memberFee = prices.memberFee;
       this.calculateTotal();
     },
+    // 护理等级变化时更新护理费
+    onCareLevelChange(careLevel) {
+      // 根据当前床位信息获取对应的护理费
+      this.updateCareFeeByLevel();
+    },
     // 计算总金额
     calculateTotal() {
       // 总金额在computed中自动计算
@@ -489,6 +543,8 @@ export default {
             orderId: this.form.orderId,
             orderAmount: parseFloat(this.totalAmount),
             monthCount: this.form.monthCount,
+            careLevel: this.form.careLevel,
+            careFee: this.form.careFee,
             remark: this.buildFeeRemark()
           };
 

@@ -113,4 +113,23 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         delete from bed_allocation where elder_id = #{elderId}
     </delete>
 
+    <!-- 根据老人ID更新床位ID（审核通过时同步床位信息） -->
+    <update id="updateBedIdByElderId">
+        update bed_allocation
+        set bed_id = #{bedId},
+            update_time = NOW()
+        where elder_id = #{elderId}
+          and (allocation_status = '1' or allocation_status = '0')
+    </update>
+
+    <!-- 根据老人ID和机构ID更新床位ID（审核通过时同步床位信息） -->
+    <update id="updateBedIdByElderIdAndInstitutionId">
+        update bed_allocation
+        set bed_id = #{bedId},
+            institution_id = #{institutionId},
+            update_time = NOW()
+        where elder_id = #{elderId}
+          and (allocation_status = '1' or allocation_status = '0')
+    </update>
+
 </mapper>

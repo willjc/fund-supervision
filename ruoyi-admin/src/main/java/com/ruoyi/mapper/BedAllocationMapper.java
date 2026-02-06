@@ -66,4 +66,26 @@ public interface BedAllocationMapper
      * @return 结果
      */
     public int deleteBedAllocationByElderId(Long elderId);
+
+    /**
+     * 根据老人ID更新床位ID（审核通过时同步床位信息）
+     *
+     * @param elderId 老人ID
+     * @param bedId 新床位ID
+     * @return 结果
+     */
+    public int updateBedIdByElderId(@org.apache.ibatis.annotations.Param("elderId") Long elderId,
+                                     @org.apache.ibatis.annotations.Param("bedId") Long bedId);
+
+    /**
+     * 根据老人ID和机构ID更新床位ID（审核通过时同步床位信息）
+     *
+     * @param elderId 老人ID
+     * @param bedId 新床位ID
+     * @param institutionId 机构ID
+     * @return 结果
+     */
+    public int updateBedIdByElderIdAndInstitutionId(@org.apache.ibatis.annotations.Param("elderId") Long elderId,
+                                                    @org.apache.ibatis.annotations.Param("bedId") Long bedId,
+                                                    @org.apache.ibatis.annotations.Param("institutionId") Long institutionId);
 }

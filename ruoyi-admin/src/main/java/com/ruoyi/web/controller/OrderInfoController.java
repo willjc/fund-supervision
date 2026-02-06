@@ -19,6 +19,7 @@ import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.domain.OrderInfo;
 import com.ruoyi.service.IOrderInfoService;
 import com.ruoyi.service.IBedInfoService;
+import com.ruoyi.mapper.BedAllocationMapper;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.common.core.page.TableDataInfo;
 
@@ -37,6 +38,9 @@ public class OrderInfoController extends BaseController
 
     @Autowired
     private IBedInfoService bedInfoService;
+
+    @Autowired
+    private BedAllocationMapper bedAllocationMapper;
 
     /**
      * 查询订单主表列表
@@ -163,6 +167,13 @@ public class OrderInfoController extends BaseController
             }
             // 新床位改为占用
             bedInfoService.updateBedStatus(newBedId, "1");
+
+            // 同步更新 bed_allocation 表的床位信息，确保管理端入住人列表显示正确
+            bedAllocationMapper.updateBedIdByElderIdAndInstitutionId(
+                oldOrder.getElderId(),
+                newBedId,
+                oldOrder.getInstitutionId()
+            );
         }
 
         orderInfo.setOrderStatus("5"); // 5-审核通过

@@ -2,6 +2,7 @@ package com.ruoyi.service.impl;
 
 import java.util.List;
 import java.util.Date;
+import java.util.Calendar;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.math.BigDecimal;
@@ -112,7 +113,42 @@ public class OrderInfoServiceImpl implements IOrderInfoService
             updateOrderItemPricesOnAudit(orderInfo);
         }
 
+        // 审核通过时，更新 month_count 和 service_end_date
+        if ("5".equals(orderInfo.getOrderStatus())) {
+            updateOrderDatesOnAudit(orderInfo);
+        }
+
         return orderInfoMapper.updateOrderInfo(orderInfo);
+    }
+
+    /**
+     * 审核通过时更新订单日期信息（month_count 和 service_end_date）
+     *
+     * @param orderInfo 订单信息
+     */
+    private void updateOrderDatesOnAudit(OrderInfo orderInfo) {
+        // 从前端传递的 monthCount 更新（如果有的话）
+        if (orderInfo.getMonthCount() != null && orderInfo.getMonthCount() > 0) {
+            // monthCount 已经在前端设置好了，直接使用
+        } else {
+            // 尝试从 remark 中解析月数
+            Integer monthCountFromRemark = parseMonthCountFromRemark(orderInfo.getRemark());
+            if (monthCountFromRemark != null && monthCountFromRemark > 0) {
+                orderInfo.setMonthCount(monthCountFromRemark);
+            }
+        }
+
+        // 重新计算 service_end_date = service_start_date + month_count 个月
+        if (orderInfo.getServiceStartDate() != null && orderInfo.getMonthCount() != null) {
+            Date startDate = orderInfo.getServiceStartDate();
+            Integer monthCount = orderInfo.getMonthCount();
+
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTime(startDate);
+            calendar.add(Calendar.MONTH, monthCount);
+            Date endDate = calendar.getTime();
+            orderInfo.setServiceEndDate(endDate);
+        }
     }
 
     /**
