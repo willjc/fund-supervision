@@ -17,9 +17,11 @@ import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.domain.OrderInfo;
+import com.ruoyi.domain.BedInfo;
 import com.ruoyi.service.IOrderInfoService;
 import com.ruoyi.service.IBedInfoService;
 import com.ruoyi.mapper.BedAllocationMapper;
+import com.ruoyi.mapper.BedInfoMapper;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.common.core.page.TableDataInfo;
 
@@ -41,6 +43,9 @@ public class OrderInfoController extends BaseController
 
     @Autowired
     private BedAllocationMapper bedAllocationMapper;
+
+    @Autowired
+    private BedInfoMapper bedInfoMapper;
 
     /**
      * 查询订单主表列表
@@ -174,10 +179,39 @@ public class OrderInfoController extends BaseController
                 newBedId,
                 oldOrder.getInstitutionId()
             );
+
+            // 获取新床位信息，用于更新订单明细描述
+            BedInfo newBed = bedInfoMapper.selectBedInfoByBedId(newBedId);
+            if (newBed != null) {
+                orderInfo.setAuditRoomNumber(newBed.getRoomNumber());
+                orderInfo.setAuditBedNumber(newBed.getBedNumber());
+            }
+        }
+
+        // 设置护理等级（用于更新订单明细描述）
+        // 从remark中解析护理等级
+        if (orderInfo.getRemark() != null && orderInfo.getRemark().contains("护理等级：")) {
+            String careLevel = parseCareLevelFromRemark(orderInfo.getRemark());
+            orderInfo.setAuditCareLevel(careLevel);
         }
 
         orderInfo.setOrderStatus("5"); // 5-审核通过
         return toAjax(orderInfoService.updateOrderInfo(orderInfo));
+    }
+
+    /**
+     * 从remark中解析护理等级
+     */
+    private String parseCareLevelFromRemark(String remark) {
+        if (remark == null || !remark.contains("护理等级：")) {
+            return null;
+        }
+        String[] parts = remark.split("护理等级：");
+        if (parts.length > 1) {
+            String careLevel = parts[1].split("\n")[0].trim();
+            return careLevel;
+        }
+        return null;
     }
 
     /**

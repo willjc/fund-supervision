@@ -200,14 +200,28 @@ public class OrderInfoServiceImpl implements IOrderInfoService
         for (OrderItem item : items) {
             BigDecimal newPrice = null;
             boolean priceChanged = false;
+            String newDescription = null;
 
             // 根据item_type确定新价格
             if ("bed_fee".equals(item.getItemType()) && newBedFee != null) {
                 newPrice = newBedFee;
                 priceChanged = true;
+                // 更新床位费描述：使用审核后的新床位信息
+                if (orderInfo.getAuditRoomNumber() != null && orderInfo.getAuditBedNumber() != null) {
+                    newDescription = orderInfo.getAuditRoomNumber() + "-" + orderInfo.getAuditBedNumber() + "床位费";
+                } else {
+                    // 如果没有新床位信息，保持原描述只更新价格
+                    newDescription = item.getItemDescription();
+                }
             } else if ("care_fee".equals(item.getItemType()) && newCareFee != null) {
                 newPrice = newCareFee;
                 priceChanged = true;
+                // 更新护理费描述：使用审核后的新护理等级
+                if (orderInfo.getAuditCareLevel() != null) {
+                    newDescription = orderInfo.getAuditCareLevel() + "护理费";
+                } else {
+                    newDescription = item.getItemDescription();
+                }
             } else if ("deposit".equals(item.getItemType()) && newDepositFee != null) {
                 newPrice = newDepositFee;
                 priceChanged = true;
@@ -228,6 +242,11 @@ public class OrderInfoServiceImpl implements IOrderInfoService
 
                 // 更新新单价
                 item.setUnitPrice(newPrice);
+
+                // 更新描述（如果有新描述）
+                if (newDescription != null) {
+                    item.setItemDescription(newDescription);
+                }
 
                 // 重新计算总额
                 int quantity = item.getQuantity() != null ? item.getQuantity().intValue() : 1;

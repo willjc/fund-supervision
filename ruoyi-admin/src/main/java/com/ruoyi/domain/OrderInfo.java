@@ -143,6 +143,15 @@ public class OrderInfo extends BaseEntity
     @Excel(name = "未付金额")
     private BigDecimal unpaidAmount;
 
+    /** 审核时的新房间号（不持久化，仅用于审核时更新订单明细描述） */
+    private String auditRoomNumber;
+
+    /** 审核时的新床位号（不持久化，仅用于审核时更新��单明细描述） */
+    private String auditBedNumber;
+
+    /** 审核时的新护理等级（不持久化，仅用于审核时更新订单明细描述） */
+    private String auditCareLevel;
+
     /** 订单明细列表 */
     private List<OrderItem> orderItems;
 
@@ -428,6 +437,30 @@ public class OrderInfo extends BaseEntity
             return orderAmount.subtract(paidAmount);
         }
         return BigDecimal.ZERO;
+    }
+
+    public String getAuditRoomNumber() {
+        return auditRoomNumber;
+    }
+
+    public void setAuditRoomNumber(String auditRoomNumber) {
+        this.auditRoomNumber = auditRoomNumber;
+    }
+
+    public String getAuditBedNumber() {
+        return auditBedNumber;
+    }
+
+    public void setAuditBedNumber(String auditBedNumber) {
+        this.auditBedNumber = auditBedNumber;
+    }
+
+    public String getAuditCareLevel() {
+        return auditCareLevel;
+    }
+
+    public void setAuditCareLevel(String auditCareLevel) {
+        this.auditCareLevel = auditCareLevel;
     }
 
     @Override

@@ -545,6 +545,7 @@ export default {
             monthCount: this.form.monthCount,
             careLevel: this.form.careLevel,
             careFee: this.form.careFee,
+            bedFee: this.form.bedFee,
             remark: this.buildFeeRemark()
           };
 
