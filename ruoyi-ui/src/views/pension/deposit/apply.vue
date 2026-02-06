@@ -389,7 +389,7 @@ export default {
           accountId: this.selectedResident.accountId,
           applyAmount: this.form.amount,
           applyReason: this.form.reason,
-          applyType: '押金使用',
+          applyType: this.getPurposeApplyType(this.form.purpose),  // 将使用事由映射到申请类型字典值
           urgencyLevel: this.form.urgencyLevel,
           purpose: this.form.purpose,
           description: this.form.description,
@@ -433,6 +433,17 @@ export default {
         'withdrawn': '已撤回'
       };
       return statusMap[status] || status;
+    },
+
+    /** 将使用事由映射到申请类型字典值 */
+    getPurposeApplyType(purpose) {
+      const typeMap = {
+        '医疗费用': '1',
+        '个人物品购买': '2',
+        '特殊护理服务': '3',
+        '其他用途': '4'
+      };
+      return typeMap[purpose] || '1';  // 默认为医疗费用
     },
 
     /** 重置表单 */

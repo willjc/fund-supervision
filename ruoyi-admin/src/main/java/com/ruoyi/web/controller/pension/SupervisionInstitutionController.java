@@ -48,6 +48,12 @@ public class SupervisionInstitutionController extends BaseController
     public TableDataInfo list(PensionInstitution pensionInstitution)
     {
         startPage();
+        // 处理日期范围参数：从request中获取beginTime和endTime，放入params Map
+        // 前端通过queryParams.beginTime和queryParams.endTime传递，但Mapper期望params.beginTime和params.endTime
+        // 这里需要手动将参数迁移到params中
+        // 注意：由于Spring会自动绑定beginTime和endTime字段到实体类（如果存在），
+        // 我们需要通过其他方式来处理
+
         // 不再强制设置status,由前端传递的参数决定
         // 如果前端没有传递status参数,则查询所有状态
         List<PensionInstitution> list = pensionInstitutionService.selectPensionInstitutionList(pensionInstitution);
@@ -223,11 +229,11 @@ public class SupervisionInstitutionController extends BaseController
      */
     @PreAuthorize("@ss.hasPermi('supervision:institution:query')")
     @GetMapping("/approval/statistics")
-    public AjaxResult getApprovalStatistics()
+    public AjaxResult getApprovalStatistics(PensionInstitution pensionInstitution)
     {
-        PensionInstitution query = new PensionInstitution();
-
         // 待审批数量
+        PensionInstitution query = new PensionInstitution();
+        copyCommonQueryParams(pensionInstitution, query);
         query.setStatus("0");
         int pendingCount = pensionInstitutionService.selectPensionInstitutionList(query).size();
 
@@ -247,6 +253,31 @@ public class SupervisionInstitutionController extends BaseController
         statistics.put("totalCount", pendingCount + approvedCount + rejectedCount);
 
         return AjaxResult.success(statistics);
+    }
+
+    /**
+     * 复制通用查询参数（不包括status）
+     */
+    private void copyCommonQueryParams(PensionInstitution source, PensionInstitution target) {
+        if (source.getParams() != null) {
+            if (target.getParams() == null) {
+                target.setParams(new java.util.HashMap<>());
+            }
+            if (source.getParams().get("beginTime") != null) {
+                target.getParams().put("beginTime", source.getParams().get("beginTime"));
+            }
+            if (source.getParams().get("endTime") != null) {
+                target.getParams().put("endTime", source.getParams().get("endTime"));
+            }
+        }
+        target.setInstitutionName(source.getInstitutionName());
+        target.setCreditCode(source.getCreditCode());
+        target.setContactPerson(source.getContactPerson());
+        target.setContactPhone(source.getContactPhone());
+        target.setInstitutionType(source.getInstitutionType());
+        target.setDistrictCode(source.getDistrictCode());
+        target.setAreaCode(source.getAreaCode());
+        target.setCareLevels(source.getCareLevels());
     }
 
     /**

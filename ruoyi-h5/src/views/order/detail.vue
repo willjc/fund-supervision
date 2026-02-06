@@ -144,7 +144,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { showToast, showConfirmDialog, showImagePreview } from 'vant'
 import dayjs from 'dayjs'
-import { getOrderDetail as getOrderDetailApi, processPayment, getOrderItems } from '@/api/order'
+import { getOrderDetail as getOrderDetailApi, processPayment, getOrderItems, cancelOrder } from '@/api/order'
 
 const router = useRouter()
 const route = useRoute()
@@ -253,11 +253,16 @@ const handleCancel = async () => {
       message: '确定要取消该订单吗?'
     })
 
-    // 模拟取消
-    await new Promise(resolve => setTimeout(resolve, 500))
+    // 调用后端API取消订单
+    const res = await cancelOrder(order.value.orderId)
 
-    showToast('取消成功')
-    order.value.orderStatus = '2'
+    if (res.code === 200) {
+      showToast('取消成功')
+      // 重新加载订单详情以获取最新状态
+      await loadOrderDetail()
+    } else {
+      showToast(res.msg || '取消失败')
+    }
   } catch (error) {
     // 用户取消了对话框
     if (error !== 'cancel') {

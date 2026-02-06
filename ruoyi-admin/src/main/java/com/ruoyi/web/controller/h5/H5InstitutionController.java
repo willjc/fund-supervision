@@ -78,8 +78,9 @@ public class H5InstitutionController extends BaseController
             pensionInstitution.setStreetNames(streetNames);
         }
 
-        // H5端只显示审核通过且正常运营的机构
+        // H5端只显示审核通过且正常运营的机构，且不在黑名单中
         pensionInstitution.setStatus("1");  // 1-正常运营
+        pensionInstitution.setBlacklistFlag("0");  // 0-非黑名单
         List<PensionInstitution> institutionList = pensionInstitutionService.selectPensionInstitutionList(pensionInstitution);
 
         // 获取机构ID列表，用于查询公示信息
@@ -179,6 +180,7 @@ public class H5InstitutionController extends BaseController
             // 如果有筛选条件，需要通过机构表筛选
             PensionInstitution institutionQuery = new PensionInstitution();
             institutionQuery.setStatus("1");  // 只查询正常运营的机构
+            institutionQuery.setBlacklistFlag("0");  // 0-非黑名单
             if (areaCodes != null && !areaCodes.isEmpty()) {
                 institutionQuery.setAreaCodes(areaCodes);
             }
@@ -211,14 +213,31 @@ public class H5InstitutionController extends BaseController
 
             return AjaxResult.success(convertedList);
         } else {
-            // 没有筛选条件，按原逻辑查询
-            List<PensionInstitutionPublic> publicityList = pensionInstitutionPublicService.selectPensionInstitutionPublicList(queryPublicity);
+            // 没有筛选条件，也需要过滤黑名单机构
+            PensionInstitution institutionQuery = new PensionInstitution();
+            institutionQuery.setStatus("1");  // 只查询正常运营的机构
+            institutionQuery.setBlacklistFlag("0");  // 0-非黑名单
+
+            // 先查询符合条件（非黑名单）的机构ID列表
+            List<PensionInstitution> filteredInstitutions = pensionInstitutionService.selectPensionInstitutionList(institutionQuery);
+            if (filteredInstitutions.isEmpty()) {
+                return AjaxResult.success(new ArrayList<>());  // 没有符合条件的机构
+            }
+
+            List<Long> institutionIds = filteredInstitutions.stream()
+                    .map(PensionInstitution::getInstitutionId)
+                    .collect(Collectors.toList());
+
+            // 查询这些机构的公示信息
+            List<PensionInstitutionPublic> publicityList = pensionInstitutionPublicService.selectPensionInstitutionPublicList(queryPublicity)
+                    .stream()
+                    .filter(publicity -> publicity.getInstitutionId() != null && institutionIds.contains(publicity.getInstitutionId()))
+                    .collect(Collectors.toList());
 
             // 转换为H5前端期望的格式
             List<Map<String, Object>> convertedList = publicityList.stream()
-                    .filter(publicity -> publicity.getInstitutionId() != null)  // 过滤掉没有机构ID的记录
-                    .limit(8)  // 返回前8个机构，与mock数据数量一致
                     .map(this::convertPublicityToH5Format)
+                    .limit(8)  // 返回前8个机构，与mock数据数量一致
                     .collect(Collectors.toList());
 
             return AjaxResult.success(convertedList);

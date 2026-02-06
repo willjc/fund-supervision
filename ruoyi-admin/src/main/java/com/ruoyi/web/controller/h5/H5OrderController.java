@@ -111,6 +111,7 @@ public class H5OrderController extends BaseController
     @GetMapping("/order/list")
     public AjaxResult getOrderList(@RequestParam(required = false) Long elderId,
                                    @RequestParam(required = false) String orderStatus,
+                                   @RequestParam(required = false) String searchValue,
                                    @RequestParam(defaultValue = "1") Integer pageNum,
                                    @RequestParam(defaultValue = "10") Integer pageSize)
     {
@@ -163,6 +164,36 @@ public class H5OrderController extends BaseController
                 if (elderOrders != null) {
                     orderList.addAll(elderOrders);
                 }
+            }
+
+            // 如果有搜索关键词，按订单号或机构名称过滤
+            if (StringUtils.hasText(searchValue)) {
+                List<OrderInfo> filteredOrders = new java.util.ArrayList<>();
+                String keyword = searchValue.trim().toLowerCase();
+
+                for (OrderInfo order : orderList) {
+                    boolean match = false;
+
+                    // 匹配订单号
+                    if (order.getOrderNo() != null && order.getOrderNo().toLowerCase().contains(keyword)) {
+                        match = true;
+                    }
+
+                    // 匹配机构名称
+                    if (!match && order.getInstitutionId() != null) {
+                        PensionInstitution institution = institutionService.selectPensionInstitutionByInstitutionId(order.getInstitutionId());
+                        if (institution != null && institution.getInstitutionName() != null
+                                && institution.getInstitutionName().toLowerCase().contains(keyword)) {
+                            match = true;
+                        }
+                    }
+
+                    if (match) {
+                        filteredOrders.add(order);
+                    }
+                }
+
+                orderList = filteredOrders;
             }
 
             // 如果提供了订单状态，过滤订单

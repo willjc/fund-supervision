@@ -20,17 +20,18 @@
       </el-form-item>
       <el-form-item label="机构状态" prop="status">
         <el-select v-model="queryParams.status" placeholder="请选择机构状态" clearable>
-          <el-option label="正常运营" value="1" />
-          <el-option label="停业整顿" value="2" />
-          <el-option label="已注销" value="3" />
-          <el-option label="预警监控" value="4" />
+          <el-option label="待审批" value="0" />
+          <el-option label="已入驻" value="1" />
+          <el-option label="已驳回" value="2" />
+          <el-option label="解除监管" value="3" />
+          <el-option label="维护中" value="5" />
           <el-option label="维护待审批" value="6" />
         </el-select>
       </el-form-item>
       <el-form-item label="监管账户" prop="hasSupervisionAccount">
         <el-select v-model="queryParams.hasSupervisionAccount" placeholder="监管账户状态" clearable>
-          <el-option label="已开户" value="true" />
-          <el-option label="未开户" value="false" />
+          <el-option label="已开户" :value="true" />
+          <el-option label="未开户" :value="false" />
         </el-select>
       </el-form-item>
       <el-form-item>

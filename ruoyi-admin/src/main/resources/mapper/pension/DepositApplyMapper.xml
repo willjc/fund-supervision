@@ -87,6 +87,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="applyType != null  and applyType != ''"> and da.apply_type = #{applyType}</if>
             <if test="urgencyLevel != null  and urgencyLevel != ''"> and da.urgency_level = #{urgencyLevel}</if>
             <if test="applyStatus != null  and applyStatus != ''"> and da.apply_status = #{applyStatus}</if>
+            <if test="elderName != null  and elderName != ''"> and ei.elder_name like concat('%', #{elderName}, '%')</if>
+            <if test="paymentStatus != null and paymentStatus != ''">
+                <if test="paymentStatus == &quot;0&quot;"> and (da.actual_amount is null or da.actual_amount = 0)</if>
+                <if test="paymentStatus == &quot;1&quot;"> and da.actual_amount is not null and da.actual_amount > 0</if>
+            </if>
+            <if test="purpose != null  and purpose != ''"> and da.purpose = #{purpose}</if>
             <if test="approver != null  and approver != ''"> and da.approver like concat('%', #{approver}, '%')</if>
         </where>
         order by da.create_time desc

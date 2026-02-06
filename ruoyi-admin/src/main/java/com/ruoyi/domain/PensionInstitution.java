@@ -254,6 +254,12 @@ public class PensionInstitution extends BaseEntity
     /** 实际入住老人数(不映射到数据库,从elder_check_in统计) */
     private transient Integer actualElders;
 
+    /** 申请时间筛选-开始时间(仅用于查询条件,不映射到数据库) */
+    private transient String beginTime;
+
+    /** 申请时间筛选-结束���间(仅用于查询条件,不映射到数据库) */
+    private transient String endTime;
+
     public void setInstitutionId(Long institutionId)
     {
         this.institutionId = institutionId;
@@ -944,5 +950,25 @@ public class PensionInstitution extends BaseEntity
     public void setActualElders(Integer actualElders)
     {
         this.actualElders = actualElders;
+    }
+
+    public String getBeginTime()
+    {
+        return beginTime;
+    }
+
+    public void setBeginTime(String beginTime)
+    {
+        this.beginTime = beginTime;
+    }
+
+    public String getEndTime()
+    {
+        return endTime;
+    }
+
+    public void setEndTime(String endTime)
+    {
+        this.endTime = endTime;
     }
 }

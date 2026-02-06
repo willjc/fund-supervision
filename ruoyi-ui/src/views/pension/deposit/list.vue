@@ -25,19 +25,21 @@
           <el-option label="非常紧急" value="非常紧急" />
         </el-select>
       </el-form-item>
-      <el-form-item label="申请状态" prop="status">
-        <el-select v-model="queryParams.status" placeholder="请选择申请状态" clearable>
-          <el-option label="待审批" value="待审批" />
-          <el-option label="审批中" value="审批中" />
-          <el-option label="已通过" value="已通过" />
-          <el-option label="已驳回" value="已驳回" />
-          <el-option label="已撤回" value="已撤回" />
+      <el-form-item label="申请状态" prop="applyStatus">
+        <el-select v-model="queryParams.applyStatus" placeholder="请选择申请状态" clearable>
+          <el-option label="草稿" value="draft" />
+          <el-option label="待家属审批" value="pending_family" />
+          <el-option label="家属已审批" value="family_approved" />
+          <el-option label="待监管审批" value="pending_supervision" />
+          <el-option label="已通过" value="approved" />
+          <el-option label="已驳回" value="rejected" />
+          <el-option label="已撤回" value="withdrawn" />
         </el-select>
       </el-form-item>
       <el-form-item label="拨付状态" prop="paymentStatus">
         <el-select v-model="queryParams.paymentStatus" placeholder="请选择拨付状态" clearable>
-          <el-option label="未拨付" value="未拨付" />
-          <el-option label="已拨付" value="已拨付" />
+          <el-option label="未拨付" value="0" />
+          <el-option label="已拨付" value="1" />
         </el-select>
       </el-form-item>
       <el-form-item>
@@ -447,7 +449,7 @@ export default {
         elderName: null,
         purpose: null,
         urgencyLevel: null,
-        status: null,
+        applyStatus: null,
         paymentStatus: null
       },
 

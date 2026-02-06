@@ -131,6 +131,9 @@ public class DepositApply extends BaseEntity
     /** 当前用户ID(用于数据权限过滤) */
     private Long currentUserId;
 
+    /** 拨付状态筛选(0-未拨付, 1-已拨付, 不映射到数据库, 仅用于查询条件) */
+    private transient String paymentStatus;
+
     public void setApplyId(Long applyId)
     {
         this.applyId = applyId;
@@ -329,6 +332,16 @@ public class DepositApply extends BaseEntity
     public void setCurrentUserId(Long currentUserId)
     {
         this.currentUserId = currentUserId;
+    }
+
+    public String getPaymentStatus()
+    {
+        return paymentStatus;
+    }
+
+    public void setPaymentStatus(String paymentStatus)
+    {
+        this.paymentStatus = paymentStatus;
     }
 
     public void setPurpose(String purpose)

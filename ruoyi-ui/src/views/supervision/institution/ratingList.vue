@@ -105,12 +105,6 @@
             icon="el-icon-edit"
             @click="handleUpdate(scope.row)"
           >修改</el-button>
-          <el-button
-            size="mini"
-            type="text"
-            icon="el-icon-printer"
-            @click="handlePrint(scope.row)"
-          >打印</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -279,7 +273,6 @@
 
       <div slot="footer" class="dialog-footer">
         <el-button @click="detailOpen = false">关 闭</el-button>
-        <el-button type="primary" @click="handlePrintDetail">打印证书</el-button>
       </div>
     </el-dialog>
   </div>
@@ -485,14 +478,6 @@ export default {
       this.download('supervision/institution/rating/export', {
         ...this.queryParams
       }, `rating_${new Date().getTime()}.xlsx`)
-    },
-    handlePrint(row) {
-      // TODO: 实现打印功能
-      this.$modal.msgInfo('打印功能开发中...')
-    },
-    handlePrintDetail() {
-      // TODO: 实现打印功能
-      this.$modal.msgInfo('打印功能开发中...')
     },
     getProgressColor(percentage) {
       if (percentage >= 90) return '#67C23A'

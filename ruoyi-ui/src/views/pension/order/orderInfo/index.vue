@@ -47,6 +47,16 @@
           @keyup.enter.native="handleQuery"
         />
       </el-form-item>
+      <el-form-item label="支付方式" prop="paymentMethod">
+        <el-select v-model="queryParams.paymentMethod" placeholder="请选择支付方式" clearable>
+          <el-option
+            v-for="dict in dict.type.payment_method"
+            :key="dict.value"
+            :label="dict.label"
+            :value="dict.value"
+          ></el-option>
+        </el-select>
+      </el-form-item>
       <el-form-item label="创建时间">
         <el-date-picker
           v-model="dateRange"

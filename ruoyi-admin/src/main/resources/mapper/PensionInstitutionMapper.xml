@@ -96,6 +96,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="contactPhone != null and contactPhone != ''"> and contact_phone = #{contactPhone}</if>
             <if test="status != null and status != ''"> and status = #{status}</if>
             <if test="institutionType != null and institutionType != ''"> and institution_type = #{institutionType}</if>
+            <if test="blacklistFlag != null and blacklistFlag != ''"> and blacklist_flag = #{blacklistFlag}</if>
 
             <!-- 新增筛选条件 -->
             <if test="districtCode != null and districtCode != ''"> and district_code = #{districtCode}</if>
@@ -136,6 +137,26 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                 <foreach collection="streetNames" item="streetName" open="(" separator="," close=")">
                     #{streetName}
                 </foreach>
+            </if>
+
+            <!-- 申请时间范围筛选 -->
+            <if test="beginTime != null and beginTime != ''">
+                and date_format(create_time,'%Y-%m-%d') &gt;= date_format(#{beginTime},'%Y-%m-%d')
+            </if>
+            <if test="endTime != null and endTime != ''">
+                and date_format(create_time,'%Y-%m-%d') &lt;= date_format(#{endTime},'%Y-%m-%d')
+            </if>
+
+            <!-- 监管账户筛选 -->
+            <if test="hasSupervisionAccount != null">
+                <if test="hasSupervisionAccount == true">
+                    and (supervise_account is not null and supervise_account != ''
+                         and bank_account is not null and bank_account != '')
+                </if>
+                <if test="hasSupervisionAccount == false">
+                    and (supervise_account is null or supervise_account = ''
+                         or bank_account is null or bank_account = '')
+                </if>
             </if>
         </where>
         order by create_time desc
