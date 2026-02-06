@@ -855,7 +855,7 @@ public class H5OrderController extends BaseController
 
             int result = orderInfoService.updateOrderInfo(order);
             if (result > 0) {
-                // 释放床位资源
+                // 释放床位��源
                 if (order.getBedId() != null) {
                     try {
                         // 1. 删除床位分配记录
@@ -868,6 +868,22 @@ public class H5OrderController extends BaseController
                     } catch (Exception e) {
                         logger.error("释放床位资源失败，床位ID：{}", order.getBedId(), e);
                         // 床位释放失败不影响订单取消流程
+                    }
+                }
+
+                // 恢复老人状态为待入住（用户取消订单，恢复为原始待入住状态）
+                if (order.getElderId() != null) {
+                    try {
+                        ElderInfo elder = elderInfoService.selectElderInfoByElderId(order.getElderId());
+                        if (elder != null) {
+                            elder.setStatus("0"); // 设置为待入住
+                            elder.setUpdateTime(new Date());
+                            elderInfoService.updateElderInfo(elder);
+                            logger.info("已恢复老人状态为待入住，老人ID：{}", order.getElderId());
+                        }
+                    } catch (Exception e) {
+                        logger.error("恢复老人状态失败，老人ID：{}", order.getElderId(), e);
+                        // 老人状态恢复失败不影响订单取消流程
                     }
                 }
 
