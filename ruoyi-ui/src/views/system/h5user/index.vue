@@ -1,10 +1,10 @@
 <template>
   <div class="app-container">
     <el-form :model="queryParams" ref="queryForm" size="small" :inline="true" v-show="showSearch" label-width="68px">
-      <el-form-item label="家属姓名" prop="nickName">
+      <el-form-item label="姓名" prop="nickName">
         <el-input
           v-model="queryParams.nickName"
-          placeholder="请输入家属姓名"
+          placeholder="请输入姓名"
           clearable
           style="width: 200px"
           @keyup.enter.native="handleQuery"
@@ -20,7 +20,7 @@
         />
       </el-form-item>
       <el-form-item label="状态" prop="status">
-        <el-select v-model="queryParams.status" placeholder="用户状���" clearable style="width: 200px">
+        <el-select v-model="queryParams.status" placeholder="用户状态" clearable style="width: 200px">
           <el-option v-for="dict in dict.type.sys_normal_disable" :key="dict.value" :label="dict.label" :value="dict.value" />
         </el-select>
       </el-form-item>
@@ -50,6 +50,7 @@
           size="mini"
           @click="handleAdd"
           v-hasPermi="['h5user:add']"
+          v-if="false"
         >新增</el-button>
       </el-col>
       <right-toolbar :showSearch.sync="showSearch" @queryTable="getList"></right-toolbar>
@@ -114,6 +115,7 @@
             icon="el-icon-edit"
             @click="handleUpdate(scope.row)"
             v-hasPermi="['h5user:edit']"
+            v-if="false"
           >修改</el-button>
           <el-button
             size="mini"
@@ -121,6 +123,7 @@
             icon="el-icon-key"
             @click="handleResetPwd(scope.row)"
             v-hasPermi="['h5user:resetPwd']"
+            v-if="false"
           >重置密码</el-button>
           <el-button
             size="mini"
@@ -478,7 +481,7 @@ export default {
       this.reset();
       const userId = row.userId || this.ids;
       getH5User(userId).then(response => {
-        this.form = response.data.user;
+        this.form = response.user;
         this.open = true;
         this.title = "修改H5用户";
       });
@@ -496,6 +499,7 @@ export default {
           } else {
             addH5User(this.form).then(response => {
               if (response.code === 200) {
+                this.$modal.msgSuccess("新增成功");
                 this.createdUser = {
                   phonenumber: this.form.phonenumber,
                   password: response.data.password
@@ -552,3 +556,14 @@ export default {
   }
 };
 </script>
+
+<style scoped>
+.app-container {
+  padding: 20px;
+}
+
+/* 确保表格撑满容器宽度 */
+.el-table {
+  width: 100% !important;
+}
+</style>

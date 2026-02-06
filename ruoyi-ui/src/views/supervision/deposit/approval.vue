@@ -11,14 +11,12 @@
           @keyup.enter.native="handleQuery"
         />
       </el-form-item>
-      <el-form-item label="申请类型" prop="applyType">
-        <el-select v-model="queryParams.applyType" placeholder="请选择申请类型" clearable size="small">
-          <el-option
-            v-for="dict in dict.type.deposit_apply_type"
-            :key="dict.value"
-            :label="dict.label"
-            :value="dict.value"
-          />
+      <el-form-item label="使用事由" prop="purpose">
+        <el-select v-model="queryParams.purpose" placeholder="请选择使用事由" clearable size="small">
+          <el-option label="医疗费用" value="医疗费用"></el-option>
+          <el-option label="生活用品" value="生活用品"></el-option>
+          <el-option label="特殊护理服务" value="特殊护理服务"></el-option>
+          <el-option label="其他用途" value="其他用途"></el-option>
         </el-select>
       </el-form-item>
       <el-form-item label="紧急程度" prop="urgencyLevel">
@@ -157,9 +155,9 @@
       <el-table-column label="申请单号" align="center" prop="applyNo" width="150" />
       <el-table-column label="老人姓名" align="center" prop="elderName" width="100" />
       <el-table-column label="机构名称" align="center" prop="institutionName" min-width="150" show-overflow-tooltip />
-      <el-table-column label="申请类型" align="center" prop="applyType" width="100">
+      <el-table-column label="使用事由" align="center" prop="purpose" width="100">
         <template slot-scope="scope">
-          <dict-tag :options="dict.type.deposit_apply_type" :value="scope.row.applyType"/>
+          {{ scope.row.purpose || '-' }}
         </template>
       </el-table-column>
       <el-table-column label="申请金额" align="center" prop="applyAmount" width="120">
@@ -231,8 +229,8 @@
     <el-dialog title="押金申请详情" :visible.sync="detailOpen" width="800px" append-to-body>
       <el-descriptions :column="2" border>
         <el-descriptions-item label="申请单号">{{ currentApply.applyNo }}</el-descriptions-item>
-        <el-descriptions-item label="申请类型">
-          <dict-tag :options="dict.type.deposit_apply_type" :value="currentApply.applyType"/>
+        <el-descriptions-item label="使用事由">
+          {{ currentApply.purpose || '-' }}
         </el-descriptions-item>
         <el-descriptions-item label="老人姓名">{{ currentApply.elderName }}</el-descriptions-item>
         <el-descriptions-item label="机构名称">{{ currentApply.institutionName }}</el-descriptions-item>
@@ -328,9 +326,9 @@
             <span class="text-primary">¥{{ scope.row.applyAmount }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="申请类型" prop="applyType" width="100">
+        <el-table-column label="使用事由" prop="purpose" width="100">
           <template slot-scope="scope">
-            <dict-tag :options="dict.type.deposit_apply_type" :value="scope.row.applyType"/>
+            {{ scope.row.purpose || '-' }}
           </template>
         </el-table-column>
         <el-table-column label="紧急程度" prop="urgencyLevel" width="100">
@@ -368,9 +366,9 @@
             <span class="text-danger">¥{{ scope.row.applyAmount }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="申请类型" prop="applyType" width="100">
+        <el-table-column label="使用事由" prop="purpose" width="100">
           <template slot-scope="scope">
-            <dict-tag :options="dict.type.deposit_apply_type" :value="scope.row.applyType"/>
+            {{ scope.row.purpose || '-' }}
           </template>
         </el-table-column>
         <el-table-column label="申请原因" prop="applyReason" min-width="150" show-overflow-tooltip />
@@ -404,9 +402,9 @@
             <span class="text-danger">¥{{ scope.row.applyAmount }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="申请类型" prop="applyType" width="100">
+        <el-table-column label="使用事由" prop="purpose" width="100">
           <template slot-scope="scope">
-            <dict-tag :options="dict.type.deposit_apply_type" :value="scope.row.applyType"/>
+            {{ scope.row.purpose || '-' }}
           </template>
         </el-table-column>
         <el-table-column label="申请原因" prop="applyReason" min-width="150" show-overflow-tooltip />
@@ -436,7 +434,7 @@ import { listApproval, getDepositApply, approveDeposit, rejectDeposit, getApprov
 
 export default {
   name: "DepositApproval",
-  dicts: ['deposit_apply_type', 'urgency_level', 'deposit_apply_status'],
+  dicts: ['urgency_level', 'deposit_apply_status'],
   data() {
     return {
       // 遮罩层
@@ -478,7 +476,7 @@ export default {
         pageNum: 1,
         pageSize: 10,
         applyNo: null,
-        applyType: null,
+        purpose: null,
         urgencyLevel: null,
         applyStatus: null // 默认查询所有状态
       },

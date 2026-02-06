@@ -305,7 +305,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 			AND u.user_name like concat('%', #{userName}, '%')
 		</if>
 		<if test="nickName != null and nickName != ''">
-			AND u.nick_name like concat('%', #{nickName}, '%')
+			AND (u.nick_name like concat('%', #{nickName}, '%') OR u.real_name like concat('%', #{nickName}, '%'))
 		</if>
 		<if test="phonenumber != null and phonenumber != ''">
 			AND u.phonenumber like concat('%', #{phonenumber}, '%')

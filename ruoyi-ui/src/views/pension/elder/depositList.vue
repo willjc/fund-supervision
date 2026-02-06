@@ -13,7 +13,7 @@
       <el-form-item label="使用事由" prop="purpose">
         <el-select v-model="queryParams.purpose" placeholder="请选择使用事由" clearable>
           <el-option label="医疗费用" value="医疗费用" />
-          <el-option label="个人物品购买" value="个人物品购买" />
+          <el-option label="生活用品" value="生活用品" />
           <el-option label="特殊护理服务" value="特殊护理服务" />
           <el-option label="其他用途" value="其他用途" />
         </el-select>

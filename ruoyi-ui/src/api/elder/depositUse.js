@@ -51,7 +51,7 @@ export function listDepositUseMock(query) {
           elderName: '李四',
           bedInfo: 'A101-02',
           amount: 2000.00,
-          purpose: '个人物品购买',
+          purpose: '生活用品',
           urgencyLevel: '一般',
           status: '已通过',
           paymentStatus: '已拨付',
