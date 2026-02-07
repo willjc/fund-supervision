@@ -51,10 +51,10 @@
     <!-- 搜索区域 -->
     <el-card shadow="never" class="search-card">
       <el-form :model="queryParams" ref="queryForm" :inline="true">
-        <el-form-item label="园区地址" prop="actualAddress">
+        <el-form-item label="机构名称" prop="institutionName">
           <el-input
-            v-model="queryParams.actualAddress"
-            placeholder="请输入园区地址"
+            v-model="queryParams.institutionName"
+            placeholder="请输入机构名称"
             clearable
             @keyup.enter.native="handleQuery"
           />
@@ -397,7 +397,7 @@ export default {
       queryParams: {
         pageNum: 1,
         pageSize: 10,
-        actualAddress: null,
+        institutionName: null,
         status: null
       },
       // 当前园区

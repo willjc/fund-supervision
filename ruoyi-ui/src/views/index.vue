@@ -71,10 +71,10 @@
         </div>
       </div>
 
-      <!-- 入驻人结构分析 -->
+      <!-- 入住人结构分析 -->
       <div class="structure-section">
         <div class="section-title">
-          <i class="el-icon-user"></i> 入驻人结构分析
+          <i class="el-icon-user"></i> 入住人结构分析
         </div>
         <div class="structure-grid">
           <!-- 性别分布 -->
@@ -127,20 +127,20 @@
     <div v-else class="supervision-dashboard">
       <!-- 数据统计卡片区域 -->
       <div class="info-cards">
-        <!-- 入驻机构 -->
+        <!-- 入住机构 -->
         <div class="info-card">
           <div class="card-icon blue"><i class="el-icon-office-building"></i></div>
           <div class="card-body">
-            <div class="card-title">入驻机构</div>
+            <div class="card-title">入住机构</div>
             <div class="card-value">{{ supervisionData.overview.institutionCount || 0 }} 家</div>
           </div>
         </div>
 
-        <!-- 入驻老人 -->
+        <!-- 入住老人 -->
         <div class="info-card">
           <div class="card-icon green"><i class="el-icon-user-solid"></i></div>
           <div class="card-body">
-            <div class="card-title">入驻老人</div>
+            <div class="card-title">入住老人</div>
             <div class="card-value">{{ supervisionData.overview.elderCount || 0 }} 人</div>
           </div>
         </div>
@@ -190,10 +190,10 @@
         </div>
       </div>
 
-      <!-- 入驻人结构分析 -->
+      <!-- 入住人结构分析 -->
       <div class="structure-section">
         <div class="section-title">
-          <i class="el-icon-user"></i> 入驻人结构分析
+          <i class="el-icon-user"></i> 入住人结构分析
         </div>
         <div class="structure-grid">
           <!-- 性别分布 -->
@@ -372,7 +372,7 @@ export default {
           this.institutionData.depositStats = deposit.data
         }
 
-        // 入驻人结构分析
+        // 入住人结构分析
         if (structure.data) {
           this.institutionData.residentStructure = structure.data
         }
@@ -403,7 +403,7 @@ export default {
           this.supervisionData.balance = balance.data
         }
 
-        // 入驻人结构分析
+        // 入住人结构分析
         if (structure.data) {
           this.supervisionData.residentStructure = structure.data
         }

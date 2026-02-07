@@ -74,4 +74,13 @@ public interface IElderInfoService
      * @return 老人基础信息列表
      */
     public List<ElderInfo> exportElderInfo(ElderInfo elderInfo);
+
+    /**
+     * 导入老人信息
+     *
+     * @param elderList 老人信息列表
+     * @param operName 操作人
+     * @return 导入结果消息
+     */
+    public String importElderInfo(List<ElderInfo> elderList, String operName);
 }

@@ -17,6 +17,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="paidAmount"    column="paid_amount"    />
         <result property="orderStatus"    column="order_status"    />
         <result property="paymentMethod"    column="payment_method"    />
+        <result property="channel"    column="channel"    />
         <result property="paymentTime"    column="payment_time"    />
         <result property="paymentProof"    column="payment_proof"    />
         <result property="paymentProofRemark"    column="payment_proof_remark"    />
@@ -41,7 +42,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <sql id="selectOrderInfoVo">
         select o.order_id, o.order_no, o.order_type, o.elder_id, o.creator_user_id, o.institution_id, o.check_in_id,
-               o.bed_id, o.order_amount, o.paid_amount, o.order_status, o.payment_method,
+               o.bed_id, o.order_amount, o.paid_amount, o.order_status, o.payment_method, o.channel,
                o.payment_time, o.payment_proof, o.payment_proof_remark, o.order_date, o.service_start_date, o.service_end_date,
                o.billing_cycle, o.month_count, o.original_amount, o.discount_amount,
                o.due_date, o.create_by, o.create_time, o.update_by, o.update_time, o.remark,
@@ -68,6 +69,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="checkInId != null "> and o.check_in_id = #{checkInId}</if>
             <if test="orderStatus != null  and orderStatus != ''"> and o.order_status = #{orderStatus}</if>
             <if test="paymentMethod != null  and paymentMethod != ''"> and o.payment_method = #{paymentMethod}</if>
+            <if test="channel != null  and channel != ''"> and o.channel = #{channel}</if>
             <if test="elderName != null  and elderName != ''"> and e.elder_name like concat('%', #{elderName}, '%')</if>
             <if test="params.beginTime != null and params.beginTime != ''"><!-- 开始时间检索 -->
                 and date_format(o.order_date,'%y%m%d') &gt;= date_format(#{params.beginTime},'%y%m%d')
@@ -115,6 +117,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="paidAmount != null">paid_amount,</if>
             <if test="orderStatus != null">order_status,</if>
             <if test="paymentMethod != null and paymentMethod != ''">payment_method,</if>
+            <if test="channel != null and channel != ''">channel,</if>
             <if test="paymentTime != null">payment_time,</if>
             <if test="paymentProof != null and paymentProof != ''">payment_proof,</if>
             <if test="paymentProofRemark != null">payment_proof_remark,</if>
@@ -144,6 +147,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="paidAmount != null">#{paidAmount},</if>
             <if test="orderStatus != null">#{orderStatus},</if>
             <if test="paymentMethod != null and paymentMethod != ''">#{paymentMethod},</if>
+            <if test="channel != null and channel != ''">#{channel},</if>
             <if test="paymentTime != null">#{paymentTime},</if>
             <if test="paymentProof != null and paymentProof != ''">#{paymentProof},</if>
             <if test="paymentProofRemark != null">#{paymentProofRemark},</if>
@@ -176,6 +180,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="paidAmount != null">paid_amount = #{paidAmount},</if>
             <if test="orderStatus != null">order_status = #{orderStatus},</if>
             <if test="paymentMethod != null and paymentMethod != ''">payment_method = #{paymentMethod},</if>
+            <if test="channel != null and channel != ''">channel = #{channel},</if>
             <if test="paymentTime != null">payment_time = #{paymentTime},</if>
             <if test="paymentProof != null">payment_proof = #{paymentProof},</if>
             <if test="paymentProofRemark != null">payment_proof_remark = #{paymentProofRemark},</if>

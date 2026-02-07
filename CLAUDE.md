@@ -163,7 +163,7 @@ ruoyi-h5/                    # H5小程序端（独立模块）
 ### 数据库配置
 - 数据库: MySQL (localhost:3306/newzijin)
 - 用户名: root
-- 密码: 123456 (在 application-druid.yml 中配置)
+- 密码: 123456789w (在 application-druid.yml 中配置)
 - Druid监控: http://localhost:8080/druid (用户名: yl, 密码: 123456)
 
 ### Redis配置
@@ -388,7 +388,7 @@ npm run build
 - **数据库地址**: localhost:3306
 - **数据库名**: newzijin
 - **用户名**: root
-- **密码**: 123456
+- **密码**: 123456789w
 - **字符集**: utf8mb4
 
 ### 数据库操作规范
@@ -410,10 +410,10 @@ npm run build
 
 ```bash
 # 连接数据库
-mysql -u root -p123456 -e "USE newzijin; [SQL语句]"
+mysql -u root -p123456789w -e "USE newzijin; [SQL语句]"
 
 # 或交互式执行
-mysql -u root -p123456 newzijin
+mysql -u root -p123456789w newzijin
 ```
 
 3. **适用场景**：

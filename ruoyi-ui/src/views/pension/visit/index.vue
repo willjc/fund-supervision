@@ -239,15 +239,9 @@ export default {
     },
     /** 导出按钮操作 */
     handleExport() {
-      this.$modal.confirm('是否确认导出所有预约数据?').then(() => {
-        this.loading = true;
-        return exportVisitReservation(this.queryParams);
-      }).then(response => {
-        this.$modal.msgSuccess("导出成功");
-        this.loading = false;
-      }).catch(() => {
-        this.loading = false;
-      });
+      this.download('pension/visit/export', {
+        ...this.queryParams
+      }, `visit_reservation_${new Date().getTime()}.xlsx`)
     },
     /** 获取状态标签类型 */
     getStatusType(status) {

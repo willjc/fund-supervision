@@ -58,6 +58,10 @@ public class SupervisionRefundController extends BaseController
     public TableDataInfo list(RefundRecord refundRecord)
     {
         startPage();
+        // 数据权限过滤: admin超级管理员可以看到所有退款记录，其他用户只能看到关联机构的退款记录
+        if (!getUserId().equals(1L)) {
+            refundRecord.setCurrentUserId(getUserId());
+        }
         // 支持按状态筛选，前端传递refundStatus参数
         List<RefundRecord> list = refundRecordService.selectRefundRecordList(refundRecord);
         return getDataTable(list);
@@ -71,6 +75,10 @@ public class SupervisionRefundController extends BaseController
     public TableDataInfo listAll(RefundRecord refundRecord)
     {
         startPage();
+        // 数据权限过滤: admin超级管理员可以看到所有退款记录，其他用户只能看到关联机构的退款记录
+        if (!getUserId().equals(1L)) {
+            refundRecord.setCurrentUserId(getUserId());
+        }
         List<RefundRecord> list = refundRecordService.selectRefundRecordList(refundRecord);
         return getDataTable(list);
     }

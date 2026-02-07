@@ -74,13 +74,9 @@
       <el-table-column label="昵称" align="center" prop="nickName" width="120" :show-overflow-tooltip="true" />
       <el-table-column label="真实姓名" align="center" prop="realName" width="120" :show-overflow-tooltip="true" />
       <el-table-column label="手机号码" align="center" prop="phonenumber" width="120" />
-      <el-table-column label="关联老人" align="center" prop="elderList" width="200" :show-overflow-tooltip="true">
+      <el-table-column label="关联老人" align="center" width="100">
         <template slot-scope="scope">
-          <span v-if="scope.row.elderList && scope.row.elderList.length > 0">
-            <span v-for="(elder, index) in scope.row.elderList" :key="elder.elderId">
-              {{ elder.elderName }}({{ elder.relationName }})<span v-if="index < scope.row.elderList.length - 1">、</span>
-            </span>
-          </span>
+          <el-tag v-if="scope.row.elderCount > 0" type="success">{{ scope.row.elderCount }}人</el-tag>
           <span v-else style="color: #909399;">未关联</span>
         </template>
       </el-table-column>

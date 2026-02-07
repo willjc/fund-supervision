@@ -141,6 +141,11 @@
           <el-tag v-else type="info" size="small">未签约</el-tag>
         </template>
       </el-table-column>
+      <el-table-column label="会员费余额" align="center" prop="memberBalance" width="120">
+        <template slot-scope="scope">
+          <span style="color: #67C23A; font-weight: bold;">¥{{ formatAmount(scope.row.memberBalance) }}</span>
+        </template>
+      </el-table-column>
       <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="280" fixed="right">
         <template slot-scope="scope">
           <el-button v-if="scope.row.accountStatus === '0'" size="mini" type="text" icon="el-icon-check" @click="handleApprove(scope.row)">审核</el-button>
@@ -474,7 +479,8 @@ export default {
             purpose: '用于存放老人预收费资金，接受民政部门监管',
             createTime: '2024-01-10 10:30:00',
             updateTime: '2024-01-20 14:20:00',
-            remark: '监管账户'
+            remark: '监管账户',
+            memberBalance: 125000.00
           },
           {
             id: 2,
@@ -495,7 +501,8 @@ export default {
             purpose: '用于存放老人预收费资金，接受民政部门监管',
             createTime: '2024-01-25 15:40:00',
             updateTime: '2024-01-25 15:40:00',
-            remark: '待审核'
+            remark: '待审核',
+            memberBalance: 0
           },
           {
             id: 3,
@@ -516,7 +523,8 @@ export default {
             purpose: '机构日常经营账户',
             createTime: '2024-03-05 09:20:00',
             updateTime: '2024-03-15 11:10:00',
-            remark: '基本账户'
+            remark: '基本账户',
+            memberBalance: 0
           },
           {
             id: 4,
@@ -537,7 +545,8 @@ export default {
             purpose: '用于存放老人预收费资金，接受民政部门监管',
             createTime: '2023-11-25 14:15:00',
             updateTime: '2024-10-15 16:30:00',
-            remark: '因违规操作已冻结'
+            remark: '因违规操作已冻结',
+            memberBalance: 68000.50
           },
           {
             id: 5,
@@ -558,7 +567,8 @@ export default {
             purpose: '用于存放老人预收费资金，接受民政部门监管',
             createTime: '2023-06-05 10:20:00',
             updateTime: '2024-09-01 09:30:00',
-            remark: '机构已注销，账户已关闭'
+            remark: '机构已注销，账户已关闭',
+            memberBalance: 0
           }
         ]
         this.total = this.accountList.length
@@ -714,6 +724,11 @@ export default {
     /** 导出按钮操作 */
     handleExport() {
       this.$modal.msgSuccess('导出功能开发中')
+    },
+    /** 格式化金额 */
+    formatAmount(amount) {
+      if (!amount && amount !== 0) return '0.00'
+      return parseFloat(amount).toFixed(2)
     }
   }
 }

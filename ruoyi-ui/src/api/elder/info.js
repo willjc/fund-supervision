@@ -56,7 +56,24 @@ export function exportElder(query) {
   return request({
     url: '/elder/info/export',
     method: 'post',
-    data: query
+    params: query
+  })
+}
+
+// 下载老人信息导入模板
+export function importTemplate() {
+  return request({
+    url: '/elder/info/importTemplate',
+    method: 'post'
+  })
+}
+
+// 导入老人信息
+export function importData(data) {
+  return request({
+    url: '/elder/info/importData',
+    method: 'post',
+    data: data
   })
 }
 

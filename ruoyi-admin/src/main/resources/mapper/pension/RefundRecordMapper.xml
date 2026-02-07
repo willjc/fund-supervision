@@ -54,6 +54,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <select id="selectRefundRecordList" parameterType="RefundRecord" resultMap="RefundRecordResult">
         <include refid="selectRefundRecordWithRelations"/>
         <where>
+            <!-- 数据权限过滤: 如果传入了currentUserId,则只查询该用户有权限的机构的退款记录 -->
+            <if test="currentUserId != null">
+                and rr.institution_id IN (
+                    SELECT institution_id FROM sys_user_institution WHERE user_id = #{currentUserId}
+                )
+            </if>
             <if test="refundNo != null  and refundNo != ''"> and rr.refund_no like concat('%', #{refundNo}, '%')</if>
             <if test="orderId != null "> and rr.order_id = #{orderId}</if>
             <if test="elderId != null "> and rr.elder_id = #{elderId}</if>

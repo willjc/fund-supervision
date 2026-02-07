@@ -108,6 +108,9 @@ public class RefundRecord extends BaseEntity
     @Excel(name = "支付流水号")
     private String paymentNo;
 
+    /** 当前用户ID(用于数据权限过滤) */
+    private Long currentUserId;
+
     public void setRefundId(Long refundId)
     {
         this.refundId = refundId;
@@ -318,6 +321,14 @@ public class RefundRecord extends BaseEntity
 
     public void setPaymentNo(String paymentNo) {
         this.paymentNo = paymentNo;
+    }
+
+    public Long getCurrentUserId() {
+        return currentUserId;
+    }
+
+    public void setCurrentUserId(Long currentUserId) {
+        this.currentUserId = currentUserId;
     }
 
     @Override

@@ -68,6 +68,10 @@ public class OrderInfo extends BaseEntity
     @Excel(name = "支付方式")
     private String paymentMethod;
 
+    /** 渠道来源(线上/线下) */
+    @Excel(name = "渠道来源", readConverterExp = "线上=线上,线下=线下")
+    private String channel;
+
     /** 支付时间 */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @Excel(name = "支付时间", width = 30, dateFormat = "yyyy-MM-dd HH:mm:ss")
@@ -270,6 +274,15 @@ public class OrderInfo extends BaseEntity
     public String getPaymentMethod()
     {
         return paymentMethod;
+    }
+    public void setChannel(String channel)
+    {
+        this.channel = channel;
+    }
+
+    public String getChannel()
+    {
+        return channel;
     }
     public void setPaymentTime(Date paymentTime)
     {

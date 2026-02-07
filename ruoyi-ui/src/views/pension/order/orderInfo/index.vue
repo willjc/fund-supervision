@@ -134,6 +134,13 @@
           <dict-tag :options="dict.type.payment_method" :value="scope.row.paymentMethod"/>
         </template>
       </el-table-column>
+      <el-table-column label="渠道来源" align="center" prop="channel" width="100">
+        <template slot-scope="scope">
+          <el-tag v-if="scope.row.channel === '线上'" type="success" size="small">线上</el-tag>
+          <el-tag v-else-if="scope.row.channel === '线下'" type="info" size="small">线下</el-tag>
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
       <el-table-column label="创建时间" align="center" prop="createTime" width="160">
         <template slot-scope="scope">
           <span>{{ parseTime(scope.row.createTime) }}</span>

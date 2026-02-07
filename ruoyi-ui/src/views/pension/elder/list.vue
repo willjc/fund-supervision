@@ -20,10 +20,10 @@
           />
         </el-select>
       </el-form-item>
-      <el-form-item label="房间号" prop="roomNumber">
+      <el-form-item label="房间号" prop="bedInfo">
         <el-input
-          v-model="queryParams.roomNumber"
-          placeholder="请输入房间号"
+          v-model="queryParams.bedInfo"
+          placeholder="请输入房间号或床位号"
           clearable
           @keyup.enter.native="handleQuery"
         />
@@ -1184,7 +1184,7 @@ export default {
         pageSize: 10,
         elderName: null,
         gender: null,
-        roomNumber: null,
+        bedInfo: null,
         institutionId: null,
         checkInStatus: null,
       },

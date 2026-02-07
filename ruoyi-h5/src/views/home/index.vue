@@ -292,7 +292,7 @@ const transformInstitutionData = (institution) => {
   return {
     institutionId: institution.institutionId,
     institutionName: institution.institutionName || '未命名机构',
-    bedCount: institution.bedCount || institution.availableBeds || 0,
+    bedCount: institution.availableBeds || institution.totalBeds || 0,
     address: institution.address || '地址未填写',
     coverImage: institution.coverImage || 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg',
     minPrice: minPrice,
