@@ -103,6 +103,7 @@ public class WarningDetectTask
     /**
      * 检测预收费用超额
      * 规则：老人预收费余额超过月费用N倍
+     * 修改说明：从order_item表计算月费用，不依赖elder_check_in表
      */
     private int detectPrepaidFeeExcess(WarningRuleConfig rule)
     {
@@ -113,14 +114,25 @@ public class WarningDetectTask
 
         try
         {
-            // 查询所有有账户的老人及其月费用、账户余额（仅限已入驻机构）
+            // 查询所有有账户的老人及其月费用、账户余额
+            // 月费用从已支付订单的order_item表中计算（床位费+护理费+餐费）
             String sql = "SELECT ai.account_id, ai.elder_id, ai.institution_id, ai.total_balance, " +
-                        "ei.elder_name, eci.monthly_fee, pi.institution_name, pi.contact_person, pi.contact_phone " +
+                        "ei.elder_name, monthly_fee.monthly_fee, pi.institution_name, pi.contact_person, pi.contact_phone " +
                         "FROM account_info ai " +
                         "LEFT JOIN elder_info ei ON ai.elder_id = ei.elder_id " +
-                        "LEFT JOIN elder_check_in eci ON ai.elder_id = eci.elder_id AND eci.check_in_status = '1' " +
+                        "LEFT JOIN (" +
+                        "    SELECT oi.elder_id, " +
+                        "    SUM(CASE " +
+                        "        WHEN oii.item_type IN ('bed_fee', 'care_fee', 'meal_fee') THEN oii.unit_price " +
+                        "        ELSE 0 " +
+                        "    END) as monthly_fee " +
+                        "    FROM order_info oi " +
+                        "    INNER JOIN order_item oii ON oi.order_id = oii.order_id " +
+                        "    WHERE oi.order_status = '1' " +
+                        "    GROUP BY oi.elder_id" +
+                        ") monthly_fee ON ai.elder_id = monthly_fee.elder_id " +
                         "LEFT JOIN pension_institution pi ON ai.institution_id = pi.institution_id " +
-                        "WHERE pi.status = '1' AND eci.monthly_fee > 0 AND ai.total_balance > 0";
+                        "WHERE pi.status = '1' AND monthly_fee.monthly_fee > 0 AND ai.total_balance > 0";
 
             List<Map<String, Object>> resultList = jdbcTemplate.queryForList(sql);
 
@@ -175,6 +187,7 @@ public class WarningDetectTask
     /**
      * 检测押金超额
      * 规则：老人押金余额超过床位费N倍
+     * 修改说明：从order_item表获取床位费，不依赖elder_check_in表
      */
     private int detectDepositExcess(WarningRuleConfig rule)
     {
@@ -185,15 +198,21 @@ public class WarningDetectTask
 
         try
         {
-            // 查询所有有账户的老人及其押金余额、床位费（仅限已入驻机构）
+            // 查询所有有账户的老人及其押金余额、床位费
+            // 床位费从已支付订单的order_item表中获取（item_type='bed_fee'）
             String sql = "SELECT ai.account_id, ai.elder_id, ai.institution_id, ai.deposit_balance, " +
-                        "ei.elder_name, bi.price as bed_price, pi.institution_name, pi.contact_person, pi.contact_phone " +
+                        "ei.elder_name, bed_price.bed_price as bed_price, pi.institution_name, pi.contact_person, pi.contact_phone " +
                         "FROM account_info ai " +
                         "LEFT JOIN elder_info ei ON ai.elder_id = ei.elder_id " +
-                        "LEFT JOIN elder_check_in eci ON ai.elder_id = eci.elder_id AND eci.check_in_status = '1' " +
-                        "LEFT JOIN bed_info bi ON eci.bed_id = bi.bed_id " +
+                        "LEFT JOIN (" +
+                        "    SELECT oi.elder_id, oii.unit_price as bed_price " +
+                        "    FROM order_info oi " +
+                        "    INNER JOIN order_item oii ON oi.order_id = oii.order_id AND oii.item_type = 'bed_fee' " +
+                        "    WHERE oi.order_status = '1' " +
+                        "    ORDER BY oi.order_date DESC" +
+                        ") bed_price ON ai.elder_id = bed_price.elder_id " +
                         "LEFT JOIN pension_institution pi ON ai.institution_id = pi.institution_id " +
-                        "WHERE pi.status = '1' AND ai.deposit_balance > 0 AND bi.price > 0";
+                        "WHERE pi.status = '1' AND ai.deposit_balance > 0 AND bed_price.bed_price > 0";
 
             List<Map<String, Object>> resultList = jdbcTemplate.queryForList(sql);
 
@@ -440,13 +459,13 @@ public class WarningDetectTask
                     // 计算风险保证金最低额度（固定资产的 threshold%）
                     BigDecimal minRiskDeposit = fixedAssetsInYuan.multiply(threshold).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
 
-                    // 判断账户余额是否接近风险保证金
-                    BigDecimal ratio = totalBalance.divide(minRiskDeposit, 2, RoundingMode.HALF_UP);
+                    // 判断账户余额是否接近风险保证金（使用4位小数精度计算比例）
+                    BigDecimal ratio = totalBalance.divide(minRiskDeposit, 4, RoundingMode.HALF_UP);
 
                     // 如果账户余额低于风险保证金的1.2倍，触发预警
                     if (ratio.compareTo(new BigDecimal("1.2")) < 0)
                     {
-                        String warningContent = String.format("机构账户余额%.2f元接近风险保证金最低额度%.2f万元（固定资产%.2f万的%.1f%%），当前比例为%.1f%%",
+                        String warningContent = String.format("机构账户余额%.2f元接近风险保证金最低额度%.2f万元（固定资产%.2f万的%.1f%%），当前比例为%.2f%%",
                                 totalBalance, minRiskDeposit.divide(new BigDecimal("10000"), 2, RoundingMode.HALF_UP),
                                 fixedAssets, threshold, ratio.multiply(new BigDecimal("100")));
 

@@ -91,16 +91,19 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </select>
 
     <!-- 查询性别分布 -->
+    <!-- 修改说明：从有账户且已支付订单的老人中统计，不依赖elder_check_in表 -->
     <select id="selectGenderDistribution" resultType="java.util.Map">
         SELECT
             e.gender,
             COUNT(*) as count
         FROM elder_info e
-        INNER JOIN elder_check_in ec ON e.elder_id = ec.elder_id
-        WHERE ec.check_in_status = '1'
+        INNER JOIN account_info ai ON e.elder_id = ai.elder_id
+        INNER JOIN order_info oi ON e.elder_id = oi.elder_id
+        WHERE oi.order_status = '1'
         AND e.status != '2'
+        AND ai.account_status = '1'
         <if test="institutionIds != null and institutionIds.size() > 0">
-            AND ec.institution_id IN
+            AND ai.institution_id IN
             <foreach collection="institutionIds" item="id" open="(" separator="," close=")">
                 #{id}
             </foreach>
@@ -109,6 +112,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </select>
 
     <!-- 查询年龄分布 -->
+    <!-- 修改说明：从有账户且已支付订单的老人中统计，不依赖elder_check_in表 -->
     <select id="selectAgeDistribution" resultType="java.util.Map">
         SELECT
             CASE
@@ -120,11 +124,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             END as ageGroup,
             COUNT(*) as count
         FROM elder_info e
-        INNER JOIN elder_check_in ec ON e.elder_id = ec.elder_id
-        WHERE ec.check_in_status = '1'
+        INNER JOIN account_info ai ON e.elder_id = ai.elder_id
+        INNER JOIN order_info oi ON e.elder_id = oi.elder_id
+        WHERE oi.order_status = '1'
         AND e.status != '2'
+        AND ai.account_status = '1'
         <if test="institutionIds != null and institutionIds.size() > 0">
-            AND ec.institution_id IN
+            AND ai.institution_id IN
             <foreach collection="institutionIds" item="id" open="(" separator="," close=")">
                 #{id}
             </foreach>
@@ -134,19 +140,24 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </select>
 
     <!-- 查询护理等级分布 -->
+    <!-- 修改说明：从elder_info表的care_level字段统计，不依赖elder_check_in表 -->
     <select id="selectCareLevelDistribution" resultType="java.util.Map">
         SELECT
-            ec.care_level,
+            e.care_level,
             COUNT(*) as count
-        FROM elder_check_in ec
-        WHERE ec.check_in_status = '1'
+        FROM elder_info e
+        INNER JOIN account_info ai ON e.elder_id = ai.elder_id
+        INNER JOIN order_info oi ON e.elder_id = oi.elder_id
+        WHERE oi.order_status = '1'
+        AND e.status != '2'
+        AND ai.account_status = '1'
         <if test="institutionIds != null and institutionIds.size() > 0">
-            AND ec.institution_id IN
+            AND ai.institution_id IN
             <foreach collection="institutionIds" item="id" open="(" separator="," close=")">
                 #{id}
             </foreach>
         </if>
-        GROUP BY ec.care_level
+        GROUP BY e.care_level
     </select>
 
 </mapper>

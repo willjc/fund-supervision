@@ -1,6 +1,8 @@
 package com.ruoyi.web.controller;
 
+import java.io.IOException;
 import java.util.List;
+import javax.servlet.http.HttpServletResponse;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -10,12 +12,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.SecurityUtils;
+import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.domain.RenewDTO;
 import com.ruoyi.domain.vo.ElderCurrentPriceVO;
 import com.ruoyi.domain.vo.ResidentVO;
@@ -111,5 +115,45 @@ public class PensionResidentController extends BaseController
     public AjaxResult getTransfers(@PathVariable("elderId") Long elderId)
     {
         return AjaxResult.success(residentService.selectTransfersByElderId(elderId));
+    }
+
+    /**
+     * 下载入住人导入模板
+     */
+    @PostMapping("/template")
+    public void downloadTemplate(HttpServletResponse response) throws IOException
+    {
+        // 导出模板文件
+        List<ResidentVO> list = List.of();
+        ExcelUtil<ResidentVO> util = new ExcelUtil<>(ResidentVO.class);
+        util.importTemplateExcel(response, "入住人数据");
+    }
+
+    /**
+     * 导出入住人列表
+     */
+    @PreAuthorize("@ss.hasPermi('elder:resident:export')")
+    @Log(title = "入住人管理", businessType = BusinessType.EXPORT)
+    @PostMapping("/export")
+    public void export(HttpServletResponse response, ResidentVO queryVO)
+    {
+        List<ResidentVO> list = residentService.selectResidentList(queryVO);
+        ExcelUtil<ResidentVO> util = new ExcelUtil<>(ResidentVO.class);
+        util.exportExcel(response, list, "入住人数据");
+    }
+
+    /**
+     * 批量导入入住人
+     */
+    @PreAuthorize("@ss.hasPermi('elder:resident:import')")
+    @Log(title = "入住人管理", businessType = BusinessType.IMPORT)
+    @PostMapping("/import")
+    public AjaxResult importData(MultipartFile file) throws Exception
+    {
+        ExcelUtil<ResidentVO> util = new ExcelUtil<>(ResidentVO.class);
+        List<ResidentVO> userList = util.importExcel(file.getInputStream());
+        // 这里可以调用service进行数据保存
+        // residentService.importResident(userList);
+        return AjaxResult.success("导入成功，共导入 " + userList.size() + " 条数据");
     }
 }

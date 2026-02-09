@@ -6,6 +6,7 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.ruoyi.domain.OrderInfo;
 import com.ruoyi.domain.PaymentRecord;
+import com.ruoyi.common.annotation.Excel;
 
 /**
  * 入住人列表视图对象
@@ -16,81 +17,106 @@ import com.ruoyi.domain.PaymentRecord;
 public class ResidentVO
 {
     /** 老人ID(作为residentId) */
+    @Excel(name = "老人ID")
     private Long residentId;
 
     /** 老人ID */
+    @Excel(name = "老人ID")
     private Long elderId;
 
     /** 入住人姓名 */
+    @Excel(name = "姓名")
     private String elderName;
 
     /** 性别(0男 1女 2未知) */
+    @Excel(name = "性别", readConverterExp = "0=男,1=女,2=未知")
     private String gender;
 
     /** 年龄 */
+    @Excel(name = "年龄")
     private Long age;
 
     /** 身份证号 */
+    @Excel(name = "身份证号")
     private String idCard;
 
     /** 出生日期 */
     @JsonFormat(pattern = "yyyy-MM-dd")
+    @Excel(name = "出生日期", width = 30, dateFormat = "yyyy-MM-dd")
     private Date birthDate;
 
     /** 联系电话 */
+    @Excel(name = "联系电话")
     private String phone;
 
     /** 床位信息(房间号-床位号) */
+    @Excel(name = "床位信息")
     private String bedInfo;
 
     /** 入住状态(1已入住 2已退住 3请假中) */
+    @Excel(name = "入住状态", readConverterExp = "1=已入住,2=已退住,3=请假中")
     private String checkInStatus;
 
     /** 护理等级(1自理 2半护理 3全护理) */
+    @Excel(name = "护理等级", readConverterExp = "1=自理,2=半护理,3=全护理")
     private String careLevel;
 
     /** 服务费余额 */
+    @Excel(name = "服务费余额")
     private BigDecimal serviceBalance;
 
     /** 押金余额 */
+    @Excel(name = "押金余额")
     private BigDecimal depositBalance;
 
     /** 会员余额 */
+    @Excel(name = "会员余额")
     private BigDecimal memberBalance;
 
     /** 入住日期 */
     @JsonFormat(pattern = "yyyy-MM-dd")
+    @Excel(name = "入住日期", width = 30, dateFormat = "yyyy-MM-dd")
     private Date checkInDate;
 
     /** 到期日期 */
     @JsonFormat(pattern = "yyyy-MM-dd")
+    @Excel(name = "到期日期", width = 30, dateFormat = "yyyy-MM-dd")
     private Date dueDate;
 
     /** 紧急联系人 */
+    @Excel(name = "紧急联系人")
     private String emergencyContact;
 
     /** 家庭住址 */
+    @Excel(name = "家庭住址")
     private String address;
 
     /** 月服务费 */
+    @Excel(name = "月服务费")
     private BigDecimal monthlyFee;
 
     /** 紧急联系人姓名 */
+    @Excel(name = "紧急联系人姓名")
     private String emergencyName;
 
     /** 紧急联系人电话 */
+    @Excel(name = "紧急联系人电话")
     private String emergencyPhone;
 
     /** 紧急联系人关系 */
+    @Excel(name = "紧急联系人关系")
     private String emergencyRelation;
 
     /** 健康状况 */
+    @Excel(name = "健康状况")
     private String healthStatus;
 
     /** 特殊需求 */
+    @Excel(name = "特殊需求")
     private String specialNeeds;
 
     /** 备注 */
+    @Excel(name = "备注")
     private String remark;
 
     /** 老人照片路径 */
@@ -102,7 +128,7 @@ public class ResidentVO
     /** 身份证反面照片路径 */
     private String idCardBackPath;
 
-    /** 创建时间 */
+    /** 创建时��� */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date createTime;
 
@@ -117,6 +143,7 @@ public class ResidentVO
     private Long institutionId;
 
     /** 所属机构名称 */
+    @Excel(name = "所属机构")
     private String institutionName;
 
     /** 账户ID */

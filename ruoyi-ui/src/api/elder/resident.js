@@ -55,7 +55,7 @@ export function applyDepositUse(data) {
 // 导出入住人
 export function exportResident(query) {
   return request({
-    url: '/elder/resident/export',
+    url: '/pension/resident/export',
     method: 'get',
     params: query
   })
@@ -64,7 +64,7 @@ export function exportResident(query) {
 // 下载导入模板
 export function downloadTemplate() {
   return request({
-    url: '/elder/resident/template',
+    url: '/pension/resident/template',
     method: 'get'
   })
 }
@@ -72,7 +72,7 @@ export function downloadTemplate() {
 // 批量导入入住人
 export function importResident(data) {
   return request({
-    url: '/elder/resident/import',
+    url: '/pension/resident/import',
     method: 'post',
     data: data
   })

@@ -34,7 +34,7 @@
             <div class="refund-body">
               <div class="info-row">
                 <span class="label">退款金额:</span>
-                <span class="value amount">¥{{ item.totalAmount }}</span>
+                <span class="value amount">¥{{ formatAmount(item.totalAmount) }}</span>
               </div>
               <div class="info-row">
                 <span class="label">申请时间:</span>
@@ -43,6 +43,11 @@
               <div class="info-row">
                 <span class="label">退款原因:</span>
                 <span class="value">{{ item.refundReason }}</span>
+              </div>
+              <!-- 驳回原因 -->
+              <div v-if="item.status === '2' || item.status === 'rejected'" class="info-row reject-reason">
+                <span class="label">驳回原因:</span>
+                <span class="value reject-text">{{ item.approveRemark || '未填写驳回原因' }}</span>
               </div>
             </div>
 
@@ -64,6 +69,8 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { showToast } from 'vant'
+import { getRefundList } from '@/api/refund'
 
 const router = useRouter()
 
@@ -77,26 +84,6 @@ const refreshing = ref(false)
 
 // 退款列表
 const refundList = ref([])
-
-// 模拟数据
-const mockRefundList = [
-  {
-    id: 1,
-    refundNo: 'RF202501150001',
-    totalAmount: 3000,
-    applyTime: '2025-01-15 10:00:00',
-    refundReason: '服务质量不满意',
-    status: 'pending'
-  },
-  {
-    id: 2,
-    refundNo: 'RF202501140002',
-    totalAmount: 2500,
-    applyTime: '2025-01-14 15:30:00',
-    refundReason: '家属要求',
-    status: 'approved'
-  }
-]
 
 // Tab切换
 const onTabChange = () => {
@@ -122,19 +109,59 @@ const onLoad = async () => {
   try {
     loading.value = true
 
-    // 模拟网络延迟
-    await new Promise(resolve => setTimeout(resolve, 500))
+    // 调用真实API获取退款列表
+    const response = await getRefundList()
 
-    // 筛选数据
-    let filteredList = [...mockRefundList]
-    if (activeTab.value !== 'all') {
-      filteredList = filteredList.filter(item => item.status === activeTab.value)
+    if (response.code === 200 && response.data) {
+      let filteredList = response.data
+
+      // 根据 tab 筛选状态
+      if (activeTab.value !== 'all') {
+        // 后端返回的状态是 '0', '1', '2'，需要转换为前端的状态
+        const statusMap = {
+          '0': 'pending',
+          '1': 'approved',
+          '2': 'rejected'
+        }
+        const targetStatus = activeTab.value
+        filteredList = filteredList.filter(item => {
+          const itemStatus = statusMap[item.refundStatus] || item.refundStatus
+          return itemStatus === targetStatus
+        })
+      }
+
+      // 转换数据格式
+      refundList.value = filteredList.map(item => {
+        const statusMap = {
+          '0': 'pending',
+          '1': 'approved',
+          '2': 'rejected'
+        }
+        return {
+          id: item.id,
+          refundNo: item.refundNo,
+          totalAmount: item.refundAmount || item.totalAmount || 0,
+          applyTime: item.createTime || item.applyTime,
+          refundReason: item.refundReason,
+          status: statusMap[item.refundStatus] || item.refundStatus || item.status,
+          // 驳回原因
+          approveRemark: item.approveRemark || '',
+          // 审批人
+          approver: item.approver || '',
+          // 审批时间
+          approveTime: item.approveTime || ''
+        }
+      })
+
+      finished.value = true
+    } else {
+      showToast(response.msg || '获取退款列表失败')
+      finished.value = true
     }
-
-    refundList.value = filteredList
-    finished.value = true
   } catch (error) {
-    console.error('加载失败:', error)
+    console.error('加载退款列表失败:', error)
+    showToast('加载失败，请稍后重试')
+    finished.value = true
   } finally {
     loading.value = false
   }
@@ -148,6 +175,9 @@ const goToDetail = (id) => {
 // 获取状态类型
 const getStatusType = (status) => {
   const typeMap = {
+    '0': 'warning',
+    '1': 'success',
+    '2': 'danger',
     pending: 'warning',
     approved: 'success',
     rejected: 'danger'
@@ -158,11 +188,20 @@ const getStatusType = (status) => {
 // 获取状态文本
 const getStatusText = (status) => {
   const textMap = {
+    '0': '待审核',
+    '1': '已通过',
+    '2': '已拒绝',
     pending: '待审核',
     approved: '已通过',
     rejected: '已拒绝'
   }
   return textMap[status] || '未知'
+}
+
+// 格式化金额
+const formatAmount = (amount) => {
+  if (!amount) return '0.00'
+  return parseFloat(amount).toFixed(2)
 }
 </script>
 
@@ -233,5 +272,20 @@ const getStatusText = (status) => {
   justify-content: flex-end;
   padding-top: 12px;
   border-top: 1px solid #f0f0f0;
+}
+
+/* 驳回原因样式 */
+.reject-reason {
+  padding: 8px 0;
+  margin-top: 4px;
+  background-color: #fff5f5;
+  border-radius: 4px;
+}
+
+.reject-text {
+  color: #ee0a24;
+  flex: 1;
+  text-align: right;
+  word-break: break-all;
 }
 </style>

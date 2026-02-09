@@ -255,7 +255,7 @@ public class SupervisionRefundController extends BaseController
         existing.setRefundStatus("2");
         existing.setApprover(getUsername());
         existing.setApproveTime(new java.util.Date());
-        existing.setRemark(refundRecord.getRemark()); // 拒绝原因
+        existing.setApproveRemark(refundRecord.getApproveRemark()); // 拒绝原因
 
         return toAjax(refundRecordService.updateRefundRecord(existing));
     }

@@ -251,6 +251,7 @@ public class SupervisionDashboardController extends BaseController
 
     /**
      * 获取超管首页概览数据（简化版）
+     * 修改说明：入住老人数改为从已支付订单的老人统计
      */
     @GetMapping("/simple/overview")
     public AjaxResult getSimpleOverview()
@@ -262,19 +263,19 @@ public class SupervisionDashboardController extends BaseController
             "SELECT COUNT(*) FROM pension_institution WHERE status = '1'",
             Integer.class);
 
-        // 2. 入驻老人总数（已入住状态）
+        // 2. 入驻老人总数（修改为：有已支付订单的老人）
         Integer elderCount = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM elder_check_in WHERE check_in_status = '1'",
+            "SELECT COUNT(DISTINCT oi.elder_id) FROM order_info oi WHERE oi.order_status = '1'",
             Integer.class);
 
-        // 3. 预警总数（未处理）
+        // 3. 预警总数（未处理）- 使用supervision_warning表
         Integer totalWarnings = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM balance_warning WHERE warning_status = '0'",
+            "SELECT COUNT(*) FROM supervision_warning WHERE warning_status = '0'",
             Integer.class);
 
         // 4. 当日预警数量
         Integer todayWarnings = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM balance_warning WHERE DATE(create_time) = CURDATE()",
+            "SELECT COUNT(*) FROM supervision_warning WHERE DATE(create_time) = CURDATE()",
             Integer.class);
 
         result.put("institutionCount", institutionCount != null ? institutionCount : 0);
@@ -326,6 +327,7 @@ public class SupervisionDashboardController extends BaseController
 
     /**
      * 获取超管首页入住人结构分析
+     * 修改说明：从有已支付订单的老人统计，不依赖elder_check_in表
      */
     @GetMapping("/simple/structure")
     public AjaxResult getSimpleStructure()
@@ -336,8 +338,10 @@ public class SupervisionDashboardController extends BaseController
         List<Map<String, Object>> genderList = jdbcTemplate.queryForList(
             "SELECT e.gender, COUNT(*) as count " +
             "FROM elder_info e " +
-            "INNER JOIN elder_check_in ec ON e.elder_id = ec.elder_id " +
-            "WHERE ec.check_in_status = '1' AND e.status != '2' " +
+            "INNER JOIN (" +
+            "    SELECT DISTINCT elder_id FROM order_info WHERE order_status = '1'" +
+            ") paid_elders ON e.elder_id = paid_elders.elder_id " +
+            "WHERE e.status != '2' " +
             "GROUP BY e.gender");
 
         // 如果没有数据，返回模拟数据
@@ -360,8 +364,10 @@ public class SupervisionDashboardController extends BaseController
             "WHEN e.age >= 90 THEN '90岁以上' " +
             "ELSE '其他' END as ageGroup, COUNT(*) as count " +
             "FROM elder_info e " +
-            "INNER JOIN elder_check_in ec ON e.elder_id = ec.elder_id " +
-            "WHERE ec.check_in_status = '1' AND e.status != '2' " +
+            "INNER JOIN (" +
+            "    SELECT DISTINCT elder_id FROM order_info WHERE order_status = '1'" +
+            ") paid_elders ON e.elder_id = paid_elders.elder_id " +
+            "WHERE e.status != '2' " +
             "GROUP BY ageGroup " +
             "ORDER BY MIN(e.age)");
 
@@ -378,10 +384,13 @@ public class SupervisionDashboardController extends BaseController
 
         // 3. 护理等级分布
         List<Map<String, Object>> careLevelList = jdbcTemplate.queryForList(
-            "SELECT ec.care_level, COUNT(*) as count " +
-            "FROM elder_check_in ec " +
-            "WHERE ec.check_in_status = '1' " +
-            "GROUP BY ec.care_level");
+            "SELECT e.care_level, COUNT(*) as count " +
+            "FROM elder_info e " +
+            "INNER JOIN (" +
+            "    SELECT DISTINCT elder_id FROM order_info WHERE order_status = '1'" +
+            ") paid_elders ON e.elder_id = paid_elders.elder_id " +
+            "WHERE e.status != '2' " +
+            "GROUP BY e.care_level");
 
         // 如果没有数据，返回模拟数据
         if (careLevelList == null || careLevelList.isEmpty())

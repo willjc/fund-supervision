@@ -2,57 +2,31 @@
   <div class="refund-review-page">
 
     <div class="review-content">
-      <!-- 机构信息卡片 -->
-      <div class="institution-card">
-        <div class="institution-header">
-          <van-image
-            width="60"
-            height="60"
-            :src="refundInfo.institutionLogo"
-            fit="cover"
-          />
-          <div class="institution-info">
-            <div class="institution-name">{{ refundInfo.institutionName }}</div>
-            <div class="institution-detail">
-              床位数: {{ refundInfo.bedCount }} (可住{{ refundInfo.availableBedsText }})
-            </div>
-            <div class="institution-address">
-              详细地址: {{ refundInfo.address }}
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- 退款金额信息 -->
       <div class="refund-amount-section">
         <div class="amount-row main-amount">
           <span class="label">退款金额</span>
-          <span class="value">{{ refundInfo.totalAmount }}元</span>
+          <span class="value">¥{{ formatAmount(refundInfo.refundAmount) }}</span>
         </div>
 
         <div class="amount-detail">
           <div class="detail-row">
+            <span class="label">服务费</span>
+            <span class="value">¥{{ formatAmount(refundInfo.serviceRefundAmount) }}</span>
+          </div>
+          <div class="detail-row">
             <span class="label">押金</span>
-            <span class="value">{{ refundInfo.depositAmount }}元</span>
+            <span class="value">¥{{ formatAmount(refundInfo.depositRefundAmount) }}</span>
           </div>
           <div class="detail-row">
             <span class="label">会员费</span>
-            <span class="value">{{ refundInfo.memberAmount }}元</span>
-          </div>
-          <div class="detail-row">
-            <span class="label">服务费</span>
-            <span class="value">{{ refundInfo.serviceAmount }}元</span>
+            <span class="value">¥{{ formatAmount(refundInfo.memberRefundAmount) }}</span>
           </div>
         </div>
       </div>
 
       <!-- 退款详细信息 -->
       <div class="refund-info-card">
-        <div class="info-row">
-          <span class="label">订单编号</span>
-          <span class="value">{{ refundInfo.orderNo }}</span>
-        </div>
-
         <div class="info-row">
           <span class="label">退款单号</span>
           <span class="value">{{ refundInfo.refundNo }}</span>
@@ -73,7 +47,7 @@
           <span class="value">{{ refundInfo.refundReason }}</span>
         </div>
 
-        <div class="info-row vertical">
+        <div v-if="refundInfo.refundDesc" class="info-row vertical">
           <span class="label">退款说明</span>
           <span class="value">{{ refundInfo.refundDesc }}</span>
         </div>
@@ -95,17 +69,26 @@
         </div>
       </div>
 
-      <!-- 底部按钮(仅用户端查看) -->
-      <div v-if="refundInfo.status === 'pending'" class="action-button">
-        <van-button
-          round
-          block
-          type="primary"
-          color="#ee0a24"
-          @click="handleCancel"
-        >
-          取消退款
-        </van-button>
+      <!-- 审核结果 (仅当已通过或已拒绝时显示) -->
+      <div v-if="refundInfo.status === '1' || refundInfo.status === '2' || refundInfo.status === 'approved' || refundInfo.status === 'rejected'" class="audit-result-card">
+        <div class="audit-header">
+          <van-icon :name="refundInfo.status === '1' || refundInfo.status === 'approved' ? 'checked' : 'close'" :color="refundInfo.status === '1' || refundInfo.status === 'approved' ? '#07c160' : '#ee0a24'" size="20" />
+          <span class="audit-title">{{ refundInfo.status === '1' || refundInfo.status === 'approved' ? '审核通过' : '审核拒绝' }}</span>
+        </div>
+        <div class="audit-body">
+          <div v-if="refundInfo.approver" class="audit-info-row">
+            <span class="label">审核人:</span>
+            <span class="value">{{ refundInfo.approver }}</span>
+          </div>
+          <div v-if="refundInfo.approveTime" class="audit-info-row">
+            <span class="label">审核时间:</span>
+            <span class="value">{{ refundInfo.approveTime }}</span>
+          </div>
+          <div v-if="(refundInfo.status === '2' || refundInfo.status === 'rejected') && refundInfo.approveRemark" class="audit-reason-row">
+            <span class="label">拒绝原因:</span>
+            <span class="value reject-reason">{{ refundInfo.approveRemark }}</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -114,74 +97,100 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { showToast, showSuccessToast, showConfirmDialog, showImagePreview } from 'vant'
+import { showToast, showLoadingToast, closeToast, showImagePreview } from 'vant'
+import { getRefundDetail } from '@/api/refund'
 
 const route = useRoute()
 const router = useRouter()
 
 // 退款信息
 const refundInfo = ref({
-  institutionName: '郑州市金水区花园口社区养老服务中心',
-  institutionLogo: 'https://via.placeholder.com/60x60',
-  bedCount: 80,
-  availableBedsText: '可住位置贰拾捌张床位',
-  address: '郑州在郑州郑州郑州郑州让计划郑州在郑州郑州郑州',
-  totalAmount: 3000,
-  depositAmount: 1000,
-  memberAmount: 1000,
-  serviceAmount: 1000,
-  orderNo: '748645136541354313',
-  refundNo: '748645136541354313',
-  applyTime: '2025-09-09 12:12:12',
-  refundMethod: '原路返回',
-  refundReason: '原因原因原因原因原因原因原因原因',
-  refundDesc: '说明',
-  status: 'pending', // 'pending' | 'approved' | 'rejected'
-  images: [
-    'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg',
-    'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg',
-    'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
-  ]
+  refundNo: '',
+  refundAmount: 0,
+  serviceRefundAmount: 0,
+  depositRefundAmount: 0,
+  memberRefundAmount: 0,
+  applyTime: '',
+  refundMethod: '',
+  refundReason: '',
+  refundDesc: '',
+  status: '0',
+  images: [],
+  // 审核信息
+  approver: '',
+  approveTime: '',
+  approveRemark: ''
 })
+
+// 格式化金额
+const formatAmount = (amount) => {
+  if (!amount) return '0.00'
+  return parseFloat(amount).toFixed(2)
+}
 
 // 预览图片
 const previewImages = (startPosition) => {
   showImagePreview({
-    images: refundInfo.value.images,
+    images: refundInfo.value.images || [],
     startPosition
   })
-}
-
-// 取消退款
-const handleCancel = async () => {
-  try {
-    await showConfirmDialog({
-      title: '取消退款',
-      message: '确定要取消退款申请吗?'
-    })
-
-    // 模拟取消
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
-    showSuccessToast('已取消')
-
-    setTimeout(() => {
-      router.back()
-    }, 1000)
-  } catch (error) {
-    // 用户取消
-  }
 }
 
 // 加载退款详情
 const loadRefundDetail = async () => {
   try {
+    showLoadingToast({
+      message: '加载中...',
+      forbidClick: true,
+      duration: 0
+    })
+
     const refundId = route.params.id
-    // TODO: 调用API获取退款详情
-    console.log('加载退款详情:', refundId)
+    const response = await getRefundDetail(refundId)
+
+    closeToast()
+
+    if (response.code === 200 && response.data) {
+      const data = response.data
+      refundInfo.value = {
+        refundNo: data.refundNo || '',
+        refundAmount: data.refundAmount || 0,
+        serviceRefundAmount: data.serviceRefundAmount || 0,
+        depositRefundAmount: data.depositRefundAmount || 0,
+        memberRefundAmount: data.memberRefundAmount || 0,
+        applyTime: data.createTime || data.applyTime || '',
+        refundMethod: '账户退款', // 默认退款方式
+        refundReason: data.refundReason || '',
+        refundDesc: data.refundDesc || '',
+        status: data.refundStatus || data.status || '0',
+        images: data.evidenceImages || [],
+        // 审核信息
+        approver: data.approver || '',
+        approveTime: formatApproveTime(data.approveTime),
+        approveRemark: data.approveRemark || ''
+      }
+    } else {
+      showToast(response.msg || '获取退款详情失败')
+    }
   } catch (error) {
-    showToast('加载失败')
+    closeToast()
+    console.error('加载退款详情失败:', error)
+    showToast('加载失败，请稍后重试')
   }
+}
+
+// 格式化审核时间
+const formatApproveTime = (time) => {
+  if (!time) return ''
+  // 如果是日期对象或时间戳，格式化为字符串
+  const date = new Date(time)
+  if (isNaN(date.getTime())) return time
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}`
 }
 
 onMounted(() => {
@@ -193,48 +202,11 @@ onMounted(() => {
 .refund-review-page {
   min-height: 100vh;
   background-color: #f5f5f5;
-  padding-bottom: 80px;
+  padding-bottom: 30px;
 }
 
 .review-content {
   padding: 12px;
-}
-
-/* 机构信息卡片 */
-.institution-card {
-  background: #fff;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-}
-
-.institution-header {
-  display: flex;
-  gap: 12px;
-}
-
-.institution-info {
-  flex: 1;
-}
-
-.institution-name {
-  font-size: 15px;
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 6px;
-}
-
-.institution-detail {
-  font-size: 12px;
-  color: #999;
-  margin-bottom: 4px;
-}
-
-.institution-address {
-  font-size: 11px;
-  color: #999;
-  line-height: 1.5;
 }
 
 /* 退款金额区域 */
@@ -348,21 +320,69 @@ onMounted(() => {
   cursor: pointer;
 }
 
-/* 底部按钮 */
-.action-button {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 12px 16px;
+/* 审核结果卡片 */
+.audit-result-card {
   background: #fff;
-  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.08);
-  z-index: 100;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
 
-.van-button {
-  height: 48px;
-  font-size: 16px;
+.audit-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.audit-title {
+  font-size: 15px;
   font-weight: 500;
+  color: #333;
+}
+
+.audit-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.audit-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.audit-info-row .label {
+  color: #999;
+}
+
+.audit-info-row .value {
+  color: #333;
+}
+
+.audit-reason-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  background-color: #fff5f5;
+  border-radius: 6px;
+  margin-top: 4px;
+}
+
+.audit-reason-row .label {
+  font-size: 13px;
+  color: #999;
+}
+
+.audit-reason-row .value {
+  font-size: 13px;
+  color: #ee0a24;
+  line-height: 1.6;
 }
 </style>

@@ -941,7 +941,7 @@
     <el-dialog title="批量导入入住人" :visible.sync="importOpen" width="500px" append-to-body>
       <el-upload
         class="upload-demo"
-        action="/api/elder/resident/import"
+        action="/api/pension/resident/import"
         :on-success="handleImportSuccess"
         :on-error="handleImportError"
         :before-upload="beforeUpload"
@@ -1575,7 +1575,7 @@ export default {
     },
     /** 导出按钮操作 */
     handleExport() {
-      this.download('elder/resident/export', {
+      this.download('pension/resident/export', {
         ...this.queryParams
       }, `入住人信息_${new Date().getTime()}.xlsx`)
     },
@@ -1634,7 +1634,7 @@ export default {
     },
     /** 下载导入模板 */
     downloadTemplate() {
-      this.download('elder/resident/template', {}, `入住人导入模板.xlsx`);
+      this.download('pension/resident/template', {}, `入住人导入模板.xlsx`);
     },
     /** 导入前检查 */
     beforeUpload(file) {

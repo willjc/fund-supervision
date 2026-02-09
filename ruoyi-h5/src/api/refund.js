@@ -18,8 +18,9 @@ export function applyRefund(data) {
  */
 export function getRefundDetail(refundId) {
   return request({
-    url: `/h5/refund/${refundId}`,
-    method: 'get'
+    url: '/h5/refund/detail',
+    method: 'get',
+    params: { refundId }
   })
 }
 

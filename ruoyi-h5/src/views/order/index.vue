@@ -165,6 +165,11 @@
                   <span class="label">申请时间:</span>
                   <span class="value">{{ refund.createTime || '-' }}</span>
                 </div>
+                <!-- 驳回原因 -->
+                <div v-if="(refund.refundStatus === '2' || refund.refundStatus === 2) && refund.approveRemark" class="info-row reject-reason">
+                  <span class="label">驳回原因:</span>
+                  <span class="value reject-text">{{ refund.approveRemark }}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -774,5 +779,17 @@ onMounted(async () => {
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 12px;
+}
+
+/* 退款驳回原因样式 */
+.reject-reason {
+  padding: 8px 0;
+  margin-top: 4px;
+  background-color: #fff5f5;
+  border-radius: 4px;
+}
+
+.reject-reason .reject-text {
+  color: #ee0a24;
 }
 </style>
