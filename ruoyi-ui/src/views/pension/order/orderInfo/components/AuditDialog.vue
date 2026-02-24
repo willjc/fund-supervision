@@ -54,16 +54,6 @@
           </el-col>
         </el-row>
 
-        <!-- 如果没有可用床位，显示警告 -->
-        <el-alert
-          v-if="availableBeds.length === 0 && form.institutionId"
-          title="警告"
-          type="warning"
-          description="该类型下暂无空置床位，无法完成审核"
-          :closable="false"
-          style="margin-bottom: 10px"
-        />
-
         <el-row>
           <el-col :span="12">
             <el-form-item label="床位类型" prop="bedType">
@@ -284,13 +274,13 @@ export default {
         // 从remark中解析费用信息（此时餐费配置还未加载，餐费档次稍后解析）
         this.parseFeesFromRemark(order.remark);
 
-        // 加载当前床位详细信息（获取护理费价格）
+        // 先加载当前床位详细信息（获取床位类型和护理费价格）
         if (order.bedId) {
-          this.loadCurrentBedInfo(order.bedId);
+          this.loadCurrentBedInfo(order.bedId, order.institutionId);
+        } else {
+          // 如果没有床位ID，直接加载所有空置床位（按当前选择的床位类型筛选）
+          this.loadAvailableBeds(order.institutionId, null, this.form.bedType);
         }
-
-        // 加载可用床位列表
-        this.loadAvailableBeds(order.institutionId, order.bedId);
 
         // 加载餐费配置列表（异步，加载完成后会解析餐费档次）
         this.loadAvailableMeals(order.institutionId);
@@ -301,11 +291,19 @@ export default {
       });
     },
     // 加载当前床位详细信息
-    loadCurrentBedInfo(bedId) {
+    loadCurrentBedInfo(bedId, institutionId) {
       getBed(bedId).then(response => {
         this.currentBed = response.data;
+        // 设置床位类型
+        if (response.data && response.data.bedType) {
+          this.form.bedType = response.data.bedType;
+        }
         // 护理等级变化时，根据床位信息更新护理费
         this.updateCareFeeByLevel();
+        // 加载可用床位列表（按当前床位类型筛选）
+        if (institutionId) {
+          this.loadAvailableBeds(institutionId, bedId, this.form.bedType);
+        }
       }).catch(err => {
         console.warn("加载床位信息失败", err);
         this.currentBed = null;
@@ -344,14 +342,18 @@ export default {
       this.form.careFee = newCareFee;
     },
     // 加载可用床位列表
-    loadAvailableBeds(institutionId, currentBedId) {
+    loadAvailableBeds(institutionId, currentBedId, bedType) {
       if (!institutionId) return;
 
-      // 查询该机构下空置的床位
+      // 查询该机构下空置的床��（按床位类型筛选）
       const query = {
         institutionId: institutionId,
         bedStatus: '0'  // 空置状态
       };
+      // 如果指定了床位类型，添加到查询条件
+      if (bedType) {
+        query.bedType = bedType;
+      }
       listBed(query).then(response => {
         // 过滤掉当前床位（如果有的话）
         this.availableBeds = (response.rows || []).filter(bed =>
