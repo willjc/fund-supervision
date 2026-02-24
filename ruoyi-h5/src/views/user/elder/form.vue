@@ -144,7 +144,9 @@
             placeholder="请输入联系电话"
             type="tel"
             maxlength="11"
+            required
             :rules="[
+              { required: true, message: '请输入联系电话' },
               { pattern: /^1[3-9]\d{9}$/, message: '手机号格式不正确' }
             ]"
           />

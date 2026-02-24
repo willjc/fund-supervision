@@ -272,7 +272,9 @@
               </span>
             </el-descriptions-item>
             <el-descriptions-item label="基本账户">{{ currentInstitution.bankAccount || '暂无信息' }}</el-descriptions-item>
+            <el-descriptions-item label="基本开户行">{{ currentInstitution.basicBank || '暂无信息' }}</el-descriptions-item>
             <el-descriptions-item label="监管账户">{{ currentInstitution.superviseAccount || '暂无信息' }}</el-descriptions-item>
+            <el-descriptions-item label="监管开户行">{{ currentInstitution.supervisionBank || '暂无信息' }}</el-descriptions-item>
             <el-descriptions-item label="账户状态" :span="2">
               <el-tag v-if="currentInstitution.hasSupervisionAccount" type="success">正常监管</el-tag>
               <el-tag v-else type="danger">未开户</el-tag>

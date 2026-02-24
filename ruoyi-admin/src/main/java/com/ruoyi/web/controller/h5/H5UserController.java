@@ -345,6 +345,24 @@ public class H5UserController
         userInfo.put("phonenumber", user.getPhonenumber());
         userInfo.put("sex", user.getSex());
         userInfo.put("avatar", user.getAvatar());
+
+        // 优先显示真实姓名，其次昵称，最后手机号脱敏
+        String displayName = user.getRealName();
+        if (StringUtils.isEmpty(displayName)) {
+            displayName = user.getNickName();
+        }
+        // 如果昵称是手机号或关系名称（如"子女"），使用脱敏手机号
+        if (StringUtils.isNotEmpty(displayName) &&
+            (displayName.matches("^1[3-9]\\d{9}$") ||
+             displayName.equals("子女") || displayName.equals("家属") ||
+             displayName.equals("配偶") || displayName.equals("兄弟姐妹"))) {
+            String phone = user.getPhonenumber();
+            if (StringUtils.isNotEmpty(phone) && phone.length() >= 11) {
+                displayName = phone.substring(0, 3) + "****" + phone.substring(7);
+            }
+        }
+        userInfo.put("displayName", displayName);
+
         // 不返回密码等敏感信息
         return userInfo;
     }

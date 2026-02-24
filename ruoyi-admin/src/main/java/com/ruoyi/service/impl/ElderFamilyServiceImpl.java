@@ -71,7 +71,8 @@ public class ElderFamilyServiceImpl implements IElderFamilyService
                 SysUser newUser = new SysUser();
                 newUser.setPhonenumber(phonenumber);
                 newUser.setUserName(phonenumber); // 用户名设为手机号
-                newUser.setNickName(elderFamily.getRelationName() != null ? elderFamily.getRelationName() : "家属");
+                // 使用手机号作为昵称，而非关系名称（如"子女"）
+                newUser.setNickName(phonenumber);
                 // 使用MD5加密密码
                 String md5Password = DigestUtils.md5DigestAsHex("123456".getBytes());
                 newUser.setPassword(md5Password); // 默认密码123456
@@ -104,7 +105,7 @@ public class ElderFamilyServiceImpl implements IElderFamilyService
     }
 
     /**
-     * 批量删除家属关联
+     * 批量删除家属关联（软删除，改为解除关联）
      *
      * @param familyIds 需要删除的家属关联主键
      * @return 结果
@@ -112,11 +113,21 @@ public class ElderFamilyServiceImpl implements IElderFamilyService
     @Override
     public int deleteElderFamilyByIds(Long[] familyIds)
     {
-        return elderFamilyMapper.deleteElderFamilyByIds(familyIds);
+        // 改为软删除：将status设为"1"（已解除），保留历史记录
+        int count = 0;
+        for (Long familyId : familyIds)
+        {
+            ElderFamily family = new ElderFamily();
+            family.setFamilyId(familyId);
+            family.setStatus("1"); // 1-已解除
+            family.setUpdateTime(DateUtils.getNowDate());
+            count += elderFamilyMapper.updateElderFamily(family);
+        }
+        return count;
     }
 
     /**
-     * 删除家属关联信息
+     * 删除家属关联信息（软删除，改为解除关联）
      *
      * @param familyId 家属关联主键
      * @return 结果
@@ -124,6 +135,11 @@ public class ElderFamilyServiceImpl implements IElderFamilyService
     @Override
     public int deleteElderFamilyById(Long familyId)
     {
-        return elderFamilyMapper.deleteElderFamilyById(familyId);
+        // 改为软删除：将status设为"1"（已解除），保留历史记录
+        ElderFamily family = new ElderFamily();
+        family.setFamilyId(familyId);
+        family.setStatus("1"); // 1-已解除
+        family.setUpdateTime(DateUtils.getNowDate());
+        return elderFamilyMapper.updateElderFamily(family);
     }
 }

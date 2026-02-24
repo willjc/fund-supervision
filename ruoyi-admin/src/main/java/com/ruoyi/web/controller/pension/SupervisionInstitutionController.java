@@ -407,9 +407,10 @@ public class SupervisionInstitutionController extends BaseController
         data.put("depositBalance", depositBalance);
         data.put("memberFeeBalance", memberFeeBalance);
         data.put("hasSupervisionAccount", hasSupervisionAccount);
-        data.put("supervisionBank", hasSupervisionAccount ? institution.getSuperviseAccount() : null);
-        data.put("supervisionAccount", institution.getSuperviseAccount());
-        data.put("bankAccount", institution.getBankAccount());
+        data.put("supervisionBank", institution.getSuperviseBank()); // 监管账户开户行
+        data.put("supervisionAccount", institution.getSuperviseAccount()); // 监管账户号
+        data.put("bankAccount", institution.getBankAccount()); // 基本账户号
+        data.put("basicBank", institution.getBasicBank()); // 基本账户开户行
 
         // 公示信息字段
         data.put("recordNumber", institution.getRecordNumber());

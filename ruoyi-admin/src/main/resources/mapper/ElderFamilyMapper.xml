@@ -36,6 +36,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="userId != null">and ef.user_id = #{userId}</if>
             <if test="elderId != null">and ef.elder_id = #{elderId}</if>
             <if test="relationType != null and relationType != ''">and ef.relation_type = #{relationType}</if>
+            <!-- 默认只查询正常状态的关联（status=0），已解除的（status=1）不显示 -->
+            <if test="status == null">and ef.status = '0'</if>
             <if test="status != null and status != ''">and ef.status = #{status}</if>
         </where>
         order by ef.is_main_contact desc, ef.is_default desc, ef.create_time asc
