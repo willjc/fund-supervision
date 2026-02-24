@@ -184,15 +184,6 @@
             @click="handleRenew(scope.row)"
             v-hasPermi="['elder:resident:renew']"
           >续费</el-button>
-          <!-- 退费:有任意余额才显示 -->
-          <el-button
-            v-if="scope.row.serviceBalance > 0 || scope.row.depositBalance > 0 || scope.row.memberBalance > 0"
-            size="mini"
-            type="text"
-            icon="el-icon-minus"
-            @click="handleRefund(scope.row)"
-            v-hasPermi="['elder:resident:refund']"
-          >退费</el-button>
           <!-- 押金使用:有押金余额才显示 -->
           <el-button
             v-if="scope.row.depositBalance > 0"

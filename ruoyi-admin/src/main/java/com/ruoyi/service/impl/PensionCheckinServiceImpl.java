@@ -506,11 +506,16 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
         BigDecimal remainingMonths = new BigDecimal(Math.max(0, monthCount - 1));
         BigDecimal remainingServiceFee = firstMonthServiceFee.multiply(remainingMonths);
 
-        BigDecimal totalAdd = deposit.add(memberFee).add(remainingServiceFee);
+        // 分别更新各类型余额（修复：押金和会员费不再错误地加到服务费余额）
+        BigDecimal oldServiceBalance = account.getServiceBalance() != null ? account.getServiceBalance() : BigDecimal.ZERO;
+        BigDecimal oldDepositBalance = account.getDepositBalance() != null ? account.getDepositBalance() : BigDecimal.ZERO;
+        BigDecimal oldMemberBalance = account.getMemberBalance() != null ? account.getMemberBalance() : BigDecimal.ZERO;
 
-        // 更新账户余额
-        account.setServiceBalance(account.getServiceBalance().add(totalAdd));
-        account.setTotalBalance(account.getTotalBalance().add(totalAdd));
+        account.setServiceBalance(oldServiceBalance.add(remainingServiceFee));
+        account.setDepositBalance(oldDepositBalance.add(deposit));
+        account.setMemberBalance(oldMemberBalance.add(memberFee));
+        // 总余额 = 各项余额之和
+        account.setTotalBalance(account.getServiceBalance().add(account.getDepositBalance()).add(account.getMemberBalance()));
         account.setUpdateTime(DateUtils.getNowDate());
         accountInfoService.updateAccountInfo(account);
     }

@@ -137,6 +137,10 @@ public class PensionResidentController extends BaseController
     @PostMapping("/export")
     public void export(HttpServletResponse response, ResidentVO queryVO)
     {
+        // 数据权限过滤: admin超级管理员可以看到所有机构的入住人，其他用户只能看到关联机构的入住人
+        if (!getUserId().equals(1L)) {
+            queryVO.setCurrentUserId(getUserId());
+        }
         List<ResidentVO> list = residentService.selectResidentList(queryVO);
         ExcelUtil<ResidentVO> util = new ExcelUtil<>(ResidentVO.class);
         util.exportExcel(response, list, "入住人数据");
