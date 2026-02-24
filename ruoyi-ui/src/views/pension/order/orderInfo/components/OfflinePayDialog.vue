@@ -35,8 +35,8 @@
           <el-button size="small" icon="el-icon-upload" v-if="!form.paymentProof">上传凭证图片</el-button>
           <div v-else class="image-preview">
             <el-image
-              :src="form.paymentProof"
-              :preview-src-list="[form.paymentProof]"
+              :src="paymentProofUrl"
+              :preview-src-list="[paymentProofUrl]"
               fit="cover"
               style="width: 100px; height: 100px;"
             />
@@ -68,6 +68,7 @@ export default {
       visible: false,
       submitLoading: false,
       orderInfo: {},
+      baseUrl: process.env.VUE_APP_BASE_API,
       form: {
         paymentMethod: 'cash',
         paymentProof: '',
@@ -86,6 +87,18 @@ export default {
         ]
       }
     };
+  },
+  computed: {
+    // 获取完整的图片URL（拼接API前缀）
+    paymentProofUrl() {
+      if (!this.form.paymentProof) return '';
+      // 如果是完整URL（http/https开头），直接返回
+      if (this.form.paymentProof.startsWith('http://') || this.form.paymentProof.startsWith('https://')) {
+        return this.form.paymentProof;
+      }
+      // 否则拼接API前缀
+      return this.baseUrl + this.form.paymentProof;
+    }
   },
   methods: {
     show(orderInfo) {
