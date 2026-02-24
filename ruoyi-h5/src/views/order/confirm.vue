@@ -551,8 +551,11 @@ const submitOrder = async () => {
     console.error('提交订单失败:', error)
 
     // 显示更详细的错误信息
+    // 优先从error.message获取（业务错误），其次从error.response.data.msg获取（HTTP错误）
     let errorMessage = '提交订单失败，请重试'
-    if (error.response && error.response.data && error.response.data.msg) {
+    if (error.message) {
+      errorMessage = error.message
+    } else if (error.response && error.response.data && error.response.data.msg) {
       errorMessage = error.response.data.msg
     }
 

@@ -119,7 +119,11 @@ service.interceptors.response.use(
     } else {
       // 其他业务错误 - 不在这里显示toast，让具体业务页面处理
       // 这样可以提供更准确的错误信息
-      return Promise.reject(new Error(res.msg || '请求失败'))
+      // 构造包含msg和code的错误对象，方便业务代码处理
+      const businessError = new Error(res.msg || '请求失败')
+      businessError.code = res.code
+      businessError.responseData = res
+      return Promise.reject(businessError)
     }
   },
   error => {
