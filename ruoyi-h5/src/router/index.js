@@ -72,12 +72,6 @@ const routes = [
     component: () => import('@/views/deposit/applyDetail.vue'),
     meta: { title: '申请详情' }
   },
-  {
-    path: '/deposit/approve/:id',
-    name: 'DepositApprove',
-    component: () => import('@/views/deposit/approve.vue'),
-    meta: { title: '押金审批' }
-  },
   // 资金划拨审批
   {
     path: '/transfer/apply-detail/:id',

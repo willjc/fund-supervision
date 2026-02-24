@@ -43,20 +43,14 @@
               </van-cell-group>
             </div>
 
-            <div v-if="item.applyStatus === 'pending_family'" class="card-footer">
-              <van-button
-                size="small"
-                type="default"
-                @click.stop="handleReject(item)"
-              >
-                拒绝
-              </van-button>
+            <div class="card-footer">
               <van-button
                 size="small"
                 type="primary"
-                @click.stop="handleApprove(item)"
+                plain
+                @click.stop="viewDetail(item)"
               >
-                同意
+                查看详情
               </van-button>
             </div>
           </div>
@@ -159,16 +153,6 @@ const onLoad = () => {
 // 查看详情
 const viewDetail = (item) => {
   router.push(`/deposit/apply-detail/${item.applyId}`)
-}
-
-// 同意申请
-const handleApprove = (item) => {
-  router.push(`/deposit/approve/${item.applyId}`)
-}
-
-// 拒绝申请
-const handleReject = (item) => {
-  router.push(`/deposit/approve/${item.applyId}`)
 }
 
 // 获取状态类型
