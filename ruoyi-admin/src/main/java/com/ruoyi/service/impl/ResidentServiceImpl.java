@@ -339,6 +339,30 @@ public class ResidentServiceImpl implements IResidentService
 
                 orderItemMapper.insertOrderItem(careItem);
             }
+
+            // 创建餐费明细
+            if (currentMealFee.compareTo(BigDecimal.ZERO) > 0) {
+                OrderItem mealItem = new OrderItem();
+                mealItem.setOrderId(orderId);
+                mealItem.setOrderNo(orderNo);
+                mealItem.setItemType("meal_fee");
+                mealItem.setItemName("餐费");
+                mealItem.setItemDescription("餐费" + renewDTO.getMonthCount() + "个月");
+                mealItem.setUnitPrice(currentMealFee);
+                mealItem.setQuantity(renewDTO.getMonthCount().longValue());
+                mealItem.setTotalAmount(currentMealFee.multiply(new BigDecimal(renewDTO.getMonthCount())));
+                mealItem.setServicePeriod(renewDTO.getMonthCount() + "个月");
+                mealItem.setCreateTime(DateUtils.getNowDate());
+                mealItem.setCreateBy(SecurityUtils.getUsername());
+
+                // 如果价格被修改过，保存原始价格
+                if (currentPrice.getMealFeeModified() != null && currentPrice.getMealFeeModified() && currentPrice.getMealFeeOriginal() != null) {
+                    mealItem.setIsPriceModified("1");
+                    mealItem.setOriginalUnitPrice(currentPrice.getMealFeeOriginal());
+                }
+
+                orderItemMapper.insertOrderItem(mealItem);
+            }
         }
 
         // 8.2 如果有押金补缴

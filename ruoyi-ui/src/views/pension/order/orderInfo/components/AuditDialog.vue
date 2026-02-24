@@ -268,6 +268,11 @@ export default {
           : '';
         this.form.originalBedId = order.bedId;
 
+        // 设置床位类型（从订单关联的床位信息中获取）
+        if (order.bedType) {
+          this.form.bedType = order.bedType;
+        }
+
         // 缓存原始remark，用于后续解析餐费档次
         this.form.rawRemark = order.remark;
 

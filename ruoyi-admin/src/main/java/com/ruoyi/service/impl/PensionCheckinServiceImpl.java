@@ -101,12 +101,17 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
         ElderInfo existingElder = elderInfoMapper.selectElderInfoByIdCard(dto.getIdCard());
 
         if (existingElder != null) {
-            // 身份证号已存在,检查是否已经在住
-            if ("1".equals(existingElder.getStatus())) {
-                throw new ServiceException("该老人已在住,身份证号: " + dto.getIdCard());
-            }
-            // 如果是已退住状态,可以重新入住,复用老人ID并更新状态
+            // 身份证号已存在,获取老人ID
             elderId = existingElder.getElderId();
+
+            // ========== 1.1 检查老人在当前机构是否有未退住的记录 ==========
+            BedAllocation existingAllocation = bedAllocationMapper.selectActiveByElderAndInstitution(
+                elderId, institutionId);
+            if (existingAllocation != null) {
+                throw new ServiceException("该老人在当前机构已有入住记录，请先办理退住或选择续费");
+            }
+
+            // 如果是已退住状态或其他机构入住,可以重新入住,复用老人ID并更新状态
             existingElder.setStatus("1"); // 更新为已入住
             existingElder.setUpdateTime(DateUtils.getNowDate());
             existingElder.setUpdateBy(getUsernameSafely());

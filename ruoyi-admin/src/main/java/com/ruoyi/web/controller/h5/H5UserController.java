@@ -395,6 +395,7 @@ public class H5UserController
             String phone = (String) params.get("phone");
             String address = (String) params.get("address");
             String healthStatus = (String) params.get("healthStatus");
+            String careLevel = (String) params.get("careLevel");
             String emergencyContact = (String) params.get("emergencyContact");
             String emergencyPhone = (String) params.get("emergencyPhone");
             // String medicalHistory = (String) params.get("medicalHistory"); // 暂时注释，ElderInfo实体中无此字段
@@ -494,7 +495,8 @@ public class H5UserController
             elderInfo.setIdCardBackPath(StringUtils.isEmpty(idCardBackPath) ? null : idCardBackPath);
             // sourceType和submitUserId字段不存在，暂时去掉
             elderInfo.setStatus("1"); // 状态：1-正常
-            elderInfo.setCareLevel("1"); // 护理等级：1-自理
+            // 使用前端传递的护理等级，如果为空则默认为"1"（自理）
+            elderInfo.setCareLevel(StringUtils.isNotEmpty(careLevel) ? careLevel : "1");
 
             // 检查身份证号是否已存在
             ElderInfo existingElder = elderInfoService.selectElderInfoByIdCard(idCard);

@@ -181,6 +181,15 @@
             maxlength="100"
             show-word-limit
           />
+
+          <van-field
+            :model-value="careLevelText"
+            label="护理等级"
+            placeholder="请选择护理等级"
+            readonly
+            right-icon="arrow-down"
+            @click="showCareLevelPicker = true"
+          />
         </van-cell-group>
 
         <!-- 健康信息 -->
@@ -232,11 +241,20 @@
         @cancel="showHealthPicker = false"
       />
     </van-popup>
+
+    <!-- 护理等级选择器 -->
+    <van-popup v-model:show="showCareLevelPicker" position="bottom">
+      <van-picker
+        :columns="careLevelOptions"
+        @confirm="onCareLevelConfirm"
+        @cancel="showCareLevelPicker = false"
+      />
+    </van-popup>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { showToast, showImagePreview } from 'vant'
 import { getToken } from '@/utils/auth'
@@ -266,12 +284,14 @@ const formData = ref({
   emergencyPhone: '',
   address: '',
   healthStatus: '',
-  medicalHistory: ''
+  medicalHistory: '',
+  careLevel: '1'       // 护理等级：1-自理 2-半护理 3-全护理
 })
 
 // 选择器显示状态
 const showRelationPicker = ref(false)
 const showHealthPicker = ref(false)
+const showCareLevelPicker = ref(false)
 
 // 文件输入框ref
 const elderPhotoInput = ref(null)
@@ -306,6 +326,19 @@ const healthOptions = [
   { text: '较差', value: '较差' },
   { text: '需要护理', value: '需要护理' }
 ]
+
+// 护理等级选项
+const careLevelOptions = [
+  { text: '自理', value: '1' },
+  { text: '半护理', value: '2' },
+  { text: '全护理', value: '3' }
+]
+
+// 护理等级显示文本
+const careLevelText = computed(() => {
+  const option = careLevelOptions.find(item => item.value === formData.value.careLevel)
+  return option ? option.text : '自理'
+})
 
 // 关系选择确认
 const onRelationConfirm = (result) => {
@@ -349,6 +382,12 @@ const onRelationConfirm = (result) => {
 const onHealthConfirm = (value) => {
   formData.value.healthStatus = value.selectedOptions[0].text
   showHealthPicker.value = false
+}
+
+// 护理等级选择确认
+const onCareLevelConfirm = (value) => {
+  formData.value.careLevel = value.selectedOptions[0].value
+  showCareLevelPicker.value = false
 }
 
 // 图片超出大小提示
@@ -461,6 +500,7 @@ const onSubmit = async (values) => {
       address: formData.value.address,
       healthStatus: formData.value.healthStatus,
       medicalHistory: formData.value.medicalHistory,
+      careLevel: formData.value.careLevel,
       photoPath: uploadedImages.elderPhoto || null,
       idCardFrontPath: uploadedImages.idCardFront || null,
       idCardBackPath: uploadedImages.idCardBack || null

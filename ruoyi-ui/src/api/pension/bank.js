@@ -43,10 +43,11 @@ export function getPaymentDetail(paymentId) {
 }
 
 // 获取收单交易统计
-export function getPaymentStatistics() {
+export function getPaymentStatistics(params) {
   return request({
     url: '/pension/bank/payment/statistics',
-    method: 'get'
+    method: 'get',
+    params
   })
 }
 

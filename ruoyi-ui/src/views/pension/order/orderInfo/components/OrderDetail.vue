@@ -46,9 +46,12 @@
           <span style="color: #67C23A; font-weight: bold">¥{{ getCareFeeTotal() }}</span>
           <div v-if="isLegacyFormat()" style="font-size: 12px; color: #909399;">*估算值</div>
         </el-descriptions-item>
+        <el-descriptions-item label="餐费小计">
+          <span style="color: #F56C6C; font-weight: bold">¥{{ getMealFeeTotal() }}</span>
+        </el-descriptions-item>
         <el-descriptions-item label="服务费小计">
           <span style="color: #E6A23C; font-weight: bold">¥{{ getServiceFeeTotal() }}</span>
-          <div v-if="isLegacyFormat()" style="font-size: 12px; color: #E6A23C;">*包含床位费+护理费</div>
+          <div style="font-size: 12px; color: #909399;">*床位费+护理费+餐费</div>
         </el-descriptions-item>
       </el-descriptions>
 
@@ -220,11 +223,22 @@ export default {
 
       return '0.00';
     },
-    // 计算服务费小计（床位费 + 护理费）
+    // 计算餐费小计
+    getMealFeeTotal() {
+      const mealItem = this.orderItems.find(item => item.itemType === 'meal_fee');
+      if (mealItem) {
+        return mealItem.totalAmount;
+      }
+
+      // 如果没有餐费明细，返回0
+      return '0.00';
+    },
+    // 计算服务费小计（床位费 + 护理费 + 餐费）
     getServiceFeeTotal() {
       const bedTotal = parseFloat(this.getBedFeeTotal()) || 0;
       const careTotal = parseFloat(this.getCareFeeTotal()) || 0;
-      return (bedTotal + careTotal).toFixed(2);
+      const mealTotal = parseFloat(this.getMealFeeTotal()) || 0;
+      return (bedTotal + careTotal + mealTotal).toFixed(2);
     },
     // 判断是否是旧格式的订单
     isLegacyFormat() {

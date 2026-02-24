@@ -8,7 +8,7 @@
       <!-- 搜索条件 -->
       <el-form :model="queryParams" ref="queryForm" :inline="true">
         <el-form-item label="养老机构">
-          <el-select v-model="queryParams.institutionId" placeholder="请选择机构" clearable style="width: 200px">
+          <el-select v-model="queryParams.institutionId" placeholder="请选择机构" clearable style="width: 200px" @change="onInstitutionChange">
             <el-option
               v-for="item in institutionOptions"
               :key="item.institution_id"
@@ -49,25 +49,25 @@
         <el-col :span="6">
           <div class="stat-card">
             <div class="stat-label">今日收入笔数</div>
-            <div class="stat-value">{{ stats.todayCount }}</div>
+            <div class="stat-value">{{ queryParams.institutionId ? stats.todayCount : '-' }}</div>
           </div>
         </el-col>
         <el-col :span="6">
           <div class="stat-card">
             <div class="stat-label">今日监管账户收入</div>
-            <div class="stat-value">¥{{ formatMoney(stats.todayAmount) }}</div>
+            <div class="stat-value">{{ queryParams.institutionId ? '¥' + formatMoney(stats.todayAmount) : '-' }}</div>
           </div>
         </el-col>
         <el-col :span="6">
           <div class="stat-card">
             <div class="stat-label">本月收入笔数</div>
-            <div class="stat-value">{{ stats.monthCount }}</div>
+            <div class="stat-value">{{ queryParams.institutionId ? stats.monthCount : '-' }}</div>
           </div>
         </el-col>
         <el-col :span="6">
           <div class="stat-card">
             <div class="stat-label">本月监管账户收入</div>
-            <div class="stat-value">¥{{ formatMoney(stats.monthAmount) }}</div>
+            <div class="stat-value">{{ queryParams.institutionId ? '¥' + formatMoney(stats.monthAmount) : '-' }}</div>
           </div>
         </el-col>
       </el-row>
@@ -134,8 +134,8 @@
           <el-descriptions-item label="支付凭证" :span="2" v-if="currentDetail.paymentProof">
             <el-image
               v-if="currentDetail.paymentProof"
-              :src="currentDetail.paymentProof"
-              :preview-src-list="[currentDetail.paymentProof]"
+              :src="paymentProofUrl"
+              :preview-src-list="[paymentProofUrl]"
               style="width: 100px; height: 100px; cursor: pointer;"
               fit="cover">
             </el-image>
@@ -188,12 +188,27 @@ export default {
         monthAmount: 0
       },
       detailOpen: false,
-      currentDetail: null
+      currentDetail: null,
+      baseUrl: process.env.VUE_APP_BASE_API
+    }
+  },
+  computed: {
+    // 获取支付凭证完整URL
+    paymentProofUrl() {
+      if (!this.currentDetail || !this.currentDetail.paymentProof) return '';
+      const url = this.currentDetail.paymentProof;
+      // 如果是完整URL（http/https开头），直接返回
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        return url;
+      }
+      // 否则拼接API前缀
+      return this.baseUrl + url;
     }
   },
   created() {
     this.loadInstitutions()
-    this.getStatistics()
+    // 初始不加载统计数据，需要选择机构后才加载
+    // this.getStatistics()
     this.getList()
   },
   methods: {
@@ -205,13 +220,34 @@ export default {
         console.error('获取机构列表失败:', error)
       })
     },
+    // 机构选择变化时刷新统计
+    onInstitutionChange(val) {
+      // 刷新统计数��（选择了机构才加载，清空选择则重置统计）
+      if (val) {
+        this.getStatistics(val)
+      } else {
+        this.resetStats()
+      }
+    },
     // 获取统计信息
-    getStatistics() {
-      getPaymentStatistics().then(response => {
+    getStatistics(institutionId) {
+      const params = {
+        institutionId: institutionId
+      }
+      getPaymentStatistics(params).then(response => {
         this.stats = response.data || { todayCount: 0, todayAmount: 0, monthCount: 0, monthAmount: 0 }
       }).catch(error => {
         console.error('获取统计信息失败:', error)
       })
+    },
+    // 重置统计数据
+    resetStats() {
+      this.stats = {
+        todayCount: 0,
+        todayAmount: 0,
+        monthCount: 0,
+        monthAmount: 0
+      }
     },
     // 查询列表
     getList() {
@@ -247,12 +283,21 @@ export default {
     handleQuery() {
       this.queryParams.pageNum = 1
       this.getList()
+      // 只有选择了机构才刷新统计数据
+      if (this.queryParams.institutionId) {
+        this.getStatistics(this.queryParams.institutionId)
+      } else {
+        this.resetStats()
+      }
     },
     // 重置
     resetQuery() {
       this.dateRange = []
       this.$refs.queryForm.resetFields()
-      this.handleQuery()
+      this.queryParams.pageNum = 1
+      this.getList()
+      // 重置后清空统计数据
+      this.resetStats()
     },
     // 导出
     handleExport() {

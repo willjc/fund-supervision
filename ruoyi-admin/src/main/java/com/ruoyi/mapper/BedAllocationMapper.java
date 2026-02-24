@@ -88,4 +88,14 @@ public interface BedAllocationMapper
     public int updateBedIdByElderIdAndInstitutionId(@org.apache.ibatis.annotations.Param("elderId") Long elderId,
                                                     @org.apache.ibatis.annotations.Param("bedId") Long bedId,
                                                     @org.apache.ibatis.annotations.Param("institutionId") Long institutionId);
+
+    /**
+     * 根据老人ID和机构ID查询未退住的床位分配记录
+     *
+     * @param elderId 老人ID
+     * @param institutionId 机构ID
+     * @return 床位分配信息
+     */
+    public BedAllocation selectActiveByElderAndInstitution(@org.apache.ibatis.annotations.Param("elderId") Long elderId,
+                                                             @org.apache.ibatis.annotations.Param("institutionId") Long institutionId);
 }

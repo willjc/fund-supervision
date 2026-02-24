@@ -217,6 +217,31 @@ public class BankReconciliationController extends BaseController
     }
 
     /**
+     * 转换支付方式为中文显示
+     */
+    private String convertPaymentMethod(String paymentMethod)
+    {
+        if (paymentMethod == null || paymentMethod.isEmpty()) {
+            return "未知";
+        }
+        // 如果已经是中文，直接返回
+        if (!paymentMethod.matches("^[a-zA-Z]+$")) {
+            return paymentMethod;
+        }
+        // 英文转中文映射
+        switch (paymentMethod) {
+            case "cash":
+                return "现金";
+            case "card":
+                return "刷卡";
+            case "scan":
+                return "扫码";
+            default:
+                return paymentMethod;
+        }
+    }
+
+    /**
      * 获取监管账户流水详情
      */
     @GetMapping("/supervision/detail/{logId}")
@@ -279,8 +304,9 @@ public class BankReconciliationController extends BaseController
             item.put("transactionNo", record.getTransactionId());
             item.put("paymentTime", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, record.getPaymentTime()));
             item.put("amount", record.getPaymentAmount());
-            item.put("paymentMethod", record.getPaymentMethod());
-            item.put("paymentChannel", record.getPaymentMethod()); // 简化处理
+            // 支付方式转换
+            item.put("paymentMethod", convertPaymentMethod(record.getPaymentMethod()));
+            item.put("paymentChannel", convertPaymentMethod(record.getPaymentMethod())); // 简化处理
             item.put("fee", BigDecimal.ZERO); // 手续费暂无字段
             item.put("actualAmount", record.getPaymentAmount());
             // 使用从 supervision_account_log 关联查询得到的 balance_after
@@ -320,7 +346,8 @@ public class BankReconciliationController extends BaseController
         data.put("paymentTime", record.getPaymentTime() != null ?
             DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, record.getPaymentTime()) : "");
         data.put("amount", record.getPaymentAmount());
-        data.put("paymentMethod", record.getPaymentMethod());
+        // 支付方式转换
+        data.put("paymentMethod", convertPaymentMethod(record.getPaymentMethod()));
         data.put("actualAmount", record.getPaymentAmount());
         data.put("paymentProof", record.getPaymentProof());
         data.put("paymentProofRemark", record.getPaymentProofRemark());
@@ -335,19 +362,31 @@ public class BankReconciliationController extends BaseController
         data.put("status", status);
         data.put("remark", record.getRemark());
 
-        // 获取关联的老人和机构名称（需要查询）
-        data.put("elderName", ""); // TODO: 从elder_info表查询
-        data.put("institutionName", ""); // TODO: 从pension_institution表查询
+        // 获取关联的老人和机构名称
+        data.put("elderName", record.getElderName() != null ? record.getElderName() : "");
+        data.put("institutionName", record.getInstitutionName() != null ? record.getInstitutionName() : "");
 
         return success(data);
     }
 
     /**
      * 获取收单交易统计
+     * 必须传入机构ID才返回统计数据，否则返回空值
      */
     @GetMapping("/payment/statistics")
-    public AjaxResult getPaymentStatistics()
+    public AjaxResult getPaymentStatistics(@RequestParam(required = false) Long institutionId)
     {
+        Map<String, Object> data = new HashMap<>();
+
+        // 如果没有指定机构，返回空数据
+        if (institutionId == null) {
+            data.put("todayCount", 0);
+            data.put("todayAmount", BigDecimal.ZERO);
+            data.put("monthCount", 0);
+            data.put("monthAmount", BigDecimal.ZERO);
+            return success(data);
+        }
+
         // 获取今日统计
         String today = DateUtils.getDate();
 
@@ -356,15 +395,17 @@ public class BankReconciliationController extends BaseController
         monthCalendar.set(Calendar.DAY_OF_MONTH, 1);
         String monthStart = DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD, monthCalendar.getTime());
 
-        Map<String, Object> data = new HashMap<>();
-
         // 查询今日已支付记录
         PaymentRecord todayQuery = new PaymentRecord();
+        todayQuery.setInstitutionId(institutionId);
         todayQuery.setPaymentStatus("1"); // 已支付
+
+        // 设置今日时间范围参数
         Map<String, Object> todayParams = new HashMap<>();
         todayParams.put("beginTime", today);
         todayParams.put("endTime", today);
         todayQuery.setParams(todayParams);
+
         List<PaymentRecord> todayList = paymentRecordService.selectPaymentRecordList(todayQuery);
 
         int todayCount = todayList.size();
@@ -377,10 +418,14 @@ public class BankReconciliationController extends BaseController
 
         // 查询本月已支付记录
         PaymentRecord monthQuery = new PaymentRecord();
+        monthQuery.setInstitutionId(institutionId);
         monthQuery.setPaymentStatus("1");
+
+        // 设置本月时间范围参数
         Map<String, Object> monthParams = new HashMap<>();
         monthParams.put("beginTime", monthStart);
         monthQuery.setParams(monthParams);
+
         List<PaymentRecord> monthList = paymentRecordService.selectPaymentRecordList(monthQuery);
 
         int monthCount = monthList.size();

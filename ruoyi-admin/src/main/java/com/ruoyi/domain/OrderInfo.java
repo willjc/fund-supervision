@@ -156,8 +156,19 @@ public class OrderInfo extends BaseEntity
     /** 审核时的新护理等级（不持久化，仅用于审核时更新订单明细描述） */
     private String auditCareLevel;
 
+    /** 床位类型（从bed_info关联获取） */
+    private String bedType;
+
     /** 订单明细列表 */
     private List<OrderItem> orderItems;
+
+    public String getBedType() {
+        return bedType;
+    }
+
+    public void setBedType(String bedType) {
+        this.bedType = bedType;
+    }
 
     public List<OrderItem> getOrderItems() {
         return orderItems;

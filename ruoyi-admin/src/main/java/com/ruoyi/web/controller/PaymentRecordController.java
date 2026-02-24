@@ -116,7 +116,7 @@ public class PaymentRecordController extends BaseController
     /**
      * 模拟支付处理
      */
-    @PreAuthorize("@ss.hasPermi('payment:record:pay')")
+    @PreAuthorize("@ss.hasPermi('order:info:pay')")
     @Log(title = "模拟支付", businessType = BusinessType.UPDATE)
     @PostMapping("/simulate/{orderId}")
     public AjaxResult simulatePayment(@PathVariable("orderId") Long orderId, @RequestBody PaymentRecord paymentRecord)

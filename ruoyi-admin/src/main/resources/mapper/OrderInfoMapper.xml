@@ -38,6 +38,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="institutionName" column="institution_name" />
         <result property="roomNumber" column="room_number" />
         <result property="bedNumber" column="bed_number" />
+        <result property="bedType"     column="bed_type"     />
     </resultMap>
 
     <sql id="selectOrderInfoVo">
@@ -46,7 +47,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                o.payment_time, o.payment_proof, o.payment_proof_remark, o.order_date, o.service_start_date, o.service_end_date,
                o.billing_cycle, o.month_count, o.original_amount, o.discount_amount,
                o.due_date, o.create_by, o.create_time, o.update_by, o.update_time, o.remark,
-               e.elder_name, i.institution_name, b.room_number, b.bed_number
+               e.elder_name, i.institution_name, b.room_number, b.bed_number, b.bed_type
         from order_info o
         left join elder_info e on o.elder_id = e.elder_id
         left join pension_institution i on o.institution_id = i.institution_id

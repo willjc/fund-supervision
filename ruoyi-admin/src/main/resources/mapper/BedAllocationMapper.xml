@@ -132,4 +132,17 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
           and (allocation_status = '1' or allocation_status = '0')
     </update>
 
+    <!-- 根据老人ID和机构ID查询未退住的床位分配记录 -->
+    <select id="selectActiveByElderAndInstitution" resultMap="BedAllocationResult">
+        select allocation_id, elder_id, bed_id, institution_id, check_in_date, due_date, check_out_date,
+               allocation_status, monthly_fee, deposit_status, deposit_amount,
+               create_by, create_time, update_by, update_time, remark
+        from bed_allocation
+        where elder_id = #{elderId}
+          and institution_id = #{institutionId}
+          and check_out_date is null
+          and allocation_status != '2'
+        limit 1
+    </select>
+
 </mapper>
