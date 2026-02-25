@@ -173,7 +173,7 @@
             type="text"
             icon="el-icon-edit"
             @click="handleUpdate(scope.row)"
-            v-hasPermi="['elder:resident:edit']"
+            v-hasPermi="['elder:info:edit']"
           >维护</el-button>
           <!-- 续费:没有未支付订单才显示(即至少支付过一次) -->
           <el-button
@@ -201,14 +201,6 @@
             @click="handleFamilyManage(scope.row)"
             v-hasPermi="['elder:resident:query']"
           >家属管理</el-button>
-          <!-- 设置密码:新增功能 -->
-          <el-button
-            size="mini"
-            type="text"
-            icon="el-icon-key"
-            @click="handleSetPassword(scope.row)"
-            v-hasPermi="['elder:resident:edit']"
-          >设置密码</el-button>
           <!-- 拨付单详情 -->
           <el-button
             size="mini"
@@ -371,7 +363,7 @@
             <i class="el-icon-document"></i> 订单记录
             <span style="font-size: 12px; color: #909399; font-weight: normal;">(共{{ (residentDetail.orders || []).length }}条)</span>
           </h4>
-          <el-table :data="residentDetail.orders || []" border style="width: 100%" max-height="300" :expand-row-keys="expandedOrderKeys" @expand-change="handleOrderExpand" row-key="orderId">
+          <el-table :data="residentDetail.orders || []" border style="width: 100%" :expand-row-keys="expandedOrderKeys" @expand-change="handleOrderExpand" row-key="orderId">
             <el-table-column type="expand">
               <template slot-scope="scope">
                 <div style="padding: 10px; background-color: #f9f9f9;">
@@ -410,7 +402,11 @@
                       </template>
                     </el-table-column>
                     <el-table-column prop="servicePeriod" label="服务周期" width="100" />
-                    <el-table-column prop="itemDescription" label="描述" show-overflow-tooltip />
+                    <el-table-column label="描述" show-overflow-tooltip>
+                      <template slot-scope="itemScope">
+                        {{ itemScope.row.itemName }}{{ itemScope.row.servicePeriod ? '（' + itemScope.row.servicePeriod + '）' : '' }}
+                      </template>
+                    </el-table-column>
                   </el-table>
                 </div>
               </template>
@@ -418,7 +414,7 @@
             <el-table-column prop="orderNo" label="订单号" width="170"></el-table-column>
             <el-table-column label="订单类型" width="90">
               <template slot-scope="scope">
-                <el-tag v-if="scope.row && scope.row.orderType === '1'" type="success">入驻</el-tag>
+                <el-tag v-if="scope.row && scope.row.orderType === '1'" type="success">入住</el-tag>
                 <el-tag v-else-if="scope.row && scope.row.orderType === '2'" type="primary">续费</el-tag>
                 <el-tag v-else>其他</el-tag>
               </template>
@@ -2101,5 +2097,14 @@ export default {
 
 .summary-value.blue {
   color: #409EFF;
+}
+
+/* 订单明细表格样式 - 避免水平滚动 */
+.resident-detail ::v-deep .el-table {
+  overflow-x: hidden;
+}
+
+.resident-detail ::v-deep .el-table .el-table__body-wrapper {
+  overflow-x: hidden !important;
 }
 </style>
