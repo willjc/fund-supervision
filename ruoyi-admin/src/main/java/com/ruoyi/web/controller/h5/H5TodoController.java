@@ -17,10 +17,12 @@ import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.domain.ElderFamily;
 import com.ruoyi.domain.ElderInfo;
+import com.ruoyi.domain.OrderInfo;
 import com.ruoyi.domain.pension.DepositApply;
 import com.ruoyi.domain.pension.FundTransferApply;
 import com.ruoyi.service.IElderFamilyService;
 import com.ruoyi.service.IElderInfoService;
+import com.ruoyi.service.IOrderInfoService;
 import com.ruoyi.service.pension.IDepositApplyService;
 import com.ruoyi.service.pension.IFundTransferApplyService;
 
@@ -44,6 +46,9 @@ public class H5TodoController extends BaseController
 
     @Autowired
     private IElderInfoService elderInfoService;
+
+    @Autowired
+    private IOrderInfoService orderInfoService;
 
     /**
      * 获取待办事项列表
@@ -196,6 +201,43 @@ public class H5TodoController extends BaseController
                         }
                     }
                 }
+
+                // 查询该老人的续费待支付订单
+                OrderInfo orderQuery = new OrderInfo();
+                orderQuery.setElderId(elderId);
+                orderQuery.setOrderType("2"); // 续费订单
+                orderQuery.setOrderStatus("0"); // 待支付
+                List<OrderInfo> renewOrders = orderInfoService.selectOrderInfoList(orderQuery);
+                if (renewOrders != null && !renewOrders.isEmpty()) {
+                    for (OrderInfo order : renewOrders) {
+                        // 待办列表才显示待支付订单
+                        if ("completed".equals(targetStatus)) {
+                            continue; // 已完成列表不显示待支付订单
+                        }
+
+                        Map<String, Object> todo = new HashMap<>();
+                        todo.put("type", "renew_pay"); // 待办类型
+                        todo.put("typeText", "续费支付");
+                        todo.put("id", order.getOrderId());
+                        todo.put("title", "续费订单待支付");
+                        todo.put("description", "请完成续费订单支付，以免影响服务");
+                        todo.put("amount", order.getOrderAmount());
+                        todo.put("createTime", order.getCreateTime() != null ? DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, order.getCreateTime()) : "");
+                        todo.put("urgencyLevel", "一般");
+                        todo.put("status", "pending");
+
+                        // 获取老人信息
+                        ElderInfo elderInfo = elderInfoService.selectElderInfoByElderId(elderId);
+                        if (elderInfo != null) {
+                            todo.put("elderName", elderInfo.getElderName());
+                        }
+
+                        // 跳转路径
+                        todo.put("path", "/order/detail/" + order.getOrderId());
+
+                        todoList.add(todo);
+                    }
+                }
             }
 
             // 3. 按创建时间倒序排序
@@ -252,6 +294,7 @@ public class H5TodoController extends BaseController
 
             int depositApproveCount = 0;
             int transferApproveCount = 0;
+            int renewPayCount = 0;
             int completedCount = 0;
 
             if (familyList != null && !familyList.isEmpty()) {
@@ -282,16 +325,27 @@ public class H5TodoController extends BaseController
                             }
                         }
                     }
+
+                    // 统计待支付续费订单
+                    OrderInfo orderQuery = new OrderInfo();
+                    orderQuery.setElderId(elderId);
+                    orderQuery.setOrderType("2"); // 续费订单
+                    orderQuery.setOrderStatus("0"); // 待支付
+                    List<OrderInfo> renewOrders = orderInfoService.selectOrderInfoList(orderQuery);
+                    if (renewOrders != null && !renewOrders.isEmpty()) {
+                        renewPayCount += renewOrders.size();
+                    }
                 }
             }
 
             // 3. 构建返回数据
             Map<String, Object> data = new HashMap<>();
-            data.put("pendingCount", depositApproveCount + transferApproveCount); // 待办数量
+            data.put("pendingCount", depositApproveCount + transferApproveCount + renewPayCount); // 待办数量
             data.put("depositApproveCount", depositApproveCount); // 押金待办数量
             data.put("transferApproveCount", transferApproveCount); // 划拨待办数量
+            data.put("renewPayCount", renewPayCount); // 续费支付待办数量
             data.put("completedCount", completedCount); // 已完成数量
-            data.put("totalCount", depositApproveCount + transferApproveCount + completedCount); // 总数量
+            data.put("totalCount", depositApproveCount + transferApproveCount + renewPayCount + completedCount); // 总数量
 
             return success(data);
         } catch (Exception e) {

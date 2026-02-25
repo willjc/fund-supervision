@@ -235,7 +235,7 @@ public class H5DepositController extends BaseController
             data.put("urgencyLevel", apply.getUrgencyLevel());
             data.put("usagePurpose", apply.getPurpose()); // 前端用的是 usagePurpose
             data.put("description", apply.getDescription());
-            data.put("expectedUseDate", apply.getExpectedUseDate());
+            data.put("expectedUseDate", apply.getExpectedUseDate() != null ? DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD, apply.getExpectedUseDate()) : "");
 
             // 解析附件JSON字符串
             String attachmentsStr = apply.getAttachments();
@@ -514,7 +514,7 @@ public class H5DepositController extends BaseController
             data.put("applyAmount", apply.getApplyAmount());
             data.put("applyReason", apply.getApplyReason());
             data.put("urgencyLevel", apply.getUrgencyLevel());
-            data.put("expectedUseDate", apply.getExpectedUseDate());
+            data.put("expectedUseDate", apply.getExpectedUseDate() != null ? DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD, apply.getExpectedUseDate()) : "");
             data.put("applyStatus", apply.getApplyStatus());
             data.put("createTime", apply.getCreateTime() != null ? DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, apply.getCreateTime()) : "");
             data.put("familyApproveOpinion", apply.getFamilyApproveOpinion());

@@ -171,7 +171,7 @@ const loadTodoCount = async () => {
   try {
     const response = await getTodoCount()
     if (response.code === 200 && response.data) {
-      todoCount.value = response.data.totalCount || 0
+      todoCount.value = response.data.pendingCount || 0
     }
   } catch (error) {
     console.error('获取待办数量失败', error)
