@@ -22,7 +22,7 @@ public class InstitutionRating extends BaseEntity
     private Long ratingId;
 
     /** 机构ID */
-    @Excel(name = "机构ID")
+    // @Excel(name = "机构ID")  // 移除此注解，导入模板中不显示机构ID列，用户只需填写机构名称和统一信用代码
     private Long institutionId;
 
     /** 机构名称 */

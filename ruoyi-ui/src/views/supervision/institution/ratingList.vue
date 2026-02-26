@@ -52,6 +52,15 @@
       </el-col> -->
       <el-col :span="1.5">
         <el-button
+          type="success"
+          plain
+          icon="el-icon-upload2"
+          size="mini"
+          @click="handleImport"
+        >导入</el-button>
+      </el-col>
+      <el-col :span="1.5">
+        <el-button
           type="warning"
           plain
           icon="el-icon-download"
@@ -287,10 +296,74 @@
         <el-button @click="detailOpen = false">关 闭</el-button>
       </div>
     </el-dialog>
+
+    <!-- 导入对话框 -->
+    <el-dialog title="导入机构评级" :visible.sync="openImport" width="600px" append-to-body>
+      <el-upload
+        ref="upload"
+        :limit="1"
+        accept=".xlsx, .xls"
+        :headers="upload.headers"
+        :action="upload.url"
+        :disabled="upload.isUploading"
+        :on-progress="handleFileUploadProgress"
+        :on-success="handleFileSuccess"
+        :on-error="handleFileError"
+        :auto-upload="false"
+        drag
+      >
+        <i class="el-icon-upload"></i>
+        <div class="el-upload__text">将文件拖到此处,或<em>点击上传</em></div>
+        <div class="el-upload__tip" slot="tip">
+          <el-link type="primary" @click="handleDownloadTemplate">点击下载模板</el-link>
+          <br/>
+          <span>仅允许导入xls、xlsx格式文件，文件大小不超过10MB</span>
+        </div>
+      </el-upload>
+      <div slot="footer" class="dialog-footer">
+        <el-button type="primary" @click="submitFileForm">确 定</el-button>
+        <el-button @click="openImport = false">取 消</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 导入结果对话框 -->
+    <el-dialog title="导入结果" :visible.sync="openResult" width="900px" append-to-body>
+      <el-alert
+        :title="'导入完成! 共 ' + importResult.totalCount + ' 条,成功 ' + importResult.successCount + ' 条,失败 ' + importResult.failCount + ' 条'"
+        :type="importResult.failCount > 0 ? 'warning' : 'success'"
+        :closable="false"
+        style="margin-bottom: 20px">
+      </el-alert>
+
+      <el-tabs v-model="resultTab">
+        <el-tab-pane label="成功记录" name="success">
+          <el-table :data="importResult.successList" size="small" style="width: 100%" max-height="400">
+            <el-table-column prop="row" label="行号" width="60" />
+            <el-table-column prop="institutionName" label="机构名称" width="180" />
+            <el-table-column prop="creditCode" label="统一信用代码" width="150" />
+            <el-table-column prop="ratingLevel" label="评级等级" width="80" />
+            <el-table-column prop="totalScore" label="总分" width="80" />
+          </el-table>
+        </el-tab-pane>
+
+        <el-tab-pane label="失败记录" name="fail">
+          <el-table :data="importResult.failList" size="small" style="width: 100%" max-height="400">
+            <el-table-column prop="row" label="行号" width="60" />
+            <el-table-column prop="institutionName" label="机构名称" width="180" />
+            <el-table-column prop="reason" label="失败原因" />
+          </el-table>
+        </el-tab-pane>
+      </el-tabs>
+
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="openResult = false">关 闭</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script>
+import { getToken } from '@/utils/auth'
 import { listRating, getRating, delRating, addRating, updateRating, exportRating, listApprovedInstitutions } from '@/api/supervision/institution'
 
 export default {
@@ -319,6 +392,26 @@ export default {
       scoreDetails: [],
       institutionOptions: [],
       institutionLoading: false,
+      // 是否显示导入对话框
+      openImport: false,
+      // 是否显示结果对话框
+      openResult: false,
+      // 结果标签页
+      resultTab: 'success',
+      // 导入结果
+      importResult: {
+        totalCount: 0,
+        successCount: 0,
+        failCount: 0,
+        successList: [],
+        failList: []
+      },
+      // 上传参数
+      upload: {
+        isUploading: false,
+        headers: { Authorization: 'Bearer ' + getToken() },
+        url: process.env.VUE_APP_BASE_API + '/supervision/institution/rating/import'
+      },
       rules: {
         institutionId: [
           { required: true, message: '请选择机构', trigger: 'change' }
@@ -490,6 +583,42 @@ export default {
       this.download('supervision/institution/rating/export', {
         ...this.queryParams
       }, `rating_${new Date().getTime()}.xlsx`)
+    },
+    /** 导入按钮操作 */
+    handleImport() {
+      this.openImport = true
+    },
+    /** ���载模板操作 */
+    handleDownloadTemplate() {
+      this.download('supervision/institution/rating/template', {}, '机构评级导入模板.xlsx')
+    },
+    /** 提交上传文件 */
+    submitFileForm() {
+      this.$refs.upload.submit()
+    },
+    /** 文件上传中处理 */
+    handleFileUploadProgress(event, file, fileList) {
+      this.upload.isUploading = true
+    },
+    /** 文件上传成功处理 */
+    handleFileSuccess(response, file, fileList) {
+      this.upload.isUploading = false
+      this.openImport = false
+      this.$refs.upload.clearFiles()
+
+      if (response.code === 200) {
+        this.importResult = response.data
+        this.resultTab = 'success'
+        this.openResult = true
+        this.getList()
+      } else {
+        this.$modal.msgError(response.msg || '导入失败')
+      }
+    },
+    /** 文件上传失败处理 */
+    handleFileError(err, file, fileList) {
+      this.upload.isUploading = false
+      this.$modal.msgError('上传失败: ' + err.message)
     },
     getProgressColor(percentage) {
       if (percentage >= 90) return '#67C23A'

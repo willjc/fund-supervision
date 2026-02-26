@@ -615,6 +615,141 @@ public class InstitutionManageController extends BaseController
     }
 
     /**
+     * 下载机构评级导入模板
+     */
+    @PostMapping("/rating/template")
+    public void downloadRatingTemplate(HttpServletResponse response)
+    {
+        ExcelUtil<InstitutionRating> util = new ExcelUtil<InstitutionRating>(InstitutionRating.class);
+        util.importTemplateExcel(response, "机构评级导入模板");
+    }
+
+    /**
+     * ���入机构评级数据
+     */
+    @PreAuthorize("@ss.hasPermi('supervision:institution:rating:import')")
+    @Log(title = "导入机构评级", businessType = BusinessType.IMPORT)
+    @PostMapping("/rating/import")
+    public AjaxResult importRating(@RequestParam("file") MultipartFile file)
+    {
+        if (file.isEmpty()) {
+            return AjaxResult.error("上传文件不能为空");
+        }
+
+        try {
+            List<InstitutionRating> successList = new ArrayList<>();
+            List<Map<String, Object>> failList = new ArrayList<>();
+            int totalCount = 0;
+
+            // 使用ExcelUtil解析Excel
+            ExcelUtil<InstitutionRating> util = new ExcelUtil<InstitutionRating>(InstitutionRating.class);
+            List<InstitutionRating> ratingList = util.importExcel(file.getInputStream());
+
+            totalCount = ratingList.size();
+
+            for (int i = 0; i < ratingList.size(); i++) {
+                InstitutionRating rating = ratingList.get(i);
+                int rowNum = i + 2; // Excel行号从2开始（第1行是表头）
+
+                try {
+                    // 校验必填字段
+                    if (rating.getInstitutionName() == null || rating.getInstitutionName().trim().isEmpty()) {
+                        failList.add(createFailRecord(rowNum, rating.getInstitutionName(), "机构名称不能为空"));
+                        continue;
+                    }
+                    if (rating.getCreditCode() == null || rating.getCreditCode().trim().isEmpty()) {
+                        failList.add(createFailRecord(rowNum, rating.getInstitutionName(), "统一信用代码不能为空"));
+                        continue;
+                    }
+
+                    // 通过统一信用代码查找机构ID
+                    Long institutionId = null;
+                    try {
+                        institutionId = jdbcTemplate.queryForObject(
+                            "SELECT institution_id FROM pension_institution WHERE credit_code = ?",
+                            Long.class,
+                            rating.getCreditCode().trim()
+                        );
+                    } catch (Exception e) {
+                        // 忽略
+                    }
+
+                    if (institutionId == null) {
+                        failList.add(createFailRecord(rowNum, rating.getInstitutionName(), "机构不存在，请先在系统中创建该机构"));
+                        continue;
+                    }
+
+                    // 设置机构ID
+                    rating.setInstitutionId(institutionId);
+
+                    // 校验评级等级
+                    if (rating.getRatingLevel() == null || rating.getRatingLevel() < 1 || rating.getRatingLevel() > 5) {
+                        failList.add(createFailRecord(rowNum, rating.getInstitutionName(), "评级等级必须在1-5之间"));
+                        continue;
+                    }
+
+                    // 校验总分
+                    if (rating.getTotalScore() == null) {
+                        failList.add(createFailRecord(rowNum, rating.getInstitutionName(), "总分不能为空"));
+                        continue;
+                    }
+
+                    // 校验各项得分
+                    if (rating.getServiceScore() == null) rating.setServiceScore(new java.math.BigDecimal("0"));
+                    if (rating.getFacilityScore() == null) rating.setFacilityScore(new java.math.BigDecimal("0"));
+                    if (rating.getManagementScore() == null) rating.setManagementScore(new java.math.BigDecimal("0"));
+                    if (rating.getSafetyScore() == null) rating.setSafetyScore(new java.math.BigDecimal("0"));
+
+                    // 设置默认值
+                    if (rating.getValidityPeriod() == null) rating.setValidityPeriod(12);
+                    if (rating.getRatingStatus() == null) rating.setRatingStatus("1");
+
+                    // 自动计算有效期至
+                    if (rating.getRatingDate() != null && rating.getValidityPeriod() != null) {
+                        java.util.Calendar cal = java.util.Calendar.getInstance();
+                        cal.setTime(rating.getRatingDate());
+                        cal.add(java.util.Calendar.MONTH, rating.getValidityPeriod());
+                        rating.setExpireDate(cal.getTime());
+                    }
+
+                    // 设置创建信息
+                    rating.setCreateBy(getUsername());
+
+                    // 保存评级数据
+                    ratingService.insertInstitutionRating(rating);
+
+                    // 添加到成功列表
+                    Map<String, Object> successRecord = new HashMap<>();
+                    successRecord.put("row", rowNum);
+                    successRecord.put("institutionName", rating.getInstitutionName());
+                    successRecord.put("creditCode", rating.getCreditCode());
+                    successRecord.put("ratingLevel", rating.getRatingLevel() + "星");
+                    successRecord.put("totalScore", rating.getTotalScore());
+                    successList.add(successRecord);
+
+                } catch (Exception e) {
+                    failList.add(createFailRecord(rowNum, rating.getInstitutionName(), "处理失败: " + e.getMessage()));
+                    logger.error("导入第{}行数据失败", rowNum, e);
+                }
+            }
+
+            // 返回导入结果
+            Map<String, Object> result = new HashMap<>();
+            result.put("totalCount", totalCount);
+            result.put("successCount", successList.size());
+            result.put("failCount", failList.size());
+            result.put("successList", successList);
+            result.put("failList", failList);
+
+            return AjaxResult.success(result);
+
+        } catch (Exception e) {
+            logger.error("导入机构评级失败", e);
+            return AjaxResult.error("文件解析失败: " + e.getMessage());
+        }
+    }
+
+    /**
      * 获取机构评级信息（无需权限，用于前端展示）
      */
     @GetMapping("/rating/info/{institutionId}")
