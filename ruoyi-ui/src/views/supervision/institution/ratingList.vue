@@ -40,7 +40,7 @@
           @click="handleAdd"
         >新增评级</el-button>
       </el-col>
-      <el-col :span="1.5">
+      <!-- <el-col :span="1.5">
         <el-button
           type="success"
           plain
@@ -49,7 +49,7 @@
           :disabled="multiple"
           @click="handleBatchUpdate"
         >批量更新</el-button>
-      </el-col>
+      </el-col> -->
       <el-col :span="1.5">
         <el-button
           type="warning"
@@ -66,6 +66,18 @@
       <el-table-column type="selection" width="55" align="center" />
       <el-table-column label="机构名称" align="center" prop="institutionName" :show-overflow-tooltip="true" />
       <el-table-column label="统一信用代码" align="center" prop="creditCode" width="180" />
+      <el-table-column label="评级等级" align="center" prop="ratingLevel" width="120">
+        <template slot-scope="scope">
+          <el-rate
+            :value="scope.row.ratingLevel"
+            :max="5"
+            disabled
+            show-score
+            text-color="#ff9900"
+            score-template="{value}星">
+          </el-rate>
+        </template>
+      </el-table-column>
       <el-table-column label="总分" align="center" prop="totalScore" width="80">
         <template slot-scope="scope">
           <span class="text-success font-bold">{{ scope.row.totalScore }}</span>

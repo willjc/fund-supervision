@@ -49,7 +49,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="ratingStatus != null  and ratingStatus != ''"> and rating_status = #{ratingStatus}</if>
             <if test="ratingRemark != null  and ratingRemark != ''"> and rating_remark like concat('%', #{ratingRemark}, '%')</if>
         </where>
-        order by rating_date desc
+        order by create_time desc
     </select>
 
     <select id="selectInstitutionRatingByRatingId" parameterType="Long" resultMap="InstitutionRatingResult">
