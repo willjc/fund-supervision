@@ -22,43 +22,10 @@
     </el-form>
 
     <el-row :gutter="10" class="mb8">
-      <!-- <el-col :span="1.5">
-        <el-button
-          type="primary"
-          plain
-          icon="el-icon-plus"
-          size="mini"
-          @click="handleAdd"
-          v-hasPermi="['supervision:institution:blacklist:add']"
-        >新增</el-button>
-      </el-col> -->
-      <el-col :span="1.5">
-        <el-button
-          type="success"
-          plain
-          icon="el-icon-edit"
-          size="mini"
-          :disabled="single"
-          @click="handleUpdate"
-          v-hasPermi="['supervision:institution:blacklist:edit']"
-        >修改</el-button>
-      </el-col>
-      <el-col :span="1.5">
-        <el-button
-          type="danger"
-          plain
-          icon="el-icon-delete"
-          size="mini"
-          :disabled="multiple"
-          @click="handleDelete"
-          v-hasPermi="['supervision:institution:blacklist:remove']"
-        >删除</el-button>
-      </el-col>
       <right-toolbar :showSearch.sync="showSearch" @queryTable="getList"></right-toolbar>
     </el-row>
 
-    <el-table v-loading="loading" :data="blacklistList" @selection-change="handleSelectionChange">
-      <el-table-column type="selection" width="55" align="center" />
+    <el-table v-loading="loading" :data="blacklistList">
       <el-table-column label="机构ID" align="center" prop="institutionId" />
       <el-table-column label="机构名称" align="center" prop="institutionName" />
       <el-table-column label="原因描述" align="center" prop="reason" show-overflow-tooltip min-width="200" />
@@ -83,20 +50,6 @@
             @click="handleDetail(scope.row)"
           >详情</el-button>
           <el-button
-            size="mini"
-            type="text"
-            icon="el-icon-edit"
-            @click="handleUpdate(scope.row)"
-            v-hasPermi="['supervision:institution:blacklist:edit']"
-          >修改</el-button>
-          <el-button
-            size="mini"
-            type="text"
-            icon="el-icon-delete"
-            @click="handleDelete(scope.row)"
-            v-hasPermi="['supervision:institution:blacklist:remove']"
-          >删除</el-button>
-          <el-button
             v-if="scope.row.status === '1'"
             size="mini"
             type="text"
@@ -115,28 +68,6 @@
       :limit.sync="queryParams.pageSize"
       @pagination="getList"
     />
-
-    <!-- 添加或修改黑名单对话框 -->
-    <el-dialog :title="title" :visible.sync="open" width="500px" append-to-body>
-      <el-form ref="form" :model="form" :rules="rules" label-width="80px">
-        <el-form-item label="机构名称" prop="institutionName">
-          <el-input v-model="form.institutionName" placeholder="请输入机构名称" />
-        </el-form-item>
-        <el-form-item label="原因描述" prop="reason">
-          <el-input v-model="form.reason" type="textarea" placeholder="请输入原因描述" />
-        </el-form-item>
-        <el-form-item label="状态" prop="status">
-          <el-radio-group v-model="form.status">
-            <el-radio label="1">生效中</el-radio>
-            <el-radio label="2">已解除</el-radio>
-          </el-radio-group>
-        </el-form-item>
-      </el-form>
-      <div slot="footer" class="dialog-footer">
-        <el-button type="primary" @click="submitForm">确 定</el-button>
-        <el-button @click="cancel">取 消</el-button>
-      </div>
-    </el-dialog>
 
     <!-- 详情对话框 -->
     <el-dialog title="黑名单详情" :visible.sync="detailOpen" width="600px" append-to-body>
@@ -161,7 +92,7 @@
 </template>
 
 <script>
-import { listBlacklist, addBlacklist, removeBlacklist, getBlacklist, updateBlacklist, removeFromBlacklist } from '@/api/supervision/institution'
+import { listBlacklist, removeFromBlacklist } from '@/api/supervision/institution'
 
 export default {
   name: 'BlacklistList',
@@ -169,22 +100,12 @@ export default {
     return {
       // 遮罩层
       loading: true,
-      // 选中数组
-      ids: [],
-      // 非单个禁用
-      single: true,
-      // 非多个禁用
-      multiple: true,
       // 显示搜索条件
       showSearch: true,
       // 总条数
       total: 0,
       // 黑名单表格数据
       blacklistList: [],
-      // 弹出层标题
-      title: '',
-      // 是否显示弹出层
-      open: false,
       // 是否显示详情弹出层
       detailOpen: false,
       // 查询参数
@@ -194,22 +115,8 @@ export default {
         institutionName: null,
         status: null
       },
-      // 表单参数
-      form: {},
       // 详情表单
-      detailForm: {},
-      // 表单校验
-      rules: {
-        institutionName: [
-          { required: true, message: '机构名称不能为空', trigger: 'blur' }
-        ],
-        reason: [
-          { required: true, message: '原因描述不能为空', trigger: 'blur' }
-        ],
-        status: [
-          { required: true, message: '状态不能为空', trigger: 'change' }
-        ]
-      }
+      detailForm: {}
     }
   },
   created() {
@@ -225,21 +132,6 @@ export default {
         this.loading = false
       })
     },
-    // 取消按钮
-    cancel() {
-      this.open = false
-      this.reset()
-    },
-    // 表单重置
-    reset() {
-      this.form = {
-        institutionId: null,
-        institutionName: null,
-        reason: null,
-        status: '1'
-      }
-      this.resetForm('form')
-    },
     /** 搜索按钮操作 */
     handleQuery() {
       this.queryParams.pageNum = 1
@@ -249,58 +141,6 @@ export default {
     resetQuery() {
       this.resetForm('queryForm')
       this.handleQuery()
-    },
-    // 多选框选中数据
-    handleSelectionChange(selection) {
-      this.ids = selection.map(item => item.id)
-      this.single = selection.length !== 1
-      this.multiple = !selection.length
-    },
-    /** 新增按钮操作 */
-    handleAdd() {
-      this.reset()
-      this.open = true
-      this.title = '添加黑名单'
-    },
-    /** 修改按钮操作 */
-    handleUpdate(row) {
-      this.reset()
-      const id = row.id || this.ids[0]
-      getBlacklist(id).then(response => {
-        this.form = response.data
-        this.open = true
-        this.title = '修改黑名单'
-      })
-    },
-    /** 提交按钮 */
-    submitForm() {
-      this.$refs['form'].validate(valid => {
-        if (valid) {
-          if (this.form.id != null) {
-            updateBlacklist(this.form).then(response => {
-              this.$modal.msgSuccess('修改成功')
-              this.open = false
-              this.getList()
-            })
-          } else {
-            addBlacklist(this.form).then(response => {
-              this.$modal.msgSuccess('新增成功')
-              this.open = false
-              this.getList()
-            })
-          }
-        }
-      })
-    },
-    /** ��除按钮操作 */
-    handleDelete(row) {
-      const ids = row.id || this.ids
-      this.$modal.confirm('是否确认删除选中的黑名单数据项？').then(() => {
-        return removeBlacklist(ids)
-      }).then(() => {
-        this.getList()
-        this.$modal.msgSuccess('删除成功')
-      }).catch(() => {})
     },
     /** 移除黑名单操作 */
     handleRemove(row) {

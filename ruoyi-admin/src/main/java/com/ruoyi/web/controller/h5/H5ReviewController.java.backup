@@ -68,8 +68,8 @@ public class H5ReviewController extends BaseController
     @Log(title = "创建评价", businessType = BusinessType.INSERT)
     @PostMapping("/create")
     public AjaxResult createReview(@RequestBody InstitutionReview institutionReview)
-    {
         try {
+    {
         Long userId = SecurityUtils.getUserId();
         if (userId == null) {
             return AjaxResult.error("用户未登录或身份验证失败");
@@ -115,17 +115,17 @@ public class H5ReviewController extends BaseController
             return AjaxResult.error("最多只能上传9张图片");
         }
 
-            // 提交评价
-            int result = institutionReviewService.submitReview(institutionReview);
-            if (result > 0) {
-                return AjaxResult.success("评价提交成功，等待审核");
-            } else {
-                return AjaxResult.error("评价提交失败");
-            }
+    }
         } catch (Exception e) {
-            logger.error("评价提交异常: orderId={}, error={}", institutionReview.getOrderId(), e.getMessage(), e);
-            return AjaxResult.error("评价提交失败：" + (e.getMessage() != null ? e.getMessage() : "系统异常"));
-        }
+      logger.error("评价提交异常: orderId={}, error={}", institutionReview.getOrderId(), e.getMessage(), e);
+      return AjaxResult.error("评价提交失败：" + (e.getMessage() != null ? e.getMessage() : "系统异常"));
+    }
+        // 提��评价
+        int result = institutionReviewService.submitReview(institutionReview);
+        if (result > 0) {
+            return AjaxResult.success("评价提交成功，等待审核");
+        } else {
+            return AjaxResult.error("评价提交失败");
     }
 
     /**
@@ -147,6 +147,7 @@ public class H5ReviewController extends BaseController
             result.put("total", list.size());
 
             return AjaxResult.success(result);
+        }
         } catch (Exception e) {
             return AjaxResult.error("获取评价列表失败: " + e.getMessage());
         }
@@ -203,6 +204,7 @@ public class H5ReviewController extends BaseController
             result.put("total", list.size());
 
             return AjaxResult.success(result);
+        }
         } catch (Exception e) {
             return AjaxResult.error("获取评价记录失败: " + e.getMessage());
         }
@@ -228,6 +230,7 @@ public class H5ReviewController extends BaseController
             result.put("total", pendingOrders.size());
 
             return AjaxResult.success(result);
+        }
         } catch (Exception e) {
             return AjaxResult.error("获取待评价订单失败: " + e.getMessage());
         }

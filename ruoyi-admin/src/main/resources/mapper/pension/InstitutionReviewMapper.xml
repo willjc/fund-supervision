@@ -53,7 +53,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         from institution_review r
         left join pension_institution i on r.institution_id = i.institution_id
         left join pension_institution_public p on r.institution_id = p.institution_id
-        left join order_info o on r.order_id = o.order_id
+        left join order_info o on CAST(r.order_id AS SIGNED) = o.order_id
         left join elder_info e on r.elder_id = e.elder_id
         left join sys_user u on r.user_id = u.user_id
     </sql>
@@ -75,19 +75,48 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </select>
 
     <select id="selectInstitutionReviewWithRelationsList" parameterType="InstitutionReview" resultMap="InstitutionReviewWithRelationsResult">
-        <include refid="selectInstitutionReviewWithRelationsVo"/>
+        select r.review_id, r.order_id, r.institution_id, r.elder_id, r.user_id,
+               r.environment_rating, r.service_rating, r.price_rating, r.average_rating,
+               r.content, r.images, r.status, r.review_remark, r.review_time, r.review_by,
+               r.feedback_id, r.create_time, r.update_time,
+               i.institution_name, p.main_picture,
+               o.order_no,
+               e.elder_name,
+               u.user_name
+        from (
+            select * from institution_review
+            <where>
+                <if test="userId != null">user_id = #{userId}</if>
+            </where>
+            order by create_time desc
+        ) r
+        left join pension_institution i on r.institution_id = i.institution_id
+        left join pension_institution_public p on r.institution_id = p.institution_id
+        left join order_info o on CAST(r.order_id AS SIGNED) = o.order_id
+        left join elder_info e on r.elder_id = e.elder_id
+        left join sys_user u on r.user_id = u.user_id
         <where>
-            <if test="orderId != null  and orderId != ''"> and r.order_id = #{orderId}</if>
-            <if test="institutionId != null "> and r.institution_id = #{institutionId}</if>
-            <if test="elderId != null "> and r.elder_id = #{elderId}</if>
-            <if test="userId != null "> and r.user_id = #{userId}</if>
-            <if test="environmentRating != null "> and r.environment_rating = #{environmentRating}</if>
-            <if test="serviceRating != null "> and r.service_rating = #{serviceRating}</if>
-            <if test="priceRating != null "> and r.price_rating = #{priceRating}</if>
-            <if test="status != null "> and r.status = #{status}</if>
-            <if test="feedbackId != null "> and r.feedback_id = #{feedbackId}</if>
+            <if test="userId == null">
+                <if test="orderId != null  and orderId != ''"> and r.order_id = #{orderId}</if>
+                <if test="institutionId != null "> and r.institution_id = #{institutionId}</if>
+                <if test="elderId != null "> and r.elder_id = #{elder_id}</if>
+                <if test="environmentRating != null "> and r.environment_rating = #{environmentRating}</if>
+                <if test="serviceRating != null "> and r.service_rating = #{serviceRating}</if>
+                <if test="priceRating != null "> and r.price_rating = #{priceRating}</if>
+                <if test="status != null "> and r.status = #{status}</if>
+                <if test="feedbackId != null "> and r.feedback_id = #{feedbackId}</if>
+            </if>
+            <if test="userId != null">
+                <if test="orderId != null  and orderId != ''"> and r.order_id = #{orderId}</if>
+                <if test="institutionId != null "> and r.institution_id = #{institutionId}</if>
+                <if test="elderId != null "> and r.elder_id = #{elder_id}</if>
+                <if test="environmentRating != null "> and r.environment_rating = #{environmentRating}</if>
+                <if test="serviceRating != null "> and r.service_rating = #{serviceRating}</if>
+                <if test="priceRating != null "> and r.price_rating = #{priceRating}</if>
+                <if test="status != null "> and r.status = #{status}</if>
+                <if test="feedbackId != null "> and r.feedback_id = #{feedbackId}</if>
+            </if>
         </where>
-        order by r.create_time desc
     </select>
 
     <select id="selectInstitutionReviewByReviewId" parameterType="Long" resultMap="InstitutionReviewResult">

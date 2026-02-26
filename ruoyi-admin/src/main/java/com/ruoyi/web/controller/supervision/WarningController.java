@@ -52,10 +52,15 @@ public class WarningController extends BaseController
         query.setWarningStatus(status);
         List<SupervisionWarning> list = supervisionWarningService.selectSupervisionWarningList(query);
 
+        // 先获取分页信息（必须在转换前获取，因为转换会创建新列表）
+        com.github.pagehelper.PageInfo<SupervisionWarning> pageInfo = new com.github.pagehelper.PageInfo<>(list);
+        long total = pageInfo.getTotal();
+
         // 转换为前端需要的格式
         List<Map<String, Object>> resultList = convertToFrontendFormat(list);
 
         TableDataInfo dataInfo = getDataTable(resultList);
+        dataInfo.setTotal(total); // 手动设置正确的总数
         return dataInfo;
     }
 

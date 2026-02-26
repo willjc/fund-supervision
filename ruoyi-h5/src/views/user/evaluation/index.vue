@@ -64,43 +64,50 @@
             <div
               v-for="item in completedList"
               :key="item.id"
-              class="evaluation-item"
+              class="evaluation-item reviewed-item"
             >
-              <div class="institution-info">
+              <div class="review-header">
                 <van-image
-                  width="60"
-                  height="60"
+                  width="48"
+                  height="48"
                   :src="item.institutionImage"
                   fit="cover"
                   round
+                  class="institution-avatar"
                 />
-                <div class="institution-detail">
-                  <div class="institution-name">{{ item.institutionName }}</div>
-                  <div class="order-info">订单号: {{ item.orderNo }}</div>
-                  <div class="evaluation-time">评价时间: {{ formatTime(item.evaluationTime) }}</div>
-                  <div class="review-status">
+                <div class="header-info">
+                  <div class="name-row">
+                    <span class="institution-name">{{ item.institutionName }}</span>
                     <van-tag v-if="item.status === 0" type="warning" size="small">待审核</van-tag>
                     <van-tag v-else-if="item.status === 1" type="success" size="small">已通过</van-tag>
                     <van-tag v-else-if="item.status === 2" type="danger" size="small">已拒绝</van-tag>
                   </div>
+                  <div class="meta-row">
+                    <span class="order-no">{{ item.orderNo }}</span>
+                    <span class="separator">·</span>
+                    <span class="eval-time">{{ formatTime(item.evaluationTime) }}</span>
+                  </div>
                 </div>
               </div>
 
-              <div class="evaluation-content-card">
-                <van-rate
-                  v-model="item.rating"
-                  readonly
-                  :size="16"
-                  color="#ffd21e"
-                  void-color="#eee"
-                />
-                <div class="evaluation-text">{{ item.content || '用户暂未填写评价内容' }}</div>
-                <div v-if="item.images && item.images.length > 0" class="evaluation-images">
+              <div class="review-content">
+                <div class="rating-row">
+                  <van-rate
+                    v-model="item.rating"
+                    readonly
+                    :size="14"
+                    color="#ffd21e"
+                    void-color="#eee"
+                  />
+                  <span class="rating-score">{{ item.rating.toFixed(1) }}</span>
+                </div>
+                <div v-if="item.content" class="review-text">{{ item.content }}</div>
+                <div v-if="item.images && item.images.length > 0" class="review-images">
                   <van-image
                     v-for="(img, index) in item.images"
                     :key="index"
-                    width="60"
-                    height="60"
+                    width="72"
+                    height="72"
                     :src="img"
                     fit="cover"
                     @click="previewImages(item.images, index)"
@@ -301,11 +308,16 @@ const previewImages = (images, startPosition = 0) => {
   })
 }
 
-// 格式化时间
+// 格式化时间 - 返回 YYYY-MM-DD HH:mm 格式
 const formatTime = (time) => {
   if (!time) return ''
   const date = new Date(time)
-  return date.toLocaleDateString() + ' ' + date.toLocaleTimeString().slice(0, 5)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}`
 }
 
 // 格式化金额
@@ -395,10 +407,92 @@ onMounted(() => {
   margin-top: 4px;
 }
 
-.evaluation-content-card {
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 12px;
+/* 已评价卡片样式 */
+.reviewed-item {
+  padding: 14px !important;
+}
+
+.review-header {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.institution-avatar {
+  flex-shrink: 0;
+}
+
+.header-info {
+  flex: 1;
+  margin-left: 10px;
+  min-width: 0;
+}
+
+.name-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.name-row .institution-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-right: 8px;
+}
+
+.meta-row {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: #999;
+}
+
+.meta-row .separator {
+  margin: 0 6px;
+}
+
+.review-content {
+  padding-top: 4px;
+}
+
+.rating-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.rating-score {
+  margin-left: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ff9800;
+}
+
+.review-text {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 8px;
+  word-break: break-all;
+}
+
+.review-images {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.review-images :deep(.van-image) {
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
 }
 
 .evaluation-text {

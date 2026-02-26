@@ -190,51 +190,75 @@ public class ReleaseSupervisionServiceImpl implements IReleaseSupervisionService
     @Transactional
     public int approveRelease(Long releaseId, ReleaseSupervision releaseSupervision)
     {
-        // 1. 查询申请信息
-        ReleaseSupervision apply = releaseSupervisionMapper.selectReleaseSupervisionByReleaseId(releaseId);
-        if (apply == null) {
-            throw new RuntimeException("解除监管申请不存在");
+        try {
+            // 1. 查询申请信息
+            ReleaseSupervision apply = releaseSupervisionMapper.selectReleaseSupervisionByReleaseId(releaseId);
+            if (apply == null) {
+                logger.warn("批准解除监管失败：申请不存在, releaseId={}", releaseId);
+                throw new RuntimeException("解除监管申请不存在");
+            }
+            if (!"0".equals(apply.getApplyStatus())) {
+                logger.warn("批准解除监管失败：申请已被处理, releaseId={}, status={}", releaseId, apply.getApplyStatus());
+                throw new RuntimeException("该申请已被处理，无法再次审批");
+            }
+
+            Long institutionId = apply.getInstitutionId();
+            if (institutionId == null) {
+                logger.error("批准解除监管失败：申请的机构ID为空, releaseId={}", releaseId);
+                throw new RuntimeException("解除监管申请的机构ID为空");
+            }
+
+            // 2. 动态查询当前监管账户余额（实时数据）
+            Map<String, BigDecimal> balance = getInstitutionBalance(institutionId);
+            BigDecimal supervisionBalance = balance.get("total");
+
+            // 3. 记录监管账户支出流水
+            if (supervisionBalance != null && supervisionBalance.compareTo(BigDecimal.ZERO) > 0) {
+                try {
+                    supervisionAccountLogService.recordTransferOut(
+                            institutionId,
+                            releaseId,
+                            supervisionBalance,
+                            "解除监管划拨-" + apply.getApplyNo(),
+                            "基本账户"
+                    );
+                    logger.info("记录监管账户支出流水成功: institutionId={}, amount={}", institutionId, supervisionBalance);
+                } catch (Exception e) {
+                    logger.error("记录监管账户支出流水失败: institutionId={}, amount={}, error={}",
+                            institutionId, supervisionBalance, e.getMessage(), e);
+                    // 流水记录失败不影响主流程
+                }
+
+                // 3.1 生成fund_transfer拨付单，使解除监管记录在监管账户流水页面可见
+                createReleaseTransferOrder(institutionId, releaseId, supervisionBalance, apply);
+            }
+
+            // 4. 更新机构状态为"解除监管"
+            PensionInstitution institution = new PensionInstitution();
+            institution.setInstitutionId(institutionId);
+            institution.setStatus("3"); // 3=解除监管
+            pensionInstitutionService.updatePensionInstitution(institution);
+
+            // 5. 更新申请状态为已批准
+            ReleaseSupervision update = new ReleaseSupervision();
+            update.setReleaseId(releaseId);
+            update.setApplyStatus("1"); // 已批准
+            update.setApprover(SecurityUtils.getUsername());
+            update.setApproveTime(new Date());
+            update.setApproveRemark(releaseSupervision.getApproveRemark());
+            update.setUpdateTime(new Date());
+
+            int result = releaseSupervisionMapper.updateReleaseSupervision(update);
+            logger.info("批准解除监管成功: releaseId={}, institutionId={}", releaseId, institutionId);
+            return result;
+
+        } catch (RuntimeException e) {
+            logger.error("批准解除监管失败: releaseId={}, error={}", releaseId, e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            logger.error("批准解除监管异常: releaseId={}, error={}", releaseId, e.getMessage(), e);
+            throw new RuntimeException("批准解除监管失败: " + e.getMessage(), e);
         }
-        if (!"0".equals(apply.getApplyStatus())) {
-            throw new RuntimeException("该申请已被处理，无法再次审批");
-        }
-
-        Long institutionId = apply.getInstitutionId();
-
-        // 2. 动态查询当前监管账户余额（实时数据）
-        Map<String, BigDecimal> balance = getInstitutionBalance(institutionId);
-        BigDecimal supervisionBalance = balance.get("total");
-
-        // 3. 记录监管账户支出流水
-        if (supervisionBalance != null && supervisionBalance.compareTo(BigDecimal.ZERO) > 0) {
-            supervisionAccountLogService.recordTransferOut(
-                    institutionId,
-                    releaseId,
-                    supervisionBalance,
-                    "解除监管划拨-" + apply.getApplyNo(),
-                    "基本账户"
-            );
-
-            // 3.1 生成fund_transfer拨付单，使解除监管记录在监管账户流水页面可见
-            createReleaseTransferOrder(institutionId, releaseId, supervisionBalance, apply);
-        }
-
-        // 4. 更新机构状态为"解除监管"
-        PensionInstitution institution = new PensionInstitution();
-        institution.setInstitutionId(institutionId);
-        institution.setStatus("3"); // 3=解除监管
-        pensionInstitutionService.updatePensionInstitution(institution);
-
-        // 5. 更新申请状态为已批准
-        ReleaseSupervision update = new ReleaseSupervision();
-        update.setReleaseId(releaseId);
-        update.setApplyStatus("1"); // 已批准
-        update.setApprover(SecurityUtils.getUsername());
-        update.setApproveTime(new Date());
-        update.setApproveRemark(releaseSupervision.getApproveRemark());
-        update.setUpdateTime(new Date());
-
-        return releaseSupervisionMapper.updateReleaseSupervision(update);
     }
 
     /**
@@ -337,28 +361,34 @@ public class ReleaseSupervisionServiceImpl implements IReleaseSupervisionService
     private void createReleaseTransferOrder(Long institutionId, Long releaseId,
                                            BigDecimal amount, ReleaseSupervision apply)
     {
-        // 生成拨付单号
-        String transferNo = "TRF" + System.currentTimeMillis();
+        try {
+            // 生成拨付单号
+            String transferNo = "TRF" + System.currentTimeMillis();
 
-        // 插入fund_transfer记录
-        // transfer_type='3' 表示特殊申请（解除监管）
-        // elder_id=NULL 表示这是机构级别的划拨，不关联具体老人
-        String sql = "INSERT INTO fund_transfer " +
-                "(institution_id, transfer_no, transfer_type, transfer_amount, " +
-                "transfer_date, transfer_status, is_paid, paid_time, paid_method, " +
-                "elder_id, order_id, billing_month, status, remark, create_by, create_time) " +
-                "VALUES (?, ?, ?, ?, CURDATE(), '0', '1', NOW(), '银行转账', " +
-                "NULL, NULL, NULL, 'completed', ?, 'system', NOW())";
+            // 插入fund_transfer记录
+            // transfer_type='3' 表示特殊申请（解除监管）
+            // elder_id=NULL 表示这是机构级别的划拨，不关联具体老人
+            String sql = "INSERT INTO fund_transfer " +
+                    "(institution_id, transfer_no, transfer_type, transfer_amount, " +
+                    "transfer_date, transfer_status, is_paid, paid_time, paid_method, " +
+                    "elder_id, order_id, billing_month, status, remark, create_by, create_time) " +
+                    "VALUES (?, ?, ?, ?, CURDATE(), '0', '1', NOW(), '银行转账', " +
+                    "NULL, NULL, NULL, 'completed', ?, 'system', NOW())";
 
-        jdbcTemplate.update(sql,
-                institutionId,
-                transferNo,
-                "3",  // transfer_type='3' 表示特殊申请（解除监管）
-                amount,
-                "解除监管全额划拨-" + apply.getApplyNo()
-        );
+            jdbcTemplate.update(sql,
+                    institutionId,
+                    transferNo,
+                    "3",  // transfer_type='3' 表示特殊申请（解除监管）
+                    amount,
+                    "解除监管全额划拨-" + apply.getApplyNo()
+            );
 
-        logger.info("创建解除监管拨付单成功: transferNo={}, amount={}, institutionId={}",
-                transferNo, amount, institutionId);
+            logger.info("创建解除监管拨付单成功: transferNo={}, amount={}, institutionId={}",
+                    transferNo, amount, institutionId);
+        } catch (Exception e) {
+            logger.error("创建解除监管拨付单失败: institutionId={}, amount={}, error={}",
+                    institutionId, amount, e.getMessage(), e);
+            // 拨付单创建失败不影响主流程，记录日志即可
+        }
     }
 }

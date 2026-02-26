@@ -78,15 +78,41 @@ public class InstitutionBlacklistServiceImpl implements IInstitutionBlacklistSer
 
     /**
      * 修改机构黑名单
+     * 同步更新机构表的黑名单标志
      *
      * @param institutionBlacklist 机构黑名单
      * @return 结果
      */
     @Override
+    @Transactional
     public int updateInstitutionBlacklist(InstitutionBlacklist institutionBlacklist)
     {
         institutionBlacklist.setUpdateTime(new Date());
-        return institutionBlacklistMapper.updateInstitutionBlacklist(institutionBlacklist);
+
+        // 获取更新前的黑名单记录，用于判断状态是否发生变化
+        InstitutionBlacklist oldRecord = null;
+        if (institutionBlacklist.getId() != null) {
+            oldRecord = institutionBlacklistMapper.selectInstitutionBlacklistById(institutionBlacklist.getId());
+        }
+
+        int result = institutionBlacklistMapper.updateInstitutionBlacklist(institutionBlacklist);
+
+        // 如果状态发生变化，同步更新机构表的黑名单标志
+        if (result > 0 && oldRecord != null && institutionBlacklist.getStatus() != null
+                && !oldRecord.getStatus().equals(institutionBlacklist.getStatus())
+                && institutionBlacklist.getInstitutionId() != null) {
+            PensionInstitution institution = new PensionInstitution();
+            institution.setInstitutionId(institutionBlacklist.getInstitutionId());
+
+            // status='1' 表示生效中，设置黑名单标志为'1'
+            // status='2' 表示已解除，设置黑名单标志为'0'
+            institution.setBlacklistFlag("1".equals(institutionBlacklist.getStatus()) ? "1" : "0");
+            institution.setUpdateBy(SecurityUtils.getUsername());
+            institution.setUpdateTime(new Date());
+            pensionInstitutionMapper.updatePensionInstitution(institution);
+        }
+
+        return result;
     }
 
     /**
