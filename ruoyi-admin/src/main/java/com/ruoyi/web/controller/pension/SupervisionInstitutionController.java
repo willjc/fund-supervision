@@ -86,7 +86,7 @@ public class SupervisionInstitutionController extends BaseController
                 institution.setMemberFeeBalance(BigDecimal.ZERO);
             }
 
-            // 查询床位数据（从bed_info表统计）
+            // 查询床位数据（从bed_info表统计实际创建的床位数）
             try {
                 String bedSql = "SELECT COUNT(*) as total_beds, " +
                                 "SUM(CASE WHEN bed_status = '1' THEN 1 ELSE 0 END) as used_beds " +
@@ -94,28 +94,19 @@ public class SupervisionInstitutionController extends BaseController
                 Map<String, Object> bedData = jdbcTemplate.queryForMap(bedSql, institutionId);
                 Integer totalBeds = ((Number) bedData.get("total_beds")).intValue();
                 Integer usedBeds = ((Number) bedData.get("used_beds")).intValue();
-                // 如果bed_info有数据，使用实际统计；否则使用pension_institution的bed_count
-                if (totalBeds > 0) {
-                    institution.setBedCount(totalBeds.longValue());
-                    institution.setActualElders(usedBeds);
-                } else {
-                    // bed_info无数据时，查询elder_check_in获取入住老人数
-                    try {
-                        String elderSql = "SELECT COUNT(*) FROM elder_check_in WHERE institution_id = ?";
-                        Integer actualElders = jdbcTemplate.queryForObject(elderSql, Integer.class, institutionId);
-                        institution.setActualElders(actualElders != null ? actualElders : 0);
-                    } catch (Exception ex) {
-                        institution.setActualElders(0);
-                    }
-                }
+                // 设置实际创建的床位数和已使用床位数
+                institution.setActualBeds(totalBeds);
+                institution.setActualElders(usedBeds);
             } catch (Exception e) {
-                // 查询失败时，尝试从elder_check_in统计
+                // 查询失败时，尝试从elder_check_in统计老人数
                 try {
                     String elderSql = "SELECT COUNT(*) FROM elder_check_in WHERE institution_id = ?";
                     Integer actualElders = jdbcTemplate.queryForObject(elderSql, Integer.class, institutionId);
                     institution.setActualElders(actualElders != null ? actualElders : 0);
+                    institution.setActualBeds(0);
                 } catch (Exception ex) {
                     institution.setActualElders(0);
+                    institution.setActualBeds(0);
                 }
             }
         }
@@ -352,31 +343,20 @@ public class SupervisionInstitutionController extends BaseController
             logger.warn("查询机构资金统计失败: institutionId={}", institutionId, e);
         }
 
-        // 查询床位数据（从bed_info表统计）
-        Integer approvedBeds = institution.getBedCount() != null ? institution.getBedCount().intValue() : 0;
+        // 查询床位数据（从bed_info表统计实际创建的床位数）
+        // bedCount使用申请时填写的床位数，actualBeds使用实际创建的床位数
+        Integer bedCount = institution.getBedCount() != null ? institution.getBedCount().intValue() : 0;
+        Integer actualBeds = 0;
         Integer actualElders = 0;
         try {
             String bedSql = "SELECT COUNT(*) as total_beds, " +
                             "SUM(CASE WHEN bed_status = '1' THEN 1 ELSE 0 END) as used_beds " +
                             "FROM bed_info WHERE institution_id = ?";
             Map<String, Object> bedData = jdbcTemplate.queryForMap(bedSql, institutionId);
-            Integer totalBeds = ((Number) bedData.get("total_beds")).intValue();
-            Integer usedBeds = ((Number) bedData.get("used_beds")).intValue();
-            // 如果bed_info有数据，使用实际统计
-            if (totalBeds > 0) {
-                approvedBeds = totalBeds;
-                actualElders = usedBeds;
-            } else {
-                // bed_info无数据时，查询elder_check_in获取入住老人数
-                try {
-                    String elderSql = "SELECT COUNT(*) FROM elder_check_in WHERE institution_id = ?";
-                    actualElders = jdbcTemplate.queryForObject(elderSql, Integer.class, institutionId);
-                } catch (Exception ex) {
-                    logger.warn("查询机构老人数失败: institutionId={}", institutionId, ex);
-                }
-            }
+            actualBeds = ((Number) bedData.get("total_beds")).intValue();
+            actualElders = ((Number) bedData.get("used_beds")).intValue();
         } catch (Exception e) {
-            // 查询失败时，尝试从elder_check_in统计
+            // 查询失败时，尝试从elder_check_in统计老人数
             try {
                 String elderSql = "SELECT COUNT(*) FROM elder_check_in WHERE institution_id = ?";
                 actualElders = jdbcTemplate.queryForObject(elderSql, Integer.class, institutionId);
@@ -400,7 +380,8 @@ public class SupervisionInstitutionController extends BaseController
         data.put("status", institution.getStatus());
         data.put("registerTime", institution.getCreateTime());
         data.put("establishedDate", institution.getEstablishedDate());
-        data.put("bedCount", approvedBeds);
+        data.put("bedCount", bedCount);
+        data.put("actualBeds", actualBeds);
         data.put("actualElders", actualElders);
         data.put("rating", institution.getRatingLevel() != null ? institution.getRatingLevel() : 3);
         data.put("serviceFeeBalance", serviceFeeBalance);

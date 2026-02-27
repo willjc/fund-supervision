@@ -369,6 +369,23 @@ public class InstitutionManageController extends BaseController
     @PutMapping("/account/edit")
     public AjaxResult editInstitutionAccount(@RequestBody PensionInstitution pensionInstitution)
     {
+        // 验证信用代码唯一性（排除当前机构本身）
+        if (pensionInstitution.getCreditCode() != null && !pensionInstitution.getCreditCode().trim().isEmpty()) {
+            PensionInstitution query = new PensionInstitution();
+            query.setCreditCode(pensionInstitution.getCreditCode());
+            List<PensionInstitution> existList = pensionInstitutionService.selectPensionInstitutionList(query);
+
+            // 检查是否有其他机构使用相同的信用代码
+            if (existList != null && !existList.isEmpty()) {
+                for (PensionInstitution exist : existList) {
+                    // 排除当前正在编辑的机构本身
+                    if (!exist.getInstitutionId().equals(pensionInstitution.getInstitutionId())) {
+                        return AjaxResult.error("统一信用代码已存在: " + pensionInstitution.getCreditCode());
+                    }
+                }
+            }
+        }
+
         pensionInstitution.setUpdateBy(getUsername());
         pensionInstitution.setUpdateTime(new Date());
         return toAjax(pensionInstitutionService.updatePensionInstitution(pensionInstitution));

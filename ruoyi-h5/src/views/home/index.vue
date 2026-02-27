@@ -99,9 +99,9 @@
               <div class="listing-status">
                 <span
                   class="status-text"
-                  :class="{ available: item.bedCount > 0 }"
+                  :class="{ available: item.availableBeds > 0 }"
                 >
-                  {{ item.bedCount > 0 ? '有床位' : '暂无床位' }}
+                  {{ item.availableBeds > 0 ? '有床位' : '暂无床位' }}
                 </span>
                 <span class="status-divider">|</span>
                 <span class="status-count">共{{ item.bedCount }}床</span>
@@ -292,7 +292,7 @@ const transformInstitutionData = (institution) => {
   return {
     institutionId: institution.institutionId,
     institutionName: institution.institutionName || '未命名机构',
-    bedCount: institution.availableBeds || institution.totalBeds || 0,
+    bedCount: institution.bedCount || 0,
     address: institution.address || '地址未填写',
     coverImage: institution.coverImage || 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg',
     minPrice: minPrice,

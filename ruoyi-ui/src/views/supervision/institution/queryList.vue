@@ -205,7 +205,8 @@
                 <i class="el-icon-close"></i> 未开户
               </span>
             </el-descriptions-item>
-            <el-descriptions-item label="床位数">{{ currentInstitution.bedCount || 0 }}张</el-descriptions-item>
+            <el-descriptions-item label="床位数">{{ currentInstitution.bedCount || 0 }}张（申请）</el-descriptions-item>
+            <el-descriptions-item label="实际创建床位数">{{ currentInstitution.actualBeds || 0 }}张</el-descriptions-item>
             <el-descriptions-item label="入住老人数">{{ currentInstitution.actualElders || 0 }}人</el-descriptions-item>
             <el-descriptions-item label="床位使用率" :span="2">
               <el-progress
@@ -314,8 +315,9 @@
                 <span v-if="publicityInfo.buildingArea">{{ publicityInfo.buildingArea }}㎡</span>
                 <span v-else>-</span>
               </el-descriptions-item>
-              <el-descriptions-item label="床位数">
-                <span v-if="currentInstitution.bedCount">{{ currentInstitution.bedCount }}张</span>
+              <el-descriptions-item label="床位数" :span="2">
+                <span v-if="currentInstitution.bedCount">{{ currentInstitution.bedCount }}张（申请）</span>
+                <span v-if="currentInstitution.actualBeds != null" style="margin-left: 10px; color: #909399;">实际创建：{{ currentInstitution.actualBeds }}张</span>
                 <span v-else>-</span>
               </el-descriptions-item>
             </el-descriptions>
@@ -798,7 +800,7 @@ export default {
         // 新格式：使用数字代码映射
         const typeMap = {
           '1': '自理',
-          '2': '半护��',
+          '2': '半护理',
           '3': '全护理',
           '4': '失能',
           '5': '失智'

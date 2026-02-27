@@ -442,10 +442,23 @@ export default {
     submitForm() {
       this.$refs['form'].validate(valid => {
         if (valid) {
+          // 修改时需要校验信用代码是否与其他机构重复
+          if (this.form.institutionId != null) {
+            // 检查信用代码是否被其他机构使用
+            const duplicateInstitution = this.institutionList.find(item =>
+              item.creditCode === this.form.creditCode &&
+              item.institutionId !== this.form.institutionId
+            )
+            if (duplicateInstitution) {
+              this.$modal.msgError(`统一信用代码已被【${duplicateInstitution.institutionName}】使用，请检查！`)
+              return
+            }
+          }
+
           if (this.form.institutionId != null) {
             // 修改
             editInstitutionAccount(this.form).then(response => {
-              this.$modal.msgSuccess('修改成功')
+              this.$modal.msgSuccess('修改成��')
               this.openAdd = false
               this.getList()
             })

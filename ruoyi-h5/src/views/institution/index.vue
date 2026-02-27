@@ -88,7 +88,7 @@
                     {{ institution.availableBeds > 0 ? '有床位' : '暂无床位' }}
                   </span>
                   <span class="status-divider">|</span>
-                  <span class="status-count">共{{ institution.totalBeds || institution.bedCount || 0 }}床</span>
+                  <span class="status-count">共{{ institution.bedCount || 0 }}床</span>
                 </div>
                 <span class="listing-address">{{ institution.address }}</span>
                 <div class="listing-tags" v-if="institution.lifeFacilities && institution.lifeFacilities.length > 0">
