@@ -51,54 +51,6 @@
       </el-form-item>
     </el-form>
 
-    <!-- 统计卡片 -->
-    <el-row :gutter="20" class="mb8">
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-content">
-            <div class="stat-number">{{ statistics.pendingCount || 0 }}</div>
-            <div class="stat-label">待审批</div>
-            <div class="stat-icon pending">
-              <i class="el-icon-time"></i>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-content">
-            <div class="stat-number">{{ statistics.approvedCount || 0 }}</div>
-            <div class="stat-label">已入驻</div>
-            <div class="stat-icon approved">
-              <i class="el-icon-check"></i>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-content">
-            <div class="stat-number">{{ statistics.rejectedCount || 0 }}</div>
-            <div class="stat-label">不通过</div>
-            <div class="stat-icon rejected">
-              <i class="el-icon-close"></i>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-content">
-            <div class="stat-number">{{ statistics.totalCount || 0 }}</div>
-            <div class="stat-label">总申请</div>
-            <div class="stat-icon total">
-              <i class="el-icon-document"></i>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
-
     <!-- 操作按钮 -->
     <el-row :gutter="10" class="mb8">
       <el-col :span="1.5">
@@ -121,15 +73,6 @@
           @click="handleExport"
           v-hasPermi="['pension:institution:export']"
         >导出</el-button>
-      </el-col>
-      <el-col :span="1.5">
-        <el-switch
-          v-model="showAll"
-          active-text="显示全部"
-          inactive-text="仅待审批"
-          @change="handleShowAllChange"
-        >
-        </el-switch>
       </el-col>
       <right-toolbar :showSearch.sync="showSearch" @queryTable="getList"></right-toolbar>
     </el-row>
@@ -230,7 +173,9 @@
       <!-- 经营信息 -->
       <el-divider content-position="left">经营信息</el-divider>
       <el-descriptions :column="2" border>
-        <el-descriptions-item label="养老机构类型">{{ getInstitutionTypeText(currentInstitution.institutionType) }}</el-descriptions-item>
+        <el-descriptions-item label="养老机构类型">
+          <dict-tag :options="dict.type.pension_institution_type" :value="currentInstitution.institutionType"/>
+        </el-descriptions-item>
         <el-descriptions-item label="床位数">{{ currentInstitution.bedCount }}张</el-descriptions-item>
         <el-descriptions-item label="收费区间">{{ currentInstitution.feeRange }}</el-descriptions-item>
         <el-descriptions-item label="固定资产净额">{{ currentInstitution.fixedAssets }}万元</el-descriptions-item>
@@ -317,11 +262,11 @@
 </template>
 
 <script>
-import { listApproval, listAllInstitution, getInstitution, approveInstitution, rejectInstitution, getApprovalStatistics, batchApprove, exportApproval } from "@/api/pension/supervisionInstitution";
+import { listAllInstitution, getInstitution, approveInstitution, rejectInstitution, batchApprove } from "@/api/pension/supervisionInstitution";
 
 export default {
   name: "InstitutionApproval",
-  dicts: ['pension_institution_status'],
+  dicts: ['pension_institution_status', 'pension_institution_type'],
   data() {
     return {
       // 遮罩层
@@ -336,12 +281,8 @@ export default {
       total: 0,
       // 机构申请表格数据
       institutionList: [],
-      // 统计数据
-      statistics: {},
       // 日期范围
       dateRange: [],
-      // 显示全部数据
-      showAll: false,
       // 弹出层标题
       title: "",
       // 是否显示详情弹出层
@@ -356,7 +297,7 @@ export default {
         pageSize: 10,
         institutionName: null,
         creditCode: null,
-        status: "0" // 默认只查询待审批
+        status: null
       },
       // 拒绝表单
       rejectForm: {
@@ -373,7 +314,6 @@ export default {
   },
   created() {
     this.getList();
-    this.getStatistics();
   },
   methods: {
     /** 处理图片URL，移除硬编码域名并添加API前缀 */
@@ -398,19 +338,10 @@ export default {
       this.loading = true;
       this.addDateRange();
 
-      // 根据是否显示全部选择不同的API
-      const apiMethod = this.showAll ? listAllInstitution : listApproval;
-
-      apiMethod(this.queryParams).then(response => {
+      listAllInstitution(this.queryParams).then(response => {
         this.institutionList = response.rows;
         this.total = response.total;
         this.loading = false;
-      });
-    },
-    /** 查询统计数据 */
-    getStatistics() {
-      getApprovalStatistics().then(response => {
-        this.statistics = response.data;
       });
     },
     // 添加日期范围
@@ -429,7 +360,9 @@ export default {
     resetQuery() {
       this.dateRange = [];
       this.resetForm("queryForm");
-      this.handleQuery();
+      this.queryParams.status = null;
+      this.queryParams.pageNum = 1;
+      this.getList();
     },
     // 多选框选中数据
     handleSelectionChange(selection) {
@@ -458,7 +391,6 @@ export default {
         return approveInstitution(institutionId);
       }).then((response) => {
         this.getList();
-        this.getStatistics();
         const successMsg = isMaintenance ? "维护申请审批通过成功" : "入驻申请审批通过成功";
         this.$modal.msgSuccess(response.msg || successMsg);
 
@@ -492,9 +424,8 @@ export default {
     submitReject() {
       this.$refs["rejectForm"].validate(valid => {
         if (valid) {
-          rejectInstitution(this.rejectForm.institutionId, this.rejectForm).then(response => {
+          rejectInstitution(this.rejectForm.institutionId, this.rejectForm).then(() => {
             this.getList();
-            this.getStatistics();
             this.rejectOpen = false;
             this.$modal.msgSuccess("审批不通过成功");
           });
@@ -516,96 +447,18 @@ export default {
         return batchApprove(institutionIds);
       }).then(response => {
         this.getList();
-        this.getStatistics();
         this.$modal.msgSuccess(response.msg);
       }).catch(() => {});
-    },
-    /** 显示全部切换 */
-    handleShowAllChange(value) {
-      if (value) {
-        this.queryParams.status = null; // 显示全部状态
-      } else {
-        this.queryParams.status = "0"; // 只显示待审批
-      }
-      this.queryParams.pageNum = 1;
-      this.getList();
     },
     /** 导出按钮操作 */
     handleExport() {
       this.download('pension/supervision/institution/approval/export', {
         ...this.queryParams
       }, `机构入驻申请_${new Date().getTime()}.xlsx`)
-    },
-    /** 获取机构类型文本 */
-    getInstitutionTypeText(type) {
-      const typeMap = {
-        '1': '民办',
-        '2': '公办',
-        '3': '公建民营'
-      };
-      return typeMap[type] || type;
     }
   }
 };
 </script>
 
 <style scoped>
-.stat-card {
-  height: 100px;
-}
-
-.stat-content {
-  position: relative;
-  height: 100%;
-  padding: 20px;
-  display: flex;
-  align-items: center;
-}
-
-.stat-number {
-  font-size: 28px;
-  font-weight: bold;
-  color: #303133;
-}
-
-.stat-label {
-  font-size: 14px;
-  color: #909399;
-  margin-left: 15px;
-}
-
-.stat-icon {
-  position: absolute;
-  right: 20px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  color: white;
-}
-
-.stat-icon.pending {
-  background: linear-gradient(135deg, #FF6B6B, #FF8E8E);
-}
-
-.stat-icon.approved {
-  background: linear-gradient(135deg, #4CAF50, #66BB6A);
-}
-
-.stat-icon.supplement {
-  background: linear-gradient(135deg, #FFA726, #FFB74D);
-}
-
-.stat-icon.rejected {
-  background: linear-gradient(135deg, #F56C6C, #F78989);
-}
-
-.stat-icon.total {
-  background: linear-gradient(135deg, #42A5F5, #66B3FF);
-}
 </style>

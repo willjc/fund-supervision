@@ -157,14 +157,6 @@
           <el-button
             size="mini"
             type="text"
-            icon="el-icon-edit"
-            @click="handleUpdate(scope.row)"
-            v-hasPermi="['order:info:edit']"
-            v-if="scope.row.orderStatus !== '1'"
-          >修改</el-button>
-          <el-button
-            size="mini"
-            type="text"
             icon="el-icon-check"
             @click="handleAudit(scope.row)"
             v-if="scope.row.orderStatus === '4'"
@@ -204,64 +196,6 @@
       :limit.sync="queryParams.pageSize"
       @pagination="getList"
     />
-
-    <!-- 添加或修改订单对话框 -->
-    <el-dialog :title="title" :visible.sync="open" width="600px" append-to-body>
-      <el-form ref="form" :model="form" :rules="rules" label-width="100px">
-        <el-row>
-          <el-col :span="12">
-            <el-form-item label="订单类型" prop="orderType">
-              <el-select v-model="form.orderType" placeholder="请选择订单类型">
-                <el-option
-                  v-for="dict in dict.type.order_type"
-                  :key="dict.value"
-                  :label="dict.label"
-                  :value="dict.value"
-                ></el-option>
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="支付方式" prop="paymentMethod">
-              <el-select v-model="form.paymentMethod" placeholder="请选择支付方式">
-                <el-option
-                  v-for="dict in dict.type.payment_method"
-                  :key="dict.value"
-                  :label="dict.label"
-                  :value="dict.value"
-                ></el-option>
-              </el-select>
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row>
-          <el-col :span="12">
-            <el-form-item label="订单金额" prop="orderAmount">
-              <el-input-number v-model="form.orderAmount" :precision="2" :min="0" style="width: 100%"/>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="订单状态" prop="orderStatus">
-              <el-select v-model="form.orderStatus" placeholder="请选择订单状态">
-                <el-option
-                  v-for="dict in dict.type.order_status"
-                  :key="dict.value"
-                  :label="dict.label"
-                  :value="dict.value"
-                ></el-option>
-              </el-select>
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-form-item label="订单备注" prop="remark">
-          <el-input v-model="form.remark" type="textarea" placeholder="请输入内容" />
-        </el-form-item>
-      </el-form>
-      <div slot="footer" class="dialog-footer">
-        <el-button type="primary" @click="submitForm">确 定</el-button>
-        <el-button @click="cancel">取 消</el-button>
-      </div>
-    </el-dialog>
 
     <!-- 新增订单对话框 - 选择入住人 -->
     <el-dialog title="新增订单 - 选择入住人" :visible.sync="selectResidentOpen" width="900px" append-to-body>
@@ -525,7 +459,7 @@
 </template>
 
 <script>
-import { listOrder, getOrder, delOrder, addOrder, updateOrder, payOrder, cancelOrder, exportOrder, approveOrder, rejectOrder } from "@/api/order/orderInfo";
+import { listOrder, delOrder, payOrder, cancelOrder, exportOrder, approveOrder, rejectOrder } from "@/api/order/orderInfo";
 import { listResident, getResident, renewResident } from "@/api/elder/resident";
 import { listPensionInstitution } from "@/api/pension/institution";
 import OrderDetail from './components/OrderDetail'
@@ -562,10 +496,6 @@ export default {
       orderList: [],
       // 日期范围
       dateRange: [],
-      // 弹出层标题
-      title: "",
-      // 是否显示弹出层
-      open: false,
       // 查询参数
       queryParams: {
         pageNum: 1,
@@ -577,23 +507,6 @@ export default {
         paymentMethod: null,
         elderName: null,
         institutionName: null,
-      },
-      // 表单参数
-      form: {},
-      // 表单校验
-      rules: {
-        orderType: [
-          { required: true, message: "订单类型不能为空", trigger: "change" }
-        ],
-        orderAmount: [
-          { required: true, message: "订单金额不能为空", trigger: "blur" }
-        ],
-        orderStatus: [
-          { required: true, message: "订单状态不能为空", trigger: "change" }
-        ],
-        paymentMethod: [
-          { required: true, message: "支付方式不能为空", trigger: "change" }
-        ]
       },
       // 新增订单相关数据
       selectResidentOpen: false,
@@ -677,32 +590,6 @@ export default {
         this.total = response.total;
         this.loading = false;
       });
-    },
-    // 取消按钮
-    cancel() {
-      this.open = false;
-      this.reset();
-    },
-    // 表单重置
-    reset() {
-      this.form = {
-        orderId: null,
-        orderNo: null,
-        orderType: null,
-        elderId: null,
-        institutionId: null,
-        orderAmount: null,
-        paidAmount: null,
-        unpaidAmount: null,
-        orderStatus: "1",
-        paymentMethod: null,
-        createBy: null,
-        createTime: null,
-        updateBy: null,
-        updateTime: null,
-        remark: null
-      };
-      this.resetForm("form");
     },
     /** 搜索按钮操作 */
     handleQuery() {
@@ -836,36 +723,6 @@ export default {
       return Number(value).toFixed(2);
     },
 
-    /** 修改按钮操作 */
-    handleUpdate(row) {
-      this.reset();
-      const orderId = row.orderId || this.ids
-      getOrder(orderId).then(response => {
-        this.form = response.data;
-        this.open = true;
-        this.title = "修改订单";
-      });
-    },
-    /** 提交按钮 */
-    submitForm() {
-      this.$refs["form"].validate(valid => {
-        if (valid) {
-          if (this.form.orderId != null) {
-            updateOrder(this.form).then(response => {
-              this.$modal.msgSuccess("修改成功");
-              this.open = false;
-              this.getList();
-            });
-          } else {
-            addOrder(this.form).then(response => {
-              this.$modal.msgSuccess("新增成功");
-              this.open = false;
-              this.getList();
-            });
-          }
-        }
-      });
-    },
     /** 删除按钮操作 */
     handleDelete(row) {
       const orderIds = row.orderId || this.ids;

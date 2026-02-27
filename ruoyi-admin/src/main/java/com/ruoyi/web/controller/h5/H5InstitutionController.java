@@ -364,7 +364,8 @@ public class H5InstitutionController extends BaseController
             bedCount = institutionBedCount != null ? institutionBedCount.intValue() : null;
         }
         result.put("bedCount", bedCount != null ? bedCount : 0);
-        result.put("institutionType", "nursing_home"); // 默认类型
+        // 机构类型从机��基础信息获取，用于前端筛选
+        result.put("institutionType", institution != null ? convertInstitutionType(institution.getInstitutionType()) : "nursing_home");
 
         // 获取床位统计
         try {
@@ -482,6 +483,29 @@ public class H5InstitutionController extends BaseController
         // 添加收住类型（从机构基础信息获取，用于前端筛选）
         if (institution != null) {
             result.put("careLevels", institution.getCareLevels());
+        }
+
+        // 添加机构评级数据（用于前端星级筛选）
+        try {
+            InstitutionRating queryRating = new InstitutionRating();
+            queryRating.setInstitutionId(institution != null ? institution.getInstitutionId() : null);
+            List<InstitutionRating> ratings = ratingService.selectInstitutionRatingList(queryRating);
+
+            if (!ratings.isEmpty()) {
+                // 获取最新的有效评级
+                InstitutionRating latestRating = ratings.stream()
+                        .filter(r -> "1".equals(r.getRatingStatus())) // 只获取有效的评级
+                        .sorted((a, b) -> b.getRatingDate().compareTo(a.getRatingDate())) // 按评级日期倒序
+                        .findFirst()
+                        .orElse(null);
+
+                result.put("ratingLevel", latestRating != null ? latestRating.getRatingLevel() : 3);
+            } else {
+                result.put("ratingLevel", 3); // 默认3星
+            }
+        } catch (Exception e) {
+            result.put("ratingLevel", 3); // 异常时使用默认值
+            System.out.println("查询机构评级失败: " + e.getMessage());
         }
 
         return result;
