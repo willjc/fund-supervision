@@ -142,6 +142,30 @@ public class ResidentVO
     /** 所属机构ID */
     private Long institutionId;
 
+    /** 床位ID */
+    private Long bedId;
+
+    /** 床位费 */
+    private BigDecimal price;
+
+    /** 自理价格 */
+    private BigDecimal selfCarePrice;
+
+    /** 半护理价格 */
+    private BigDecimal halfCarePrice;
+
+    /** 全护理价格 */
+    private BigDecimal fullCarePrice;
+
+    /** 会员费 */
+    private BigDecimal memberFee;
+
+    /** 押金费 */
+    private BigDecimal depositFee;
+
+    /** 餐费等级代码 */
+    private String mealLevelCode;
+
     /** 所属机构名称 */
     @Excel(name = "所属机构")
     private String institutionName;
@@ -399,6 +423,62 @@ public class ResidentVO
 
     public void setInstitutionName(String institutionName) {
         this.institutionName = institutionName;
+    }
+
+    public Long getBedId() {
+        return bedId;
+    }
+
+    public void setBedId(Long bedId) {
+        this.bedId = bedId;
+    }
+
+    public BigDecimal getPrice() {
+        return price;
+    }
+
+    public void setPrice(BigDecimal price) {
+        this.price = price;
+    }
+
+    public BigDecimal getSelfCarePrice() {
+        return selfCarePrice;
+    }
+
+    public void setSelfCarePrice(BigDecimal selfCarePrice) {
+        this.selfCarePrice = selfCarePrice;
+    }
+
+    public BigDecimal getHalfCarePrice() {
+        return halfCarePrice;
+    }
+
+    public void setHalfCarePrice(BigDecimal halfCarePrice) {
+        this.halfCarePrice = halfCarePrice;
+    }
+
+    public BigDecimal getFullCarePrice() {
+        return fullCarePrice;
+    }
+
+    public void setFullCarePrice(BigDecimal fullCarePrice) {
+        this.fullCarePrice = fullCarePrice;
+    }
+
+    public BigDecimal getMemberFee() {
+        return memberFee;
+    }
+
+    public void setMemberFee(BigDecimal memberFee) {
+        this.memberFee = memberFee;
+    }
+
+    public BigDecimal getDepositFee() {
+        return depositFee;
+    }
+
+    public void setDepositFee(BigDecimal depositFee) {
+        this.depositFee = depositFee;
     }
 
     public Long getAccountId() {

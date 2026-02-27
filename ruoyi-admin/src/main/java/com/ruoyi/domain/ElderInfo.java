@@ -65,6 +65,10 @@ public class ElderInfo extends BaseEntity
     @Excel(name = "护理等级", readConverterExp = "1=自理,2=半护理,3=全护理")
     private String careLevel;
 
+    /** 餐费等级代码(1一级餐 2二级餐等) */
+    @Excel(name = "餐费等级", readConverterExp = "1=一级餐,2=二级餐")
+    private String mealLevelCode;
+
     /** 特殊需求说明 */
     @Excel(name = "特殊需求")
     private String specialNeeds;
@@ -206,6 +210,17 @@ public class ElderInfo extends BaseEntity
     {
         return careLevel;
     }
+
+    public void setMealLevelCode(String mealLevelCode)
+    {
+        this.mealLevelCode = mealLevelCode;
+    }
+
+    public String getMealLevelCode()
+    {
+        return mealLevelCode;
+    }
+
     public void setSpecialNeeds(String specialNeeds)
     {
         this.specialNeeds = specialNeeds;
@@ -280,6 +295,7 @@ public class ElderInfo extends BaseEntity
             .append("emergencyPhone", getEmergencyPhone())
             .append("healthStatus", getHealthStatus())
             .append("careLevel", getCareLevel())
+            .append("mealLevelCode", getMealLevelCode())
             .append("specialNeeds", getSpecialNeeds())
             .append("photoPath", getPhotoPath())
             .append("idCardFrontPath", getIdCardFrontPath())

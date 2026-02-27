@@ -414,6 +414,7 @@ export default {
         mealConfigId: null,   // 餐费配置ID
         mealFee: 0,          // 餐费
         mealLevel: '',       // 餐费档次
+        mealLevelCode: '',   // 餐费等级代码
         monthlyFee: 0,       // 月服务费(自动计算=床位费+护理费+餐费)
         monthCount: 1,
         depositAmount: 0,
@@ -671,12 +672,14 @@ export default {
       if (meal) {
         this.form.mealFee = meal.price || 0;
         this.form.mealLevel = meal.mealLevel || '';
+        this.form.mealLevelCode = meal.mealLevelCode || ''; // 设置餐费等级代码
         // 同步更新 monthlyFee（用于后端存储）
         this.form.monthlyFee = this.form.bedFee + this.form.careFee + this.form.mealFee;
         this.calculateTotal();
       } else {
         this.form.mealFee = 0;
         this.form.mealLevel = '';
+        this.form.mealLevelCode = '';
         this.form.monthlyFee = this.form.bedFee + this.form.careFee;
         this.calculateTotal();
       }

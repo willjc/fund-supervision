@@ -113,6 +113,8 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
 
             // 如果是已退住状态或其他机构入住,可以重新入住,复用老人ID并更新状态
             existingElder.setStatus("1"); // 更新为已入住
+            existingElder.setCareLevel(dto.getCareLevel()); // 更新护理等级
+            existingElder.setMealLevelCode(dto.getMealLevelCode()); // 更新餐费等级代码
             existingElder.setUpdateTime(DateUtils.getNowDate());
             existingElder.setUpdateBy(getUsernameSafely());
             elderInfoMapper.updateElderInfo(existingElder);
@@ -126,6 +128,7 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
             elderInfo.setAge(dto.getAge() != null ? dto.getAge().longValue() : null);
             elderInfo.setPhone(dto.getPhone());
             elderInfo.setCareLevel(dto.getCareLevel());
+            elderInfo.setMealLevelCode(dto.getMealLevelCode()); // 设置餐费等级代码
             elderInfo.setHealthStatus(dto.getHealthStatus());
             elderInfo.setAddress(dto.getAddress());
             elderInfo.setEmergencyContact(dto.getEmergencyContact());

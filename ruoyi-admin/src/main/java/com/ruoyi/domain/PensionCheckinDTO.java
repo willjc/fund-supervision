@@ -68,8 +68,11 @@ public class PensionCheckinDTO
     /** 餐费 */
     private BigDecimal mealFee;
 
-    /** 餐费档�� */
+    /** 餐费档次 */
     private String mealLevel;
+
+    /** 餐费等级代码(1一级餐 2二级餐等，用于存储到老人信息表) */
+    private String mealLevelCode;
 
     /** 月服务费(床位费+护理费+餐费，用于存储合计) */
     private BigDecimal monthlyFee;
@@ -238,6 +241,14 @@ public class PensionCheckinDTO
 
     public void setMealLevel(String mealLevel) {
         this.mealLevel = mealLevel;
+    }
+
+    public String getMealLevelCode() {
+        return mealLevelCode;
+    }
+
+    public void setMealLevelCode(String mealLevelCode) {
+        this.mealLevelCode = mealLevelCode;
     }
 
     public BigDecimal getMonthlyFee() {

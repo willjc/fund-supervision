@@ -19,6 +19,12 @@ public class RenewDTO
     /** 续费月数(可为0,仅补缴押金或会员费) */
     private Integer monthCount;
 
+    /** 护理等级(1自理 2半护理 3全护理) - 续费时可修改 */
+    private String careLevel;
+
+    /** 餐费等级代码 - 续费时可修改 */
+    private String mealLevelCode;
+
     /** 补交押金金额 */
     private BigDecimal depositAmount;
 
@@ -56,6 +62,22 @@ public class RenewDTO
 
     public void setMonthCount(Integer monthCount) {
         this.monthCount = monthCount;
+    }
+
+    public String getCareLevel() {
+        return careLevel;
+    }
+
+    public void setCareLevel(String careLevel) {
+        this.careLevel = careLevel;
+    }
+
+    public String getMealLevelCode() {
+        return mealLevelCode;
+    }
+
+    public void setMealLevelCode(String mealLevelCode) {
+        this.mealLevelCode = mealLevelCode;
     }
 
     public BigDecimal getDepositAmount() {

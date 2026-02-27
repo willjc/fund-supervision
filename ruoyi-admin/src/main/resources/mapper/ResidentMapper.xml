@@ -14,6 +14,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="birthDate"        column="birth_date"         />
         <result property="phone"            column="phone"              />
         <result property="bedInfo"          column="bed_info"           />
+        <result property="bedId"            column="bed_id"             />
         <result property="checkInStatus"    column="check_in_status"    />
         <result property="careLevel"        column="care_level"         />
         <result property="serviceBalance"   column="service_balance"    />
@@ -37,6 +38,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="photoPath"        column="photo_path"         />
         <result property="idCardFrontPath"  column="id_card_front_path"/>
         <result property="idCardBackPath"   column="id_card_back_path" />
+        <result property="price"            column="price"               />
+        <result property="selfCarePrice"    column="self_care_price"    />
+        <result property="halfCarePrice"    column="half_care_price"    />
+        <result property="fullCarePrice"    column="full_care_price"    />
+        <result property="memberFee"        column="member_fee"          />
+        <result property="depositFee"       column="deposit_fee"         />
     </resultMap>
 
     <select id="selectResidentList" parameterType="com.ruoyi.domain.vo.ResidentVO" resultMap="ResidentVOResult">
@@ -48,6 +55,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             ei.id_card,
             ei.phone,
             CONCAT(bi.room_number, '-', bi.bed_number) as bed_info,
+            bi.bed_id,
             ei.status as check_in_status,
             ei.care_level,
             COALESCE(ai.service_balance, 0) as service_balance,
@@ -66,7 +74,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             ) THEN 1 ELSE 0 END as has_unpaid_order,
             bi.institution_id,
             pi.institution_name,
-            ai.account_id
+            ai.account_id,
+            bi.price,
+            bi.self_care_price,
+            bi.half_care_price,
+            bi.full_care_price,
+            bi.member_fee,
+            bi.deposit_fee
         FROM elder_info ei
         LEFT JOIN bed_allocation ba ON ei.elder_id = ba.elder_id
             AND (ba.allocation_status = '1' OR ba.allocation_status = '0')
@@ -107,9 +121,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             ei.id_card,
             ei.birth_date,
             ei.phone,
+            bi.bed_id,
             CONCAT(bi.room_number, '-', bi.bed_number) as bed_info,
             ei.status as check_in_status,
             ei.care_level,
+            ei.meal_level_code,
             COALESCE(ai.service_balance, 0) as service_balance,
             COALESCE(ai.deposit_balance, 0) as deposit_balance,
             COALESCE(ai.member_balance, 0) as member_balance,
@@ -129,7 +145,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             ei.id_card_back_path,
             bi.institution_id,
             pi.institution_name,
-            ai.account_id
+            ai.account_id,
+            bi.price,
+            bi.self_care_price,
+            bi.half_care_price,
+            bi.full_care_price,
+            bi.member_fee,
+            bi.deposit_fee
         FROM elder_info ei
         LEFT JOIN bed_allocation ba ON ei.elder_id = ba.elder_id
             AND (ba.allocation_status = '1' OR ba.allocation_status = '0')

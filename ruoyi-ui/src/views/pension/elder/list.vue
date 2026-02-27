@@ -549,6 +549,49 @@
           <i class="el-icon-wallet"></i> 费用设置
         </el-divider>
 
+        <!-- 等级选择 -->
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="护理等级">
+              <el-select
+                v-model="renewForm.careLevel"
+                placeholder="请选择护理等级"
+                style="width: 100%"
+                @change="handleCareLevelChange">
+                <el-option
+                  v-for="dict in dict.type.elder_care_level"
+                  :key="dict.value"
+                  :label="dict.label"
+                  :value="dict.value">
+                </el-option>
+              </el-select>
+              <div style="font-size: 12px; color: #909399; margin-top: 4px;">
+                当前: {{ renewForm.careLevelText || '未选择' }}
+              </div>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="餐费档次">
+              <el-select
+                v-model="renewForm.mealLevelCode"
+                placeholder="请选择餐费档次"
+                style="width: 100%"
+                @change="handleMealLevelChange"
+                clearable>
+                <el-option
+                  v-for="meal in mealConfigList"
+                  :key="meal.mealLevelCode"
+                  :label="`${meal.mealLevel} - ¥${meal.price}/月`"
+                  :value="meal.mealLevelCode">
+                </el-option>
+              </el-select>
+              <div style="font-size: 12px; color: #909399; margin-top: 4px;">
+                续费时如需更改餐费档次，请在此选择
+              </div>
+            </el-form-item>
+          </el-col>
+        </el-row>
+
         <!-- 当前价格展示卡片 -->
         <el-card shadow="never" style="margin-bottom: 15px; background: #f5f7fa;">
           <div slot="header" style="font-size: 14px; color: #606266; padding: 0;">
@@ -1093,6 +1136,7 @@ import { listResident, getResident, delResident, renewResident, refundResident, 
 import { updateElderInfo, setPassword } from "@/api/elder/elderInfo";
 import { listPensionInstitution } from "@/api/pension/institution";
 import { listFamily, addFamily, updateFamily, delFamily } from "@/api/elder/family";
+import { listAvailableMeals } from "@/api/pension/mealFeeConfig";
 
 export default {
   name: "ElderResident",
@@ -1117,6 +1161,10 @@ export default {
       residentList: [],
       // 养老机构列表
       institutionList: [],
+      // 餐费配置列表
+      mealConfigList: [],
+      // 当前床位信息
+      currentBedInfo: null,
       // 弹出层标题
       title: "",
       // 是否显示详情弹出层
@@ -1185,6 +1233,9 @@ export default {
         careFee: 0,
         mealFee: 0,
         careLevelText: null,
+        careLevel: null,        // 护理等级
+        mealLevelCode: null,    // 餐费等级代码
+        mealConfigId: null,     // 餐费配置ID
         serviceBalance: 0,
         depositBalance: 0,
         memberBalance: 0,
@@ -1448,13 +1499,25 @@ export default {
     /** 续费按钮操作 */
     handleRenew(row) {
       const elderId = row.elderId;
-      // 并发获取老人详情和当前价格
+      // 并发获取老人详情、当前价格
       Promise.all([
         getResident(elderId),
         getCurrentPrice(elderId)
       ]).then(([residentRes, priceRes]) => {
         const data = residentRes.data;
         const priceData = priceRes.data;
+
+        // 保存床位信息（从老人详情中获取）
+        this.currentBedInfo = {
+          bedId: data.bedId,
+          selfCarePrice: data.selfCarePrice || 0,
+          halfCarePrice: data.halfCarePrice || 0,
+          fullCarePrice: data.fullCarePrice || 0,
+          price: data.price || 0,
+          memberFee: data.memberFee || 0,
+          depositFee: data.depositFee || 0,
+          institutionId: data.institutionId
+        };
 
         // 保存当前价格信息用于显示
         this.currentPrice = {
@@ -1495,6 +1558,13 @@ export default {
           }
         }
 
+        // 加载餐费配置
+        if (data.institutionId) {
+          listAvailableMeals(data.institutionId).then(mealRes => {
+            this.mealConfigList = mealRes.data || [];
+          });
+        }
+
         this.renewForm = {
           elderId: data.elderId,
           elderName: data.elderName,
@@ -1504,6 +1574,9 @@ export default {
           careFee: this.currentPrice.careFee || 0,
           mealFee: this.currentPrice.mealFee || 0,
           careLevelText: careLevelText,
+          careLevel: data.careLevel || null,           // 当前护理等级
+          mealLevelCode: data.mealLevelCode || null,   // 当前餐费等级
+          mealConfigId: null,
           serviceBalance: data.serviceBalance || 0,
           depositBalance: data.depositBalance || 0,
           memberBalance: data.memberBalance || 0,
@@ -1584,7 +1657,10 @@ export default {
             memberFee: this.renewForm.memberFee,
             finalAmount: this.renewForm.finalAmount,
             paymentMethod: this.renewForm.paymentMethod,
-            remark: this.renewForm.remark
+            remark: this.renewForm.remark,
+            // 护理等级和餐费等级
+            careLevel: this.renewForm.careLevel,
+            mealLevelCode: this.renewForm.mealLevelCode
           };
 
           renewResident(renewData).then(response => {
@@ -1686,6 +1762,64 @@ export default {
           age--;
         }
         this.updateForm.age = age;
+      }
+    },
+    /** 护理等级变化时重新计算价格 */
+    handleCareLevelChange(careLevel) {
+      if (!this.currentBedInfo || !careLevel) {
+        return;
+      }
+
+      // 根据选择的护理等级更新护理费
+      let newCareFee = 0;
+      switch (careLevel) {
+        case '1': // 自理
+          newCareFee = this.currentBedInfo.selfCarePrice || 0;
+          break;
+        case '2': // 半护理
+          newCareFee = this.currentBedInfo.halfCarePrice || 0;
+          break;
+        case '3': // 全护理
+          newCareFee = this.currentBedInfo.fullCarePrice || 0;
+          break;
+        default:
+          newCareFee = this.currentBedInfo.selfCarePrice || 0;
+      }
+
+      // 更新护理费和月服务费
+      this.renewForm.careFee = newCareFee;
+      this.renewForm.careLevel = careLevel;
+
+      // 更新护理等级文本
+      const careLevelDict = this.dict.type.elder_care_level;
+      const careLevelItem = careLevelDict.find(d => d.value === careLevel);
+      this.renewForm.careLevelText = careLevelItem ? careLevelItem.label : '未选择';
+
+      // 重新计算月服务费
+      this.renewForm.monthlyFee = this.renewForm.bedFee + newCareFee + this.renewForm.mealFee;
+
+      // 重新计算续费总额
+      this.calculateRenewTotal();
+    },
+    /** 餐费等级变化时重新计算价格 */
+    handleMealLevelChange(mealLevelCode) {
+      if (!mealLevelCode) {
+        // 如果清空了选择，保持原有餐费
+        return;
+      }
+
+      // 从餐费配置列表中找到对应的价格
+      const mealConfig = this.mealConfigList.find(m => m.mealLevelCode === mealLevelCode);
+      if (mealConfig) {
+        // 更新餐费和月服务费
+        this.renewForm.mealFee = mealConfig.price || 0;
+        this.renewForm.mealLevelCode = mealLevelCode;
+
+        // 重新计算月服务费
+        this.renewForm.monthlyFee = this.renewForm.bedFee + this.renewForm.careFee + this.renewForm.mealFee;
+
+        // 重新计算续费总额
+        this.calculateRenewTotal();
       }
     },
     /** 计算续费总额和新到期日期 */

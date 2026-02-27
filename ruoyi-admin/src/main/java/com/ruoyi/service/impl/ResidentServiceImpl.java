@@ -77,6 +77,12 @@ public class ResidentServiceImpl implements IResidentService
     @Autowired
     private IFundTransferService fundTransferService;
 
+    @Autowired
+    private com.ruoyi.mapper.BedInfoMapper bedInfoMapper;
+
+    @Autowired
+    private com.ruoyi.mapper.MealFeeConfigMapper mealFeeConfigMapper;
+
     /**
      * 查询入住人列表
      *
@@ -192,12 +198,89 @@ public class ResidentServiceImpl implements IResidentService
         // 判断是否为用户端支付
         boolean isOnlinePayment = "online".equals(renewDTO.getPaymentMethod());
 
-        // 4. 获取老人当前有效价格（在创建订单之前获取，避免查询到正在创建的订单）
-        // 优先使用审核时修改的价格，如果没有则使用床位表的原始价格
-        ElderCurrentPriceVO currentPrice = getCurrentPrice(renewDTO.getElderId());
-        BigDecimal currentBedFee = currentPrice.getBedFee() != null ? currentPrice.getBedFee() : BigDecimal.ZERO;
-        BigDecimal currentCareFee = currentPrice.getCareFee() != null ? currentPrice.getCareFee() : BigDecimal.ZERO;
-        BigDecimal currentMealFee = currentPrice.getMealFee() != null ? currentPrice.getMealFee() : BigDecimal.ZERO;
+        // 4. 获取当前价格（支持等级变更）
+        BigDecimal currentBedFee;
+        BigDecimal currentCareFee;
+        BigDecimal currentMealFee;
+        // 声明 currentPrice 变量，在后面的代码中需要使用
+        ElderCurrentPriceVO currentPrice;
+
+        // 判断是否修改了护理等级或餐费等级
+        boolean careLevelChanged = renewDTO.getCareLevel() != null && !renewDTO.getCareLevel().equals(elderInfo.getCareLevel());
+        boolean mealLevelChanged = renewDTO.getMealLevelCode() != null && !renewDTO.getMealLevelCode().equals(elderInfo.getMealLevelCode());
+
+        if (careLevelChanged || mealLevelChanged) {
+            // 等级发生变化，从床位配置和餐费配置重新获取价格
+            // 获取床位信息
+            com.ruoyi.domain.BedInfo bedInfo = bedInfoMapper.selectBedInfoByBedId(bedAllocation.getBedId());
+            if (bedInfo == null) {
+                throw new RuntimeException("未��到床位信息");
+            }
+
+            // 床位费直接取床位表的价格
+            currentBedFee = bedInfo.getPrice() != null ? bedInfo.getPrice() : BigDecimal.ZERO;
+
+            // 根据护理等级获取护理费
+            String newCareLevel = renewDTO.getCareLevel() != null ? renewDTO.getCareLevel() : elderInfo.getCareLevel();
+            if ("1".equals(newCareLevel)) {
+                currentCareFee = bedInfo.getSelfCarePrice() != null ? bedInfo.getSelfCarePrice() : BigDecimal.ZERO;
+            } else if ("2".equals(newCareLevel)) {
+                currentCareFee = bedInfo.getHalfCarePrice() != null ? bedInfo.getHalfCarePrice() : BigDecimal.ZERO;
+            } else if ("3".equals(newCareLevel)) {
+                currentCareFee = bedInfo.getFullCarePrice() != null ? bedInfo.getFullCarePrice() : BigDecimal.ZERO;
+            } else {
+                currentCareFee = BigDecimal.ZERO;
+            }
+
+            // 根据餐费等级获取餐费
+            String newMealLevelCode = renewDTO.getMealLevelCode() != null ? renewDTO.getMealLevelCode() : elderInfo.getMealLevelCode();
+            if (newMealLevelCode != null && !newMealLevelCode.isEmpty()) {
+                com.ruoyi.domain.pension.MealFeeConfig mealConfig = mealFeeConfigMapper.selectMealByLevelCode(
+                    existingOrder.getInstitutionId(), newMealLevelCode);
+                if (mealConfig != null) {
+                    currentMealFee = mealConfig.getPrice() != null ? mealConfig.getPrice() : BigDecimal.ZERO;
+                } else {
+                    // 如果找不到配置，使用老人信息中记录的餐费等级
+                    currentMealFee = getCurrentPrice(renewDTO.getElderId()).getMealFee() != null ?
+                        getCurrentPrice(renewDTO.getElderId()).getMealFee() : BigDecimal.ZERO;
+                }
+            } else {
+                currentMealFee = getCurrentPrice(renewDTO.getElderId()).getMealFee() != null ?
+                    getCurrentPrice(renewDTO.getElderId()).getMealFee() : BigDecimal.ZERO;
+            }
+
+            // 更新老人信息的护理等级和餐费等级
+            elderInfo.setCareLevel(newCareLevel);
+            elderInfo.setMealLevelCode(newMealLevelCode);
+            elderInfo.setUpdateTime(DateUtils.getNowDate());
+            elderInfo.setUpdateBy(SecurityUtils.getUsername());
+            elderInfoMapper.updateElderInfo(elderInfo);
+
+            // 构建当前价格对象（价格修改标志都设为false，因为是新选择的等级价格）
+            currentPrice = new ElderCurrentPriceVO();
+            currentPrice.setElderId(renewDTO.getElderId());
+            currentPrice.setBedFee(currentBedFee);
+            currentPrice.setBedFeeModified(false);
+            currentPrice.setCareFee(currentCareFee);
+            currentPrice.setCareFeeModified(false);
+            currentPrice.setMealFee(currentMealFee);
+            currentPrice.setMealFeeModified(false);
+            // 押金和会员费从床位配置获取
+            currentPrice.setDepositFee(bedInfo.getDepositFee() != null ? bedInfo.getDepositFee() : BigDecimal.ZERO);
+            currentPrice.setDepositFeeModified(false);
+            currentPrice.setMemberFee(bedInfo.getMemberFee() != null ? bedInfo.getMemberFee() : BigDecimal.ZERO);
+            currentPrice.setMemberFeeModified(false);
+            // 计算月服务费总计
+            currentPrice.setMonthlyFeeTotal(currentBedFee.add(currentCareFee).add(currentMealFee));
+
+        } else {
+            // 等级未变化，使用当前有效价格（从最近已支付订单获取）
+            currentPrice = getCurrentPrice(renewDTO.getElderId());
+            currentBedFee = currentPrice.getBedFee() != null ? currentPrice.getBedFee() : BigDecimal.ZERO;
+            currentCareFee = currentPrice.getCareFee() != null ? currentPrice.getCareFee() : BigDecimal.ZERO;
+            currentMealFee = currentPrice.getMealFee() != null ? currentPrice.getMealFee() : BigDecimal.ZERO;
+        }
+
         // 当前月服务费 = 床位费 + 护理费 + 餐费
         BigDecimal monthlyServiceFee = currentBedFee.add(currentCareFee).add(currentMealFee);
 
