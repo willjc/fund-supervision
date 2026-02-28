@@ -153,3 +153,33 @@ export function getOrderItems(orderId) {
     method: 'get'
   })
 }
+
+/**
+ * 获取老人续费信息
+ * @param {Number} elderId - 老人ID
+ */
+export function getRenewInfo(elderId) {
+  return request({
+    url: `/h5/order/renew/info/${elderId}`,
+    method: 'get'
+  })
+}
+
+/**
+ * 提交续费订单
+ * @param {Object} data - 续费数据
+ * @param {Number} data.elderId - 老人ID
+ * @param {Number} data.monthCount - 续费月数
+ * @param {String} data.careLevel - 护理等级(可选)
+ * @param {String} data.mealLevelCode - 餐费等级代码(可选)
+ * @param {Number} data.depositAmount - 补交押金(可选)
+ * @param {Number} data.memberFee - 补交会员费(可选)
+ * @param {String} data.remark - 备注(可选)
+ */
+export function submitRenewOrder(data) {
+  return request({
+    url: '/h5/order/renew',
+    method: 'post',
+    data
+  })
+}

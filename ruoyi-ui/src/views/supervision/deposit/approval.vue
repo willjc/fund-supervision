@@ -134,6 +134,7 @@
           size="mini"
           @click="handleLargeAmount"
           v-hasPermi="['pension:deposit:query']"
+          v-if="false"
         >大额申请</el-button>
       </el-col>
       <el-col :span="1.5">

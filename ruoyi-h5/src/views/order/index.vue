@@ -96,6 +96,14 @@
               <van-button
                 v-if="order.orderStatus === '1'"
                 size="small"
+                plain
+                @click.stop="handleRenew(order)"
+              >
+                续费
+              </van-button>
+              <van-button
+                v-if="order.orderStatus === '1'"
+                size="small"
                 @click.stop="goToDetail(order.orderId)"
               >
                 查看详情
@@ -389,7 +397,8 @@ const onLoad = async () => {
           orderStatusText: order.orderStatusText || getStatusText(order.orderStatus),
           orderAmount: order.orderAmount,
           createTime: order.createTime,
-          institutionName: order.institutionName || '养老机构'
+          institutionName: order.institutionName || '养老机构',
+          elderId: order.elderId
         }))
 
         orderList.value = [...orderList.value, ...mappedOrders]
@@ -521,6 +530,23 @@ const handlePay = (order) => {
       amount: order.orderAmount,
       elderName: order.elderName || '',
       institutionId: order.institutionId
+    }
+  })
+}
+
+// 续费按钮操作
+const handleRenew = (order) => {
+  if (!order || !order.elderId) {
+    showToast('无法获取老人信息')
+    return
+  }
+
+  // 跳转到续费页面
+  router.push({
+    path: '/order/renew',
+    query: {
+      elderId: order.elderId,
+      orderId: order.orderId
     }
   })
 }

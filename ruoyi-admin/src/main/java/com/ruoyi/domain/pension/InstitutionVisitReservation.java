@@ -31,14 +31,12 @@ public class InstitutionVisitReservation extends BaseEntity
     private String reservationNo;
 
     /** 机构ID */
-    @Excel(name = "机构ID")
     private Long institutionId;
 
     /** 机构ID列表（用于数据��限过滤，多个机构ID的IN查询） */
     private List<Long> institutionIds;
 
     /** 预约用户ID */
-    @Excel(name = "预约用户ID")
     private Long userId;
 
     /** 参观人姓名 */
@@ -67,7 +65,7 @@ public class InstitutionVisitReservation extends BaseEntity
     private String remark;
 
     /** 状态(0-待参观 1-已完成 2-已取消) */
-    @Excel(name = "状态")
+    @Excel(name = "状态", readConverterExp = "0=待参观,1=已完成,2=已取消")
     private String status;
 
     /** 处理人 */
@@ -89,11 +87,9 @@ public class InstitutionVisitReservation extends BaseEntity
     private String institutionName;
 
     /** 机构封面图 */
-    @Excel(name = "机构封面图")
     private String institutionCover;
 
     /** 用户名 */
-    @Excel(name = "用户名")
     private String userName;
 
     public void setReservationId(Long reservationId)

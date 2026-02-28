@@ -46,6 +46,11 @@ import com.ruoyi.service.pension.IExpenseRecordService;
 import com.ruoyi.service.IPaymentRecordService;
 import com.ruoyi.domain.pension.MealFeeConfig;
 import com.ruoyi.service.IMealFeeConfigService;
+import com.ruoyi.service.IResidentService;
+import com.ruoyi.domain.RenewDTO;
+import com.ruoyi.domain.BedAllocation;
+import com.ruoyi.domain.vo.ElderCurrentPriceVO;
+import com.ruoyi.domain.pension.FundTransfer;
 
 /**
  * H5订单Controller
@@ -103,6 +108,9 @@ public class H5OrderController extends BaseController
 
     @Autowired
     private com.ruoyi.mapper.BedAllocationMapper bedAllocationMapper;
+
+    @Autowired
+    private IResidentService residentService;
 
     /**
      * 获取订单列表
@@ -251,6 +259,7 @@ public class H5OrderController extends BaseController
                 item.put("orderStatusText", getOrderStatusText(order.getOrderStatus()));
                 item.put("orderAmount", order.getOrderAmount());
                 item.put("createTime", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, order.getCreateTime()));
+                item.put("elderId", order.getElderId());
 
                 // 获取机构信息
                 if (order.getInstitutionId() != null) {
@@ -1221,29 +1230,42 @@ public class H5OrderController extends BaseController
                             }
                         }
                     }
-                    // 续费订单拨付单生成逻辑
+                    // 续费订单处理逻辑
                     else if ("2".equals(order.getOrderType())) {
                         try {
                             Integer monthCount = order.getMonthCount() != null ? order.getMonthCount() : 1;
 
-                            // 计算月服务费（总金额 / 月数）
-                            BigDecimal monthlyServiceFee = order.getOrderAmount()
-                                .divide(new BigDecimal(monthCount), 2, java.math.RoundingMode.HALF_UP);
+                            // 1. 更新床位分配的到期日期
+                            if (monthCount > 0 && order.getServiceEndDate() != null) {
+                                BedAllocation bedAllocation = bedAllocationMapper.selectBedAllocationByElderId(order.getElderId());
+                                if (bedAllocation != null) {
+                                    Date newDueDate = order.getServiceEndDate();
+                                    bedAllocation.setDueDate(newDueDate);
+                                    bedAllocation.setUpdateTime(new Date());
+                                    bedAllocationMapper.updateBedAllocation(bedAllocation);
+                                    logger.info("续费订单到期日期已更新：" + DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD, newDueDate) + "，订单号：" + order.getOrderNo());
+                                }
+                            }
 
-                            // 生成续费月份的拨付单（从service_start_date所在月份开始）
-                            fundTransferService.generateMonthlyTransfersForOrder(
-                                order.getOrderId(),
-                                order.getInstitutionId(),
-                                order.getElderId(),
-                                monthCount,
-                                order.getServiceStartDate() != null ? order.getServiceStartDate() : new Date(),
-                                monthlyServiceFee,
-                                true // 从当月开始，不跳过首月
-                            );
+                            // 2. 计算正确的月服务费（不含押金和会员费）
+                            BigDecimal monthlyServiceFee = calculateRenewMonthlyFee(order.getOrderId());
 
-                            logger.info("生成续费订单拨付单成功，月数：" + monthCount + "，订单号：" + order.getOrderNo());
+                            // 3. 生成续费月份的拨付单（从次月开始）
+                            if (monthCount > 0 && monthlyServiceFee.compareTo(BigDecimal.ZERO) > 0) {
+                                fundTransferService.generateMonthlyTransfersForOrder(
+                                    order.getOrderId(),
+                                    order.getInstitutionId(),
+                                    order.getElderId(),
+                                    monthCount,
+                                    order.getServiceStartDate() != null ? order.getServiceStartDate() : new Date(),
+                                    monthlyServiceFee,
+                                    false // 从次月开始，不跳过首月
+                                );
+
+                                logger.info("生成续费订单拨付单成功，月数：" + monthCount + "，月服务费：" + monthlyServiceFee + "，订单号：" + order.getOrderNo());
+                            }
                         } catch (Exception e) {
-                            logger.error("生成续费订单拨付单失败", e);
+                            logger.error("续费订单后续处理失败", e);
                         }
                     }
                 }
@@ -2060,6 +2082,243 @@ public class H5OrderController extends BaseController
         } catch (Exception e) {
             // 计算失败时返回0，避免影响主流程
             logger.error("计算首月服务费异常：" + e.getMessage());
+            return BigDecimal.ZERO;
+        }
+    }
+
+    // ========================= 续费功能 =========================
+
+    /**
+     * 获取老人续费信息
+     * 用于续费页面展示老人当前状态、价格、到期日期等
+     */
+    @GetMapping("/order/renew/info/{elderId}")
+    public AjaxResult getRenewInfo(@PathVariable("elderId") Long elderId) {
+        try {
+            // 获取当前用户ID
+            Long currentUserId = getCurrentUserId();
+            if (currentUserId == null) {
+                return error("用户未登录或身份验证失败");
+            }
+
+            // 验证用户是否有权限访问该老人信息
+            if (!hasElderAccess(currentUserId, elderId)) {
+                return error("您没有权限访问该老人的信息");
+            }
+
+            // 查询老人基本信息
+            ElderInfo elder = elderInfoService.selectElderInfoByElderId(elderId);
+            if (elder == null) {
+                return error("老人信息不存在");
+            }
+
+            // 查询床位分配信息（获取到期日期、床位信息）
+            BedAllocation bedAllocation = bedAllocationMapper.selectBedAllocationByElderId(elderId);
+            if (bedAllocation == null) {
+                return error("未找到床位分配信息，无法续费");
+            }
+
+            // 查询床位信息（获取价格）
+            BedInfo bedInfo = bedInfoService.selectBedInfoByBedId(bedAllocation.getBedId());
+            if (bedInfo == null) {
+                return error("未找到床位信息");
+            }
+
+            // 获取当前价格
+            ElderCurrentPriceVO currentPrice = residentService.getCurrentPrice(elderId);
+
+            // 查询账户余额
+            AccountInfo account = accountInfoService.selectAccountInfoByElderId(elderId);
+
+            // 获取机构可用的餐费配置列表
+            List<MealFeeConfig> mealConfigList = null;
+            if (bedAllocation.getInstitutionId() != null) {
+                MealFeeConfig mealQuery = new MealFeeConfig();
+                mealQuery.setInstitutionId(bedAllocation.getInstitutionId());
+                mealQuery.setIsAvailable("1");
+                mealConfigList = mealFeeConfigService.selectMealFeeConfigList(mealQuery);
+            }
+
+            // 构建返回数据
+            Map<String, Object> result = new HashMap<>();
+
+            // 老人信息
+            result.put("elderId", elder.getElderId());
+            result.put("elderName", elder.getElderName());
+            result.put("careLevel", elder.getCareLevel());
+            result.put("careLevelText", getCareLevelText(elder.getCareLevel()));
+            result.put("mealLevelCode", elder.getMealLevelCode());
+
+            // 床位信息
+            result.put("bedId", bedInfo.getBedId());
+            result.put("roomNumber", bedInfo.getRoomNumber() != null ? bedInfo.getRoomNumber() : "");
+            result.put("bedNumber", bedInfo.getBedNumber() != null ? bedInfo.getBedNumber() : "");
+            result.put("bedInfo", (bedInfo.getRoomNumber() != null ? bedInfo.getRoomNumber() : "")
+                + "-" + (bedInfo.getBedNumber() != null ? bedInfo.getBedNumber() : ""));
+
+            // 到期日期
+            result.put("currentDueDate", bedAllocation.getDueDate());
+            result.put("currentDueDateText", bedAllocation.getDueDate() != null ?
+                DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD, bedAllocation.getDueDate()) : "");
+
+            // 当前价格
+            result.put("bedFee", currentPrice.getBedFee() != null ? currentPrice.getBedFee() : BigDecimal.ZERO);
+            result.put("careFee", currentPrice.getCareFee() != null ? currentPrice.getCareFee() : BigDecimal.ZERO);
+            result.put("mealFee", currentPrice.getMealFee() != null ? currentPrice.getMealFee() : BigDecimal.ZERO);
+            result.put("monthlyFeeTotal", currentPrice.getMonthlyFeeTotal() != null ? currentPrice.getMonthlyFeeTotal() : BigDecimal.ZERO);
+            result.put("depositFee", currentPrice.getDepositFee() != null ? currentPrice.getDepositFee() : BigDecimal.ZERO);
+            result.put("memberFee", currentPrice.getMemberFee() != null ? currentPrice.getMemberFee() : BigDecimal.ZERO);
+
+            // 护理等级价格
+            result.put("selfCarePrice", bedInfo.getSelfCarePrice() != null ? bedInfo.getSelfCarePrice() : BigDecimal.ZERO);
+            result.put("halfCarePrice", bedInfo.getHalfCarePrice() != null ? bedInfo.getHalfCarePrice() : BigDecimal.ZERO);
+            result.put("fullCarePrice", bedInfo.getFullCarePrice() != null ? bedInfo.getFullCarePrice() : BigDecimal.ZERO);
+
+            // 账户余额
+            if (account != null) {
+                result.put("serviceBalance", account.getServiceBalance() != null ? account.getServiceBalance() : BigDecimal.ZERO);
+                result.put("depositBalance", account.getDepositBalance() != null ? account.getDepositBalance() : BigDecimal.ZERO);
+                result.put("memberBalance", account.getMemberBalance() != null ? account.getMemberBalance() : BigDecimal.ZERO);
+                result.put("totalBalance", account.getTotalBalance() != null ? account.getTotalBalance() : BigDecimal.ZERO);
+            } else {
+                result.put("serviceBalance", BigDecimal.ZERO);
+                result.put("depositBalance", BigDecimal.ZERO);
+                result.put("memberBalance", BigDecimal.ZERO);
+                result.put("totalBalance", BigDecimal.ZERO);
+            }
+
+            // 机构信息
+            result.put("institutionId", bedAllocation.getInstitutionId());
+            PensionInstitution institution = institutionService.selectPensionInstitutionByInstitutionId(bedAllocation.getInstitutionId());
+            if (institution != null) {
+                result.put("institutionName", institution.getInstitutionName());
+            }
+
+            // 餐费配置
+            result.put("mealConfigList", mealConfigList);
+
+            return success(result);
+        } catch (Exception e) {
+            logger.error("获取续费信息失败", e);
+            return error("获取续费信息失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 提交续费订单
+     * 创建续费订单，状态为待支付，用户需要跳转到支付页面完成支付
+     */
+    @PostMapping("/order/renew")
+    public AjaxResult submitRenewOrder(@RequestBody Map<String, Object> renewData) {
+        try {
+            // 获取当前用户ID
+            Long currentUserId = getCurrentUserId();
+            if (currentUserId == null) {
+                return error("用户未登录或身份验证失败");
+            }
+
+            // 解析参数
+            Long elderId = Long.valueOf(renewData.get("elderId").toString());
+            Integer monthCount = Integer.valueOf(renewData.get("monthCount").toString());
+            String careLevel = renewData.get("careLevel") != null ? renewData.get("careLevel").toString() : null;
+            String mealLevelCode = renewData.get("mealLevelCode") != null ? renewData.get("mealLevelCode").toString() : null;
+            BigDecimal depositAmount = renewData.get("depositAmount") != null ?
+                new BigDecimal(renewData.get("depositAmount").toString()) : BigDecimal.ZERO;
+            BigDecimal memberFee = renewData.get("memberFee") != null ?
+                new BigDecimal(renewData.get("memberFee").toString()) : BigDecimal.ZERO;
+            String remark = renewData.get("remark") != null ? renewData.get("remark").toString() : "";
+
+            // 验证用户是否有权限访问该老人信息
+            if (!hasElderAccess(currentUserId, elderId)) {
+                return error("您没有权限为该老人续费");
+            }
+
+            // 构建续费DTO
+            RenewDTO renewDTO = new RenewDTO();
+            renewDTO.setElderId(elderId);
+            renewDTO.setMonthCount(monthCount);
+            renewDTO.setCareLevel(careLevel);
+            renewDTO.setMealLevelCode(mealLevelCode);
+            renewDTO.setDepositAmount(depositAmount);
+            renewDTO.setMemberFee(memberFee);
+            renewDTO.setPaymentMethod("online"); // 用户端支付
+            renewDTO.setRemark(remark);
+
+            // 调用续费服务
+            int result = residentService.renewResident(renewDTO, currentUserId);
+
+            if (result > 0) {
+                // 查询刚创建的续费订单
+                OrderInfo orderQuery = new OrderInfo();
+                orderQuery.setElderId(elderId);
+                orderQuery.setOrderType("2"); // 续费订单
+                orderQuery.setOrderStatus("0"); // 待支付
+                orderQuery.setOrderDate(new Date());
+                List<OrderInfo> orderList = orderInfoService.selectOrderInfoList(orderQuery);
+
+                if (orderList != null && !orderList.isEmpty()) {
+                    // 找到最新创建的订单
+                    OrderInfo renewOrder = orderList.stream()
+                        .max((o1, o2) -> o1.getOrderId().compareTo(o2.getOrderId()))
+                        .orElse(null);
+
+                    if (renewOrder != null) {
+                        Map<String, Object> responseData = new HashMap<>();
+                        responseData.put("success", true);
+                        responseData.put("message", "续费订单创建成功，请完成支付");
+                        responseData.put("orderId", renewOrder.getOrderId());
+                        responseData.put("orderNo", renewOrder.getOrderNo());
+                        responseData.put("orderAmount", renewOrder.getOrderAmount());
+                        return success(responseData);
+                    }
+                }
+
+                return success("续费订单创建成功");
+            } else {
+                return error("续费订单创建失败");
+            }
+        } catch (Exception e) {
+            logger.error("提交续费订单失败", e);
+            return error("提交续费订单失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 计算续费订单的月服务费
+     * 根据订单明细计算纯服务费（不含押金和会员费）
+     *
+     * @param orderId 订单ID
+     * @return 月服务费
+     */
+    private BigDecimal calculateRenewMonthlyFee(Long orderId) {
+        try {
+            List<OrderItem> orderItems = orderItemService.selectOrderItemsByOrderId(orderId);
+            BigDecimal serviceFeeTotal = BigDecimal.ZERO;
+            Integer monthCount = 1;
+
+            if (orderItems != null && !orderItems.isEmpty()) {
+                for (OrderItem item : orderItems) {
+                    String itemType = item.getItemType();
+                    BigDecimal totalAmount = item.getTotalAmount() != null ? item.getTotalAmount() : BigDecimal.ZERO;
+                    Integer quantity = item.getQuantity() != null ? item.getQuantity().intValue() : 1;
+
+                    // 累加服务费（床位费、护理费、餐费）
+                    if ("bed_fee".equals(itemType) || "care_fee".equals(itemType) || "meal_fee".equals(itemType)) {
+                        serviceFeeTotal = serviceFeeTotal.add(totalAmount);
+                        if ("bed_fee".equals(itemType)) {
+                            monthCount = quantity; // 使用床位费的月数作为总月数
+                        }
+                    }
+                }
+            }
+
+            // 计算月服务费
+            if (monthCount > 0) {
+                return serviceFeeTotal.divide(new BigDecimal(monthCount), 2, BigDecimal.ROUND_HALF_UP);
+            }
+            return BigDecimal.ZERO;
+        } catch (Exception e) {
+            logger.error("计算续费月服务费异常：" + e.getMessage());
             return BigDecimal.ZERO;
         }
     }

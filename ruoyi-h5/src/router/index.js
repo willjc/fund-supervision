@@ -98,6 +98,12 @@ const routes = [
     meta: { title: '确认订单' }
   },
   {
+    path: '/order/renew',
+    name: 'OrderRenew',
+    component: () => import('@/views/order/renew.vue'),
+    meta: { title: '续费' }
+  },
+  {
     path: '/payment/cashier/:orderId',
     name: 'PaymentCashier',
     component: () => import('@/views/payment/cashier.vue'),

@@ -205,6 +205,7 @@ public class BaseController
     /**
      * 使用JdbcTemplate获取当前用户关联的机构ID列表
      * 子类需要注入JdbcTemplate后调用此方法
+     * 自动过滤黑名单中的机构
      *
      * @param jdbcTemplate JdbcTemplate实例
      * @return 机构ID列表，admin返回null表示不限制
@@ -226,7 +227,11 @@ public class BaseController
                 return new ArrayList<>();
             }
 
-            String sql = "SELECT institution_id FROM sys_user_institution WHERE user_id = ?";
+            // 自动过滤黑名单中的机构，只返回未在黑名单的机构ID
+            String sql = "SELECT ui.institution_id " +
+                        "FROM sys_user_institution ui " +
+                        "INNER JOIN pension_institution p ON ui.institution_id = p.institution_id " +
+                        "WHERE ui.user_id = ? AND (p.blacklist_flag IS NULL OR p.blacklist_flag != '1')";
             List<Long> institutionIds = jdbcTemplate.queryForList(sql, Long.class, userId);
             return institutionIds;
         }
