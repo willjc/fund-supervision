@@ -292,33 +292,24 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </select>
 
     <!-- 计算机构的监管账户余额 -->
-    <!-- 监管账户余额 = 未拨付的拨付单金额 + 所有老人押金总和 + 会员费 - 已拨付的押金金额 -->
+    <!-- 监管账户余额 = 未划拨的服务费 + 未使用的押金 + 会员余额 -->
     <select id="calculateSupervisionBalance" parameterType="Long" resultType="java.math.BigDecimal">
         SELECT COALESCE(
-            (SELECT COALESCE(SUM(transfer_amount), 0)
-             FROM fund_transfer
-             WHERE institution_id = #{institutionId}
-             AND is_paid != '1'
-             AND transfer_type != '3')  -- 未拨付的拨付单金额（不含押金划拨）
+            (SELECT COALESCE(SUM(service_balance), 0)
+             FROM account_info
+             WHERE institution_id = #{institutionId})  -- 未划拨的服务费
             +
             (SELECT COALESCE(SUM(deposit_balance), 0)
              FROM account_info
-             WHERE institution_id = #{institutionId})  -- 所有老人押金总和
+             WHERE institution_id = #{institutionId})  -- 未使用的押金
             +
             (SELECT COALESCE(SUM(member_balance), 0)
              FROM account_info
-             WHERE institution_id = #{institutionId})  -- 所有老人会员费总和
-            -
-            (SELECT COALESCE(SUM(transfer_amount), 0)
-             FROM fund_transfer
-             WHERE institution_id = #{institutionId}
-             AND transfer_type = '3'
-             AND is_paid = '1'), 0  -- 已拨付的押金金额
+             WHERE institution_id = #{institutionId}), 0  -- 会员余额
         0) as balance
     </select>
 
     <!-- 计算机构的预收费余额（未拨付的拨付单金额，不含押金划拨） -->
-    <!-- 监管账户余额 = 未拨付的拨付单金额 + 所有老人押金总和 + 所有老人会员费总和 - 已拨付的押金金额 -->
     <select id="calculatePrepaidBalance" parameterType="Long" resultType="java.math.BigDecimal">
         SELECT COALESCE(SUM(transfer_amount), 0)
         FROM fund_transfer
@@ -354,11 +345,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             (SELECT COALESCE(SUM(deposit_balance), 0)
              FROM account_info
              WHERE institution_id = pi.institution_id) as depositBalance,
-            ((SELECT COALESCE(SUM(transfer_amount), 0)
-              FROM fund_transfer
-              WHERE institution_id = pi.institution_id
-              AND is_paid != '1'
-              AND transfer_type != '3')
+            ((SELECT COALESCE(SUM(service_balance), 0)
+              FROM account_info
+              WHERE institution_id = pi.institution_id)
              +
              (SELECT COALESCE(SUM(deposit_balance), 0)
               FROM account_info
@@ -366,13 +355,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
              +
              (SELECT COALESCE(SUM(member_balance), 0)
               FROM account_info
-              WHERE institution_id = pi.institution_id)
-             -
-             (SELECT COALESCE(SUM(transfer_amount), 0)
-              FROM fund_transfer
-              WHERE institution_id = pi.institution_id
-              AND transfer_type = '3'
-              AND is_paid = '1')) as supervisionBalance
+              WHERE institution_id = pi.institution_id)) as supervisionBalance
         FROM pension_institution pi
         <where>
             <if test="params.institutionName != null and params.institutionName != ''">
@@ -390,11 +373,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         SELECT
             COUNT(*) as institutionCount,
             COALESCE(SUM(
-                (SELECT COALESCE(SUM(transfer_amount), 0)
-                 FROM fund_transfer
-                 WHERE institution_id = pi.institution_id
-                 AND is_paid != '1'
-                 AND transfer_type != '3')
+                (SELECT COALESCE(SUM(service_balance), 0)
+                 FROM account_info
+                 WHERE institution_id = pi.institution_id)
                 +
                 (SELECT COALESCE(SUM(deposit_balance), 0)
                  FROM account_info
@@ -403,12 +384,6 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                 (SELECT COALESCE(SUM(member_balance), 0)
                  FROM account_info
                  WHERE institution_id = pi.institution_id)
-                -
-                (SELECT COALESCE(SUM(transfer_amount), 0)
-                 FROM fund_transfer
-                 WHERE institution_id = pi.institution_id
-                 AND transfer_type = '3'
-                 AND is_paid = '1')
             ), 0) as totalSupervisionBalance,
             (SELECT COUNT(*)
              FROM pension_institution

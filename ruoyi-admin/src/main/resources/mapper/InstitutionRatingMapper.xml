@@ -27,12 +27,24 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="remark"    column="remark"    />
     </resultMap>
 
+    <!-- 基础查询SQL（不包含rating_status动态判断） -->
     <sql id="selectInstitutionRatingVo">
         select rating_id, institution_id, institution_name, credit_code, rating_level, total_score, service_score, facility_score, management_score, safety_score, rating_date, expire_date, validity_period, rating_status, rating_remark, create_by, create_time, update_by, update_time, remark from institution_rating
     </sql>
 
+    <!-- 带动态状态判断的查询SQL（用于列表查询） -->
+    <sql id="selectInstitutionRatingVoWithDynamicStatus">
+        select rating_id, institution_id, institution_name, credit_code, rating_level, total_score, service_score, facility_score, management_score, safety_score, rating_date, expire_date, validity_period,
+        CASE
+            WHEN expire_date &lt; CURDATE() THEN '0'
+            ELSE rating_status
+        END as rating_status,
+        rating_remark, create_by, create_time, update_by, update_time, remark
+        from institution_rating
+    </sql>
+
     <select id="selectInstitutionRatingList" parameterType="InstitutionRating" resultMap="InstitutionRatingResult">
-        <include refid="selectInstitutionRatingVo"/>
+        <include refid="selectInstitutionRatingVoWithDynamicStatus"/>
         <where>
             <if test="institutionId != null "> and institution_id = #{institutionId}</if>
             <if test="institutionName != null  and institutionName != ''"> and institution_name like concat('%', #{institutionName}, '%')</if>
@@ -46,7 +58,17 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="ratingDate != null "> and rating_date = #{ratingDate}</if>
             <if test="expireDate != null "> and expire_date = #{expireDate}</if>
             <if test="validityPeriod != null "> and validity_period = #{validityPeriod}</if>
-            <if test="ratingStatus != null  and ratingStatus != ''"> and rating_status = #{ratingStatus}</if>
+            <if test="ratingStatus != null  and ratingStatus != ''">
+                and (
+                    rating_status = #{ratingStatus}
+                    <if test="ratingStatus == '1'">
+                        OR (rating_status = '1' AND expire_date &gt;= CURDATE())
+                    </if>
+                    <if test="ratingStatus == '0'">
+                        OR (rating_status = '1' AND expire_date &lt; CURDATE())
+                    </if>
+                )
+            </if>
             <if test="ratingRemark != null  and ratingRemark != ''"> and rating_remark like concat('%', #{ratingRemark}, '%')</if>
         </where>
         order by create_time desc
