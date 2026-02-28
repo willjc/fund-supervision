@@ -79,10 +79,10 @@
             />
           </div>
         </el-descriptions-item>
-        <el-descriptions-item label="提交时间">{{ detailData.submitTime }}</el-descriptions-item>
+        <el-descriptions-item label="提交时间">{{ parseTime(detailData.submitTime) }}</el-descriptions-item>
         <el-descriptions-item label="处理人">{{ detailData.handleUserName || '暂无' }}</el-descriptions-item>
         <el-descriptions-item label="回复内容" :span="2">{{ detailData.replyContent || '暂无' }}</el-descriptions-item>
-        <el-descriptions-item label="处理时间" :span="2">{{ detailData.handleTime || '暂无' }}</el-descriptions-item>
+        <el-descriptions-item label="处理时间" :span="2">{{ detailData.handleTime ? parseTime(detailData.handleTime) : '暂无' }}</el-descriptions-item>
       </el-descriptions>
       <div slot="footer" class="dialog-footer">
         <el-button @click="detailVisible = false">关闭</el-button>
@@ -185,6 +185,12 @@ export default {
     },
     // 重置
     resetQuery() {
+      this.queryParams = {
+        pageNum: 1,
+        pageSize: 10,
+        institutionName: null,
+        status: null
+      }
       this.$refs.queryForm.resetFields()
       this.handleQuery()
     },

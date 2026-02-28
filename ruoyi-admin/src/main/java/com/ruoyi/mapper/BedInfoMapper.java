@@ -97,4 +97,13 @@ public interface BedInfoMapper
      * @return 床位统计Map {totalBeds: 总数, availableBeds: 可定数}
      */
     public Map<String, Object> selectBedStatistics(Long institutionId);
+
+    /**
+     * 检查床位是否有老人入住
+     * 检查 elder_check_in 表（入住状态为1-已入住）和 bed_allocation 表（分配状态为1-在住）
+     *
+     * @param bedId 床位ID
+     * @return true表示有老人入住，false表示没有
+     */
+    public boolean checkBedHasOccupant(Long bedId);
 }

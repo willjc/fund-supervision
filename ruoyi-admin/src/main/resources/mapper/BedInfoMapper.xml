@@ -182,4 +182,16 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         WHERE institution_id = #{institutionId}
     </select>
 
+    <!-- 检查床位是否有老人入住 -->
+    <!-- 检查 elder_check_in 表（入住状态为1-已入住）和 bed_allocation 表（分配状态为1-在住） -->
+    <select id="checkBedHasOccupant" parameterType="Long" resultType="boolean">
+        SELECT COUNT(1) > 0 FROM (
+            SELECT 1 FROM elder_check_in
+            WHERE bed_id = #{bedId} AND check_in_status = '1'
+            UNION ALL
+            SELECT 1 FROM bed_allocation
+            WHERE bed_id = #{bedId} AND allocation_status = '1'
+        ) AS t
+    </select>
+
 </mapper>

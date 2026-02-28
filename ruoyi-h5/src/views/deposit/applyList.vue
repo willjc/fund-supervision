@@ -160,8 +160,10 @@ const getStatusType = (status) => {
   const typeMap = {
     'pending_family': 'warning',
     'family_approved': 'primary',
+    'pending_supervision': 'warning',
     'approved': 'success',
-    'rejected': 'danger'
+    'rejected': 'danger',
+    'withdrawn': 'info'
   }
   return typeMap[status] || 'default'
 }
@@ -173,7 +175,8 @@ const getStatusText = (status) => {
     'family_approved': '家属已同意',
     'pending_supervision': '待监管审批',
     'approved': '已通过',
-    'rejected': '已拒绝'
+    'rejected': '已拒绝',
+    'withdrawn': '已撤回'
   }
   return textMap[status] || status
 }

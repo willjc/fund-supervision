@@ -92,6 +92,12 @@ public class BedInfoServiceImpl implements IBedInfoService
     @Override
     public int updateBedInfo(BedInfo bedInfo)
     {
+        // 检查床位是否有老人入住
+        if (bedInfo.getBedId() != null && bedInfoMapper.checkBedHasOccupant(bedInfo.getBedId()))
+        {
+            throw new ServiceException("该床位有老人入住，无法删除");
+        }
+
         // 校验费用字段
         validatePrices(bedInfo);
 
@@ -140,6 +146,14 @@ public class BedInfoServiceImpl implements IBedInfoService
     @Override
     public int deleteBedInfoByBedIds(Long[] bedIds)
     {
+        // 检查床位是否有老人入住
+        for (Long bedId : bedIds)
+        {
+            if (bedInfoMapper.checkBedHasOccupant(bedId))
+            {
+                throw new ServiceException("该床位有老人入住，无法删除");
+            }
+        }
         return bedInfoMapper.deleteBedInfoByBedIds(bedIds);
     }
 
@@ -152,6 +166,11 @@ public class BedInfoServiceImpl implements IBedInfoService
     @Override
     public int deleteBedInfoByBedId(Long bedId)
     {
+        // 检查床位是否有老人入住
+        if (bedInfoMapper.checkBedHasOccupant(bedId))
+        {
+            throw new ServiceException("该床位有老人入住，无法删除");
+        }
         return bedInfoMapper.deleteBedInfoByBedId(bedId);
     }
 

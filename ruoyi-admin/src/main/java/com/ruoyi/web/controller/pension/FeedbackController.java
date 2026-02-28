@@ -23,6 +23,7 @@ import com.ruoyi.common.core.domain.model.LoginUser;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.SecurityUtils;
+import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.domain.pension.PensionComplaint;
 import com.ruoyi.service.IPensionComplaintService;
 
@@ -183,7 +184,10 @@ public class FeedbackController extends BaseController
         result.put("complaintType", complaint.getComplaintType());
         result.put("submitter", complaint.getContactName());
         result.put("contact", complaint.getContactPhone());
-        result.put("submitTime", complaint.getCreateTime());
+        // 格式化提交时间
+        result.put("submitTime", complaint.getCreateTime() != null
+            ? DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, complaint.getCreateTime())
+            : "");
         result.put("status", complaint.getStatus());
         result.put("statusText", complaint.getStatusText());
         result.put("hasImages", complaint.getImages() != null && !complaint.getImages().isEmpty());
@@ -209,12 +213,18 @@ public class FeedbackController extends BaseController
 
         result.put("submitter", complaint.getContactName());
         result.put("contact", complaint.getContactPhone());
-        result.put("submitTime", complaint.getCreateTime());
+        // 格式化提交时间
+        result.put("submitTime", complaint.getCreateTime() != null
+            ? com.ruoyi.common.utils.DateUtils.parseDateToStr(com.ruoyi.common.utils.DateUtils.YYYY_MM_DD_HH_MM_SS, complaint.getCreateTime())
+            : "");
         result.put("status", complaint.getStatus());
         result.put("statusText", complaint.getStatusText());
         result.put("replyContent", complaint.getReplyContent());
         result.put("handleUserName", complaint.getHandleUserName());
-        result.put("handleTime", complaint.getHandleTime());
+        // 格式化处理时间
+        result.put("handleTime", complaint.getHandleTime() != null
+            ? com.ruoyi.common.utils.DateUtils.parseDateToStr(com.ruoyi.common.utils.DateUtils.YYYY_MM_DD_HH_MM_SS, complaint.getHandleTime())
+            : "");
         return result;
     }
 }
