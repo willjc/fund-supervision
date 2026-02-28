@@ -2,6 +2,7 @@ package com.ruoyi.domain;
 
 import java.util.Date;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import com.ruoyi.common.annotation.Excel;
@@ -63,6 +64,7 @@ public class ElderInfo extends BaseEntity
 
     /** 护理等级(1自理 2半护理 3全护理) */
     @Excel(name = "护理等级", readConverterExp = "1=自理,2=半护理,3=全护理")
+    @JsonProperty("careLevel")
     private String careLevel;
 
     /** 餐费等级代码(1一级餐 2二级餐等) */
@@ -72,6 +74,10 @@ public class ElderInfo extends BaseEntity
     /** 特殊需求说明 */
     @Excel(name = "特殊需求")
     private String specialNeeds;
+
+    /** 既往病史 */
+    @JsonProperty("medicalHistory")
+    private String medicalHistory;
 
     /** 照片路径 */
     private String photoPath;
@@ -230,6 +236,17 @@ public class ElderInfo extends BaseEntity
     {
         return specialNeeds;
     }
+
+    public void setMedicalHistory(String medicalHistory)
+    {
+        this.medicalHistory = medicalHistory;
+    }
+
+    public String getMedicalHistory()
+    {
+        return medicalHistory;
+    }
+
     public void setPhotoPath(String photoPath)
     {
         this.photoPath = photoPath;

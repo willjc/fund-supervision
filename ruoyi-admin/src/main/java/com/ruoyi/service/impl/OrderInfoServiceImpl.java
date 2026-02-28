@@ -7,6 +7,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.math.BigDecimal;
 import com.ruoyi.common.utils.DateUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +24,7 @@ import com.ruoyi.service.IElderCheckInService;
 import com.ruoyi.service.IPaymentRecordService;
 import com.ruoyi.service.pension.IAccountInfoService;
 import com.ruoyi.service.pension.IExpenseRecordService;
+import com.ruoyi.service.pension.ISupervisionAccountLogService;
 
 /**
  * 订单主表Service业务层处理
@@ -32,6 +35,7 @@ import com.ruoyi.service.pension.IExpenseRecordService;
 @Service
 public class OrderInfoServiceImpl implements IOrderInfoService
 {
+    private static final Logger log = LoggerFactory.getLogger(OrderInfoServiceImpl.class);
     @Autowired
     private OrderInfoMapper orderInfoMapper;
 
@@ -52,6 +56,9 @@ public class OrderInfoServiceImpl implements IOrderInfoService
 
     @Autowired
     private com.ruoyi.service.pension.IFundTransferService fundTransferService;
+
+    @Autowired
+    private ISupervisionAccountLogService supervisionAccountLogService;
 
     /**
      * 查询订单主表
@@ -605,6 +612,20 @@ public class OrderInfoServiceImpl implements IOrderInfoService
 
             accountInfoService.updateAccountInfo(account);
 
+            // 记录监管账户收入流水
+            try {
+                supervisionAccountLogService.recordIncome(
+                    orderInfo.getInstitutionId(),
+                    orderInfo.getOrderId(),
+                    totalAmount,
+                    "用户支付订单-" + orderInfo.getOrderNo(),
+                    "admin"
+                );
+            } catch (Exception e) {
+                // 记录流水失败不影响主流程
+                log.error("记录监管账户收入流水失败，订单号：{}", orderInfo.getOrderNo(), e);
+            }
+
             // 创建费用记录
             int recordResult = expenseRecordService.createOrderExpenseRecords(
                 account.getElderId(),
@@ -705,6 +726,19 @@ public class OrderInfoServiceImpl implements IOrderInfoService
         transfer.setRemark("首月服务费立即划拨-" + orderInfo.getOrderNo());
 
         fundTransferService.insertFundTransfer(transfer);
+
+        // 生成监管账户划拨流水��录（首月服务费划拨到机构基本账户）
+        try {
+            supervisionAccountLogService.recordTransferOut(
+                orderInfo.getInstitutionId(),
+                transfer.getTransferId(),
+                amount,
+                "首月服务费划拨-" + orderInfo.getOrderNo(),
+                "基本账户"
+            );
+        } catch (Exception e) {
+            // 流水记录失败不影响主流程
+        }
     }
 
     /**

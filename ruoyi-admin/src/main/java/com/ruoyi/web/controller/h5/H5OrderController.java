@@ -911,15 +911,23 @@ public class H5OrderController extends BaseController
                     }
                 }
 
-                // 恢复老人状态为待入住（用户取消订单，恢复为原始待入住状态）
+                // 恢复老人状态（仅针对入驻订单）
+                // 续费订单取消不影响老人入住状态
                 if (order.getElderId() != null) {
                     try {
                         ElderInfo elder = elderInfoService.selectElderInfoByElderId(order.getElderId());
                         if (elder != null) {
-                            elder.setStatus("0"); // 设置为待入住
-                            elder.setUpdateTime(new Date());
-                            elderInfoService.updateElderInfo(elder);
-                            logger.info("已恢复老人状态为待入住，老人ID：{}", order.getElderId());
+                            // 只有入驻订单（order_type="1"）取消时才恢复为待入住
+                            // 续费订单（order_type="2"）取消不影响老人入住状态
+                            if ("1".equals(order.getOrderType())) {
+                                elder.setStatus("0"); // 设置为待入住
+                                elder.setUpdateTime(new Date());
+                                elderInfoService.updateElderInfo(elder);
+                                logger.info("已恢复老人状态为待入住，老人ID：{}", order.getElderId());
+                            } else {
+                                logger.info("续费订单取消，不修改老人状态，老人ID：{}，当前状态：{}",
+                                    order.getElderId(), elder.getStatus());
+                            }
                         }
                     } catch (Exception e) {
                         logger.error("恢复老人状态失败，老人ID：{}", order.getElderId(), e);

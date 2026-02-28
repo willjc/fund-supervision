@@ -569,6 +569,10 @@ public class H5UserController
                 return AjaxResult.error("老人信息不存在");
             }
 
+            // 添加调试日志：输出护理等级信息
+            logger.info("查询老人信息返回 - elderId:{}, careLevel:{}, careLevel字段值:{}",
+                elderId, elderInfo.getCareLevel(), elderInfo.getCareLevel());
+
             // 查询老人附件信息
             List<ElderAttachment> attachments = elderAttachmentService.selectAttachmentsByElderId(elderId);
 
@@ -621,6 +625,7 @@ public class H5UserController
             String photoPath = (String) params.get("photoPath");
             String idCardFrontPath = (String) params.get("idCardFrontPath");
             String idCardBackPath = (String) params.get("idCardBackPath");
+            String careLevel = (String) params.get("careLevel");
 
             // 参数校验
             if (StringUtils.isEmpty(elderIdStr)) {
@@ -663,6 +668,8 @@ public class H5UserController
             // 设置身份证照片路径到 elder_info 表（机构端需要查看）
             elderInfo.setIdCardFrontPath(StringUtils.isEmpty(idCardFrontPath) ? null : idCardFrontPath);
             elderInfo.setIdCardBackPath(StringUtils.isEmpty(idCardBackPath) ? null : idCardBackPath);
+            // 设置护理等级
+            elderInfo.setCareLevel(StringUtils.isEmpty(careLevel) ? null : careLevel);
 
             // 如果身份证号发生变化，检查是否重复
             if (StringUtils.isNotEmpty(idCard) && !idCard.equals(existingElder.getIdCard())) {

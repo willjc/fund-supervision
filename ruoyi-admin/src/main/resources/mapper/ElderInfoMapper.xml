@@ -18,6 +18,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="healthStatus"    column="health_status"    />
         <result property="careLevel"    column="care_level"    />
         <result property="specialNeeds"    column="special_needs"    />
+        <result property="medicalHistory"    column="medical_history"    />
         <result property="photoPath"    column="photo_path"    />
         <result property="idCardFrontPath"    column="id_card_front_path"    />
         <result property="idCardBackPath"    column="id_card_back_path"    />
@@ -32,7 +33,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <sql id="selectElderInfoVo">
         select elder_id, elder_name, gender, id_card, birth_date, age, phone, address,
-               emergency_contact, emergency_phone, health_status, care_level, special_needs,
+               emergency_contact, emergency_phone, health_status, care_level, special_needs, medical_history,
                photo_path, id_card_front_path, id_card_back_path, password, status,
                create_by, create_time, update_by, update_time, remark
         from elder_info
@@ -84,6 +85,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="healthStatus != null and healthStatus != ''">health_status,</if>
             <if test="careLevel != null">care_level,</if>
             <if test="specialNeeds != null and specialNeeds != ''">special_needs,</if>
+            <if test="medicalHistory != null and medicalHistory != ''">medical_history,</if>
             <if test="photoPath != null and photoPath != ''">photo_path,</if>
             <if test="idCardFrontPath != null and idCardFrontPath != ''">id_card_front_path,</if>
             <if test="idCardBackPath != null and idCardBackPath != ''">id_card_back_path,</if>
@@ -108,6 +110,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="healthStatus != null and healthStatus != ''">#{healthStatus},</if>
             <if test="careLevel != null">#{careLevel},</if>
             <if test="specialNeeds != null and specialNeeds != ''">#{specialNeeds},</if>
+            <if test="medicalHistory != null and medicalHistory != ''">#{medicalHistory},</if>
             <if test="photoPath != null and photoPath != ''">#{photoPath},</if>
             <if test="idCardFrontPath != null and idCardFrontPath != ''">#{idCardFrontPath},</if>
             <if test="idCardBackPath != null and idCardBackPath != ''">#{idCardBackPath},</if>
@@ -136,6 +139,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="healthStatus != null and healthStatus != ''">health_status = #{healthStatus},</if>
             <if test="careLevel != null">care_level = #{careLevel},</if>
             <if test="specialNeeds != null and specialNeeds != ''">special_needs = #{specialNeeds},</if>
+            <if test="medicalHistory != null and medicalHistory != ''">medical_history = #{medicalHistory},</if>
             <if test="photoPath != null and photoPath != ''">photo_path = #{photoPath},</if>
             <if test="idCardFrontPath != null and idCardFrontPath != ''">id_card_front_path = #{idCardFrontPath},</if>
             <if test="idCardBackPath != null and idCardBackPath != ''">id_card_back_path = #{idCardBackPath},</if>

@@ -668,6 +668,9 @@ const loadElderInfo = async () => {
     if (result.code === 200 && result.data) {
       const { elderInfo, attachments, familyRelation } = result.data
 
+      console.log('后端返回的elderInfo完整数据:', elderInfo)
+      console.log('后端返回的careLevel值:', elderInfo.careLevel, '类型:', typeof elderInfo.careLevel)
+
       // 填充表单基本数据
       formData.value = {
         elderPhoto: [],
@@ -683,8 +686,11 @@ const loadElderInfo = async () => {
         emergencyPhone: elderInfo.emergencyPhone || '',
         address: elderInfo.address || '',
         healthStatus: elderInfo.healthStatus || '',
-        medicalHistory: ''
+        medicalHistory: elderInfo.medicalHistory || '',
+        careLevel: elderInfo.careLevel || '1'
       }
+
+      console.log('设置后的formData.careLevel:', formData.value.careLevel)
 
       // 设置老人照片
       if (elderInfo.photoPath) {
