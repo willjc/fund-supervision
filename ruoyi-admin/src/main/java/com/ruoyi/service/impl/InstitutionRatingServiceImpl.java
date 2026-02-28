@@ -315,4 +315,27 @@ public class InstitutionRatingServiceImpl implements IInstitutionRatingService
     {
         return institutionRatingMapper.selectLatestValidRatingByInstitutionId(institutionId);
     }
+
+    /**
+     * 更新过期的评级状态
+     * 将有效期已过但状态仍为有效的评级记录更新为已过期状态
+     *
+     * @return 更新的记录数
+     */
+    @Override
+    public int updateExpiredRatingStatus()
+    {
+        return institutionRatingMapper.updateExpiredRatingStatus();
+    }
+
+    /**
+     * 查询需要更新的过期评级数量
+     *
+     * @return 过期评级数量
+     */
+    @Override
+    public int countExpiredRatings()
+    {
+        return institutionRatingMapper.countExpiredRatings();
+    }
 }

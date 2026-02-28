@@ -202,6 +202,22 @@ export function getRatingByInstitutionId(institutionId) {
   })
 }
 
+// 更新过期的评级状态
+export function updateExpiredRatingStatus() {
+  return request({
+    url: '/supervision/institution/rating/updateExpired',
+    method: 'get'
+  })
+}
+
+// 查询过期的评级数量
+export function countExpiredRatings() {
+  return request({
+    url: '/supervision/institution/rating/expired/count',
+    method: 'get'
+  })
+}
+
 // ========== 黑名单管理 ==========
 
 // 查询黑名单管理列表

@@ -364,7 +364,7 @@
 
 <script>
 import { getToken } from '@/utils/auth'
-import { listRating, getRating, delRating, addRating, updateRating, exportRating, listApprovedInstitutions } from '@/api/supervision/institution'
+import { listRating, getRating, delRating, addRating, updateRating, exportRating, listApprovedInstitutions, updateExpiredRatingStatus } from '@/api/supervision/institution'
 
 export default {
   name: 'RatingList',
@@ -441,9 +441,23 @@ export default {
     }
   },
   created() {
-    this.getList()
+    this.updateExpiredStatusAndList()
   },
   methods: {
+    /**
+     * 先更新过期的评级状态，然后获取列表
+     */
+    updateExpiredStatusAndList() {
+      // 异步调用更新接口，不阻塞列表加载
+      updateExpiredRatingStatus().then(response => {
+        if (response.code === 200 && response.msg) {
+          console.log(response.msg)
+        }
+      }).catch(() => {
+        // 更新失败不影响列表加载
+      })
+      this.getList()
+    },
     getList() {
       this.loading = true
       listRating(this.queryParams).then(response => {

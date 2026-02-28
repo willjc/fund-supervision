@@ -82,4 +82,19 @@ public interface InstitutionRatingMapper
      * @return 机构评级
      */
     public InstitutionRating selectLatestValidRatingByInstitutionId(Long institutionId);
+
+    /**
+     * 更新过期的评级状态
+     * 将有效期已过但状态仍为有效的评级记录更新��已过期状态
+     *
+     * @return 更新的记录数
+     */
+    public int updateExpiredRatingStatus();
+
+    /**
+     * 查询需要更新的过期评级数量
+     *
+     * @return 过期评级数量
+     */
+    public int countExpiredRatings();
 }

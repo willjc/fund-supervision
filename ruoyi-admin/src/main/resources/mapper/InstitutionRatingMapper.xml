@@ -174,10 +174,27 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <!-- 查询机构最新有效评级（评级日期最新的） -->
     <select id="selectLatestValidRatingByInstitutionId" parameterType="Long" resultMap="InstitutionRatingResult">
-        <include refid="selectInstitutionRatingVo"/>
+        <include refid="selectInstitutionRatingVoWithDynamicStatus"/>
         WHERE institution_id = #{institutionId}
-        AND rating_status = '1'
+        AND (rating_status = '1' AND expire_date &gt;= CURDATE())
         ORDER BY rating_date DESC
         LIMIT 1
+    </select>
+
+    <!-- 更新过期的评级状态 -->
+    <update id="updateExpiredRatingStatus">
+        UPDATE institution_rating
+        SET rating_status = '0',
+            update_time = NOW()
+        WHERE rating_status = '1'
+          AND expire_date &lt; CURDATE()
+    </update>
+
+    <!-- 查询需要更新的过期评级数量 -->
+    <select id="countExpiredRatings" resultType="int">
+        SELECT COUNT(1)
+        FROM institution_rating
+        WHERE rating_status = '1'
+          AND expire_date &lt; CURDATE()
     </select>
 </mapper>

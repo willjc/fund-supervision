@@ -776,6 +776,27 @@ public class InstitutionManageController extends BaseController
         return success(rating);
     }
 
+    /**
+     * 更新过期的评级状态
+     * 将有效期已过但状态仍为有效的评级记录更新为已过期状态
+     */
+    @GetMapping("/rating/updateExpired")
+    public AjaxResult updateExpiredRatingStatus()
+    {
+        int count = ratingService.updateExpiredRatingStatus();
+        return success("已更新 " + count + " 条过期评级记录");
+    }
+
+    /**
+     * 查询过期的评级数量
+     */
+    @GetMapping("/rating/expired/count")
+    public AjaxResult countExpiredRatings()
+    {
+        int count = ratingService.countExpiredRatings();
+        return success(count);
+    }
+
     // ========== 黑名单管理 ==========
 
     /**
