@@ -1436,6 +1436,13 @@ public class H5OrderController extends BaseController
             Long institutionId = Long.valueOf(orderData.get("institutionId").toString());
             String bedType = orderData.get("roomType").toString(); // 直接使用床位类型代码
             String careLevel = orderData.get("careLevel").toString(); // 自理/半护理/全护理
+            // 转换中文护理等级为数字代码（elder_info.care_level 为 char(1)，只能存 1/2/3）
+            String careLevelCode;
+            switch (careLevel) {
+                case "半护理": careLevelCode = "2"; break;
+                case "全护理": careLevelCode = "3"; break;
+                default:       careLevelCode = "1"; break; // 自理
+            }
             Integer monthCount = Integer.valueOf(orderData.get("monthCount").toString());
 
             // 获取餐费档次
@@ -1492,7 +1499,7 @@ public class H5OrderController extends BaseController
             checkinDTO.setAge(elder.getAge().intValue());
             checkinDTO.setPhone(elder.getPhone());
             checkinDTO.setAddress(elder.getAddress());
-            checkinDTO.setCareLevel(careLevel);
+            checkinDTO.setCareLevel(careLevelCode); // 存数字代码（char(1)），中文用于费用计算
             checkinDTO.setHealthStatus(elder.getHealthStatus());
             checkinDTO.setEmergencyContact(elder.getEmergencyContact());
             checkinDTO.setEmergencyPhone(elder.getEmergencyPhone());

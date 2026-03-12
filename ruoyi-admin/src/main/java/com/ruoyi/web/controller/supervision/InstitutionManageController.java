@@ -654,7 +654,7 @@ public class InstitutionManageController extends BaseController
         }
 
         try {
-            List<InstitutionRating> successList = new ArrayList<>();
+            List<Map<String, Object>> successList = new ArrayList<>();
             List<Map<String, Object>> failList = new ArrayList<>();
             int totalCount = 0;
 
