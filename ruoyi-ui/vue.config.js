@@ -7,7 +7,7 @@ function resolve(dir) {
 
 const CompressionPlugin = require('compression-webpack-plugin')
 
-const name = process.env.VUE_APP_TITLE || '养老预收费监管平台' // 网页标题
+const name = process.env.VUE_APP_TITLE || '养老预收费监管平台系统' // 网页标题
 
 // const baseUrl = 'http://jg.dayushaiwang.com/' // 后端接口
 const baseUrl = 'http://localhost:8080/' // 后端接口
