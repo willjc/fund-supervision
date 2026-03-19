@@ -9,7 +9,7 @@
         @change="onBannerChange"
       >
         <van-swipe-item v-for="(banner, index) in bannerList" :key="index" @click="handleBannerClick(banner)">
-          <img class="banner-image" :src="banner.imageUrl || banner.image" mode="widthFix" />
+          <img class="banner-image" :src="getImageUrl(banner.imageUrl || banner.image)" mode="widthFix" />
         </van-swipe-item>
       </van-swipe>
 
@@ -132,6 +132,7 @@ import { showToast } from 'vant'
 import { getRecommendInstitutions } from '@/api/institution'
 import { getBannerList } from '@/api/banner'
 import { getNoticeDetail } from '@/api/notice'
+import { getImageUrl } from '@/utils/image'
 
 const router = useRouter()
 
@@ -294,7 +295,7 @@ const transformInstitutionData = (institution) => {
     institutionName: institution.institutionName || '未命名机构',
     bedCount: institution.bedCount || 0,
     address: institution.address || '地址未填写',
-    coverImage: institution.coverImage || 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg',
+    coverImage: getImageUrl(institution.coverImage) || 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg',
     minPrice: minPrice,
     tags: tags.slice(0, 3) // 最多显示3个生活设施标签
   }
