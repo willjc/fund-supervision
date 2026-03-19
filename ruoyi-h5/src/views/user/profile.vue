@@ -87,6 +87,7 @@ import { useRouter } from 'vue-router'
 import { showToast, showSuccessToast, showLoadingToast, closeToast, showDialog } from 'vant'
 import { useUserStore } from '@/store/modules/user'
 import { updateUserInfo, uploadAvatar, maskPhone } from '@/api/user'
+import { getImageUrl } from '@/utils/image'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -123,7 +124,7 @@ const defaultAvatar = 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
 const displayAvatar = computed(() => {
   const avatar = userInfo.value.avatar
   if (!avatar) return defaultAvatar
-  return avatar
+  return getImageUrl(avatar)
 })
 
 // 性别文本

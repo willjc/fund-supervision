@@ -339,6 +339,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { getInstitutionList } from '@/api/institution'
+import { getImageUrl } from '@/utils/image'
 
 const router = useRouter()
 const defaultImage = 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
@@ -620,7 +621,7 @@ const loadInstitutions = async () => {
         priceRangeMax: item.priceRanges?.total?.max || item.priceRangeMax || 3500,
         bedCount: item.bedCount || 50,
         address: item.address || '地址信息完善中',
-        coverImage: item.coverImage || '',
+        coverImage: getImageUrl(item.coverImage) || '',
         totalBeds: item.totalBeds || item.bedCount || 50,
         availableBeds: item.availableBeds || 0,
         priceRanges: item.priceRanges || {

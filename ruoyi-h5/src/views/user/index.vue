@@ -139,6 +139,7 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '@/store/modules/user'
 import { getTodoCount } from '@/api/todo'
 import { getElderList } from '@/api/expense'
+import { getImageUrl } from '@/utils/image'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -147,10 +148,10 @@ const userStore = useUserStore()
 const userInfo = computed(() => ({
   name: userStore.nickName || userStore.userName || '用户',
   phone: userStore.phonenumber || '',
-  avatar: userStore.avatar || 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
+  avatar: userStore.avatar ? getImageUrl(userStore.avatar) : 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
 }))
 
-const userAvatar = computed(() => userStore.avatar || 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg')
+const userAvatar = computed(() => userStore.avatar ? getImageUrl(userStore.avatar) : 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg')
 
 // 手机号脱敏
 const maskedPhone = computed(() => {

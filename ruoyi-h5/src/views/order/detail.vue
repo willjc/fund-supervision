@@ -103,7 +103,7 @@
       <van-cell-group v-if="order.orderStatus === '1' && order.paymentProof" title="支付凭证" inset>
         <div class="payment-proof">
           <van-image
-            :src="order.paymentProof"
+            :src="getImageUrl(order.paymentProof)"
             fit="cover"
             @click="previewPaymentProof"
           />
@@ -145,6 +145,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { showToast, showConfirmDialog, showImagePreview } from 'vant'
 import dayjs from 'dayjs'
 import { getOrderDetail as getOrderDetailApi, processPayment, getOrderItems, cancelOrder } from '@/api/order'
+import { getImageUrl } from '@/utils/image'
 
 const router = useRouter()
 const route = useRoute()
@@ -317,7 +318,7 @@ const handleContact = () => {
 const previewPaymentProof = () => {
   if (order.value && order.value.paymentProof) {
     showImagePreview({
-      images: [order.value.paymentProof],
+      images: [getImageUrl(order.value.paymentProof)],
       closeable: true,
     })
   }
