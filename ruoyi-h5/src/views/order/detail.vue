@@ -20,7 +20,7 @@
         <van-image
           width="80"
           height="80"
-          :src="order.institutionCover || 'https://via.placeholder.com/80x80'"
+          :src="getImageUrl(order.institutionCover)"
           fit="cover"
           round
         />
@@ -128,9 +128,6 @@
         </van-button>
         <van-button v-if="order.orderStatus === '1'" block type="primary" @click="handleReview">
           去评价
-        </van-button>
-        <van-button v-if="order.orderStatus === '1'" block @click="handleContact">
-          联系客服
         </van-button>
       </div>
     </div>
@@ -306,12 +303,6 @@ const handleReview = () => {
       orderAmount: order.value.paidAmount || order.value.orderAmount
     }
   })
-}
-
-// 联系客服
-const handleContact = () => {
-  showToast('客服功能开发中')
-  // TODO: 跳转到客服页面或拨打客服电话
 }
 
 // 预览支付凭证
