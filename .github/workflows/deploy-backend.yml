@@ -10,6 +10,7 @@ on:
       - 'ruoyi-system/**'
       - 'ruoyi-common/**'
       - 'ruoyi-quartz/**'
+      - 'ruoyi-generator/**'
       - 'pom.xml'
 
 jobs:
