@@ -30,9 +30,7 @@ jobs:
           cache: maven
 
       - name: 安装本地 SDK
-        run: mvn -q install:install-file \
-          -Dfile=ruoyi-admin/src/main/webapp/WEB-INF/lib/szzz-open-gateway-sdk-1.0-SNAPSHOT.jar \
-          -DpomFile=META-INF/maven/com.digital.szzz/szzz-open-gateway-sdk/pom.xml
+        run: mvn -q install:install-file -Dfile=ruoyi-admin/src/main/webapp/WEB-INF/lib/szzz-open-gateway-sdk-1.0-SNAPSHOT.jar -DpomFile=META-INF/maven/com.digital.szzz/szzz-open-gateway-sdk/pom.xml
 
       - name: Maven 构建
         run: mvn -q clean package -pl ruoyi-admin -am -DskipTests
