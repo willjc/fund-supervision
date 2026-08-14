@@ -1,0 +1,75 @@
+name: 部署前端
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'ruoyi-ui/**'
+      - 'ruoyi-h5/**'
+
+jobs:
+  admin:
+    runs-on: ubuntu-latest
+    concurrency: deploy-admin
+
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Node 16
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+          cache: npm
+          cache-dependency-path: ruoyi-ui/package-lock.json
+
+      - name: 构建管理端
+        working-directory: ruoyi-ui
+        env:
+          VUE_APP_BASE_API: /prod-api
+        run: |
+          npm ci --registry=https://registry.npmmirror.com --no-audit --no-fund
+          npm run build:prod
+
+      - name: 部署管理端
+        uses: easingthemes/ssh-deploy@v5.0.2
+        with:
+          SSH_PRIVATE_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          REMOTE_HOST: ${{ secrets.SERVER_HOST }}
+          REMOTE_USER: ${{ secrets.SERVER_USER }}
+          REMOTE_PORT: ${{ secrets.SERVER_PORT }}
+          SOURCE: ruoyi-ui/dist/
+          TARGET: /opt/1panel/apps/openresty/openresty/www/sites/fund-admin/index/
+
+  h5:
+    runs-on: ubuntu-latest
+    concurrency: deploy-h5
+
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Node 16
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+          cache: npm
+          cache-dependency-path: ruoyi-h5/package-lock.json
+
+      - name: 构建 H5
+        working-directory: ruoyi-h5
+        env:
+          VUE_APP_BASE_API: /api
+        run: |
+          npm ci --registry=https://registry.npmmirror.com --no-audit --no-fund
+          npm run build
+
+      - name: 部署 H5
+        uses: easingthemes/ssh-deploy@v5.0.2
+        with:
+          SSH_PRIVATE_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          REMOTE_HOST: ${{ secrets.SERVER_HOST }}
+          REMOTE_USER: ${{ secrets.SERVER_USER }}
+          REMOTE_PORT: ${{ secrets.SERVER_PORT }}
+          SOURCE: ruoyi-h5/dist/
+          TARGET: /opt/1panel/apps/openresty/openresty/www/sites/fund-h5/index/
