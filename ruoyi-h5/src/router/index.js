@@ -312,7 +312,18 @@ const routes = [
 
 const router = createRouter({
   history: createWebHistory(process.env.BASE_URL),
-  routes
+  routes,
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) {
+      return savedPosition
+    }
+
+    if (to.fullPath !== from.fullPath) {
+      return { left: 0, top: 0 }
+    }
+
+    return false
+  }
 })
 
 // 路由守卫 - 全局自动登录
