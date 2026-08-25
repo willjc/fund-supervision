@@ -146,6 +146,7 @@
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showToast, showSuccessToast } from 'vant'
+import institutionPlaceholder from '@/assets/images/institution-placeholder.svg'
 
 const route = useRoute()
 const router = useRouter()
@@ -153,7 +154,7 @@ const router = useRouter()
 // 机构信息(模拟数据)
 const institutionInfo = ref({
   name: '郑州市金水区花园口社区养老服务中心',
-  logo: 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg',
+  logo: institutionPlaceholder,
   bedCount: 80,
   rating: 4.5,
   address: '郑州市金水区花园口街道'

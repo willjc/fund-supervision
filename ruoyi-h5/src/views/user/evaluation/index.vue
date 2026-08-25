@@ -210,7 +210,7 @@ const loadUserReviews = async (reset = true) => {
           institutionImage = review.institutionImage
         }
 
-        // 处理星���评分 - van-rate需要整数，将平均评分四舍五入为整数
+        // 处理星级评分 - van-rate需要整数，将平均评分四舍五入为整数
         let rating = 5
         if (review.averageRating !== null && review.averageRating !== undefined) {
           const avgRating = Number(review.averageRating)

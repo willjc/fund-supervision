@@ -56,7 +56,7 @@
       </div>
     </div>
 
-    <!-- ���别选择器 -->
+    <!-- 性别选择器 -->
     <van-popup v-model:show="showGenderPicker" position="bottom">
       <van-picker
         :columns="genderOptions"

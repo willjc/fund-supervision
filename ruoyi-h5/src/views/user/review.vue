@@ -116,6 +116,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
+import institutionPlaceholder from '@/assets/images/institution-placeholder.svg'
 
 const router = useRouter()
 
@@ -141,13 +142,13 @@ const mockPendingReviews = [
   {
     orderId: 1,
     institutionName: '郑州市金水区花园口社区养老服务中心',
-    institutionCover: 'https://via.placeholder.com/60x60',
+    institutionCover: institutionPlaceholder,
     checkInTime: '2024-12-01'
   },
   {
     orderId: 2,
     institutionName: '郑州颐养家园养老院',
-    institutionCover: 'https://via.placeholder.com/60x60',
+    institutionCover: institutionPlaceholder,
     checkInTime: '2024-11-15'
   }
 ]
@@ -157,19 +158,19 @@ const mockCompletedReviews = [
   {
     reviewId: 1,
     institutionName: '郑州市金水区花园口社区养老服务中心',
-    institutionCover: 'https://via.placeholder.com/60x60',
+    institutionCover: institutionPlaceholder,
     rating: 5,
     content: '环境很好，服务人员态度也很好，老人住得很开心。设施齐全，每天都有丰富的活动。',
     images: [
-      'https://via.placeholder.com/80x80',
-      'https://via.placeholder.com/80x80'
+      institutionPlaceholder,
+      institutionPlaceholder
     ],
     reviewTime: '2025-01-10'
   },
   {
     reviewId: 2,
     institutionName: '河南省老干部康养中心',
-    institutionCover: 'https://via.placeholder.com/60x60',
+    institutionCover: institutionPlaceholder,
     rating: 4,
     content: '整体不错，饮食营养均衡，医护人员很专业。',
     images: [],

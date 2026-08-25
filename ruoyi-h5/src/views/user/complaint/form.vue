@@ -258,7 +258,7 @@ const handleAfterRead = async (file) => {
       console.error('图片上传失败:', error)
       item.status = 'failed'
       item.message = '上传失败'
-      showToast('图片上传失败，请��试')
+      showToast('图片上传失败，请重试')
     }
   }
 }

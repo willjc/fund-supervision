@@ -31,6 +31,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast, showConfirmDialog } from 'vant'
 import InstitutionCard from '@/components/InstitutionCard.vue'
+import institutionPlaceholder from '@/assets/images/institution-placeholder.svg'
 
 const router = useRouter()
 
@@ -49,7 +50,7 @@ const mockFavorites = [
     institutionName: '郑州市金水区花园口社区养老服务中心',
     address: '郑州市金水区花园口镇花园路123号',
     contactPhone: '0371-12345678',
-    coverImage: 'https://via.placeholder.com/300x200',
+    coverImage: institutionPlaceholder,
     priceRanges: {
       nursing: { min: 1500, max: 3000 },
       meal: { min: 800, max: 1200 },
@@ -64,7 +65,7 @@ const mockFavorites = [
     institutionName: '郑州市二七区康乐养老院',
     address: '郑州市二七区建设路456号',
     contactPhone: '0371-23456789',
-    coverImage: 'https://via.placeholder.com/300x200',
+    coverImage: institutionPlaceholder,
     priceRanges: {
       nursing: { min: 2000, max: 4000 },
       meal: { min: 900, max: 1500 },
@@ -79,7 +80,7 @@ const mockFavorites = [
     institutionName: '郑州市中原区福星养老中心',
     address: '郑州市中原区中原路789号',
     contactPhone: '0371-34567890',
-    coverImage: 'https://via.placeholder.com/300x200',
+    coverImage: institutionPlaceholder,
     priceRanges: {
       nursing: { min: 1800, max: 3500 },
       meal: { min: 850, max: 1300 },
