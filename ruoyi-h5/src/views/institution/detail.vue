@@ -272,6 +272,7 @@
           {{ detail.isFavorite ? '已收藏' : '收藏' }}
         </van-button>
         <van-button round plain icon="phone-o" @click="makeCall">电话</van-button>
+        <van-button round plain class="free-trial-button" @click="applyFreeTrial">免费试住</van-button>
         <van-button round plain type="primary" icon="calendar-o" @click="bookVisit">预约</van-button>
         <van-button round type="primary" icon="home-o" @click="applyEnter">入住</van-button>
       </div>
@@ -476,6 +477,14 @@ const onShare = () => {
 // 电话咨询
 const makeCall = () => {
   window.location.href = `tel:${detail.value.contactPhone}`
+}
+
+// 申请免费试住
+const applyFreeTrial = () => {
+  router.push({
+    name: 'FreeTrialApply',
+    params: { institutionId: route.params.id }
+  })
 }
 
 // 申请入住
@@ -1240,7 +1249,10 @@ onMounted(() => {
 }
 
 .action-bar {
+  gap: var(--h5-space-1);
   max-width: var(--h5-page-max-width);
+  padding-right: var(--h5-space-3);
+  padding-left: var(--h5-space-3);
   margin: 0 auto;
 }
 
@@ -1248,13 +1260,23 @@ onMounted(() => {
   flex: 1;
   min-width: 0;
   min-height: 44px;
-  padding: 0 var(--h5-space-2);
+  padding: 0 var(--h5-space-1);
   font-size: var(--h5-font-size-sm);
   font-weight: var(--h5-font-weight-semibold);
 }
 
 .action-bar :deep(.van-button--plain) {
   background: var(--h5-color-surface);
+}
+
+.action-bar :deep(.free-trial-button) {
+  color: var(--h5-color-primary);
+  background: var(--h5-color-primary-soft);
+  border-color: var(--h5-color-primary-200);
+}
+
+.action-bar :deep(.van-button__icon) {
+  margin-right: 2px;
 }
 
 .detail-tabs :deep(.van-tabs__wrap) {
@@ -1350,13 +1372,17 @@ onMounted(() => {
   }
 
   .action-bar {
-    gap: var(--h5-space-2);
+    gap: var(--h5-space-1);
     padding-right: var(--h5-space-3);
     padding-left: var(--h5-space-3);
   }
 
   .action-bar :deep(.van-button) {
-    padding: 0 var(--h5-space-1);
+    padding: 0 2px;
+  }
+
+  .action-bar :deep(.van-button__icon) {
+    display: none;
   }
 }
 </style>

@@ -149,7 +149,6 @@ const onSearch = async () => {
 
   try {
     searching.value = true
-    hasSearched.value = true
     const response = await getRecommendInstitutions()
 
     if (response.code === 200 && response.data) {
@@ -162,10 +161,13 @@ const onSearch = async () => {
           return name.includes(keyword) || address.includes(keyword)
         })
         .map(transformInstitutionData)
+      hasSearched.value = true
     } else {
+      hasSearched.value = false
       showToast(response.msg || '搜索失败')
     }
   } catch (error) {
+    hasSearched.value = false
     console.error('搜索失败:', error)
     showToast('搜索失败')
   } finally {
