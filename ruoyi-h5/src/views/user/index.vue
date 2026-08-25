@@ -236,7 +236,7 @@ onMounted(async () => {
   overflow: hidden;
   padding: calc(var(--h5-safe-area-top) + var(--h5-space-5)) var(--h5-page-padding) var(--h5-space-6);
   color: var(--h5-color-text-inverse);
-  background: linear-gradient(145deg, var(--h5-color-primary-700), var(--h5-color-primary-500));
+  background: linear-gradient(145deg, var(--h5-color-primary-800), var(--h5-color-primary-600));
 }
 
 .user-header::before,
@@ -271,7 +271,7 @@ onMounted(async () => {
 }
 
 .user-header__topline p {
-  color: rgba(255, 255, 255, 0.82);
+  color: var(--h5-color-text-inverse);
   font-size: var(--h5-font-size-sm);
   font-weight: var(--h5-font-weight-medium);
 }
@@ -346,13 +346,13 @@ onMounted(async () => {
 
 .user-details > span {
   margin-top: 2px;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--h5-color-text-inverse);
   font-size: var(--h5-font-size-md);
 }
 
 .user-details small {
   margin-top: var(--h5-space-1);
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--h5-color-text-inverse);
   font-size: var(--h5-font-size-sm);
 }
 

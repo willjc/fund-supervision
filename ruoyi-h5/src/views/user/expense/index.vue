@@ -552,7 +552,7 @@ onMounted(async () => {
 .overview-main {
   padding: var(--h5-space-5);
   color: var(--h5-color-text-inverse);
-  background: linear-gradient(140deg, var(--h5-color-primary-700), var(--h5-color-primary-500));
+  background: linear-gradient(140deg, var(--h5-color-primary-800), var(--h5-color-primary-600));
 }
 
 .overview-topline {
@@ -566,14 +566,14 @@ onMounted(async () => {
   max-width: 210px;
   margin-bottom: var(--h5-space-1);
   overflow: hidden;
-  color: rgba(255, 255, 255, 0.82);
+  color: var(--h5-color-text-inverse);
   font-size: var(--h5-font-size-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .total-label {
-  color: rgba(255, 255, 255, 0.94);
+  color: var(--h5-color-text-inverse);
   font-size: var(--h5-font-size-md);
   font-weight: var(--h5-font-weight-medium);
 }
@@ -609,7 +609,7 @@ onMounted(async () => {
 
 .overview-note {
   margin-top: var(--h5-space-2);
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--h5-color-text-inverse);
   font-size: var(--h5-font-size-sm);
 }
 

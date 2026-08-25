@@ -67,7 +67,7 @@
                   <div class="meta-row">
                     <span class="meta-label">订单类型</span>
                     <span class="meta-value">
-                      {{ getOrderTypeText(order.orderType) }}
+                      {{ order.orderTypeText || getOrderTypeText(order.orderType) }}
                       <span v-if="order.orderType === '2'" class="renew-tag">续费</span>
                     </span>
                   </div>
@@ -337,7 +337,7 @@ const onLoad = async () => {
     const response = await getOrderList(params)
 
     if (response.code === 200 && response.data) {
-      const { rows = [], total = 0 } = response.data
+      const { rows = [] } = response.data
 
       if (rows.length === 0) {
         finished.value = true

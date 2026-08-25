@@ -65,7 +65,7 @@
           <span class="section-heading__icon" aria-hidden="true"><van-icon name="description-o" /></span>
           <div>
             <h2 id="order-info-title">订单信息</h2>
-            <p>入住人与支付记录</p>
+            <p>入住人与订单信息</p>
           </div>
         </header>
         <dl class="detail-list">
