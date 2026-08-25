@@ -115,11 +115,22 @@ const onChange = (tabId) => {
   background: var(--h5-color-primary-soft);
 }
 
-.app-tabbar :deep(.van-tabbar-item:focus-visible) {
+.app-tabbar :deep(.van-tabbar-item:focus) {
   outline: 2px solid #1f65bd;
   outline: 2px solid var(--h5-color-primary);
   outline-offset: -3px;
   border-radius: 8px;
   border-radius: var(--h5-radius-sm);
+}
+
+.app-tabbar :deep(.van-tabbar-item:focus-visible) {
+  box-shadow: var(--h5-shadow-focus);
+}
+
+@supports selector(:focus-visible) {
+  .app-tabbar :deep(.van-tabbar-item:focus:not(:focus-visible)) {
+    outline: none;
+    box-shadow: none;
+  }
 }
 </style>
