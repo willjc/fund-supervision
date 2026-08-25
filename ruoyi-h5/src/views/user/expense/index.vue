@@ -124,12 +124,6 @@
                     变动后 ¥{{ formatAmount(item.balanceAfter) }}
                   </span>
                 </div>
-
-                <div v-if="item.canRefund" class="expense-actions">
-                  <van-button plain type="primary" class="refund-btn" @click="handleRefund(item)">
-                    申请该笔退款
-                  </van-button>
-                </div>
               </article>
             </van-list>
 
@@ -364,19 +358,6 @@ const onTabChange = (name) => {
   activeTab.value = name
   // 切换Tab时重新加载费用明细
   loadExpenseList(true)
-}
-
-// 申请退款
-const handleRefund = (item) => {
-  router.push({
-    name: 'RefundApply',
-    query: {
-      expenseId: item.id,
-      elderName: selectedElder.value.name,
-      elderId: selectedElder.value.id,
-      amount: item.amount
-    }
-  })
 }
 
 // 跳转押金管理
@@ -896,21 +877,6 @@ onMounted(async () => {
 .balance-info {
   flex-wrap: wrap;
   color: var(--h5-color-text-tertiary);
-}
-
-.expense-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: var(--h5-space-3);
-  padding-top: var(--h5-space-3);
-  border-top: 1px dashed var(--h5-color-border);
-}
-
-.refund-btn {
-  min-width: 128px;
-  min-height: 42px;
-  font-size: var(--h5-font-size-md);
-  font-weight: var(--h5-font-weight-semibold);
 }
 
 .empty-list {

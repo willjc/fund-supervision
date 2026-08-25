@@ -54,7 +54,7 @@
                   <span>{{ order.institutionName || '养老机构' }}</span>
                 </div>
                 <span :class="['order-status', `status-${order.orderStatus}`]">
-                  {{ getStatusText(order.orderStatus) }}
+                  {{ order.orderStatusText || getStatusText(order.orderStatus) }}
                 </span>
               </div>
 
@@ -90,11 +90,11 @@
             </button>
 
             <footer
-              v-if="order.orderStatus === '0' || order.orderStatus === '5' || order.orderStatus === '1'"
+              v-if="order.orderStatus === '0' || order.orderStatus === '5' || order.orderStatus === '4' || order.orderStatus === '1'"
               class="order-card__actions"
             >
               <van-button
-                v-if="order.orderStatus === '0' || order.orderStatus === '5'"
+                v-if="order.orderStatus === '0' || order.orderStatus === '5' || order.orderStatus === '4'"
                 plain
                 @click="handleCancel(order)"
               >
@@ -133,7 +133,11 @@
         </div>
 
         <div v-else-if="refundList.length > 0" class="refund-list">
-          <article v-for="refund in refundList" :key="refund.id" class="refund-card h5-card">
+          <article
+            v-for="refund in refundList"
+            :key="refund.refundId || refund.id || refund.refundNo"
+            class="refund-card h5-card"
+          >
             <div class="refund-header">
               <div class="refund-no">
                 <span class="refund-no__icon" aria-hidden="true"><van-icon name="bill-o" /></span>
@@ -204,8 +208,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { showToast, showConfirmDialog } from 'vant'
 import { useUserStore } from '@/store/modules/user'
 import { getOrderList, cancelOrder } from '@/api/order'
@@ -213,13 +217,39 @@ import { getRefundList } from '@/api/refund'
 import dayjs from 'dayjs'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
+
+const ROUTE_TAB_ALIASES = Object.freeze({
+  pending: 'pending',
+  paid: '1',
+  cancelled: '2',
+  refund: '3'
+})
+const VALID_ORDER_TABS = new Set(['all', '1', '2', '3', '4', 'pending'])
+
+const normalizeQueryValue = (value) => Array.isArray(value) ? value[0] : value
+
+const resolveRouteTab = (query) => {
+  for (const key of ['status', 'tab']) {
+    const rawValue = normalizeQueryValue(query[key])
+    if (rawValue === undefined || rawValue === null || rawValue === '') continue
+
+    const value = String(rawValue)
+    const mappedValue = ROUTE_TAB_ALIASES[value] || value
+    if (VALID_ORDER_TABS.has(mappedValue)) return mappedValue
+  }
+
+  return 'all'
+}
 
 // 搜索关键词
 const searchValue = ref('')
 
 // Tab状态
-const activeTab = ref('all')
+const activeTab = ref(resolveRouteTab(route.query))
+const loadedTab = ref(activeTab.value)
+const isMounted = ref(false)
 
 // 列表状态
 const loading = ref(false)
@@ -229,7 +259,7 @@ const refreshing = ref(false)
 // 订单列表
 const orderList = ref([])
 
-// 退款列���
+// 退款列表
 const refundList = ref([])
 
 // 分页参数
@@ -237,10 +267,22 @@ const pageNum = ref(1)
 const pageSize = ref(10)
 
 
-// Tab切换
-const onTabChange = () => {
+const loadTabIfChanged = (nextTab) => {
+  if (nextTab === loadedTab.value) return
+
+  loadedTab.value = nextTab
   resetList()
   onLoad()
+}
+
+// Tab切换
+const onTabChange = (name) => {
+  if (!isMounted.value) {
+    loadedTab.value = name
+    return
+  }
+
+  loadTabIfChanged(name)
 }
 
 // 搜索
@@ -400,7 +442,7 @@ const handleCancel = async (order) => {
     // 用户取消了对话框
     if (error !== 'cancel') {
       console.error('取消订单异常:', error)
-      console.error('错误���情:', {
+      console.error('错误详情:', {
         message: error.message,
         response: error.response,
         request: error.request,
@@ -412,7 +454,7 @@ const handleCancel = async (order) => {
       if (error.response) {
         // 服务器返回了错误状态码
         console.error('响应错误:', error.response.status, error.response.data)
-        errorMessage = error.response.data?.msg || `��务器错误(${error.response.status})`
+        errorMessage = error.response.data?.msg || `服务器错误(${error.response.status})`
       } else if (error.request) {
         // 请求发出但没有收到响应
         console.error('网络请求失败:', error.request)
@@ -470,7 +512,7 @@ const getStatusText = (status) => {
     '0': '待付款',
     '1': '已支付',
     '2': '已取消',
-    '3': '退款中',
+    '3': '已退款',
     '4': '待审核',
     '5': '待付款'
   }
@@ -498,16 +540,34 @@ const formatAmount = (amount) => {
   return parseFloat(amount).toFixed(2)
 }
 
-// 页面加载时获取订单列表
+watch(
+  () => [route.query.status, route.query.tab],
+  () => {
+    const nextTab = resolveRouteTab(route.query)
+    if (nextTab === activeTab.value) return
+
+    activeTab.value = nextTab
+    if (isMounted.value) {
+      loadTabIfChanged(nextTab)
+    } else {
+      loadedTab.value = nextTab
+    }
+  }
+)
+
+// 页面加载时由 van-list 触发首屏订单请求；退款页没有 van-list，需要主动加载
 onMounted(async () => {
+  isMounted.value = true
+
   // 检查用户登录状态
   if (!userStore.isLoggedIn) {
-    showToast('请��登录')
+    showToast('请先登录')
     return
   }
 
-  // 直接加载订单列表 - 根据当前登录用户查询订单，不需要关联老人信息
-  await onLoad()
+  if (activeTab.value === '3') {
+    await onLoad()
+  }
 })
 </script>
 

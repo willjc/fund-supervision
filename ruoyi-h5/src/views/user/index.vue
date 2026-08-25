@@ -193,11 +193,10 @@ const goToExpense = () => {
 
 // 跳转订单
 const goToOrders = (status = '') => {
-  if (status) {
-    router.push(`/user/order?status=${status}`)
-  } else {
-    router.push('/user/order')
-  }
+  router.push({
+    name: 'Order',
+    query: status ? { status } : {}
+  })
 }
 
 // 跳转我的预约

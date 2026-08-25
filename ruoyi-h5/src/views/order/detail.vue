@@ -20,7 +20,7 @@
           </span>
           <div>
             <p class="status-label">当前订单状态</p>
-            <h2>{{ getStatusText(order.orderStatus) }}</h2>
+            <h2>{{ order.orderStatusText || getStatusText(order.orderStatus) }}</h2>
           </div>
         </div>
 
@@ -79,23 +79,15 @@
           </div>
           <div>
             <dt>订单类型</dt>
-            <dd>{{ getOrderTypeText(order.orderType) }}</dd>
+            <dd>{{ order.orderTypeText || getOrderTypeText(order.orderType) }}</dd>
           </div>
           <div>
             <dt>订单状态</dt>
-            <dd>{{ getStatusText(order.orderStatus) }}</dd>
-          </div>
-          <div>
-            <dt>支付状态</dt>
-            <dd>{{ getPaymentStatusText(order) }}</dd>
+            <dd>{{ order.orderStatusText || getStatusText(order.orderStatus) }}</dd>
           </div>
           <div>
             <dt>下单时间</dt>
             <dd>{{ formatDate(order.createTime) || '-' }}</dd>
-          </div>
-          <div v-if="order.paymentTime">
-            <dt>支付时间</dt>
-            <dd>{{ formatDate(order.paymentTime) }}</dd>
           </div>
         </dl>
       </section>
@@ -160,60 +152,15 @@
         </div>
       </section>
 
-      <section v-if="order.serviceStartDate" class="detail-card h5-card" aria-labelledby="service-title">
-        <header class="section-heading">
-          <span class="section-heading__icon" aria-hidden="true"><van-icon name="calendar-o" /></span>
-          <div>
-            <h2 id="service-title">服务周期</h2>
-            <p>本订单对应的养老服务时间</p>
-          </div>
-        </header>
-        <div class="service-period">
-          <div>
-            <span>开始日期</span>
-            <strong>{{ formatDate(order.serviceStartDate, 'YYYY-MM-DD') }}</strong>
-          </div>
-          <van-icon name="arrow" />
-          <div>
-            <span>结束日期</span>
-            <strong>{{ formatDate(order.serviceEndDate, 'YYYY-MM-DD') || '-' }}</strong>
-          </div>
-        </div>
-      </section>
-
-      <section
-        v-if="order.orderStatus === '1' && order.paymentProof"
-        class="detail-card h5-card"
-        aria-labelledby="proof-title"
-      >
-        <header class="section-heading">
-          <span class="section-heading__icon" aria-hidden="true"><van-icon name="photo-o" /></span>
-          <div>
-            <h2 id="proof-title">支付凭证</h2>
-            <p>点击凭证可查看大图</p>
-          </div>
-        </header>
-        <div class="payment-proof">
-          <button type="button" aria-label="预览支付凭证" @click="previewPaymentProof">
-            <van-image :src="getImageUrl(order.paymentProof)" fit="cover" />
-          </button>
-          <p v-if="order.paymentProofRemark" class="proof-remark">{{ order.paymentProofRemark }}</p>
-        </div>
-      </section>
-
-      <section v-if="order.remark" class="detail-card h5-card" aria-labelledby="remark-title">
-        <header class="section-heading">
-          <span class="section-heading__icon" aria-hidden="true"><van-icon name="notes-o" /></span>
-          <div><h2 id="remark-title">备注信息</h2></div>
-        </header>
-        <p class="remark-content">{{ order.remark }}</p>
-      </section>
-
       <div
-        v-if="order.orderStatus === '0' || order.orderStatus === '5' || order.orderStatus === '1'"
+        v-if="order.orderStatus === '0' || order.orderStatus === '5' || order.orderStatus === '4' || order.orderStatus === '1'"
         class="action-bar h5-fixed-action-bar"
       >
-        <van-button v-if="order.orderStatus === '0' || order.orderStatus === '5'" plain @click="handleCancel">
+        <van-button
+          v-if="order.orderStatus === '0' || order.orderStatus === '5' || order.orderStatus === '4'"
+          plain
+          @click="handleCancel"
+        >
           取消订单
         </van-button>
         <van-button v-if="order.orderStatus === '0' || order.orderStatus === '5'" type="primary" @click="handlePay">
@@ -236,7 +183,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { showToast, showConfirmDialog, showImagePreview } from 'vant'
+import { showToast, showConfirmDialog } from 'vant'
 import dayjs from 'dayjs'
 import { getOrderDetail as getOrderDetailApi, getOrderItems, cancelOrder } from '@/api/order'
 import { getImageUrl } from '@/utils/image'
@@ -381,23 +328,13 @@ const handleReview = () => {
   })
 }
 
-// 预览支付凭证
-const previewPaymentProof = () => {
-  if (order.value && order.value.paymentProof) {
-    showImagePreview({
-      images: [getImageUrl(order.value.paymentProof)],
-      closeable: true,
-    })
-  }
-}
-
 // 获取状态文本
 const getStatusText = (status) => {
   const statusMap = {
     '0': '等待付款',
     '1': '支付成功',
     '2': '订单已取消',
-    '3': '退款中',
+    '3': '已退款',
     '4': '等待机构审核',
     '5': '等待付款'
   }
@@ -436,13 +373,6 @@ const getOrderTypeText = (type) => {
     '2': '续费订单'
   }
   return typeMap[type] || '其他订单'
-}
-
-const getPaymentStatusText = (orderData) => {
-  if (orderData.paymentStatusText) return orderData.paymentStatusText
-  return orderData.paymentTime || orderData.orderStatus === '1' || orderData.orderStatus === '3'
-    ? '已支付'
-    : '未完成支付'
 }
 
 const handleInstitutionImageError = (event) => {
@@ -906,77 +836,6 @@ onMounted(() => {
   font-size: var(--h5-font-size-xl);
   font-weight: var(--h5-font-weight-bold);
   font-variant-numeric: tabular-nums;
-}
-
-.service-period {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: var(--h5-space-3);
-  padding-top: var(--h5-space-4);
-  color: var(--h5-color-primary);
-}
-
-.service-period > div {
-  display: flex;
-  flex-direction: column;
-  gap: var(--h5-space-1);
-}
-
-.service-period > div:last-child {
-  text-align: right;
-}
-
-.service-period span {
-  color: var(--h5-color-text-tertiary);
-  font-size: var(--h5-font-size-sm);
-}
-
-.service-period strong {
-  color: var(--h5-color-text);
-  font-size: var(--h5-font-size-md);
-  font-weight: var(--h5-font-weight-semibold);
-}
-
-.payment-proof {
-  padding-top: var(--h5-space-4);
-}
-
-.payment-proof button {
-  display: block;
-  width: 100%;
-  overflow: hidden;
-  background: var(--h5-color-surface-subtle);
-  border: 1px solid var(--h5-color-border);
-  border-radius: var(--h5-radius-md);
-  cursor: pointer;
-}
-
-.payment-proof :deep(.van-image) {
-  display: block;
-  width: 100%;
-  max-height: 260px;
-}
-
-.payment-proof button:focus-visible {
-  outline: none;
-  box-shadow: var(--h5-shadow-focus);
-}
-
-.proof-remark,
-.remark-content {
-  margin-top: var(--h5-space-3);
-  padding: var(--h5-space-3);
-  color: var(--h5-color-text-secondary);
-  font-size: var(--h5-font-size-md);
-  line-height: var(--h5-line-height-relaxed);
-  background: var(--h5-color-surface-subtle);
-  border-radius: var(--h5-radius-md);
-}
-
-.remark-content {
-  margin-top: var(--h5-space-4);
-  white-space: pre-line;
 }
 
 .action-bar {
