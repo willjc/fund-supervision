@@ -14,6 +14,7 @@
         <component :is="Component" />
       </keep-alive>
     </router-view>
+    <div v-if="showTabBar && !isLoggingIn" class="app-tabbar-spacer" aria-hidden="true"></div>
     <TabBar v-if="showTabBar && !isLoggingIn" />
   </div>
 </template>
@@ -43,6 +44,14 @@ const showTabBar = computed(() => {
 </script>
 
 <style scoped>
+.app-tabbar-spacer {
+  display: block;
+  width: 100%;
+  height: 56px;
+  height: calc(var(--h5-tabbar-height, 56px) + var(--h5-safe-area-bottom, 0px));
+  pointer-events: none;
+}
+
 /* 全屏登录Loading遮罩 */
 .login-loading-overlay {
   position: fixed;
@@ -53,7 +62,9 @@ const showTabBar = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  background: #eef6ff;
   background: linear-gradient(135deg, var(--h5-color-page) 0%, var(--h5-color-primary-100) 100%);
+  z-index: 9999;
   z-index: var(--h5-z-login);
 }
 
@@ -63,8 +74,11 @@ const showTabBar = computed(() => {
   align-items: center;
   justify-content: center;
   padding: 40px;
+  background: #ffffff;
   background: var(--h5-color-surface);
+  border-radius: 16px;
   border-radius: var(--h5-radius-lg);
+  box-shadow: 0 8px 24px rgba(31, 55, 82, 0.1);
   box-shadow: var(--h5-shadow-md);
   min-width: 280px;
 }
@@ -73,12 +87,14 @@ const showTabBar = computed(() => {
   margin-top: 24px;
   font-size: 16px;
   font-weight: 500;
+  color: #1b2735;
   color: var(--h5-color-text);
 }
 
 .login-loading-hint {
   margin-top: 8px;
   font-size: 13px;
+  color: #7b8998;
   color: var(--h5-color-text-tertiary);
 }
 </style>

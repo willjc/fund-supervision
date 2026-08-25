@@ -40,15 +40,20 @@ const onChange = (name) => {
 
 <style scoped>
 .app-tabbar {
+  z-index: 100;
   z-index: var(--h5-z-tabbar);
+  border-top: 1px solid #edf1f5;
   border-top: 1px solid var(--h5-color-divider);
+  box-shadow: 0 -4px 18px rgba(31, 55, 82, 0.08);
   box-shadow: var(--h5-shadow-top-sm);
 }
 
 .app-tabbar :deep(.van-tabbar-item) {
   position: relative;
   min-height: 48px;
-  color: var(--h5-color-text-tertiary);
+  color: #536273;
+  color: var(--h5-color-text-secondary);
+  font-size: 13px;
   font-size: var(--h5-font-size-sm);
   line-height: var(--h5-line-height-tight);
   transition:
@@ -98,5 +103,13 @@ const onChange = (name) => {
 
 .app-tabbar :deep(.van-tabbar-item:active) {
   background: var(--h5-color-primary-soft);
+}
+
+.app-tabbar :deep(.van-tabbar-item:focus-visible) {
+  outline: 2px solid #1f65bd;
+  outline: 2px solid var(--h5-color-primary);
+  outline-offset: -3px;
+  border-radius: 8px;
+  border-radius: var(--h5-radius-sm);
 }
 </style>

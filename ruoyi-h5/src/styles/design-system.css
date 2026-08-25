@@ -105,14 +105,19 @@
   --h5-ease-emphasized: cubic-bezier(0.2, 0.8, 0.2, 1);
 
   /* Mobile layout and safe areas */
-  --h5-page-max-width: 640px;
+  /* Uppercase PX intentionally bypasses postcss-pxtorem for true viewport boundaries. */
+  --h5-page-max-width: 640PX;
   --h5-page-padding: var(--h5-space-4);
   --h5-header-height: 48px;
   --h5-tabbar-height: 56px;
   --h5-action-bar-min-height: 64px;
+  --h5-safe-area-top: 0px;
   --h5-safe-area-top: env(safe-area-inset-top, 0px);
+  --h5-safe-area-right: 0px;
   --h5-safe-area-right: env(safe-area-inset-right, 0px);
+  --h5-safe-area-bottom: 0px;
   --h5-safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --h5-safe-area-left: 0px;
   --h5-safe-area-left: env(safe-area-inset-left, 0px);
   --h5-z-sticky: 20;
   --h5-z-action-bar: 80;
@@ -128,7 +133,6 @@
   --van-text-color: var(--h5-color-text);
   --van-text-color-2: var(--h5-color-text-secondary);
   --van-text-color-3: var(--h5-color-text-tertiary);
-  --van-text-link-color: var(--h5-color-primary);
   --van-active-color: var(--h5-color-primary-soft);
   --van-active-opacity: 0.72;
   --van-disabled-opacity: 0.48;
@@ -161,7 +165,7 @@
   --van-ease-out: var(--h5-ease-standard);
   --van-button-primary-background: var(--h5-color-primary);
   --van-button-primary-border-color: var(--h5-color-primary);
-  --van-button-border-radius: var(--h5-radius-md);
+  --van-button-radius: var(--h5-radius-md);
   --van-button-default-height: 44px;
   --van-cell-background: var(--h5-color-surface);
   --van-cell-border-color: var(--h5-color-divider);
@@ -175,7 +179,7 @@
   --van-tabbar-height: var(--h5-tabbar-height);
   --van-tabbar-z-index: var(--h5-z-tabbar);
   --van-tabbar-background: var(--h5-color-surface);
-  --van-tabbar-item-text-color: var(--h5-color-text-tertiary);
+  --van-tabbar-item-text-color: var(--h5-color-text-secondary);
   --van-tabbar-item-active-color: var(--h5-color-primary);
   --van-tabbar-item-active-background: var(--h5-color-surface);
   --van-overlay-background: var(--h5-color-mask);
@@ -183,21 +187,30 @@
 
 html {
   min-height: 100%;
+  background: #f4f7fb;
   background: var(--h5-color-page);
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
 
 body {
-  min-width: 320px;
+  /* Keep the device boundary fixed; regular component px values still convert to rem. */
+  min-width: 320PX;
   min-height: 100%;
   margin: 0;
   overflow-x: hidden;
+  color: #1b2735;
   color: var(--h5-color-text);
+  background: #f4f7fb;
   background: var(--h5-color-page);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", Arial, sans-serif;
   font-family: var(--h5-font-family);
+  font-size: 14px;
   font-size: var(--h5-font-size-md);
+  font-weight: 400;
   font-weight: var(--h5-font-weight-regular);
+  line-height: 1.55;
   line-height: var(--h5-line-height-normal);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -207,8 +220,12 @@ body {
 #app {
   min-height: 100vh;
   min-height: 100dvh;
+  color: #1b2735;
   color: var(--h5-color-text);
+  background: #f4f7fb;
   background: var(--h5-color-page);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", Arial, sans-serif;
   font-family: var(--h5-font-family);
 }
 
@@ -246,8 +263,7 @@ a {
   text-decoration: none;
 }
 
-img,
-svg {
+img {
   display: block;
   max-width: 100%;
 }
@@ -263,23 +279,29 @@ svg {
   min-height: 100vh;
   min-height: 100dvh;
   margin: 0 auto;
+  color: #1b2735;
   color: var(--h5-color-text);
+  background: #f4f7fb;
   background: var(--h5-color-page);
 }
 
 .h5-page--constrained {
+  max-width: 640PX;
   max-width: var(--h5-page-max-width);
 }
 
 .h5-page--safe-top {
+  padding-top: 0;
   padding-top: var(--h5-safe-area-top);
 }
 
 .h5-page--tabbar {
+  padding-bottom: 56px;
   padding-bottom: calc(var(--h5-tabbar-height) + var(--h5-safe-area-bottom));
 }
 
 .h5-page__content {
+  padding: 16px;
   padding: var(--h5-page-padding);
 }
 
@@ -347,22 +369,30 @@ svg {
   right: 0;
   bottom: 0;
   left: 0;
+  z-index: 80;
   z-index: var(--h5-z-action-bar);
   display: flex;
   align-items: center;
+  gap: 12px;
   gap: var(--h5-space-3);
+  min-height: 64px;
   min-height: calc(var(--h5-action-bar-min-height) + var(--h5-safe-area-bottom));
+  padding: 12px 16px;
   padding: var(--h5-space-3) max(var(--h5-page-padding), var(--h5-safe-area-right))
     calc(var(--h5-space-3) + var(--h5-safe-area-bottom))
     max(var(--h5-page-padding), var(--h5-safe-area-left));
+  background: #ffffff;
   background: var(--h5-color-surface);
   border-top: 1px solid var(--h5-color-divider);
   box-shadow: var(--h5-shadow-top-md);
 }
 
 .h5-fixed-action-bar--above-tabbar {
+  bottom: 56px;
   bottom: calc(var(--h5-tabbar-height) + var(--h5-safe-area-bottom));
+  min-height: 64px;
   min-height: var(--h5-action-bar-min-height);
+  padding-bottom: 12px;
   padding-bottom: var(--h5-space-3);
 }
 
@@ -384,7 +414,8 @@ svg {
   color: var(--h5-color-primary);
 }
 
-.h5-status {
+.h5-status,
+.app-status {
   display: inline-flex;
   align-items: center;
   min-height: 24px;
@@ -395,23 +426,32 @@ svg {
   border-radius: var(--h5-radius-pill);
 }
 
-.h5-status--success {
+.h5-status--success,
+.app-status--success {
   color: var(--h5-color-success);
   background: var(--h5-color-success-soft);
 }
 
 .h5-status--warning,
-.h5-status--pending {
+.app-status--warning {
   color: var(--h5-color-warning);
   background: var(--h5-color-warning-soft);
 }
 
-.h5-status--danger {
+.h5-status--pending,
+.app-status--pending {
+  color: var(--h5-color-pending);
+  background: var(--h5-color-pending-soft);
+}
+
+.h5-status--danger,
+.app-status--danger {
   color: var(--h5-color-danger);
   background: var(--h5-color-danger-soft);
 }
 
-.h5-status--info {
+.h5-status--info,
+.app-status--info {
   color: var(--h5-color-info);
   background: var(--h5-color-info-soft);
 }
