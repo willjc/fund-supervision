@@ -113,16 +113,26 @@
                 </div>
                 <div v-if="item.content" class="review-text">{{ item.content }}</div>
                 <div v-if="item.images && item.images.length > 0" class="review-images">
-                  <van-image
+                  <button
                     v-for="(img, index) in item.images"
                     :key="index"
-                    width="72"
-                    height="72"
-                    :src="img"
-                    fit="cover"
-                    alt=""
+                    type="button"
+                    class="review-image-button"
+                    :aria-label="`查看第 ${index + 1} 张评价图片`"
                     @click="previewImages(item.images, index)"
-                  />
+                  >
+                    <van-image
+                      width="72"
+                      height="72"
+                      :src="img"
+                      fit="cover"
+                      alt=""
+                    >
+                      <template #error>
+                        <img :src="institutionPlaceholder" alt="" class="image-fallback" />
+                      </template>
+                    </van-image>
+                  </button>
                 </div>
               </div>
             </div>
@@ -508,10 +518,21 @@ onMounted(() => {
   flex-wrap: wrap;
 }
 
-.review-images :deep(.van-image) {
+.review-image-button {
+  width: 72px;
+  height: 72px;
+  padding: 0;
+  border: 0;
   border-radius: 6px;
+  background: transparent;
   overflow: hidden;
   cursor: pointer;
+}
+
+.review-image-button:focus-visible {
+  outline: 2px solid var(--h5-color-primary, #2f6bff);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(47, 107, 255, 0.18);
 }
 
 .evaluation-text {
