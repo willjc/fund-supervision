@@ -20,6 +20,7 @@
                 :src="elder.avatar"
                 fit="cover"
                 round
+                @error="onAvatarError"
               />
               <div class="elder-info">
                 <div class="elder-name">{{ elder.name }}</div>
@@ -87,6 +88,7 @@ import { useUserStore } from '@/store/modules/user'
 import { getToken } from '@/utils/auth'
 import { fetchApi } from '@/utils/request'
 import { getImageUrl } from '@/utils/image'
+import elderAvatarPlaceholder from '@/assets/images/elder-avatar-placeholder.svg'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -131,9 +133,15 @@ const elderList = computed(() => {
     idCard: elder.idCard,
     address: elder.address || elder.liveAddress || '',
     contactPhone: elder.contactPhone || elder.phoneNumber || elder.phone || '',
-    avatar: getImageUrl(elder.photoPath) || 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
+    avatar: getImageUrl(elder.photoPath) || elderAvatarPlaceholder
   }))
 })
+
+const onAvatarError = (event) => {
+  const image = event?.target
+  if (!image || image.getAttribute('src') === elderAvatarPlaceholder) return
+  image.src = elderAvatarPlaceholder
+}
 
 // 根据关系类型码转换为文字（对应数据库定义：0:本人 1:子女 2:配偶 3:兄弟姐妹 4:其他亲属 5:朋友）
 const getRelationText = (relationType) => {

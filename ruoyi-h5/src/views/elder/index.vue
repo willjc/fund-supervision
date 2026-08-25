@@ -33,6 +33,7 @@
                   height="60"
                   round
                   fit="cover"
+                  @error="onAvatarError"
                 />
               </div>
               <div class="elder-info">
@@ -75,6 +76,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import dayjs from 'dayjs'
+import elderAvatarPlaceholder from '@/assets/images/elder-avatar-placeholder.svg'
 
 const router = useRouter()
 
@@ -94,7 +96,13 @@ const pageNum = ref(1)
 const pageSize = ref(10)
 
 // 默认头像
-const defaultAvatar = 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
+const defaultAvatar = elderAvatarPlaceholder
+
+const onAvatarError = (event) => {
+  const image = event?.target
+  if (!image || image.getAttribute('src') === defaultAvatar) return
+  image.src = defaultAvatar
+}
 
 // 模拟老人数据
 const mockElders = [

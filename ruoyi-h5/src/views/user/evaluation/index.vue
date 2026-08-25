@@ -28,6 +28,7 @@
                   :src="item.institutionImage"
                   fit="cover"
                   round
+                  @error="onInstitutionImageError"
                 />
                 <div class="institution-detail">
                   <div class="institution-name">{{ item.institutionName }}</div>
@@ -74,6 +75,7 @@
                   fit="cover"
                   round
                   class="institution-avatar"
+                  @error="onInstitutionImageError"
                 />
                 <div class="header-info">
                   <div class="name-row">
@@ -141,6 +143,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showImagePreview, showToast } from 'vant'
 import { getUserReviewList, getPendingEvaluationList } from '@/api/review'
+import institutionPlaceholder from '@/assets/images/institution-placeholder.svg'
 
 const router = useRouter()
 
@@ -159,6 +162,12 @@ const completedList = ref([])
 const pageNum = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
+
+const onInstitutionImageError = (event) => {
+  const image = event?.target
+  if (!image || image.getAttribute('src') === institutionPlaceholder) return
+  image.src = institutionPlaceholder
+}
 
 // Tab切换
 const onTabChange = (name) => {
@@ -196,7 +205,7 @@ const loadUserReviews = async (reset = true) => {
         }
 
         // 处理机构图片 - 统一使用main_picture字段
-        let institutionImage = 'https://via.placeholder.com/60x60'
+        let institutionImage = institutionPlaceholder
         if (review.institutionImage) {
           institutionImage = review.institutionImage
         }
@@ -263,7 +272,7 @@ const loadPendingReviews = async () => {
         id: order.orderId,
         orderNo: order.orderNo,
         institutionName: order.institutionName || '养老机构',
-        institutionImage: order.institutionImage || 'https://via.placeholder.com/60x60',
+        institutionImage: order.institutionImage || institutionPlaceholder,
         orderAmount: order.orderAmount,
         createTime: order.createTime
       }))

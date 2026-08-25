@@ -20,6 +20,7 @@
                   :src="item.coverImage || defaultImage"
                   fit="cover"
                   round
+                  @error="onCoverError"
                 />
                 <div class="institution-info">
                   <div class="institution-name">{{ item.name }}</div>
@@ -77,6 +78,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast, showConfirmDialog } from 'vant'
 import { getUserFavoriteList, unfavoriteInstitution } from '@/api/institution'
+import institutionPlaceholder from '@/assets/images/institution-placeholder.svg'
 
 const router = useRouter()
 
@@ -88,7 +90,13 @@ const refreshing = ref(false)
 const pageNum = ref(1)
 const pageSize = ref(10)
 
-const defaultImage = 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
+const defaultImage = institutionPlaceholder
+
+const onCoverError = (event) => {
+  const image = event?.target
+  if (!image || image.getAttribute('src') === defaultImage) return
+  image.src = defaultImage
+}
 
 // 格式化时间
 const formatTime = (time) => {

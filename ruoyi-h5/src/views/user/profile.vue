@@ -14,6 +14,7 @@
             :src="displayAvatar"
             fit="cover"
             class="avatar-image"
+            @error="onAvatarError"
           />
           <van-icon name="arrow" class="arrow-icon" />
         </div>
@@ -88,6 +89,7 @@ import { showToast, showSuccessToast, showLoadingToast, closeToast, showDialog }
 import { useUserStore } from '@/store/modules/user'
 import { updateUserInfo, uploadAvatar, maskPhone } from '@/api/user'
 import { getImageUrl } from '@/utils/image'
+import userAvatarPlaceholder from '@/assets/images/user-avatar-placeholder.svg'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -118,14 +120,20 @@ const genderOptions = [
 ]
 
 // 默认头像
-const defaultAvatar = 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
+const defaultAvatar = userAvatarPlaceholder
 
 // 显示的头像
 const displayAvatar = computed(() => {
   const avatar = userInfo.value.avatar
   if (!avatar) return defaultAvatar
-  return getImageUrl(avatar)
+  return getImageUrl(avatar) || defaultAvatar
 })
+
+const onAvatarError = (event) => {
+  const image = event?.target
+  if (!image || image.getAttribute('src') === defaultAvatar) return
+  image.src = defaultAvatar
+}
 
 // 性别文本
 const genderText = computed(() => {

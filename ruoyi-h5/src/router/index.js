@@ -204,6 +204,11 @@ const routes = [
     meta: { title: '申请退款' }
   },
   {
+    path: '/user/expense/refund/apply',
+    name: 'LegacyRefundApply',
+    redirect: to => ({ name: 'RefundApply', query: to.query })
+  },
+  {
     path: '/user/expense/refund/review/:id',
     name: 'RefundReview',
     component: () => import('@/views/user/expense/refund/review.vue'),
@@ -266,8 +271,7 @@ const routes = [
   {
     path: '/user/order',
     name: 'UserOrder',
-    component: () => import('@/views/order/index.vue'),
-    meta: { title: '我的订单' }
+    redirect: to => ({ name: 'Order', query: to.query })
   },
   // 我的预约
   {
@@ -280,20 +284,17 @@ const routes = [
   {
     path: '/user/fee',
     name: 'UserFee',
-    component: () => import('@/views/user/fee.vue'),
-    meta: { title: '我的费用' }
+    redirect: to => ({ name: 'UserExpense', query: to.query })
   },
   {
     path: '/user/review',
     name: 'UserReview',
-    component: () => import('@/views/user/review.vue'),
-    meta: { title: '我的评价' }
+    redirect: to => ({ name: 'UserEvaluation', query: to.query })
   },
   {
     path: '/user/favorite',
     name: 'UserFavorite',
-    component: () => import('@/views/user/favorite.vue'),
-    meta: { title: '我的收藏' }
+    redirect: to => ({ name: 'UserCollection', query: to.query })
   },
   {
     path: '/freetrial/apply/:institutionId',
