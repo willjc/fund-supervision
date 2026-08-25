@@ -121,6 +121,10 @@ const searchResults = ref([])
 const searching = ref(false)
 let searchRequestSequence = 0
 
+const isCurrentSearch = (requestId, keywordSnapshot) => {
+  return requestId === searchRequestSequence && searchValue.value.trim() === keywordSnapshot
+}
+
 // 搜索历史
 const searchHistory = ref(['养老院', '护理中心', '康养'])
 
@@ -159,7 +163,7 @@ const onSearch = async () => {
       pageSize: 10000
     })
 
-    if (requestId !== searchRequestSequence) return
+    if (!isCurrentSearch(requestId, keywordSnapshot)) return
 
     if (response.code === 200 && Array.isArray(response.rows)) {
       // 过滤匹配的机构
@@ -180,7 +184,7 @@ const onSearch = async () => {
       showToast(response.msg || '搜索失败')
     }
   } catch (error) {
-    if (requestId !== searchRequestSequence) return
+    if (!isCurrentSearch(requestId, keywordSnapshot)) return
 
     hasSearched.value = true
     searchResults.value = []
