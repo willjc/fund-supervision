@@ -94,7 +94,6 @@
           </button>
         </div>
 
-        <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
           <van-list
             v-model:loading="loading"
             :finished="finished"
@@ -122,7 +121,6 @@
             image-size="128"
             description="暂无优选机构，稍后再来看看"
           />
-        </van-pull-refresh>
       </section>
     </main>
   </div>
@@ -178,7 +176,6 @@ const iconList = ref([
 const institutionList = ref([])
 const loading = ref(false)
 const finished = ref(false)
-const refreshing = ref(false)
 
 // 轮播图切换
 const onBannerChange = (index) => {
@@ -321,12 +318,7 @@ const loadInstitutions = async () => {
       // 转换数据格式
       const transformedList = response.data.map(transformInstitutionData)
 
-      if (refreshing.value) {
-        institutionList.value = transformedList
-        refreshing.value = false
-      } else {
-        institutionList.value = transformedList
-      }
+      institutionList.value = transformedList
 
       finished.value = true
     } else {
@@ -340,12 +332,6 @@ const loadInstitutions = async () => {
   } finally {
     loading.value = false
   }
-}
-
-// 下拉刷新
-const onRefresh = () => {
-  finished.value = false
-  loadInstitutions()
 }
 
 // 上拉加载
@@ -651,10 +637,6 @@ onMounted(() => {
   justify-content: center;
   color: var(--h5-color-text-tertiary);
   font-size: var(--h5-font-size-sm);
-}
-
-:deep(.van-pull-refresh) {
-  overflow: visible;
 }
 
 :deep(.van-list__finished-text) {

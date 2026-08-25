@@ -80,7 +80,6 @@
 
     <!-- 机构列表 -->
     <div class="institution-list">
-      <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
         <van-list
           v-model:loading="loading"
           :finished="finished"
@@ -125,7 +124,6 @@
             </div>
           </template>
         </van-list>
-      </van-pull-refresh>
 
       <!-- 空状态 -->
       <van-empty
@@ -447,7 +445,6 @@ const priceRangeOptions = ref([
 const institutionList = ref([])
 const loading = ref(false)
 const finished = ref(false)
-const refreshing = ref(false)
 const requesting = ref(false)
 let institutionRequestSequence = 0
 
@@ -672,17 +669,8 @@ const loadInstitutions = async ({ force = false } = {}) => {
     if (requestId === institutionRequestSequence) {
       requesting.value = false
       loading.value = false
-      refreshing.value = false
     }
   }
-}
-
-// 下拉刷新
-const onRefresh = () => {
-  finished.value = false
-  refreshing.value = true
-  institutionList.value = []
-  loadInstitutions({ force: true })
 }
 
 // 上拉加载
@@ -1137,10 +1125,6 @@ onMounted(() => {
 
   .verified-mark {
     display: none;
-  }
-
-  .price-grid {
-    grid-template-columns: 1fr;
   }
 
   .price-note {
