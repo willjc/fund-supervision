@@ -252,7 +252,10 @@ const transformInstitutionData = (institution) => {
     const typeMap = {
       '1': '养老院',
       '2': '护理院',
-      '3': '养老服务中心'
+      '3': '养老服务中心',
+      nursing_home: '养老院',
+      care_center: '护理中心',
+      service_center: '养老服务中心'
     }
     return typeMap[type] || '养老机构'
   }
