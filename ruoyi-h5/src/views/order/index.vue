@@ -707,6 +707,11 @@ onMounted(async () => {
   background: var(--h5-color-surface-subtle);
 }
 
+.refund-status.status-2 {
+  color: var(--h5-color-danger);
+  background: var(--h5-color-danger-soft);
+}
+
 .status-3 {
   color: var(--h5-color-danger);
   background: var(--h5-color-danger-soft);
