@@ -48,9 +48,11 @@
     }
   },
   "browserslist": [
-    "iOS >= 8",
-    "Android >= 4.4",
-    "> 0.25%",
+    "iOS >= 12",
+    "Android >= 7",
+    "Chrome >= 88",
+    "ChromeAndroid >= 88",
+    "Safari >= 12",
     "not dead"
   ]
 }

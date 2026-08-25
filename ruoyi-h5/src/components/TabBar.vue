@@ -5,10 +5,14 @@
     safe-area-inset-bottom
     @change="onChange"
   >
-    <van-tabbar-item name="home" icon="wap-home-o">首页</van-tabbar-item>
-    <van-tabbar-item name="institution" icon="shop-o">机构</van-tabbar-item>
-    <van-tabbar-item name="order" icon="orders-o">订单</van-tabbar-item>
-    <van-tabbar-item name="user" icon="user-o">我的</van-tabbar-item>
+    <van-tabbar-item
+      v-for="item in TAB_BAR_ITEMS"
+      :key="item.id"
+      :name="item.id"
+      :icon="item.icon"
+    >
+      {{ item.label }}
+    </van-tabbar-item>
   </van-tabbar>
 </template>
 
@@ -16,25 +20,31 @@
 import { ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '@/store/modules/app'
+import { TAB_BAR_ITEMS } from '@/config/tabBar'
 
 const router = useRouter()
 const route = useRoute()
 const appStore = useAppStore()
 
 // 当前激活的标签
-const active = ref('home')
+const active = ref(appStore.activeTabBar)
 
 // 监听路由变化
 watch(() => route.name, (newName) => {
-  if (newName) {
-    active.value = newName.toLowerCase()
+  const currentTab = TAB_BAR_ITEMS.find((item) => item.routeName === newName)
+  if (currentTab) {
+    active.value = currentTab.id
+    appStore.setActiveTabBar(currentTab.id)
   }
 }, { immediate: true })
 
 // 切换标签
-const onChange = (name) => {
-  router.push({ name: name.charAt(0).toUpperCase() + name.slice(1) })
-  appStore.setActiveTabBar(name)
+const onChange = (tabId) => {
+  const targetTab = TAB_BAR_ITEMS.find((item) => item.id === tabId)
+  if (!targetTab) return
+
+  router.push({ name: targetTab.routeName })
+  appStore.setActiveTabBar(targetTab.id)
 }
 </script>
 

@@ -23,6 +23,7 @@
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import TabBar from '@/components/TabBar.vue'
+import { TAB_BAR_ROUTE_NAMES } from '@/config/tabBar'
 
 const route = useRoute()
 
@@ -34,12 +35,9 @@ window.setAppLoggingIn = (status) => {
   isLoggingIn.value = status
 }
 
-// 需要显示TabBar的页面
-const tabBarPages = ['Home', 'Institution', 'Order', 'User']
-
 // 判断是否显示TabBar
 const showTabBar = computed(() => {
-  return tabBarPages.includes(route.name)
+  return TAB_BAR_ROUTE_NAMES.has(route.name)
 })
 </script>
 

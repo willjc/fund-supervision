@@ -2,8 +2,8 @@ import { defineStore } from 'pinia'
 
 export const useAppStore = defineStore('app', {
   state: () => ({
-    // 当前激活的TabBar索引
-    activeTabBar: 0,
+    // 当前激活的TabBar标签id
+    activeTabBar: 'home',
 
     // 加载状态
     loading: false,
@@ -18,9 +18,9 @@ export const useAppStore = defineStore('app', {
   },
 
   actions: {
-    // 设置TabBar索引
-    setActiveTabBar(index) {
-      this.activeTabBar = index
+    // 设置TabBar标签id
+    setActiveTabBar(tabId) {
+      this.activeTabBar = tabId
     },
 
     // 设置加载状态
