@@ -16,6 +16,9 @@ import 'amfe-flexible'
 import Vant from 'vant'
 import 'vant/lib/index.css'
 
+// 引入H5全局设计系统（需位于Vant样式之后以覆盖主题变量）
+import './styles/design-system.css'
+
 // 引入SVG图标
 import { SvgIcon } from './assets/icons'
 

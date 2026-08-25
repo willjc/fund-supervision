@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 320" role="img" aria-labelledby="title desc">
+  <title id="title">养老服务机构默认图片</title>
+  <desc id="desc">蓝色养老服务建筑、绿植和暖阳组成的简洁插画</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#eef6ff"/>
+      <stop offset="1" stop-color="#dcecff"/>
+    </linearGradient>
+    <linearGradient id="building" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2f7bd6"/>
+      <stop offset="1" stop-color="#1a5299"/>
+    </linearGradient>
+  </defs>
+  <rect width="480" height="320" rx="24" fill="url(#sky)"/>
+  <circle cx="405" cy="68" r="30" fill="#ffd98a" opacity=".88"/>
+  <path d="M0 254c62-27 118-18 174-3 64 18 120 10 181-10 48-16 88-12 125 3v76H0z" fill="#cfe8de"/>
+  <path d="M55 278c52-24 103-17 147-2 48 16 96 15 151-4 52-18 91-15 127-2v50H55z" fill="#acd6c4"/>
+  <rect x="112" y="123" width="256" height="158" rx="12" fill="url(#building)"/>
+  <path d="M95 139 240 64l145 75v18H95z" fill="#19467d"/>
+  <path d="m240 83 101 53H139z" fill="#fff" opacity=".95"/>
+  <circle cx="240" cy="111" r="18" fill="#eaf7f1"/>
+  <path d="M240 121c-12-7-15-14-11-19 4-5 9-2 11 2 3-4 8-7 12-2 4 5 1 12-12 19z" fill="#18815d"/>
+  <g fill="#d9eaff">
+    <rect x="143" y="168" width="38" height="34" rx="5"/>
+    <rect x="198" y="168" width="38" height="34" rx="5"/>
+    <rect x="254" y="168" width="38" height="34" rx="5"/>
+    <rect x="309" y="168" width="38" height="34" rx="5"/>
+  </g>
+  <path d="M211 281v-58c0-9 7-16 16-16h26c9 0 16 7 16 16v58z" fill="#f8fafc"/>
+  <path d="M240 207v74" stroke="#b9d8ff" stroke-width="3"/>
+  <g fill="#4c9b77">
+    <circle cx="78" cy="225" r="25"/>
+    <circle cx="402" cy="225" r="25"/>
+  </g>
+  <g fill="#6eb08e">
+    <circle cx="62" cy="238" r="20"/>
+    <circle cx="418" cy="238" r="20"/>
+  </g>
+  <g fill="#806548">
+    <rect x="75" y="239" width="6" height="41" rx="3"/>
+    <rect x="399" y="239" width="6" height="41" rx="3"/>
+  </g>
+</svg>

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-labelledby="title desc">
+  <title id="title">用户默认头像</title>
+  <desc id="desc">蓝色背景中的简洁用户头像和关爱标识</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#d9eaff"/>
+      <stop offset="1" stop-color="#b9d8ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="240" height="240" rx="120" fill="url(#bg)"/>
+  <circle cx="120" cy="88" r="45" fill="#fff" opacity=".96"/>
+  <path d="M48 216c7-52 34-82 72-82s65 30 72 82z" fill="#fff" opacity=".96"/>
+  <circle cx="184" cy="181" r="29" fill="#1f65bd"/>
+  <path d="M184 197c-15-9-19-19-13-26 5-6 11-2 13 4 3-6 10-10 15-4 6 7 2 17-15 26z" fill="#fff"/>
+</svg>
