@@ -1,130 +1,160 @@
 <template>
-  <div class="expense-page">
+  <div class="expense-page h5-page h5-page--constrained">
+    <nav class="expense-nav" aria-label="我的费用导航">
+      <button type="button" class="expense-nav__back" aria-label="返回上一页" @click="handleBack">
+        <van-icon name="arrow-left" />
+      </button>
+      <h1>我的费用</h1>
+      <span class="expense-nav__placeholder" aria-hidden="true"></span>
+    </nav>
 
-    <div class="expense-content">
-      <!-- 老人选择 -->
-      <div class="elder-selector">
-        <van-cell
-          title="选择老人"
-          :value="selectedElder.name || '请选择老人'"
-          is-link
-          @click="showElderPicker = true"
-        />
-      </div>
+    <main class="expense-content">
+      <section class="elder-selector h5-card" aria-labelledby="elder-selector-title">
+        <button type="button" class="elder-selector__button" @click="showElderPicker = true">
+          <span class="elder-selector__icon" aria-hidden="true"><van-icon name="friends-o" /></span>
+          <span class="elder-selector__copy">
+            <small id="elder-selector-title">当前查询老人</small>
+            <strong>{{ selectedElder.name || '请选择老人' }}</strong>
+          </span>
+          <span class="elder-selector__action">切换 <van-icon name="arrow" /></span>
+        </button>
+      </section>
 
-      <!-- 费用总览卡片 -->
-      <div v-if="selectedElder.name" class="expense-overview">
-        <div class="overview-header">
-          <div class="header-gradient">
-            <div class="institution-name" v-if="institutionName">{{ institutionName }}</div>
-            <div class="total-label">账户余额</div>
-            <div class="total-amount">¥{{ formatAmount(accountBalance) }}</div>
-            <div class="account-info">
-              <span>押金: ¥{{ formatAmount(depositAmount) }}</span>
-              <span class="divider">|</span>
-              <span>预存: ¥{{ formatAmount(prepaidAmount) }}</span>
+      <template v-if="selectedElder.name">
+        <section class="account-overview" aria-labelledby="account-title">
+          <div class="overview-main">
+            <div class="overview-topline">
+              <div>
+                <p v-if="institutionName" class="institution-name">{{ institutionName }}</p>
+                <span id="account-title" class="total-label">账户可用总余额</span>
+              </div>
+              <span class="account-shield"><van-icon name="shield-o" /> 资金受监管</span>
+            </div>
+            <strong class="total-amount"><small>¥</small>{{ formatAmount(accountBalance) }}</strong>
+            <p class="overview-note">余额以监管账户最新记录为准</p>
+          </div>
+
+          <div class="balance-grid" aria-label="账户分类余额">
+            <div class="balance-item">
+              <span class="balance-item__icon"><van-icon name="balance-o" /></span>
+              <span>服务费余额</span>
+              <strong>¥{{ formatAmount(serviceAmount) }}</strong>
+            </div>
+            <div class="balance-item">
+              <span class="balance-item__icon"><van-icon name="gold-coin-o" /></span>
+              <span>押金余额</span>
+              <strong>¥{{ formatAmount(depositAmount) }}</strong>
+            </div>
+            <div class="balance-item">
+              <span class="balance-item__icon"><van-icon name="card-o" /></span>
+              <span>会员费余额</span>
+              <strong>¥{{ formatAmount(memberAmount) }}</strong>
             </div>
           </div>
-        </div>
+        </section>
 
-        <!-- 押金管理入口 -->
-        <div class="deposit-manage-entry">
-          <van-button
-            block
-            plain
-            type="primary"
-            size="small"
-            icon="gold-coin-o"
-            @click="goToDepositManage"
-          >
-            押金使用申请管理
-          </van-button>
-        </div>
+        <section class="account-actions h5-card" aria-label="账户操作">
+          <button type="button" class="account-action" @click="goToDepositManage">
+            <span class="account-action__icon" aria-hidden="true"><van-icon name="gold-coin-o" /></span>
+            <span>
+              <strong>押金使用申请</strong>
+              <small>查看申请与审批进度</small>
+            </span>
+            <van-icon name="arrow" />
+          </button>
+          <button type="button" class="account-action" @click="goToRefundApply">
+            <span class="account-action__icon" aria-hidden="true"><van-icon name="refund-o" /></span>
+            <span>
+              <strong>申请退款</strong>
+              <small>发起服务费、押金或会员费退款</small>
+            </span>
+            <van-icon name="arrow" />
+          </button>
+        </section>
 
-        <!-- 申��退款入口 -->
-        <div class="refund-entry">
-          <van-button
-            block
-            plain
-            type="primary"
-            size="small"
-            icon="refund-o"
-            @click="goToRefundApply"
-          >
-            申请退款
-          </van-button>
-        </div>
+        <section class="expense-records h5-card" aria-labelledby="record-title">
+          <header class="records-heading">
+            <div>
+              <h2 id="record-title">资金明细</h2>
+              <p>清晰记录每一笔收入与支出</p>
+            </div>
+            <van-icon name="records-o" />
+          </header>
 
-        <!-- 费用类型Tab -->
-        <van-tabs
-          v-model:active="activeTab"
-          @change="onTabChange"
-          class="expense-tabs"
-          color="#667eea"
-        >
-          <van-tab title="服务费" name="service"></van-tab>
-          <van-tab title="押金" name="deposit"></van-tab>
-          <van-tab title="会员费" name="member"></van-tab>
-        </van-tabs>
+          <van-tabs v-model:active="activeTab" class="expense-tabs" @change="onTabChange">
+            <van-tab title="服务费" name="service"></van-tab>
+            <van-tab title="押金" name="deposit"></van-tab>
+            <van-tab title="会员费" name="member"></van-tab>
+          </van-tabs>
 
-        <!-- 费用明细列表 -->
-        <div class="expense-list">
-          <van-list
-            v-model:loading="loading"
-            :finished="finished"
-            finished-text="没有更多了"
-            @load="onLoadMore"
-          >
-            <div
-              v-for="item in expenseList"
-              :key="item.recordId"
-              class="expense-item"
+          <div class="expense-list">
+            <van-list
+              v-model:loading="loading"
+              :finished="finished"
+              finished-text="已经到底了"
+              @load="onLoadMore"
             >
-              <div class="expense-main">
-                <div class="expense-info">
-                  <div class="expense-title">{{ item.typeText }} - {{ item.description || '暂无描述' }}</div>
-                  <div class="expense-time">{{ item.time }}</div>
+              <article v-for="item in expenseList" :key="item.recordId || item.id" class="expense-item">
+                <div class="expense-main">
+                  <div class="expense-info">
+                    <div class="expense-title">{{ item.typeText }} · {{ item.description || '费用变动' }}</div>
+                    <time class="expense-time">{{ item.time }}</time>
+                  </div>
+                  <div class="expense-amount-block">
+                    <span :class="['transaction-direction', item.amountClass]">
+                      {{ item.transactionType === 'income' ? '收入' : '支出' }}
+                    </span>
+                    <strong :class="['expense-amount', item.amountClass]">
+                      {{ item.transactionType === 'income' ? '+' : '-' }}¥{{ formatAmount(item.amount) }}
+                    </strong>
+                  </div>
                 </div>
-                <div class="expense-amount" :class="item.amountClass">
-                  {{ item.transactionType === 'income' ? '+' : '-' }}¥{{ formatAmount(item.amount) }}
+
+                <div class="expense-meta">
+                  <span class="transaction-type">
+                    <van-icon :name="item.transactionType === 'income' ? 'down' : 'upgrade'" />
+                    {{ item.transactionTypeText }}记录
+                  </span>
+                  <span
+                    v-if="item.balanceBefore !== null && item.balanceBefore !== undefined"
+                    class="balance-info"
+                  >
+                    变动前 ¥{{ formatAmount(item.balanceBefore) }}
+                    <van-icon name="arrow" />
+                    变动后 ¥{{ formatAmount(item.balanceAfter) }}
+                  </span>
                 </div>
-              </div>
-              <div class="expense-meta">
-                <span class="transaction-type">{{ item.transactionTypeText }}</span>
-                <span v-if="item.balanceBefore !== null && item.balanceBefore !== undefined" class="balance-info">
-                  余额: {{ formatAmount(item.balanceBefore) }} → {{ formatAmount(item.balanceAfter) }}
-                </span>
-              </div>
 
-              <!-- 退款按钮 -->
-              <div v-if="item.canRefund" class="expense-actions">
-                <van-button
-                  plain
-                  size="small"
-                  type="primary"
-                  class="refund-btn"
-                  @click="handleRefund(item)"
-                >
-                  申请退款
-                </van-button>
-              </div>
-            </div>
-          </van-list>
+                <div v-if="item.canRefund" class="expense-actions">
+                  <van-button plain type="primary" class="refund-btn" @click="handleRefund(item)">
+                    申请该笔退款
+                  </van-button>
+                </div>
+              </article>
+            </van-list>
 
-          <div v-if="expenseList.length === 0 && !loading" class="empty-list">
-            <van-empty description="暂无费用记录" />
+            <van-empty
+              v-if="expenseList.length === 0 && !loading"
+              class="empty-list"
+              description="暂无费用记录"
+              image-size="104"
+            >
+              <p>切换费用分类可查看其他资金明细</p>
+            </van-empty>
           </div>
-        </div>
-      </div>
+        </section>
+      </template>
 
-      <div v-else class="no-elder-selected">
-        <van-empty description="请先选择老人" />
-      </div>
-    </div>
+      <section v-else class="no-elder-selected h5-card">
+        <van-empty description="请选择老人后查看账户费用" image-size="112">
+          <van-button type="primary" plain @click="showElderPicker = true">选择老人</van-button>
+        </van-empty>
+      </section>
+    </main>
 
-    <!-- 老人选择器 -->
-    <van-popup v-model:show="showElderPicker" position="bottom">
+    <van-popup v-model:show="showElderPicker" position="bottom" round safe-area-inset-bottom>
       <van-picker
+        title="选择老人"
         :columns="elderOptions"
         @confirm="onElderConfirm"
         @cancel="showElderPicker = false"
@@ -134,7 +164,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { getAccountInfo, getExpenseList, getElderList } from '@/api/expense'
@@ -156,8 +186,9 @@ const elderOptions = ref([])
 
 // 账户余额信息
 const accountBalance = ref(0)
+const serviceAmount = ref(0)
 const depositAmount = ref(0)
-const prepaidAmount = ref(0)
+const memberAmount = ref(0)
 const institutionName = ref('')
 
 // 费用列表
@@ -199,8 +230,9 @@ const loadAccountInfo = async (elderId) => {
     if (response.code === 200 && response.data) {
       const data = response.data
       accountBalance.value = parseFloat(data.totalBalance || 0)
+      serviceAmount.value = parseFloat(data.prepaidAmount ?? data.serviceBalance ?? 0)
       depositAmount.value = parseFloat(data.depositBalance || 0)
-      prepaidAmount.value = parseFloat(data.prepaidAmount || 0)
+      memberAmount.value = parseFloat(data.memberBalance || 0)
       institutionName.value = data.institutionName || ''
 
       // 如果老人没有账户，显示提示信息
@@ -337,7 +369,7 @@ const onTabChange = (name) => {
 // 申请退款
 const handleRefund = (item) => {
   router.push({
-    path: '/user/expense/refund/apply',
+    name: 'RefundApply',
     query: {
       expenseId: item.id,
       elderName: selectedElder.value.name,
@@ -371,7 +403,7 @@ const goToRefundApply = () => {
   }
 
   router.push({
-    path: '/user/refund/apply',
+    name: 'RefundApply',
     query: {
       elderId: selectedElder.value.id,
       elderName: selectedElder.value.name
@@ -391,12 +423,17 @@ const onLoadMore = () => {
   }
 }
 
+const handleBack = () => {
+  router.back()
+}
+
 // 监听选中老人变化
 watch(selectedElder, (newVal) => {
   if (newVal.id) {
     accountBalance.value = 0
+    serviceAmount.value = 0
     depositAmount.value = 0
-    prepaidAmount.value = 0
+    memberAmount.value = 0
     institutionName.value = ''
     expenseList.value = []
   }
@@ -410,223 +447,505 @@ onMounted(async () => {
 
 <style scoped>
 .expense-page {
-  min-height: 100vh;
-  background-color: #f5f5f5;
-  padding-bottom: 20px;
+  padding-bottom: var(--h5-space-8);
+}
+
+.expense-nav {
+  position: sticky;
+  top: 0;
+  z-index: var(--h5-z-sticky);
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
+  min-height: calc(var(--h5-header-height) + var(--h5-safe-area-top));
+  padding: var(--h5-safe-area-top) var(--h5-page-padding) 0;
+  background: var(--h5-color-surface);
+  border-bottom: 1px solid var(--h5-color-divider);
+  box-shadow: var(--h5-shadow-xs);
+}
+
+.expense-nav h1 {
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-lg);
+  font-weight: var(--h5-font-weight-semibold);
+  text-align: center;
+}
+
+.expense-nav__back {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: flex-start;
+  color: var(--h5-color-primary);
+  font-size: 22px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.expense-nav__back:focus-visible,
+.elder-selector__button:focus-visible,
+.account-action:focus-visible {
+  outline: none;
+  box-shadow: var(--h5-shadow-focus);
+}
+
+.expense-nav__placeholder {
+  width: 44px;
 }
 
 .expense-content {
-  padding-top: 12px;
+  display: grid;
+  gap: var(--h5-space-3);
+  padding: var(--h5-space-3) var(--h5-page-padding);
 }
 
-/* 老人选择 */
-.elder-selector {
-  margin: 0 12px 12px;
-  border-radius: 12px;
+.elder-selector__button {
+  display: flex;
+  width: 100%;
+  min-height: 72px;
+  align-items: center;
+  gap: var(--h5-space-3);
+  padding: var(--h5-space-3) var(--h5-space-4);
+  color: inherit;
+  text-align: left;
+  background: var(--h5-color-surface);
+  border: 0;
+  cursor: pointer;
+}
+
+.elder-selector__icon {
+  display: inline-flex;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  color: var(--h5-color-primary);
+  font-size: 22px;
+  background: var(--h5-color-primary-soft);
+  border-radius: var(--h5-radius-md);
+}
+
+.elder-selector__copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.elder-selector__copy small {
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-sm);
+}
+
+.elder-selector__copy strong {
   overflow: hidden;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-lg);
+  font-weight: var(--h5-font-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* 费用总览卡片 */
-.expense-overview {
-  background: #fff;
-  margin: 0 12px;
-  border-radius: 12px;
+.elder-selector__action {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  color: var(--h5-color-primary);
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-medium);
+}
+
+.account-overview {
   overflow: hidden;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  background: var(--h5-color-surface);
+  border: 1px solid var(--h5-color-primary-100);
+  border-radius: var(--h5-radius-lg);
+  box-shadow: var(--h5-shadow-md);
 }
 
-.overview-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 24px 20px;
-  color: #fff;
+.overview-main {
+  padding: var(--h5-space-5);
+  color: var(--h5-color-text-inverse);
+  background: linear-gradient(140deg, var(--h5-color-primary-700), var(--h5-color-primary-500));
 }
 
-.header-gradient {
-  text-align: center;
+.overview-topline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--h5-space-3);
+}
+
+.institution-name {
+  max-width: 210px;
+  margin-bottom: var(--h5-space-1);
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: var(--h5-font-size-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .total-label {
-  font-size: 14px;
-  opacity: 0.95;
-  margin-bottom: 8px;
+  color: rgba(255, 255, 255, 0.94);
+  font-size: var(--h5-font-size-md);
+  font-weight: var(--h5-font-weight-medium);
+}
+
+.account-shield {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-height: 28px;
+  align-items: center;
+  gap: var(--h5-space-1);
+  padding: 3px var(--h5-space-2);
+  color: var(--h5-color-text-inverse);
+  font-size: var(--h5-font-size-sm);
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--h5-radius-pill);
 }
 
 .total-amount {
-  font-size: 36px;
-  font-weight: bold;
-  margin-bottom: 12px;
-  letter-spacing: 1px;
+  display: block;
+  margin-top: var(--h5-space-3);
+  font-size: 34px;
+  font-weight: var(--h5-font-weight-bold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
 }
 
-.account-info {
-  font-size: 13px;
-  opacity: 0.9;
+.total-amount small {
+  margin-right: var(--h5-space-1);
+  font-size: var(--h5-font-size-xl);
+  font-weight: var(--h5-font-weight-semibold);
+}
+
+.overview-note {
+  margin-top: var(--h5-space-2);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: var(--h5-font-size-sm);
+}
+
+.balance-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  background: var(--h5-color-surface);
+}
+
+.balance-item {
   display: flex;
-  justify-content: center;
-  gap: 8px;
+  min-width: 0;
   align-items: center;
-}
-
-.divider {
-  opacity: 0.5;
-}
-
-/* 押金管理入口 */
-.deposit-manage-entry {
-  padding: 12px 16px 16px;
-}
-
-.deposit-manage-entry :deep(.van-button) {
-  border-color: #667eea;
-  color: #667eea;
-  font-weight: 500;
-}
-
-.deposit-manage-entry :deep(.van-button):active {
-  background-color: #f5f6ff;
-}
-
-/* 退款入口 */
-.refund-entry {
-  padding: 0 16px 16px;
-}
-
-.refund-entry :deep(.van-button) {
-  border-color: #ff976a;
-  color: #ff976a;
-  font-weight: 500;
-}
-
-.refund-entry :deep(.van-button):active {
-  background-color: #fff5f0;
-}
-
-/* 机构名称 */
-.institution-name {
-  font-size: 13px;
-  opacity: 0.85;
-  margin-bottom: 4px;
+  flex-direction: column;
+  padding: var(--h5-space-4) var(--h5-space-2);
   text-align: center;
+  border-right: 1px solid var(--h5-color-divider);
 }
 
-/* Tab */
-.expense-tabs {
-  background: #fff;
+.balance-item:last-child {
+  border-right: 0;
 }
 
-:deep(.van-tabs__wrap) {
-  border-bottom: 1px solid #f0f0f0;
+.balance-item__icon {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  color: var(--h5-color-primary);
+  font-size: 18px;
+  background: var(--h5-color-primary-soft);
+  border-radius: var(--h5-radius-sm);
 }
 
-:deep(.van-tab) {
-  font-size: 15px;
-  font-weight: 500;
+.balance-item > span:nth-child(2) {
+  margin-top: var(--h5-space-2);
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-sm);
 }
 
-/* 费用列表 */
+.balance-item strong {
+  max-width: 100%;
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-md);
+  font-weight: var(--h5-font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-action {
+  display: flex;
+  width: 100%;
+  min-height: 72px;
+  align-items: center;
+  gap: var(--h5-space-3);
+  padding: var(--h5-space-3) var(--h5-space-4);
+  color: inherit;
+  text-align: left;
+  background: var(--h5-color-surface);
+  border: 0;
+  border-bottom: 1px solid var(--h5-color-divider);
+  cursor: pointer;
+}
+
+.account-action:last-child {
+  border-bottom: 0;
+}
+
+.account-action:active {
+  background: var(--h5-color-primary-soft);
+}
+
+.account-action__icon {
+  display: inline-flex;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  color: var(--h5-color-primary);
+  font-size: 20px;
+  background: var(--h5-color-primary-soft);
+  border-radius: var(--h5-radius-md);
+}
+
+.account-action > span:nth-child(2) {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.account-action strong {
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-md);
+  font-weight: var(--h5-font-weight-semibold);
+}
+
+.account-action small {
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-sm);
+}
+
+.account-action > .van-icon {
+  color: var(--h5-color-text-tertiary);
+}
+
+.records-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--h5-space-3);
+  padding: var(--h5-space-4) var(--h5-space-4) var(--h5-space-3);
+}
+
+.records-heading h2 {
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-lg);
+  font-weight: var(--h5-font-weight-semibold);
+}
+
+.records-heading p {
+  margin-top: 2px;
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-sm);
+}
+
+.records-heading > .van-icon {
+  color: var(--h5-color-primary);
+  font-size: 22px;
+}
+
+.expense-tabs :deep(.van-tabs__wrap) {
+  height: 48px;
+  border-top: 1px solid var(--h5-color-divider);
+  border-bottom: 1px solid var(--h5-color-divider);
+}
+
+.expense-tabs :deep(.van-tab) {
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-md);
+  font-weight: var(--h5-font-weight-medium);
+}
+
+.expense-tabs :deep(.van-tab--active) {
+  color: var(--h5-color-primary);
+  font-weight: var(--h5-font-weight-semibold);
+}
+
+.expense-tabs :deep(.van-tabs__line) {
+  width: 28px;
+  height: 3px;
+  background: var(--h5-color-primary);
+}
+
 .expense-list {
-  padding: 12px 16px;
-  min-height: 200px;
+  min-height: 220px;
+  padding: 0 var(--h5-space-4);
 }
 
 .expense-item {
-  padding: 16px 0;
-  border-bottom: 1px solid #f0f0f0;
+  padding: var(--h5-space-4) 0;
+  border-bottom: 1px solid var(--h5-color-divider);
 }
 
 .expense-item:last-child {
-  border-bottom: none;
+  border-bottom: 0;
 }
 
 .expense-main {
   display: flex;
-  justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 8px;
+  justify-content: space-between;
+  gap: var(--h5-space-3);
 }
 
 .expense-info {
+  min-width: 0;
   flex: 1;
 }
 
 .expense-title {
-  font-size: 15px;
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 6px;
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-md);
+  font-weight: var(--h5-font-weight-semibold);
+  line-height: var(--h5-line-height-normal);
 }
 
 .expense-time {
-  font-size: 13px;
-  color: #999;
+  display: block;
+  margin-top: var(--h5-space-1);
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-sm);
+}
+
+.expense-amount-block {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-end;
+  flex-direction: column;
+  gap: var(--h5-space-1);
+}
+
+.transaction-direction {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  padding: 2px var(--h5-space-2);
+  color: var(--h5-color-danger);
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-medium);
+  background: var(--h5-color-danger-soft);
+  border-radius: var(--h5-radius-pill);
+}
+
+.transaction-direction.income {
+  color: var(--h5-color-success);
+  background: var(--h5-color-success-soft);
 }
 
 .expense-amount {
-  font-size: 18px;
-  font-weight: 600;
-  color: #ee0a24;
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-xl);
+  font-weight: var(--h5-font-weight-bold);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .expense-amount.income {
-  color: #07c160;
-}
-
-.expense-desc {
-  font-size: 13px;
-  color: #666;
-  padding-left: 0;
-}
-
-.expense-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 8px;
-  font-size: 12px;
-}
-
-.transaction-type {
-  background-color: #f5f5f5;
-  color: #666;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-weight: 500;
-}
-
-.balance-info {
-  color: #999;
-  font-size: 12px;
+  color: var(--h5-color-success);
 }
 
 .expense-amount.expense {
-  color: #ee0a24;
+  color: var(--h5-color-danger);
 }
 
-.expense-amount.income {
-  color: #07c160;
+.expense-meta {
+  display: grid;
+  gap: var(--h5-space-2);
+  margin-top: var(--h5-space-3);
+  padding: var(--h5-space-2) var(--h5-space-3);
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-sm);
+  line-height: var(--h5-line-height-normal);
+  background: var(--h5-color-surface-subtle);
+  border-radius: var(--h5-radius-sm);
 }
 
-/* 退款操作按钮 */
+.transaction-type,
+.balance-info {
+  display: flex;
+  align-items: center;
+  gap: var(--h5-space-1);
+}
+
+.transaction-type {
+  font-weight: var(--h5-font-weight-medium);
+}
+
+.balance-info {
+  flex-wrap: wrap;
+  color: var(--h5-color-text-tertiary);
+}
+
 .expense-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px dashed #f0f0f0;
+  margin-top: var(--h5-space-3);
+  padding-top: var(--h5-space-3);
+  border-top: 1px dashed var(--h5-color-border);
 }
 
 .refund-btn {
-  color: #667eea !important;
-  border-color: #667eea !important;
+  min-width: 128px;
+  min-height: 42px;
+  font-size: var(--h5-font-size-md);
+  font-weight: var(--h5-font-weight-semibold);
 }
 
 .empty-list {
-  padding: 60px 0;
+  min-height: 300px;
+}
+
+.empty-list p {
+  margin-top: var(--h5-space-2);
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-sm);
 }
 
 .no-elder-selected {
-  padding: 100px 0;
+  min-height: 360px;
+}
+
+.no-elder-selected :deep(.van-button) {
+  min-width: 132px;
+  min-height: 44px;
+  margin-top: var(--h5-space-3);
+}
+
+@media (max-width: 359px) {
+  .expense-content {
+    padding-right: var(--h5-space-3);
+    padding-left: var(--h5-space-3);
+  }
+
+  .account-shield {
+    display: none;
+  }
+
+  .balance-item {
+    padding-right: var(--h5-space-1);
+    padding-left: var(--h5-space-1);
+  }
 }
 </style>

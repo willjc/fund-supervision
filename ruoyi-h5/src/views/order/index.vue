@@ -1,209 +1,218 @@
 <template>
-  <div class="order-page">
+  <div class="order-page h5-page h5-page--constrained">
+    <div class="order-page__top">
+      <header class="order-heading">
+        <div>
+          <p class="order-heading__eyebrow">养老服务订单</p>
+          <h1>我的订单</h1>
+        </div>
+        <span class="order-heading__icon" aria-hidden="true">
+          <van-icon name="orders-o" />
+        </span>
+      </header>
 
-    <!-- 搜索栏 -->
-    <div class="search-bar">
-      <van-search
-        v-model="searchValue"
-        placeholder="搜索我的订单"
-        @search="onSearch"
-      />
+      <div class="search-bar">
+        <van-search
+          v-model="searchValue"
+          shape="round"
+          placeholder="搜索订单号或养老机构"
+          @search="onSearch"
+        />
+      </div>
+
+      <van-tabs v-model:active="activeTab" class="order-tabs" @change="onTabChange">
+        <van-tab title="全部" name="all" />
+        <van-tab title="待审核" name="4" />
+        <van-tab title="待付款" name="pending" />
+        <van-tab title="已支付" name="1" />
+        <van-tab title="已取消" name="2" />
+        <van-tab title="退款" name="3" />
+      </van-tabs>
     </div>
 
-    <!-- 订单状态Tab -->
-    <van-tabs v-model:active="activeTab" @change="onTabChange" sticky>
-      <van-tab title="全部" name="all" />
-      <van-tab title="待审核" name="4" />
-      <van-tab title="待付款" name="pending" />
-      <van-tab title="已支付" name="1" />
-      <van-tab title="已取消" name="2" />
-      <van-tab title="退款" name="3" />
-    </van-tabs>
-
-    <!-- 订单列表 -->
-    <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
-      <!-- 订单列表 (非退款tab) -->
+    <van-pull-refresh v-model="refreshing" class="order-content" @refresh="onRefresh">
       <van-list
         v-if="activeTab !== '3'"
         v-model:loading="loading"
         :finished="finished"
-        finished-text="没有更多了"
+        finished-text="已经到底了"
         @load="onLoad"
       >
-        <div v-if="orderList.length > 0">
-          <div
-            v-for="order in orderList"
-            :key="order.orderId"
-            class="order-card"
-            @click="goToDetail(order.orderId)"
-          >
-            <!-- 订单头部 -->
-            <div class="order-header">
-              <div class="institution-name">
-                <van-icon name="shop-o" />
-                {{ order.institutionName || '郑州XXXXX养老院' }}
-              </div>
-              <div :class="['order-status', `status-${order.orderStatus}`]">
-                {{ getStatusText(order.orderStatus) }}
-              </div>
-            </div>
-
-            <!-- 订单信息 -->
-            <div class="order-body">
-              <div class="order-info">
-                <div class="info-row">
-                  <span class="label">订单号:</span>
-                  <span class="value">{{ order.orderNo }}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">订单类型:</span>
-                  <span class="value">
-                    {{ getOrderTypeText(order.orderType) }}
-                    <van-tag v-if="order.orderType === '2'" type="primary" size="mini" style="margin-left: 6px;">
-                      续费订单
-                    </van-tag>
+        <div v-if="orderList.length > 0" class="order-list">
+          <article v-for="order in orderList" :key="order.orderId" class="order-card h5-card">
+            <button
+              type="button"
+              class="order-card__main"
+              :aria-label="`查看订单 ${order.orderNo || ''} 详情`"
+              @click="goToDetail(order.orderId)"
+            >
+              <div class="order-card__header">
+                <div class="institution-name">
+                  <span class="institution-name__icon" aria-hidden="true">
+                    <van-icon name="shop-o" />
                   </span>
+                  <span>{{ order.institutionName || '养老机构' }}</span>
                 </div>
-                <div class="info-row">
-                  <span class="label">下单时间:</span>
-                  <span class="value">{{ formatDate(order.createTime) }}</span>
+                <span :class="['order-status', `status-${order.orderStatus}`]">
+                  {{ getStatusText(order.orderStatus) }}
+                </span>
+              </div>
+
+              <div class="order-card__body">
+                <div class="order-meta">
+                  <div class="meta-row">
+                    <span class="meta-label">订单编号</span>
+                    <span class="meta-value meta-value--number">{{ order.orderNo || '-' }}</span>
+                  </div>
+                  <div class="meta-row">
+                    <span class="meta-label">订单类型</span>
+                    <span class="meta-value">
+                      {{ getOrderTypeText(order.orderType) }}
+                      <span v-if="order.orderType === '2'" class="renew-tag">续费</span>
+                    </span>
+                  </div>
+                  <div class="meta-row">
+                    <span class="meta-label">下单时间</span>
+                    <time class="meta-value">{{ formatDate(order.createTime) || '-' }}</time>
+                  </div>
                 </div>
-                <div class="info-row amount">
-                  <span class="label">应付金额:</span>
-                  <span class="value price">¥ {{ formatAmount(order.orderAmount) }}</span>
+
+                <div class="amount-summary">
+                  <span>应付金额</span>
+                  <strong><small>¥</small>{{ formatAmount(order.orderAmount) }}</strong>
                 </div>
               </div>
-            </div>
 
-            <!-- 订单操作 -->
-            <div class="order-footer">
+              <span class="detail-cue">
+                查看订单详情
+                <van-icon name="arrow" />
+              </span>
+            </button>
+
+            <footer
+              v-if="order.orderStatus === '0' || order.orderStatus === '5' || order.orderStatus === '1'"
+              class="order-card__actions"
+            >
               <van-button
                 v-if="order.orderStatus === '0' || order.orderStatus === '5'"
-                size="small"
                 plain
-                @click.stop="handleCancel(order)"
+                @click="handleCancel(order)"
               >
                 取消订单
               </van-button>
               <van-button
                 v-if="order.orderStatus === '0' || order.orderStatus === '5'"
-                size="small"
                 type="primary"
-                @click.stop="handlePay(order)"
+                @click="handlePay(order)"
               >
                 立即付款
               </van-button>
-              <van-button
-                v-if="order.orderStatus === '1'"
-                size="small"
-                plain
-                @click.stop="handleRenew(order)"
-              >
+              <van-button v-if="order.orderStatus === '1'" plain type="primary" @click="handleRenew(order)">
                 续费
               </van-button>
-              <van-button
-                v-if="order.orderStatus === '1'"
-                size="small"
-                @click.stop="goToDetail(order.orderId)"
-              >
+              <van-button v-if="order.orderStatus === '1'" @click="goToDetail(order.orderId)">
                 查看详情
               </van-button>
-            </div>
-          </div>
+            </footer>
+          </article>
         </div>
 
-        <!-- 空状态 -->
         <van-empty
-          v-else
-          description="暂无订单"
-        />
+          v-else-if="!loading"
+          class="order-empty"
+          description="暂无符合条件的订单"
+          image-size="104"
+        >
+          <p class="empty-hint">订单提交后会在这里展示进度</p>
+        </van-empty>
       </van-list>
 
-      <!-- 退款列表 (退款tab) -->
-      <div v-if="activeTab === '3'" class="refund-list-container">
-        <van-loading v-if="loading" type="spinner" color="#667eea" />
-        <div v-else-if="refundList.length > 0">
-          <div
-            v-for="refund in refundList"
-            :key="refund.id"
-            class="refund-card"
-          >
-            <!-- 退款头部 -->
+      <section v-else class="refund-list-container" aria-label="退款记录">
+        <div v-if="loading" class="state-loading">
+          <van-loading type="spinner" color="var(--h5-color-primary)">正在加载退款记录</van-loading>
+        </div>
+
+        <div v-else-if="refundList.length > 0" class="refund-list">
+          <article v-for="refund in refundList" :key="refund.id" class="refund-card h5-card">
             <div class="refund-header">
               <div class="refund-no">
-                <van-icon name="bill-o" />
-                {{ refund.refundNo }}
+                <span class="refund-no__icon" aria-hidden="true"><van-icon name="bill-o" /></span>
+                <div>
+                  <span class="refund-no__label">退款编号</span>
+                  <strong>{{ refund.refundNo || '-' }}</strong>
+                </div>
               </div>
-              <div :class="['refund-status', `status-${refund.refundStatus}`]">
-                {{ refund.statusText }}
-              </div>
+              <span :class="['refund-status', `status-${refund.refundStatus}`]">
+                {{ refund.statusText || '处理中' }}
+              </span>
             </div>
 
-            <!-- 退款信息 -->
             <div class="refund-body">
               <div class="refund-info">
                 <div class="info-row">
-                  <span class="label">养老机构:</span>
+                  <span class="label">养老机构</span>
                   <span class="value">{{ refund.institutionName || '养老机构' }}</span>
                 </div>
                 <div class="info-row">
-                  <span class="label">退款老人:</span>
+                  <span class="label">退款老人</span>
                   <span class="value">{{ refund.elderName || '未知老人' }}</span>
                 </div>
                 <div class="info-row">
-                  <span class="label">退款原因:</span>
+                  <span class="label">退款原因</span>
                   <span class="value">{{ refund.refundReason || '-' }}</span>
                 </div>
                 <div class="info-row amount">
-                  <span class="label">退款总额:</span>
-                  <span class="value price">¥ {{ formatAmount(refund.refundAmount) }}</span>
+                  <span class="label">退款总额</span>
+                  <strong class="price"><small>¥</small>{{ formatAmount(refund.refundAmount) }}</strong>
                 </div>
-                <div class="refund-detail" v-if="refund.serviceRefundAmount || refund.depositRefundAmount || refund.memberRefundAmount">
-                  <span class="detail-item" v-if="refund.serviceRefundAmount">
-                    服务费: ¥{{ formatAmount(refund.serviceRefundAmount) }}
+                <div
+                  v-if="refund.serviceRefundAmount || refund.depositRefundAmount || refund.memberRefundAmount"
+                  class="refund-detail"
+                >
+                  <span v-if="refund.serviceRefundAmount" class="detail-item">
+                    服务费 ¥{{ formatAmount(refund.serviceRefundAmount) }}
                   </span>
-                  <span class="detail-item" v-if="refund.depositRefundAmount">
-                    押金: ¥{{ formatAmount(refund.depositRefundAmount) }}
+                  <span v-if="refund.depositRefundAmount" class="detail-item">
+                    押金 ¥{{ formatAmount(refund.depositRefundAmount) }}
                   </span>
-                  <span class="detail-item" v-if="refund.memberRefundAmount">
-                    会员费: ¥{{ formatAmount(refund.memberRefundAmount) }}
+                  <span v-if="refund.memberRefundAmount" class="detail-item">
+                    会员费 ¥{{ formatAmount(refund.memberRefundAmount) }}
                   </span>
                 </div>
                 <div class="info-row time">
-                  <span class="label">申请时间:</span>
-                  <span class="value">{{ refund.createTime || '-' }}</span>
+                  <span class="label">申请时间</span>
+                  <time class="value">{{ refund.createTime || '-' }}</time>
                 </div>
-                <!-- 驳回原因 -->
-                <div v-if="(refund.refundStatus === '2' || refund.refundStatus === 2) && refund.approveRemark" class="info-row reject-reason">
-                  <span class="label">驳回原因:</span>
-                  <span class="value reject-text">{{ refund.approveRemark }}</span>
+                <div
+                  v-if="(refund.refundStatus === '2' || refund.refundStatus === 2) && refund.approveRemark"
+                  class="reject-reason"
+                >
+                  <strong>驳回原因</strong>
+                  <span>{{ refund.approveRemark }}</span>
                 </div>
               </div>
             </div>
-          </div>
+          </article>
         </div>
 
-        <!-- 退款空状态 -->
-        <van-empty
-          v-else-if="!loading"
-          description="暂无退款记录"
-        />
-      </div>
+        <van-empty v-else description="暂无退款记录" image-size="104">
+          <p class="empty-hint">退款申请提交后会在这里展示进度</p>
+        </van-empty>
+      </section>
     </van-pull-refresh>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { showToast, showConfirmDialog } from 'vant'
 import { useUserStore } from '@/store/modules/user'
-import { getOrderList, cancelOrder, processPayment } from '@/api/order'
+import { getOrderList, cancelOrder } from '@/api/order'
 import { getRefundList } from '@/api/refund'
 import dayjs from 'dayjs'
 
 const router = useRouter()
-const route = useRoute()
 const userStore = useUserStore()
 
 // 搜索关键词
@@ -227,102 +236,6 @@ const refundList = ref([])
 const pageNum = ref(1)
 const pageSize = ref(10)
 
-// 老人ID（后续需要从登录信息或路由参数中获取）
-const elderId = ref(null)
-
-// 模拟订单数据（备用）
-const mockOrders = [
-  {
-    orderId: 1,
-    orderNo: 'ORD202501140001',
-    institutionName: '郑州市金水区花园口社区养老服务中心',
-    orderType: '1',
-    orderStatus: '0',
-    orderAmount: 2500.00,
-    createTime: '2025-01-14 10:30:00'
-  },
-  {
-    orderId: 2,
-    orderNo: 'ORD202501130002',
-    institutionName: '郑州颐养家园养老院',
-    orderType: '2',
-    orderStatus: '1',
-    orderAmount: 3200.00,
-    createTime: '2025-01-13 14:20:00'
-  },
-  {
-    orderId: 3,
-    orderNo: 'ORD202501120003',
-    institutionName: '河南省老干部康养中心',
-    orderType: '3',
-    orderStatus: '1',
-    orderAmount: 1200.00,
-    createTime: '2025-01-12 09:15:00'
-  },
-  {
-    orderId: 4,
-    orderNo: 'ORD202501110004',
-    institutionName: '郑州夕阳红托老所',
-    orderType: '1',
-    orderStatus: '2',
-    orderAmount: 1800.00,
-    createTime: '2025-01-11 16:45:00'
-  },
-  {
-    orderId: 5,
-    orderNo: 'ORD202501100005',
-    institutionName: '郑东新区康乐养老中心',
-    orderType: '2',
-    orderStatus: '1',
-    orderAmount: 2800.00,
-    createTime: '2025-01-10 11:30:00'
-  },
-  {
-    orderId: 6,
-    orderNo: 'ORD202501090006',
-    institutionName: '郑州爱心护理院',
-    orderType: '4',
-    orderStatus: '3',
-    orderAmount: 1500.00,
-    createTime: '2025-01-09 13:20:00'
-  },
-  {
-    orderId: 7,
-    orderNo: 'ORD202501080007',
-    institutionName: '高新区幸福之家养老服务站',
-    orderType: '1',
-    orderStatus: '1',
-    orderAmount: 2200.00,
-    createTime: '2025-01-08 10:10:00'
-  },
-  {
-    orderId: 8,
-    orderNo: 'ORD202501070008',
-    institutionName: '郑州安康老年公寓',
-    orderType: '3',
-    orderStatus: '1',
-    orderAmount: 950.00,
-    createTime: '2025-01-07 15:30:00'
-  },
-  {
-    orderId: 9,
-    orderNo: 'ORD202501060009',
-    institutionName: '郑州市金水区花园口社区养老服务中心',
-    orderType: '2',
-    orderStatus: '0',
-    orderAmount: 3000.00,
-    createTime: '2025-01-06 09:45:00'
-  },
-  {
-    orderId: 10,
-    orderNo: 'ORD202501050010',
-    institutionName: '郑州颐养家园养老院',
-    orderType: '5',
-    orderStatus: '1',
-    orderAmount: 800.00,
-    createTime: '2025-01-05 14:00:00'
-  }
-]
 
 // Tab切换
 const onTabChange = () => {
@@ -585,11 +498,6 @@ const formatAmount = (amount) => {
   return parseFloat(amount).toFixed(2)
 }
 
-// 返回上一页
-const handleBack = () => {
-  router.back()
-}
-
 // 页面加载时获取订单列表
 onMounted(async () => {
   // 检查用户登录状态
@@ -605,217 +513,427 @@ onMounted(async () => {
 
 <style scoped>
 .order-page {
-  min-height: 100vh;
-  background-color: #f5f5f5;
-  padding-bottom: 50px;
+  padding-bottom: var(--h5-space-6);
+}
+
+.order-page__top {
+  position: sticky;
+  top: 0;
+  z-index: var(--h5-z-sticky);
+  padding-top: var(--h5-safe-area-top);
+  background: var(--h5-color-surface);
+  border-bottom: 1px solid var(--h5-color-divider);
+  box-shadow: var(--h5-shadow-xs);
+}
+
+.order-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 72px;
+  padding: var(--h5-space-3) var(--h5-page-padding) var(--h5-space-2);
+  background: linear-gradient(135deg, var(--h5-color-primary-50), var(--h5-color-surface) 70%);
+}
+
+.order-heading__eyebrow {
+  margin-bottom: 2px;
+  color: var(--h5-color-primary);
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-medium);
+}
+
+.order-heading h1 {
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-2xl);
+  font-weight: var(--h5-font-weight-bold);
+  line-height: var(--h5-line-height-tight);
+}
+
+.order-heading__icon {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  color: var(--h5-color-primary);
+  font-size: 23px;
+  background: var(--h5-color-primary-soft);
+  border: 1px solid var(--h5-color-primary-100);
+  border-radius: var(--h5-radius-md);
 }
 
 .search-bar {
-  background-color: #fff;
-  padding: 8px 0;
+  padding: var(--h5-space-1) var(--h5-space-3) var(--h5-space-2);
 }
 
-.order-card {
-  background-color: #fff;
-  margin: 12px;
-  border-radius: 8px;
-  overflow: hidden;
+.search-bar :deep(.van-search) {
+  padding: 0;
+  background: transparent;
 }
 
-.order-header {
+.search-bar :deep(.van-search__content) {
+  min-height: 44px;
+  background: var(--h5-color-surface-subtle);
+  border: 1px solid var(--h5-color-border);
+}
+
+.order-tabs :deep(.van-tabs__wrap) {
+  height: 48px;
+}
+
+.order-tabs :deep(.van-tabs__nav) {
+  padding: 0 var(--h5-space-2);
+  background: var(--h5-color-surface);
+}
+
+.order-tabs :deep(.van-tab) {
+  min-width: 64px;
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-medium);
+}
+
+.order-tabs :deep(.van-tab--active) {
+  color: var(--h5-color-primary);
+  font-weight: var(--h5-font-weight-semibold);
+}
+
+.order-tabs :deep(.van-tabs__line) {
+  width: 24px;
+  height: 3px;
+  background: var(--h5-color-primary);
+  border-radius: var(--h5-radius-pill);
+}
+
+.order-content {
+  min-height: 460px;
+}
+
+.order-list,
+.refund-list {
+  display: grid;
+  gap: var(--h5-space-3);
+  padding: var(--h5-space-3) var(--h5-page-padding);
+}
+
+.order-card,
+.refund-card {
+  border-radius: var(--h5-radius-lg);
+}
+
+.order-card__main {
+  display: block;
+  width: 100%;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.order-card__main:focus-visible {
+  outline: none;
+  box-shadow: inset var(--h5-shadow-focus);
+}
+
+.order-card__header,
+.refund-header {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid #f5f5f5;
+  gap: var(--h5-space-3);
+  padding: var(--h5-space-4);
+  border-bottom: 1px solid var(--h5-color-divider);
 }
 
 .institution-name {
-  font-size: 15px;
-  font-weight: 500;
   display: flex;
+  min-width: 0;
   align-items: center;
-  gap: 4px;
+  gap: var(--h5-space-2);
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-lg);
+  font-weight: var(--h5-font-weight-semibold);
+  line-height: var(--h5-line-height-normal);
 }
 
-.order-status {
-  font-size: 14px;
-  font-weight: 500;
+.institution-name > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.status-0 {
-  color: #ff976a;
+.institution-name__icon,
+.refund-no__icon {
+  display: inline-flex;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  color: var(--h5-color-primary);
+  background: var(--h5-color-primary-soft);
+  border-radius: var(--h5-radius-sm);
+}
+
+.order-status,
+.refund-status {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-height: 26px;
+  align-items: center;
+  padding: 3px var(--h5-space-2);
+  color: var(--h5-color-info);
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-semibold);
+  line-height: 20px;
+  background: var(--h5-color-info-soft);
+  border-radius: var(--h5-radius-pill);
+}
+
+.status-0,
+.status-5 {
+  color: var(--h5-color-pending);
+  background: var(--h5-color-pending-soft);
 }
 
 .status-1 {
-  color: #07c160;
+  color: var(--h5-color-success);
+  background: var(--h5-color-success-soft);
 }
 
 .status-2 {
-  color: #969799;
+  color: var(--h5-color-text-secondary);
+  background: var(--h5-color-surface-subtle);
 }
 
 .status-3 {
-  color: #ee0a24;
+  color: var(--h5-color-danger);
+  background: var(--h5-color-danger-soft);
 }
 
-.order-body {
-  padding: 12px 16px;
+.status-4 {
+  color: var(--h5-color-info);
+  background: var(--h5-color-info-soft);
 }
 
-.order-info .info-row {
+.order-card__body {
+  padding: var(--h5-space-4);
+}
+
+.order-meta {
+  display: grid;
+  gap: var(--h5-space-2);
+}
+
+.meta-row,
+.refund-info .info-row {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-  font-size: 14px;
+  gap: var(--h5-space-4);
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-md);
+  line-height: var(--h5-line-height-normal);
 }
 
-.order-info .info-row:last-child {
-  margin-bottom: 0;
+.meta-label,
+.refund-info .label {
+  flex: 0 0 auto;
+  color: var(--h5-color-text-tertiary);
 }
 
-.order-info .label {
-  color: #969799;
+.meta-value,
+.refund-info .value {
+  min-width: 0;
+  color: var(--h5-color-text-secondary);
+  text-align: right;
+  overflow-wrap: anywhere;
 }
 
-.order-info .value {
-  color: #323233;
+.meta-value--number {
+  font-variant-numeric: tabular-nums;
 }
 
-.order-info .amount {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px dashed #ebedf0;
+.renew-tag {
+  display: inline-flex;
+  margin-left: var(--h5-space-1);
+  padding: 1px 6px;
+  color: var(--h5-color-primary);
+  font-size: var(--h5-font-size-sm);
+  background: var(--h5-color-primary-soft);
+  border-radius: var(--h5-radius-pill);
 }
 
-.order-info .price {
-  color: #ee0a24;
-  font-size: 18px;
-  font-weight: 500;
-}
-
-.order-footer {
+.amount-summary {
   display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--h5-space-3);
+  margin-top: var(--h5-space-3);
+  padding-top: var(--h5-space-3);
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-md);
+  border-top: 1px dashed var(--h5-color-border);
+}
+
+.amount-summary strong,
+.refund-info .price {
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-xl);
+  font-weight: var(--h5-font-weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+.amount-summary small,
+.refund-info .price small {
+  margin-right: 2px;
+  color: var(--h5-color-primary);
+  font-size: var(--h5-font-size-sm);
+}
+
+.detail-cue {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
   justify-content: flex-end;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  border-top: 1px solid #f5f5f5;
+  gap: var(--h5-space-1);
+  padding: 0 var(--h5-space-4);
+  color: var(--h5-color-primary);
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-medium);
+  border-top: 1px solid var(--h5-color-divider);
 }
 
-/* 退款列表 */
-.refund-list-container {
-  min-height: 300px;
-}
-
-.refund-card {
-  background-color: #fff;
-  margin: 12px;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.refund-header {
+.order-card__actions {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid #f5f5f5;
+  justify-content: flex-end;
+  gap: var(--h5-space-2);
+  padding: var(--h5-space-3) var(--h5-space-4);
+  background: var(--h5-color-surface-subtle);
+  border-top: 1px solid var(--h5-color-divider);
+}
+
+.order-card__actions :deep(.van-button) {
+  min-width: 104px;
+  min-height: 42px;
+  padding: 0 var(--h5-space-4);
+  font-size: var(--h5-font-size-md);
+  font-weight: var(--h5-font-weight-semibold);
+  border-radius: var(--h5-radius-md);
+}
+
+.refund-list-container {
+  min-height: 360px;
+}
+
+.state-loading {
+  display: flex;
+  min-height: 240px;
+  align-items: center;
+  justify-content: center;
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-md);
 }
 
 .refund-no {
-  font-size: 15px;
-  font-weight: 500;
   display: flex;
+  min-width: 0;
   align-items: center;
-  gap: 4px;
-  color: #667eea;
+  gap: var(--h5-space-2);
 }
 
-.refund-status {
-  font-size: 14px;
-  font-weight: 500;
+.refund-no > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.refund-status.status-0 {
-  color: #ff976a;
+.refund-no__label {
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-sm);
 }
 
-.refund-status.status-1 {
-  color: #07c160;
-}
-
-.refund-status.status-2 {
-  color: #ee0a24;
+.refund-no strong {
+  overflow: hidden;
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-md);
+  font-weight: var(--h5-font-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .refund-body {
-  padding: 12px 16px;
+  padding: var(--h5-space-4);
 }
 
-.refund-info .info-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-  font-size: 14px;
-}
-
-.refund-info .info-row:last-child {
-  margin-bottom: 0;
+.refund-info {
+  display: grid;
+  gap: var(--h5-space-2);
 }
 
 .refund-info .info-row.amount {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px dashed #ebedf0;
+  align-items: baseline;
+  margin-top: var(--h5-space-1);
+  padding-top: var(--h5-space-3);
+  border-top: 1px dashed var(--h5-color-border);
 }
 
 .refund-info .info-row.time {
-  margin-top: 4px;
-  font-size: 12px;
-}
-
-.refund-info .label {
-  color: #969799;
-}
-
-.refund-info .value {
-  color: #323233;
-}
-
-.refund-info .price {
-  color: #ee0a24;
-  font-size: 18px;
-  font-weight: 500;
+  margin-top: var(--h5-space-1);
+  font-size: var(--h5-font-size-sm);
 }
 
 .refund-detail {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
-  padding: 8px 0;
+  gap: var(--h5-space-2);
+  padding: var(--h5-space-2) 0;
 }
 
 .refund-detail .detail-item {
-  background-color: #f5f5f5;
-  color: #666;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
+  padding: var(--h5-space-1) var(--h5-space-2);
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-sm);
+  background: var(--h5-color-surface-subtle);
+  border: 1px solid var(--h5-color-divider);
+  border-radius: var(--h5-radius-sm);
 }
 
-/* 退款驳回原因样式 */
 .reject-reason {
-  padding: 8px 0;
-  margin-top: 4px;
-  background-color: #fff5f5;
-  border-radius: 4px;
+  display: grid;
+  gap: var(--h5-space-1);
+  margin-top: var(--h5-space-1);
+  padding: var(--h5-space-3);
+  color: var(--h5-color-danger);
+  font-size: var(--h5-font-size-sm);
+  line-height: var(--h5-line-height-normal);
+  background: var(--h5-color-danger-soft);
+  border: 1px solid rgba(197, 61, 70, 0.18);
+  border-radius: var(--h5-radius-md);
 }
 
-.reject-reason .reject-text {
-  color: #ee0a24;
+.order-empty,
+.refund-list-container :deep(.van-empty) {
+  min-height: 320px;
+}
+
+.empty-hint {
+  margin-top: var(--h5-space-2);
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-sm);
+}
+
+@media (max-width: 359px) {
+  .order-card__actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .order-card__actions :deep(.van-button) {
+    width: 100%;
+  }
 }
 </style>

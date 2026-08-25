@@ -1,138 +1,235 @@
 <template>
-  <div class="order-detail-page">
+  <div class="order-detail-page h5-page h5-page--constrained">
+    <nav class="detail-nav" aria-label="订单详情导航">
+      <button type="button" class="detail-nav__back" aria-label="返回上一页" @click="handleBack">
+        <van-icon name="arrow-left" />
+      </button>
+      <h1>订单详情</h1>
+      <span class="detail-nav__placeholder" aria-hidden="true"></span>
+    </nav>
 
-    <van-loading v-if="loading" class="loading" />
+    <div v-if="loading" class="loading-state">
+      <van-loading color="var(--h5-color-primary)">正在加载订单详情</van-loading>
+    </div>
 
-    <div v-else-if="order" class="detail-content">
-      <!-- 订单状态 -->
-      <div class="status-section">
-        <van-icon :name="getStatusIcon(order.orderStatus)" size="48" :color="getStatusColor(order.orderStatus)" />
-        <div class="status-text">{{ getStatusText(order.orderStatus) }}</div>
-
-        <!-- 支付提示：所有订单都可随时支付 -->
-        <div v-if="order.orderStatus === '0' || order.orderStatus === '5'" class="status-tip">
-          订单可随时支付，无时间限制
+    <main v-else-if="order" class="detail-content">
+      <section :class="['status-section', `status-section--${order.orderStatus}`]">
+        <div class="status-section__main">
+          <span class="status-icon" aria-hidden="true">
+            <van-icon :name="getStatusIcon(order.orderStatus)" :color="getStatusColor(order.orderStatus)" />
+          </span>
+          <div>
+            <p class="status-label">当前订单状态</p>
+            <h2>{{ getStatusText(order.orderStatus) }}</h2>
+          </div>
         </div>
-      </div>
 
-      <!-- 机构信息卡片 -->
-      <div class="institution-card">
-        <van-image
-          width="80"
-          height="80"
-          :src="getImageUrl(order.institutionCover)"
-          fit="cover"
-          round
+        <div class="status-amount">
+          <span>订单金额</span>
+          <strong><small>¥</small>{{ formatAmount(order.paidAmount || order.orderAmount) }}</strong>
+        </div>
+
+        <div class="status-meta">
+          <span>订单号</span>
+          <strong>{{ order.orderNo || '-' }}</strong>
+        </div>
+
+        <p v-if="order.orderStatus === '0' || order.orderStatus === '5'" class="status-tip">
+          <van-icon name="info-o" />
+          订单可随时支付，无时间限制
+        </p>
+      </section>
+
+      <section class="institution-card h5-card" aria-labelledby="institution-title">
+        <img
+          class="institution-cover"
+          :src="institutionImage"
+          alt="养老机构封面"
+          @error="handleInstitutionImageError"
         />
         <div class="institution-info">
-          <div class="institution-name">{{ order.institutionName || '郑州XXXXX养老院' }}</div>
-          <div class="institution-address">
-            <van-icon name="location-o" size="12" />
-            {{ order.institutionAddress || '郑州市金水区花园口镇花园路123号' }}
-          </div>
-          <div class="institution-phone">
-            <van-icon name="phone-o" size="12" />
-            {{ order.institutionPhone || '0371-12345678' }}
-          </div>
+          <h2 id="institution-title">{{ order.institutionName || '养老机构' }}</h2>
+          <p>
+            <van-icon name="location-o" />
+            <span>{{ order.institutionAddress || '地址信息待完善' }}</span>
+          </p>
+          <p>
+            <van-icon name="phone-o" />
+            <span>{{ order.institutionPhone || '联系电话待完善' }}</span>
+          </p>
         </div>
-      </div>
+      </section>
 
-      <!-- 订单信息 -->
-      <van-cell-group title="订单信息" inset>
-        <van-cell title="订单编号" :value="order.orderNo" />
-        <van-cell title="床位信息" :value="order.bedInfo || '未分配'" />
-        <van-cell title="老人姓名" :value="order.elderName || '-'" />
-        <van-cell title="下单时间" :value="formatDate(order.createTime)" />
-        <van-cell v-if="order.paymentTime" title="支付时间" :value="formatDate(order.paymentTime)" />
-      </van-cell-group>
+      <section class="detail-card h5-card" aria-labelledby="order-info-title">
+        <header class="section-heading">
+          <span class="section-heading__icon" aria-hidden="true"><van-icon name="description-o" /></span>
+          <div>
+            <h2 id="order-info-title">订单信息</h2>
+            <p>入住人与支付记录</p>
+          </div>
+        </header>
+        <dl class="detail-list">
+          <div>
+            <dt>老人姓名</dt>
+            <dd>{{ order.elderName || '-' }}</dd>
+          </div>
+          <div>
+            <dt>床位信息</dt>
+            <dd>{{ order.bedInfo || '未分配' }}</dd>
+          </div>
+          <div>
+            <dt>订单类型</dt>
+            <dd>{{ getOrderTypeText(order.orderType) }}</dd>
+          </div>
+          <div>
+            <dt>订单状态</dt>
+            <dd>{{ getStatusText(order.orderStatus) }}</dd>
+          </div>
+          <div>
+            <dt>支付状态</dt>
+            <dd>{{ getPaymentStatusText(order) }}</dd>
+          </div>
+          <div>
+            <dt>下单时间</dt>
+            <dd>{{ formatDate(order.createTime) || '-' }}</dd>
+          </div>
+          <div v-if="order.paymentTime">
+            <dt>支付时间</dt>
+            <dd>{{ formatDate(order.paymentTime) }}</dd>
+          </div>
+        </dl>
+      </section>
 
-      <!-- 费用明细 -->
-      <van-cell-group title="费用明细" inset>
+      <section class="detail-card h5-card" aria-labelledby="fee-title">
+        <header class="section-heading">
+          <span class="section-heading__icon" aria-hidden="true"><van-icon name="balance-list-o" /></span>
+          <div>
+            <h2 id="fee-title">费用明细</h2>
+            <p>核对费用项目与最终金额</p>
+          </div>
+        </header>
+
         <div class="fee-table">
-          <!-- 显示订单明细 -->
-          <div class="fee-row" v-for="(item, index) in orderItems" :key="index">
-            <div class="fee-item-content">
-              <span class="fee-name">{{ item.itemName }}</span>
-              <span v-if="item.isPriceModified === '1' && item.originalUnitPrice" class="price-change-tag">
-                <span class="original-price">¥{{ item.originalUnitPrice }}</span>
-                <span class="arrow">→</span>
-                <span class="new-price">¥{{ item.unitPrice }}</span>
-              </span>
-              <span v-else class="fee-value">¥{{ item.unitPrice }}</span>
-              <span class="fee-desc" v-if="item.itemDescription">{{ item.itemDescription }}</span>
-            </div>
-            <div class="fee-item-right">
-              <span class="fee-quantity">×{{ item.quantity }}</span>
-              <span class="fee-total">¥{{ formatAmount(item.totalAmount) }}</span>
+          <div v-if="orderItems.length > 0" class="fee-items">
+            <div v-for="(item, index) in orderItems" :key="item.itemId || index" class="fee-row fee-row--item">
+              <div class="fee-item-content">
+                <span class="fee-name">{{ item.itemName }}</span>
+                <span v-if="item.isPriceModified === '1' && item.originalUnitPrice" class="price-change-tag">
+                  <span class="original-price">原价 ¥{{ item.originalUnitPrice }}</span>
+                  <span class="arrow">→</span>
+                  <span class="new-price">现价 ¥{{ item.unitPrice }}</span>
+                </span>
+                <span v-else class="fee-unit-price">单价 ¥{{ formatAmount(item.unitPrice) }}</span>
+                <span v-if="item.itemDescription" class="fee-desc">{{ item.itemDescription }}</span>
+              </div>
+              <div class="fee-item-right">
+                <span class="fee-quantity">数量 ×{{ item.quantity }}</span>
+                <strong class="fee-total">¥{{ formatAmount(item.totalAmount) }}</strong>
+              </div>
             </div>
           </div>
+          <div v-else class="fee-empty">
+            <van-icon name="records-o" />
+            <span>暂无单独费用项目，以订单总额为准</span>
+          </div>
 
-          <!-- 价格变更汇总 -->
           <div v-if="hasPriceModified" class="price-change-summary">
-            <div class="summary-title">⚠️ 价格已调整</div>
+            <div class="summary-title"><van-icon name="warning-o" /> 价格已调整</div>
             <div v-for="item in modifiedItems" :key="item.itemId" class="summary-item">
-              {{ item.itemName }}：¥{{ item.originalUnitPrice }} → ¥{{ item.unitPrice }}
-              <span class="price-diff" :class="(item.unitPrice - item.originalUnitPrice) >= 0 ? 'increase' : 'decrease'">
+              <span>{{ item.itemName }}：¥{{ item.originalUnitPrice }} → ¥{{ item.unitPrice }}</span>
+              <strong :class="['price-diff', (item.unitPrice - item.originalUnitPrice) >= 0 ? 'increase' : 'decrease']">
                 {{ (item.unitPrice - item.originalUnitPrice) >= 0 ? '+' : '' }}{{ (item.unitPrice - item.originalUnitPrice).toFixed(2) }}元
-              </span>
+              </strong>
             </div>
           </div>
 
-          <div class="fee-row total">
-            <span class="fee-name">订单总额</span>
-            <span class="fee-value">¥{{ formatAmount(order.orderAmount) }}</span>
-          </div>
-          <div v-if="order.discountAmount && order.discountAmount > 0" class="fee-row discount">
-            <span class="fee-name">优惠金额</span>
-            <span class="fee-value">-¥{{ formatAmount(order.discountAmount) }}</span>
-          </div>
-          <div class="fee-row final">
-            <span class="fee-name">实付金额</span>
-            <span class="fee-value highlight">¥{{ formatAmount(order.paidAmount || order.orderAmount) }}</span>
+          <div class="fee-summary">
+            <div class="fee-row total">
+              <span class="fee-name">订单总额</span>
+              <span class="fee-value">¥{{ formatAmount(order.orderAmount) }}</span>
+            </div>
+            <div v-if="order.discountAmount && order.discountAmount > 0" class="fee-row discount">
+              <span class="fee-name">优惠金额</span>
+              <span class="fee-value">-¥{{ formatAmount(order.discountAmount) }}</span>
+            </div>
+            <div class="fee-row final">
+              <span class="fee-name">应付 / 实付金额</span>
+              <strong class="fee-value highlight">¥{{ formatAmount(order.paidAmount || order.orderAmount) }}</strong>
+            </div>
           </div>
         </div>
-      </van-cell-group>
+      </section>
 
-      <!-- 服务周期 -->
-      <van-cell-group v-if="order.serviceStartDate" title="服务周期" inset>
-        <van-cell title="开始日期" :value="formatDate(order.serviceStartDate, 'YYYY-MM-DD')" />
-        <van-cell title="结束日期" :value="formatDate(order.serviceEndDate, 'YYYY-MM-DD')" />
-      </van-cell-group>
+      <section v-if="order.serviceStartDate" class="detail-card h5-card" aria-labelledby="service-title">
+        <header class="section-heading">
+          <span class="section-heading__icon" aria-hidden="true"><van-icon name="calendar-o" /></span>
+          <div>
+            <h2 id="service-title">服务周期</h2>
+            <p>本订单对应的养老服务时间</p>
+          </div>
+        </header>
+        <div class="service-period">
+          <div>
+            <span>开始日期</span>
+            <strong>{{ formatDate(order.serviceStartDate, 'YYYY-MM-DD') }}</strong>
+          </div>
+          <van-icon name="arrow" />
+          <div>
+            <span>结束日期</span>
+            <strong>{{ formatDate(order.serviceEndDate, 'YYYY-MM-DD') || '-' }}</strong>
+          </div>
+        </div>
+      </section>
 
-      <!-- 支付凭证 -->
-      <van-cell-group v-if="order.orderStatus === '1' && order.paymentProof" title="支付凭证" inset>
+      <section
+        v-if="order.orderStatus === '1' && order.paymentProof"
+        class="detail-card h5-card"
+        aria-labelledby="proof-title"
+      >
+        <header class="section-heading">
+          <span class="section-heading__icon" aria-hidden="true"><van-icon name="photo-o" /></span>
+          <div>
+            <h2 id="proof-title">支付凭证</h2>
+            <p>点击凭证可查看大图</p>
+          </div>
+        </header>
         <div class="payment-proof">
-          <van-image
-            :src="getImageUrl(order.paymentProof)"
-            fit="cover"
-            @click="previewPaymentProof"
-          />
-          <div v-if="order.paymentProofRemark" class="proof-remark">
-            {{ order.paymentProofRemark }}
-          </div>
+          <button type="button" aria-label="预览支付凭证" @click="previewPaymentProof">
+            <van-image :src="getImageUrl(order.paymentProof)" fit="cover" />
+          </button>
+          <p v-if="order.paymentProofRemark" class="proof-remark">{{ order.paymentProofRemark }}</p>
         </div>
-      </van-cell-group>
+      </section>
 
-      <!-- 备注信息 -->
-      <van-cell-group v-if="order.remark" title="备注信息" inset>
-        <van-cell :value="order.remark" />
-      </van-cell-group>
+      <section v-if="order.remark" class="detail-card h5-card" aria-labelledby="remark-title">
+        <header class="section-heading">
+          <span class="section-heading__icon" aria-hidden="true"><van-icon name="notes-o" /></span>
+          <div><h2 id="remark-title">备注信息</h2></div>
+        </header>
+        <p class="remark-content">{{ order.remark }}</p>
+      </section>
 
-      <!-- 底部操作按钮 -->
-      <div class="action-bar">
-        <van-button v-if="order.orderStatus === '0' || order.orderStatus === '5'" block plain @click="handleCancel">
+      <div
+        v-if="order.orderStatus === '0' || order.orderStatus === '5' || order.orderStatus === '1'"
+        class="action-bar h5-fixed-action-bar"
+      >
+        <van-button v-if="order.orderStatus === '0' || order.orderStatus === '5'" plain @click="handleCancel">
           取消订单
         </van-button>
-        <van-button v-if="order.orderStatus === '0' || order.orderStatus === '5'" block type="primary" @click="handlePay">
+        <van-button v-if="order.orderStatus === '0' || order.orderStatus === '5'" type="primary" @click="handlePay">
           立即支付
         </van-button>
-        <van-button v-if="order.orderStatus === '1'" block type="primary" @click="handleReview">
+        <van-button v-if="order.orderStatus === '1'" type="primary" icon="comment-o" @click="handleReview">
           去评价
         </van-button>
       </div>
-    </div>
+    </main>
 
-    <van-empty v-else description="订单不存在" />
+    <div v-else class="not-found-state">
+      <van-empty description="订单不存在或已被删除" image-size="112">
+        <van-button plain type="primary" @click="handleBack">返回订单列表</van-button>
+      </van-empty>
+    </div>
   </div>
 </template>
 
@@ -141,8 +238,9 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { showToast, showConfirmDialog, showImagePreview } from 'vant'
 import dayjs from 'dayjs'
-import { getOrderDetail as getOrderDetailApi, processPayment, getOrderItems, cancelOrder } from '@/api/order'
+import { getOrderDetail as getOrderDetailApi, getOrderItems, cancelOrder } from '@/api/order'
 import { getImageUrl } from '@/utils/image'
+import institutionPlaceholder from '@/assets/images/institution-placeholder.svg'
 
 const router = useRouter()
 const route = useRoute()
@@ -150,6 +248,10 @@ const route = useRoute()
 const loading = ref(true)
 const order = ref(null)
 const orderItems = ref([]) // 订单明细列表
+
+const institutionImage = computed(() => {
+  return order.value?.institutionCover ? getImageUrl(order.value.institutionCover) : institutionPlaceholder
+})
 
 // 是否有价格修改
 const hasPriceModified = computed(() => {
@@ -160,32 +262,6 @@ const hasPriceModified = computed(() => {
 const modifiedItems = computed(() => {
   return orderItems.value.filter(item => item.isPriceModified === '1' && item.originalUnitPrice)
 })
-
-// 模拟订单数据
-const mockOrderDetail = {
-  orderId: 1,
-  orderNo: 'ORD202501140001',
-  orderStatus: '0', // 0-待支付 1-已支付 2-已取消 3-退款中
-  orderType: '1',
-  institutionName: '郑州市金水区花园口社区养老服务中���',
-  institutionAddress: '郑州市金水区花园口镇花园路123号',
-  institutionPhone: '0371-12345678',
-  institutionCover: 'https://via.placeholder.com/80x80',
-  elderName: '张老先生',
-  createTime: '2025-01-14 10:30:00',
-  paymentTime: null,
-  feeItems: [
-    { name: '护理费', amount: 1500 },
-    { name: '伙食费', amount: 800 },
-    { name: '床位费', amount: 500 }
-  ],
-  orderAmount: 2800,
-  discountAmount: 300,
-  paidAmount: 2500,
-  serviceStartDate: '2025-02-01',
-  serviceEndDate: '2025-03-01',
-  remark: '老人有轻度高血压,需要特别关注'
-}
 
 // 获取订单详情
 const loadOrderDetail = async () => {
@@ -344,26 +420,35 @@ const getStatusIcon = (status) => {
 // 获取状态颜色
 const getStatusColor = (status) => {
   const colorMap = {
-    '0': '#ff976a',
-    '1': '#07c160',
-    '2': '#969799',
-    '3': '#ee0a24',
-    '4': '#1989fa',
-    '5': '#ff976a'
+    '0': 'var(--h5-color-pending)',
+    '1': 'var(--h5-color-success)',
+    '2': 'var(--h5-color-text-secondary)',
+    '3': 'var(--h5-color-danger)',
+    '4': 'var(--h5-color-info)',
+    '5': 'var(--h5-color-pending)'
   }
-  return colorMap[status] || '#323233'
+  return colorMap[status] || 'var(--h5-color-text)'
 }
 
-// 获取订单类型文本
 const getOrderTypeText = (type) => {
   const typeMap = {
-    '1': '床位费',
-    '2': '护理费',
-    '3': '餐饮费',
-    '4': '医疗费',
-    '5': '其他'
+    '1': '入驻订单',
+    '2': '续费订单'
   }
-  return typeMap[type] || '其他'
+  return typeMap[type] || '其他订单'
+}
+
+const getPaymentStatusText = (orderData) => {
+  if (orderData.paymentStatusText) return orderData.paymentStatusText
+  return orderData.paymentTime || orderData.orderStatus === '1' || orderData.orderStatus === '3'
+    ? '已支付'
+    : '未完成支付'
+}
+
+const handleInstitutionImageError = (event) => {
+  if (event.currentTarget && event.currentTarget.src !== institutionPlaceholder) {
+    event.currentTarget.src = institutionPlaceholder
+  }
 }
 
 // 格式化日期
@@ -378,6 +463,10 @@ const formatAmount = (amount) => {
   return parseFloat(amount).toFixed(2)
 }
 
+const handleBack = () => {
+  router.back()
+}
+
 // 页面加载时获取订单详情
 onMounted(() => {
   loadOrderDetail()
@@ -386,272 +475,537 @@ onMounted(() => {
 
 <style scoped>
 .order-detail-page {
-  min-height: 100vh;
-  background-color: #f5f5f5;
-  padding-bottom: 70px;
+  padding-bottom: calc(var(--h5-action-bar-min-height) + var(--h5-safe-area-bottom) + var(--h5-space-5));
 }
 
-.loading {
-  display: flex;
-  justify-content: center;
+.detail-nav {
+  position: sticky;
+  top: 0;
+  z-index: var(--h5-z-sticky);
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
   align-items: center;
-  height: 200px;
+  min-height: calc(var(--h5-header-height) + var(--h5-safe-area-top));
+  padding: var(--h5-safe-area-top) var(--h5-page-padding) 0;
+  background: var(--h5-color-surface);
+  border-bottom: 1px solid var(--h5-color-divider);
+}
+
+.detail-nav h1 {
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-lg);
+  font-weight: var(--h5-font-weight-semibold);
+  text-align: center;
+}
+
+.detail-nav__back {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: flex-start;
+  color: var(--h5-color-primary);
+  font-size: 22px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.detail-nav__back:focus-visible {
+  outline: none;
+  box-shadow: var(--h5-shadow-focus);
+}
+
+.detail-nav__placeholder {
+  width: 44px;
+}
+
+.loading-state,
+.not-found-state {
+  display: flex;
+  min-height: 420px;
+  align-items: center;
+  justify-content: center;
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-md);
 }
 
 .detail-content {
-  padding-bottom: 20px;
+  display: grid;
+  gap: var(--h5-space-3);
+  padding: var(--h5-space-3) var(--h5-page-padding);
 }
 
 .status-section {
-  background-color: #fff;
-  padding: 32px 16px;
-  text-align: center;
-  margin-bottom: 12px;
+  padding: var(--h5-space-5);
+  background: linear-gradient(135deg, var(--h5-color-primary-50), var(--h5-color-surface));
+  border: 1px solid var(--h5-color-primary-100);
+  border-radius: var(--h5-radius-lg);
+  box-shadow: var(--h5-shadow-sm);
 }
 
-.status-text {
-  font-size: 18px;
-  font-weight: 500;
-  margin-top: 12px;
-  color: #323233;
+.status-section__main {
+  display: flex;
+  align-items: center;
+  gap: var(--h5-space-3);
+}
+
+.status-icon {
+  display: inline-flex;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+  align-items: center;
+  justify-content: center;
+  font-size: 27px;
+  background: var(--h5-color-surface);
+  border: 1px solid var(--h5-color-primary-100);
+  border-radius: var(--h5-radius-md);
+  box-shadow: var(--h5-shadow-xs);
+}
+
+.status-label {
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-sm);
+}
+
+.status-section h2 {
+  margin-top: 2px;
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-xl);
+  font-weight: var(--h5-font-weight-bold);
+}
+
+.status-amount {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: var(--h5-space-5);
+  padding-top: var(--h5-space-4);
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-md);
+  border-top: 1px solid var(--h5-color-primary-100);
+}
+
+.status-amount strong {
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-3xl);
+  font-weight: var(--h5-font-weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+.status-amount small {
+  margin-right: 2px;
+  color: var(--h5-color-primary);
+  font-size: var(--h5-font-size-md);
+}
+
+.status-meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--h5-space-3);
+  margin-top: var(--h5-space-2);
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-sm);
+}
+
+.status-meta strong {
+  color: var(--h5-color-text-secondary);
+  font-weight: var(--h5-font-weight-medium);
+  text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .status-tip {
-  font-size: 13px;
-  color: #969799;
-  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: var(--h5-space-1);
+  margin-top: var(--h5-space-3);
+  padding: var(--h5-space-2) var(--h5-space-3);
+  color: var(--h5-color-pending);
+  font-size: var(--h5-font-size-sm);
+  background: var(--h5-color-pending-soft);
+  border-radius: var(--h5-radius-sm);
 }
 
 .institution-card {
-  background: #fff;
-  padding: 16px;
-  margin-bottom: 12px;
   display: flex;
-  gap: 12px;
+  gap: var(--h5-space-3);
+  padding: var(--h5-space-4);
+}
+
+.institution-cover {
+  flex: 0 0 80px;
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  background: var(--h5-color-primary-soft);
+  border: 1px solid var(--h5-color-border);
+  border-radius: var(--h5-radius-md);
 }
 
 .institution-info {
-  flex: 1;
   display: flex;
+  min-width: 0;
+  flex: 1;
   flex-direction: column;
-  gap: 6px;
+  justify-content: center;
+  gap: var(--h5-space-2);
 }
 
-.institution-name {
-  font-size: 16px;
-  font-weight: 500;
-  color: #333;
+.institution-info h2 {
+  overflow: hidden;
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-lg);
+  font-weight: var(--h5-font-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.institution-address,
-.institution-phone {
-  font-size: 13px;
-  color: #666;
+.institution-info p {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--h5-space-1);
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-sm);
+  line-height: var(--h5-line-height-normal);
+}
+
+.institution-info p .van-icon {
+  flex: 0 0 auto;
+  margin-top: 3px;
+  color: var(--h5-color-primary);
+}
+
+.detail-card {
+  padding: var(--h5-space-4);
+}
+
+.section-heading {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--h5-space-2);
+  padding-bottom: var(--h5-space-3);
+  border-bottom: 1px solid var(--h5-color-divider);
 }
 
-.van-cell-group {
-  margin-bottom: 12px;
+.section-heading__icon {
+  display: inline-flex;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  color: var(--h5-color-primary);
+  font-size: 19px;
+  background: var(--h5-color-primary-soft);
+  border-radius: var(--h5-radius-sm);
+}
+
+.section-heading h2 {
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-lg);
+  font-weight: var(--h5-font-weight-semibold);
+}
+
+.section-heading p {
+  margin-top: 2px;
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-sm);
+}
+
+.detail-list {
+  display: grid;
+}
+
+.detail-list > div {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--h5-space-4);
+  padding: var(--h5-space-3) 0;
+  font-size: var(--h5-font-size-md);
+  line-height: var(--h5-line-height-normal);
+  border-bottom: 1px solid var(--h5-color-divider);
+}
+
+.detail-list > div:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.detail-list dt {
+  flex: 0 0 auto;
+  color: var(--h5-color-text-tertiary);
+}
+
+.detail-list dd {
+  min-width: 0;
+  color: var(--h5-color-text-secondary);
+  text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .fee-table {
-  padding: 16px;
+  padding-top: var(--h5-space-1);
 }
 
 .fee-row {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
-  padding: 10px 0;
-  border-bottom: 1px solid #f5f5f5;
+  gap: var(--h5-space-3);
+  padding: var(--h5-space-3) 0;
 }
 
-.fee-row:last-child {
-  border-bottom: none;
+.fee-row--item {
+  border-bottom: 1px solid var(--h5-color-divider);
 }
 
-.fee-row.month-info {
-  padding-top: 8px;
-  font-size: 13px;
-}
-
-.fee-row.month-info .fee-name {
-  color: #999;
-}
-
-.fee-row.month-info .fee-value {
-  color: #666;
-}
-
-.fee-row.total {
-  padding-top: 12px;
-  border-top: 1px solid #eee;
-  font-weight: 500;
-}
-
-.fee-row.discount .fee-value {
-  color: #07c160;
-}
-
-.fee-row.final {
-  padding-top: 12px;
-  border-top: 2px solid #eee;
-  font-size: 16px;
-  font-weight: 500;
+.fee-item-content {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--h5-space-1);
 }
 
 .fee-name {
-  font-size: 14px;
-  color: #666;
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-md);
 }
 
-.fee-value {
-  font-size: 14px;
-  color: #333;
+.fee-row--item .fee-name {
+  color: var(--h5-color-text);
+  font-weight: var(--h5-font-weight-medium);
 }
 
-.fee-value.highlight {
-  font-size: 18px;
-  color: #ee0a24;
-  font-weight: bold;
-}
-
-:deep(.discount) {
-  color: #07c160;
-}
-
-:deep(.price) {
-  color: #ee0a24;
-  font-size: 16px;
-  font-weight: 500;
-}
-
-.action-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  gap: 12px;
-  padding: 12px 16px;
-  background-color: #fff;
-  box-shadow: 0 -2px 12px rgba(100, 101, 102, 0.12);
-}
-
-.action-bar .van-button {
-  flex: 1;
-}
-
-/* 价格变更相关样式 */
-.fee-item-content {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex: 1;
-}
-
-.fee-desc {
-  font-size: 12px;
-  color: #999;
-  margin-top: 2px;
+.fee-unit-price,
+.fee-desc,
+.fee-quantity {
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-sm);
+  line-height: var(--h5-line-height-normal);
 }
 
 .fee-item-right {
   display: flex;
-  flex-direction: column;
+  flex: 0 0 auto;
   align-items: flex-end;
-  gap: 4px;
-}
-
-.fee-quantity {
-  color: #999;
-  font-size: 13px;
+  flex-direction: column;
+  gap: var(--h5-space-1);
 }
 
 .fee-total {
-  color: #E6A23C;
-  font-weight: bold;
-  font-size: 14px;
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-md);
+  font-weight: var(--h5-font-weight-semibold);
 }
 
 .price-change-tag {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
-  font-size: 13px;
+  gap: var(--h5-space-1);
+  font-size: var(--h5-font-size-sm);
 }
 
 .price-change-tag .original-price {
-  color: #999;
+  color: var(--h5-color-text-tertiary);
   text-decoration: line-through;
-  font-size: 12px;
 }
 
 .price-change-tag .arrow {
-  color: #999;
-  font-size: 12px;
+  color: var(--h5-color-text-tertiary);
 }
 
 .price-change-tag .new-price {
-  color: #ee0a24;
-  font-weight: 500;
+  color: var(--h5-color-primary);
+  font-weight: var(--h5-font-weight-semibold);
+}
+
+.fee-empty {
+  display: flex;
+  min-height: 88px;
+  align-items: center;
+  justify-content: center;
+  gap: var(--h5-space-2);
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-sm);
 }
 
 .price-change-summary {
-  margin-top: 12px;
-  padding: 12px;
-  background-color: #fff7e6;
-  border: 1px solid #ffd591;
-  border-radius: 6px;
+  display: grid;
+  gap: var(--h5-space-2);
+  margin: var(--h5-space-3) 0;
+  padding: var(--h5-space-3);
+  color: var(--h5-color-warning);
+  background: var(--h5-color-warning-soft);
+  border: 1px solid rgba(184, 108, 8, 0.2);
+  border-radius: var(--h5-radius-md);
 }
 
-.price-change-summary .summary-title {
-  color: #e6a23c;
-  font-weight: 500;
-  font-size: 14px;
-  margin-bottom: 8px;
+.summary-title {
+  display: flex;
+  align-items: center;
+  gap: var(--h5-space-1);
+  font-size: var(--h5-font-size-md);
+  font-weight: var(--h5-font-weight-semibold);
 }
 
-.price-change-summary .summary-item {
-  font-size: 12px;
-  color: #606266;
-  padding: 4px 0;
+.summary-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--h5-space-2);
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-sm);
+  line-height: var(--h5-line-height-normal);
 }
 
-.price-change-summary .price-diff {
-  margin-left: 10px;
-  font-weight: 500;
+.price-diff {
+  flex: 0 0 auto;
+  font-weight: var(--h5-font-weight-semibold);
 }
 
-.price-change-summary .price-diff.increase {
-  color: #f56c6c;
+.price-diff.increase {
+  color: var(--h5-color-danger);
 }
 
-.price-change-summary .price-diff.decrease {
-  color: #67c23a;
+.price-diff.decrease,
+.fee-row.discount .fee-value {
+  color: var(--h5-color-success);
 }
 
-/* 支付凭证样式 */
+.fee-summary {
+  margin-top: var(--h5-space-1);
+  padding-top: var(--h5-space-2);
+  border-top: 1px solid var(--h5-color-border);
+}
+
+.fee-row.total,
+.fee-row.discount {
+  padding: var(--h5-space-2) 0;
+}
+
+.fee-value {
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-md);
+}
+
+.fee-row.final {
+  align-items: baseline;
+  margin-top: var(--h5-space-1);
+  padding-top: var(--h5-space-3);
+  border-top: 1px dashed var(--h5-color-border);
+}
+
+.fee-value.highlight {
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-xl);
+  font-weight: var(--h5-font-weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+.service-period {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--h5-space-3);
+  padding-top: var(--h5-space-4);
+  color: var(--h5-color-primary);
+}
+
+.service-period > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--h5-space-1);
+}
+
+.service-period > div:last-child {
+  text-align: right;
+}
+
+.service-period span {
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-sm);
+}
+
+.service-period strong {
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-md);
+  font-weight: var(--h5-font-weight-semibold);
+}
+
 .payment-proof {
-  padding: 16px;
-  text-align: center;
+  padding-top: var(--h5-space-4);
 }
 
-.payment-proof .van-image {
+.payment-proof button {
+  display: block;
   width: 100%;
-  max-width: 300px;
-  border-radius: 8px;
+  overflow: hidden;
+  background: var(--h5-color-surface-subtle);
+  border: 1px solid var(--h5-color-border);
+  border-radius: var(--h5-radius-md);
   cursor: pointer;
 }
 
-.proof-remark {
-  margin-top: 12px;
-  padding: 8px 12px;
-  background-color: #f5f5f5;
-  border-radius: 4px;
-  font-size: 13px;
-  color: #666;
-  text-align: left;
+.payment-proof :deep(.van-image) {
+  display: block;
+  width: 100%;
+  max-height: 260px;
+}
+
+.payment-proof button:focus-visible {
+  outline: none;
+  box-shadow: var(--h5-shadow-focus);
+}
+
+.proof-remark,
+.remark-content {
+  margin-top: var(--h5-space-3);
+  padding: var(--h5-space-3);
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-md);
+  line-height: var(--h5-line-height-relaxed);
+  background: var(--h5-color-surface-subtle);
+  border-radius: var(--h5-radius-md);
+}
+
+.remark-content {
+  margin-top: var(--h5-space-4);
+  white-space: pre-line;
+}
+
+.action-bar {
+  max-width: var(--h5-page-max-width);
+  margin: 0 auto;
+}
+
+.action-bar :deep(.van-button) {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--h5-font-size-md);
+  font-weight: var(--h5-font-weight-semibold);
+}
+
+.not-found-state :deep(.van-button) {
+  min-width: 144px;
+  min-height: 44px;
+  margin-top: var(--h5-space-3);
+}
+
+@media (max-width: 359px) {
+  .institution-card {
+    align-items: flex-start;
+  }
+
+  .institution-cover {
+    flex-basis: 68px;
+    width: 68px;
+    height: 68px;
+  }
 }
 </style>

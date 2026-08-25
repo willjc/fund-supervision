@@ -1,135 +1,115 @@
 <template>
-  <div class="user-page">
-    <!-- 顶部用户信息区 -->
-    <div class="user-header">
-      <div class="header-decoration"></div>
-      <div class="user-info" @click="goToProfile">
-        <van-image
-          round
-          width="64"
-          height="64"
-          :src="userAvatar"
-          fit="cover"
-          class="user-avatar"
-        />
-        <div class="user-details">
-          <div class="user-name">{{ userInfo.name || '用户' }}</div>
-          <div class="user-phone">{{ maskedPhone }}</div>
+  <div class="user-page h5-page h5-page--constrained">
+    <header class="user-header">
+      <div class="user-header__topline">
+        <div>
+          <p>养老服务个人中心</p>
+          <h1>我的</h1>
         </div>
-        <van-icon name="arrow" class="user-arrow" />
-      </div>
-    </div>
-
-    <!-- 快捷菜单列表 -->
-    <div class="menu-list-card">
-      <div class="menu-item" @click="goToTodo">
-        <div class="menu-left">
-          <div class="menu-icon" style="--icon-color: #FFC107;">
-            <van-icon name="star-o" size="20" color="#fff" />
-          </div>
-          <span class="menu-text">待办事项</span>
-        </div>
-        <div class="menu-right">
-          <span class="menu-count">{{ todoCount > 0 ? todoCount : 0 }}</span>
-          <van-icon name="arrow" class="menu-arrow" />
-        </div>
+        <span class="verified-badge"><van-icon name="shield-o" /> 安心服务</span>
       </div>
 
-      <div class="menu-item" @click="goToElder">
-        <div class="menu-left">
-          <div class="menu-icon" style="--icon-color: #FF6B6B;">
-            <van-icon name="friends-o" size="20" color="#fff" />
-          </div>
-          <span class="menu-text">老人信息</span>
-        </div>
-        <div class="menu-right">
-          <span class="menu-count">{{ elderCount }}人</span>
-          <van-icon name="arrow" class="menu-arrow" />
-        </div>
-      </div>
-
-      <div class="menu-item" @click="goToExpense">
-        <div class="menu-left">
-          <div class="menu-icon" style="--icon-color: #00BCD4;">
-            <van-icon name="balance-list-o" size="20" color="#fff" />
-          </div>
-          <span class="menu-text">我的费用</span>
-        </div>
-        <div class="menu-right">
-          <van-icon name="arrow" class="menu-arrow" />
-        </div>
-      </div>
-    </div>
-
-    <!-- 我的订单 -->
-    <div class="section-card">
-      <div class="section-header">
-        <span class="section-title">我的订单</span>
-        <span class="section-more" @click="goToOrders">
-          <span class="more-text">更多</span>
-          <van-icon name="arrow" class="more-arrow" />
+      <button type="button" class="user-profile" aria-label="查看个人资料" @click="goToProfile">
+        <van-image round width="68" height="68" :src="userAvatar" fit="cover" class="user-avatar" />
+        <span class="user-details">
+          <strong>{{ userInfo.name || '用户' }}</strong>
+          <span>{{ maskedPhone }}</span>
+          <small>查看并完善个人资料</small>
         </span>
-      </div>
-      <div class="order-status-list">
-        <div class="status-item" @click="goToOrders('pending')">
-          <div class="status-icon-wrapper" style="--icon-color: #ff6b00;">
-            <van-icon name="pending-payment" size="20" color="#fff" />
-          </div>
-          <div class="status-label">待付款</div>
-        </div>
-        <div class="status-item" @click="goToOrders('paid')">
-          <div class="status-icon-wrapper" style="--icon-color: #07c160;">
-            <van-icon name="paid" size="20" color="#fff" />
-          </div>
-          <div class="status-label">已付款</div>
-        </div>
-        <div class="status-item" @click="goToOrders('cancelled')">
-          <div class="status-icon-wrapper" style="--icon-color: #999999;">
-            <van-icon name="close" size="20" color="#fff" />
-          </div>
-          <div class="status-label">已取消</div>
-        </div>
-        <div class="status-item" @click="goToOrders('refund')">
-          <div class="status-icon-wrapper" style="--icon-color: #1989fa;">
-            <van-icon name="refund-o" size="20" color="#fff" />
-          </div>
-          <div class="status-label">退款</div>
-        </div>
-      </div>
-    </div>
+        <span class="user-profile__arrow" aria-hidden="true"><van-icon name="arrow" /></span>
+      </button>
+    </header>
 
-    <!-- 常用工具 -->
-    <div class="section-card">
-      <div class="section-header">
-        <span class="section-title">常用工具</span>
-      </div>
-      <div class="tool-list">
-        <div class="tool-item" @click="goToAppointment">
-          <div class="tool-icon-wrapper" style="--icon-color: #5B8FF9;">
-            <van-icon name="orders-o" size="22" color="#fff" />
+    <main class="user-content">
+      <section class="shortcut-card h5-card" aria-labelledby="shortcut-title">
+        <h2 id="shortcut-title" class="h5-sr-only">常用快捷入口</h2>
+        <button type="button" class="shortcut-item shortcut-item--todo" @click="goToTodo">
+          <span class="shortcut-icon" aria-hidden="true"><van-icon name="todo-list-o" /></span>
+          <span class="shortcut-copy">
+            <strong>待办事项</strong>
+            <small>查看审核与提醒</small>
+          </span>
+          <span class="shortcut-value">{{ todoCount > 0 ? todoCount : 0 }}<small>项</small></span>
+        </button>
+
+        <button type="button" class="shortcut-item shortcut-item--elder" @click="goToElder">
+          <span class="shortcut-icon" aria-hidden="true"><van-icon name="friends-o" /></span>
+          <span class="shortcut-copy">
+            <strong>老人信息</strong>
+            <small>维护入住人档案</small>
+          </span>
+          <span class="shortcut-value">{{ elderCount }}<small>人</small></span>
+        </button>
+
+        <button type="button" class="shortcut-item shortcut-item--expense" @click="goToExpense">
+          <span class="shortcut-icon" aria-hidden="true"><van-icon name="balance-list-o" /></span>
+          <span class="shortcut-copy">
+            <strong>我的费用</strong>
+            <small>查询余额与明细</small>
+          </span>
+          <span class="shortcut-enter">查看 <van-icon name="arrow" /></span>
+        </button>
+      </section>
+
+      <section class="section-card h5-card" aria-labelledby="order-section-title">
+        <header class="section-header">
+          <div>
+            <h2 id="order-section-title">我的订单</h2>
+            <p>按状态快速查看服务订单</p>
           </div>
-          <div class="tool-label">我的预约</div>
+          <button type="button" class="section-more" @click="goToOrders">
+            全部订单 <van-icon name="arrow" />
+          </button>
+        </header>
+
+        <div class="order-status-list">
+          <button type="button" class="status-item status-item--pending" @click="goToOrders('pending')">
+            <span class="status-icon-wrapper" aria-hidden="true"><van-icon name="pending-payment" /></span>
+            <span class="status-label">待付款</span>
+          </button>
+          <button type="button" class="status-item status-item--paid" @click="goToOrders('paid')">
+            <span class="status-icon-wrapper" aria-hidden="true"><van-icon name="paid" /></span>
+            <span class="status-label">已付款</span>
+          </button>
+          <button type="button" class="status-item status-item--cancelled" @click="goToOrders('cancelled')">
+            <span class="status-icon-wrapper" aria-hidden="true"><van-icon name="close" /></span>
+            <span class="status-label">已取消</span>
+          </button>
+          <button type="button" class="status-item status-item--refund" @click="goToOrders('refund')">
+            <span class="status-icon-wrapper" aria-hidden="true"><van-icon name="refund-o" /></span>
+            <span class="status-label">退款</span>
+          </button>
         </div>
-        <div class="tool-item" @click="goToCollection">
-          <div class="tool-icon-wrapper" style="--icon-color: #FFC107;">
-            <van-icon name="star-o" size="22" color="#fff" />
+      </section>
+
+      <section class="section-card h5-card" aria-labelledby="tool-section-title">
+        <header class="section-header">
+          <div>
+            <h2 id="tool-section-title">常用工具</h2>
+            <p>预约、收藏与服务反馈</p>
           </div>
-          <div class="tool-label">我的收藏</div>
+        </header>
+
+        <div class="tool-list">
+          <button type="button" class="tool-item tool-item--appointment" @click="goToAppointment">
+            <span class="tool-icon-wrapper" aria-hidden="true"><van-icon name="calendar-o" /></span>
+            <span class="tool-label">我的预约</span>
+          </button>
+          <button type="button" class="tool-item tool-item--collection" @click="goToCollection">
+            <span class="tool-icon-wrapper" aria-hidden="true"><van-icon name="star-o" /></span>
+            <span class="tool-label">我的收藏</span>
+          </button>
+          <button type="button" class="tool-item tool-item--evaluation" @click="goToEvaluation">
+            <span class="tool-icon-wrapper" aria-hidden="true"><van-icon name="comment-o" /></span>
+            <span class="tool-label">我的评价</span>
+          </button>
+          <button type="button" class="tool-item tool-item--complaint" @click="goToComplaint">
+            <span class="tool-icon-wrapper" aria-hidden="true"><van-icon name="warning-o" /></span>
+            <span class="tool-label">我要投诉</span>
+          </button>
         </div>
-        <div class="tool-item" @click="goToEvaluation">
-          <div class="tool-icon-wrapper" style="--icon-color: #FF6B6B;">
-            <van-icon name="comment-o" size="22" color="#fff" />
-          </div>
-          <div class="tool-label">我的评价</div>
-        </div>
-        <div class="tool-item" @click="goToComplaint">
-          <div class="tool-icon-wrapper" style="--icon-color: #764ba2;">
-            <van-icon name="warning-o" size="22" color="#fff" />
-          </div>
-          <div class="tool-label">我要投诉</div>
-        </div>
-      </div>
-    </div>
+      </section>
+    </main>
   </div>
 </template>
 
@@ -140,6 +120,7 @@ import { useUserStore } from '@/store/modules/user'
 import { getTodoCount } from '@/api/todo'
 import { getElderList } from '@/api/expense'
 import { getImageUrl } from '@/utils/image'
+import userAvatarPlaceholder from '@/assets/images/user-avatar-placeholder.svg'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -147,11 +128,10 @@ const userStore = useUserStore()
 // 从 store 获取用户信息
 const userInfo = computed(() => ({
   name: userStore.nickName || userStore.userName || '用户',
-  phone: userStore.phonenumber || '',
-  avatar: userStore.avatar ? getImageUrl(userStore.avatar) : 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
+  phone: userStore.phonenumber || ''
 }))
 
-const userAvatar = computed(() => userStore.avatar ? getImageUrl(userStore.avatar) : 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg')
+const userAvatar = computed(() => userStore.avatar ? getImageUrl(userStore.avatar) : userAvatarPlaceholder)
 
 // 手机号脱敏
 const maskedPhone = computed(() => {
@@ -249,272 +229,389 @@ onMounted(async () => {
 
 <style scoped>
 .user-page {
-  min-height: 100vh;
-  background-color: #f5f6fc;
-  padding-bottom: 20px;
+  padding-bottom: var(--h5-space-6);
 }
 
-/* 顶部用户信息区 */
 .user-header {
   position: relative;
-  background: linear-gradient(180deg, #0f73ff 0%, #4fc7ff 100%);
-  padding: 50px 24px 32px 16px;
-  color: #fff;
   overflow: hidden;
+  padding: calc(var(--h5-safe-area-top) + var(--h5-space-5)) var(--h5-page-padding) var(--h5-space-6);
+  color: var(--h5-color-text-inverse);
+  background: linear-gradient(145deg, var(--h5-color-primary-700), var(--h5-color-primary-500));
 }
 
-.header-decoration {
+.user-header::before,
+.user-header::after {
   position: absolute;
-  top: -50px;
-  right: -50px;
-  width: 150px;
-  height: 150px;
-  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 50%;
+  content: '';
 }
 
-.user-info {
+.user-header::before {
+  top: -56px;
+  right: -36px;
+  width: 158px;
+  height: 158px;
+}
+
+.user-header::after {
+  right: 54px;
+  bottom: -80px;
+  width: 124px;
+  height: 124px;
+}
+
+.user-header__topline {
   position: relative;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
   z-index: 1;
-  transition: opacity 0.2s ease;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--h5-space-3);
 }
 
-.user-info:active {
-  opacity: 0.8;
+.user-header__topline p {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-medium);
+}
+
+.user-header__topline h1 {
+  margin-top: 2px;
+  font-size: var(--h5-font-size-3xl);
+  font-weight: var(--h5-font-weight-bold);
+  line-height: var(--h5-line-height-tight);
+}
+
+.verified-badge {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: var(--h5-space-1);
+  padding: var(--h5-space-1) var(--h5-space-2);
+  color: var(--h5-color-text-inverse);
+  font-size: var(--h5-font-size-sm);
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--h5-radius-pill);
+}
+
+.user-profile {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: 100%;
+  min-height: 96px;
+  align-items: center;
+  gap: var(--h5-space-3);
+  margin-top: var(--h5-space-5);
+  padding: var(--h5-space-3);
+  color: var(--h5-color-text-inverse);
+  text-align: left;
+  background: rgba(255, 255, 255, 0.13);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--h5-radius-lg);
+  box-shadow: 0 8px 24px rgba(17, 65, 118, 0.16);
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+
+.user-profile:focus-visible {
+  outline: 2px solid var(--h5-color-text-inverse);
+  outline-offset: 2px;
 }
 
 .user-avatar {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  flex-shrink: 0;
+  flex: 0 0 auto;
+  overflow: hidden;
+  background: var(--h5-color-primary-100);
+  border: 3px solid rgba(255, 255, 255, 0.86);
+  box-shadow: 0 4px 14px rgba(17, 65, 118, 0.22);
 }
 
 .user-details {
+  display: flex;
+  min-width: 0;
   flex: 1;
+  flex-direction: column;
 }
 
-.user-name {
-  font-size: 20px;
-  font-weight: 600;
-  margin-bottom: 6px;
-  font-family: 'PingFang SC', '苹方-简', sans-serif;
-}
-
-.user-phone {
-  font-size: 14px;
-  opacity: 0.9;
-}
-
-.user-arrow {
-  font-size: 18px;
-  opacity: 0.8;
-}
-
-/* 快捷菜单列表卡片 */
-.menu-list-card {
-  background: #fff;
-  margin: 12px;
-  border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+.user-details strong {
   overflow: hidden;
+  font-size: var(--h5-font-size-xl);
+  font-weight: var(--h5-font-weight-bold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.menu-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 18px;
-  border-bottom: 1px solid #f5f5f5;
-  cursor: pointer;
-  transition: background 0.2s ease;
+.user-details > span {
+  margin-top: 2px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: var(--h5-font-size-md);
 }
 
-.menu-item:last-child {
-  border-bottom: none;
+.user-details small {
+  margin-top: var(--h5-space-1);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: var(--h5-font-size-sm);
 }
 
-.menu-item:active {
-  background: #f8f8f8;
-}
-
-.menu-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.menu-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: flex;
+.user-profile__arrow {
+  display: inline-flex;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
   align-items: center;
   justify-content: center;
-  background: var(--icon-color);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 50%;
 }
 
-.menu-text {
-  font-size: 15px;
-  color: #333;
-  font-weight: 500;
+.user-content {
+  display: grid;
+  gap: var(--h5-space-3);
+  padding: var(--h5-space-3) var(--h5-page-padding);
 }
 
-.menu-right {
+.shortcut-card {
+  margin-top: calc(var(--h5-space-6) * -1);
+}
+
+.shortcut-item {
   display: flex;
+  width: 100%;
+  min-height: 74px;
   align-items: center;
-  gap: 8px;
+  gap: var(--h5-space-3);
+  padding: var(--h5-space-3) var(--h5-space-4);
+  color: inherit;
+  text-align: left;
+  background: var(--h5-color-surface);
+  border: 0;
+  border-bottom: 1px solid var(--h5-color-divider);
+  cursor: pointer;
 }
 
-.menu-count {
-  font-size: 13px;
-  color: #999;
+.shortcut-item:last-child {
+  border-bottom: 0;
 }
 
-.menu-arrow {
-  font-size: 14px;
-  color: #c8c9cc;
+.shortcut-item:active,
+.status-item:active,
+.tool-item:active,
+.section-more:active {
+  background: var(--h5-color-primary-soft);
 }
 
-/* 区块卡片 */
+.shortcut-item:focus-visible,
+.status-item:focus-visible,
+.tool-item:focus-visible,
+.section-more:focus-visible {
+  outline: none;
+  box-shadow: inset var(--h5-shadow-focus);
+}
+
+.shortcut-icon {
+  display: inline-flex;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  color: var(--h5-color-primary);
+  font-size: 22px;
+  background: var(--h5-color-primary-soft);
+  border-radius: var(--h5-radius-md);
+}
+
+.shortcut-item--todo .shortcut-icon {
+  color: var(--h5-color-pending);
+  background: var(--h5-color-pending-soft);
+}
+
+.shortcut-item--elder .shortcut-icon {
+  color: var(--h5-color-success);
+  background: var(--h5-color-success-soft);
+}
+
+.shortcut-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.shortcut-copy strong {
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-md);
+  font-weight: var(--h5-font-weight-semibold);
+}
+
+.shortcut-copy small {
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-sm);
+}
+
+.shortcut-value {
+  flex: 0 0 auto;
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-xl);
+  font-weight: var(--h5-font-weight-bold);
+}
+
+.shortcut-value small {
+  margin-left: 2px;
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-regular);
+}
+
+.shortcut-enter {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  color: var(--h5-color-primary);
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-medium);
+}
+
 .section-card {
-  background: #fff;
-  margin: 12px;
-  padding: 16px 12px;
-  border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  padding: var(--h5-space-4);
 }
 
 .section-header {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  padding-left: 4px;
+  gap: var(--h5-space-3);
+  margin-bottom: var(--h5-space-4);
 }
 
-.section-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: #1a1a1a;
-  position: relative;
-  padding-left: 10px;
-  font-family: 'PingFang SC', '苹方-简', sans-serif;
+.section-header h2 {
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-lg);
+  font-weight: var(--h5-font-weight-semibold);
 }
 
-.section-title::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 14px;
-  background: linear-gradient(180deg, #0f73ff 0%, #4fc7ff 100%);
-  border-radius: 2px;
+.section-header p {
+  margin-top: 2px;
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-sm);
 }
 
 .section-more {
-  display: flex;
+  display: inline-flex;
+  min-height: 36px;
   align-items: center;
+  gap: 2px;
+  padding: var(--h5-space-1) var(--h5-space-2);
+  color: var(--h5-color-primary);
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-medium);
+  background: transparent;
+  border: 0;
+  border-radius: var(--h5-radius-sm);
   cursor: pointer;
-  padding: 4px 0;
 }
 
-.section-more .more-text {
-  font-size: 13px;
-  color: #999;
-  margin-right: 2px;
-}
-
-.section-more .more-arrow {
-  font-size: 12px;
-  color: #999;
-}
-
-/* 订单状态列表 */
-.order-status-list {
-  display: flex;
-  justify-content: space-around;
-}
-
-.status-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  transition: transform 0.2s ease;
-}
-
-.status-item:active {
-  transform: scale(0.95);
-}
-
-.status-icon-wrapper {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--icon-color);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.status-label {
-  font-size: 12px;
-  color: #333;
-}
-
-/* 工具列表 */
+.order-status-list,
 .tool-list {
-  display: flex;
-  justify-content: space-around;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--h5-space-2);
 }
 
+.status-item,
 .tool-item {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  padding: 8px;
-  transition: transform 0.2s ease;
-}
-
-.tool-item:active {
-  transform: scale(0.95);
-}
-
-.tool-icon-wrapper {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  display: flex;
+  min-width: 0;
+  min-height: 88px;
   align-items: center;
   justify-content: center;
-  background: var(--icon-color);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  flex-direction: column;
+  gap: var(--h5-space-2);
+  color: inherit;
+  background: var(--h5-color-surface-subtle);
+  border: 1px solid var(--h5-color-divider);
+  border-radius: var(--h5-radius-md);
+  cursor: pointer;
 }
 
+.status-icon-wrapper,
+.tool-icon-wrapper {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  color: var(--h5-color-primary);
+  font-size: 21px;
+  background: var(--h5-color-primary-soft);
+  border-radius: var(--h5-radius-md);
+}
+
+.status-item--pending .status-icon-wrapper {
+  color: var(--h5-color-pending);
+  background: var(--h5-color-pending-soft);
+}
+
+.status-item--paid .status-icon-wrapper {
+  color: var(--h5-color-success);
+  background: var(--h5-color-success-soft);
+}
+
+.status-item--cancelled .status-icon-wrapper {
+  color: var(--h5-color-text-secondary);
+  background: var(--h5-color-surface);
+}
+
+.status-item--refund .status-icon-wrapper {
+  color: var(--h5-color-info);
+  background: var(--h5-color-info-soft);
+}
+
+.status-label,
 .tool-label {
-  font-size: 12px;
-  color: #333;
+  overflow: hidden;
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* 响应式优化 */
-@media (max-width: 360px) {
+.tool-item--collection .tool-icon-wrapper {
+  color: var(--h5-color-pending);
+  background: var(--h5-color-pending-soft);
+}
+
+.tool-item--evaluation .tool-icon-wrapper {
+  color: var(--h5-color-success);
+  background: var(--h5-color-success-soft);
+}
+
+.tool-item--complaint .tool-icon-wrapper {
+  color: var(--h5-color-danger);
+  background: var(--h5-color-danger-soft);
+}
+
+@media (max-width: 359px) {
   .user-header {
-    padding: 35px 12px 16px;
+    padding-right: var(--h5-space-3);
+    padding-left: var(--h5-space-3);
   }
 
-  .menu-item {
-    padding: 14px 12px;
+  .user-content {
+    padding-right: var(--h5-space-3);
+    padding-left: var(--h5-space-3);
+  }
+
+  .order-status-list,
+  .tool-list {
+    gap: var(--h5-space-1);
   }
 }
 </style>
