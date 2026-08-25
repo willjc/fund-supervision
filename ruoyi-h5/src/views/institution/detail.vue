@@ -1,135 +1,185 @@
 <template>
-  <div class="institution-detail">
-
+  <div class="institution-detail h5-page h5-page--constrained">
     <div v-if="loading" class="loading-container">
-      <van-loading size="24px">加载中</van-loading>
+      <van-loading size="24px">正在加载机构信息</van-loading>
     </div>
 
     <div v-else class="detail-content">
-      <!-- 顶部图片区域 -->
-      <div class="header-section" @click="handleHeaderClick">
-        <van-image class="header-bg" :src="headerImage" fit="cover" />
-        <div class="header-overlay"></div>
+      <header class="hero-section" @click="handleHeaderClick">
+        <img
+          class="hero-image"
+          :src="headerImage || institutionPlaceholder"
+          :alt="`${detail.name || detail.institutionName || '养老机构'}图片`"
+          @error="handleHeaderImageError"
+        />
+        <div class="hero-overlay"></div>
 
-        <!-- 图片类型切换 -->
-        <div class="image-tabs">
-          <div
-            class="image-tab-item"
-            :class="{ active: activeImageTab === item.key }"
+        <div class="hero-controls">
+          <button type="button" class="hero-control" aria-label="返回" @click.stop="onClickLeft">
+            <van-icon name="arrow-left" />
+          </button>
+          <button type="button" class="hero-control" aria-label="分享" @click.stop="onShare">
+            <van-icon name="share-o" />
+          </button>
+        </div>
+
+        <div class="image-tabs" aria-label="机构图片分类">
+          <button
             v-for="item in imageTabs"
             :key="item.key"
+            type="button"
+            class="image-tab-item"
+            :class="{ active: activeImageTab === item.key }"
+            :aria-pressed="activeImageTab === item.key"
             @click.stop="switchImageTab(item.key)"
           >
-            <span class="image-tab-text" :class="{ active: activeImageTab === item.key }">{{ item.name }}</span>
-          </div>
+            {{ item.name }}
+          </button>
         </div>
 
-        <!-- 查看全部按钮 -->
-        <div class="view-all-btn" @click.stop="viewAllImages">
-          <span class="view-all-text">查看全部</span>
-          <van-icon name="arrow" class="view-all-arrow" />
-        </div>
-      </div>
+        <button type="button" class="view-all-btn" @click.stop="viewAllImages">
+          <van-icon name="photo-o" />
+          <span>全部图片</span>
+          <van-icon name="arrow" />
+        </button>
 
-      <!-- 机构信息卡片 -->
-      <div class="institution-info-card">
-        <div class="institution-info-header">
-          <span class="institution-title">{{ detail.name }}</span>
-          <div class="institution-price">
-            <span class="price-number">{{ detail.priceRanges?.total?.min || 1000 }}</span>
-            <span class="price-unit">元/月起</span>
-          </div>
-        </div>
+        <span v-if="activeImageTab === 'vr'" class="vr-hint">
+          <van-icon name="video-o" />
+          点击画面进入 VR 看房
+        </span>
+      </header>
 
-        <!-- 机构详细信息 -->
-        <div class="institution-detail-card">
-          <div class="institution-detail-item">
-            <div class="detail-value">
-              <span class="detail-number">{{ detail.buildingArea || 0 }}</span>
-              <span class="detail-unit">m²</span>
+      <main class="detail-main">
+        <section class="institution-info-card h5-card">
+          <div class="institution-info-header">
+            <div class="institution-heading">
+              <span v-if="detail.isFavorite" class="favorite-mark">
+                <van-icon name="star" /> 已收藏
+              </span>
+              <h1>{{ detail.name || detail.institutionName || '机构名称完善中' }}</h1>
             </div>
-            <span class="detail-label">建筑面积</span>
-          </div>
-          <div class="institution-detail-item">
-            <span class="detail-value-text">{{ detail.bedCount || 0 }}</span>
-            <span class="detail-label">床位数</span>
-          </div>
-          <div class="institution-detail-item">
-            <span class="detail-value-text">{{ detail.registeredCapital || 0 }}万</span>
-            <span class="detail-label">注册资本</span>
-          </div>
-          <div class="institution-detail-item">
-            <span class="detail-value-text">{{ detail.establishDate || '-' }}</span>
-            <span class="detail-label">成立时间</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 收住对象和地址信息 -->
-      <div class="location-card">
-        <div class="location-content">
-          <div class="location-left">
-            <div class="location-header">
-              <van-icon name="user-o" class="location-icon" />
-              <span class="location-name">收住对象</span>
+            <div class="institution-price">
+              <template v-if="detail.priceRanges?.total?.min">
+                <span class="price-symbol">¥</span>
+                <strong>{{ detail.priceRanges.total.min }}</strong>
+                <span class="price-unit">/月起</span>
+              </template>
+              <span v-else class="price-pending">价格面议</span>
             </div>
-            <div class="location-text">{{ detail.acceptElderType || detail.careLevelsText || '暂无信息' }}</div>
           </div>
-        </div>
-        <div class="address-row">
-          <van-icon name="location-o" class="location-icon" />
-          <span class="address-text">{{ detail.address || detail.actualAddress || '地址信息完善中' }}</span>
-        </div>
-      </div>
 
-      <!-- 月参考价格区 -->
-      <div class="price-section">
-        <div class="price-header">月参考价格</div>
-        <div class="price-grid">
-          <div class="price-item">
-            <span class="price-label">总费用</span>
-            <span class="price-value">¥{{ detail.priceRanges?.total?.min || 1500 }} ~ ¥{{ detail.priceRanges?.total?.max || 3500 }}</span>
+          <div class="institution-facts">
+            <div class="fact-item">
+              <span class="fact-value">{{ detail.buildingArea || 0 }}<small>m²</small></span>
+              <span class="fact-label">建筑面积</span>
+            </div>
+            <div class="fact-item">
+              <span class="fact-value">{{ detail.bedCount || 0 }}<small>床</small></span>
+              <span class="fact-label">机构床位</span>
+            </div>
+            <div class="fact-item">
+              <span class="fact-value">{{ detail.registeredCapital || 0 }}<small>万</small></span>
+              <span class="fact-label">注册资本</span>
+            </div>
+            <div class="fact-item">
+              <span class="fact-value fact-value--date">{{ detail.establishDate || '-' }}</span>
+              <span class="fact-label">成立时间</span>
+            </div>
           </div>
-          <div class="price-item">
-            <span class="price-label">床位费</span>
-            <span class="price-value">¥{{ detail.priceRanges?.total?.min || detail.priceRanges?.bed?.min || 500 }} ~ ¥{{ detail.priceRanges?.total?.max || detail.priceRanges?.bed?.max || 800 }}</span>
-          </div>
-          <div class="price-item">
-            <span class="price-label">护理费</span>
-            <span class="price-value">¥{{ detail.priceRanges?.nursing?.min || 800 }} ~ ¥{{ detail.priceRanges?.nursing?.max || 2000 }}</span>
-          </div>
-          <div class="price-item">
-            <span class="price-label">膳食费</span>
-            <span class="price-value">¥{{ detail.priceRanges?.diet?.min || 600 }} ~ ¥{{ detail.priceRanges?.diet?.max || 1200 }}</span>
-          </div>
-        </div>
-      </div>
+        </section>
 
-      <!-- Tab切换 -->
-      <van-tabs v-model:active="activeTab" sticky offset-top="46">
+        <section class="location-card h5-card">
+          <div class="info-row">
+            <span class="info-row__icon"><van-icon name="user-o" /></span>
+            <div class="info-row__content">
+              <span class="info-row__label">收住对象</span>
+              <span class="info-row__value">
+                {{ detail.acceptElderType || detail.careLevelsText || '信息完善中' }}
+              </span>
+            </div>
+          </div>
+          <div class="info-row">
+            <span class="info-row__icon"><van-icon name="location-o" /></span>
+            <div class="info-row__content">
+              <span class="info-row__label">机构地址</span>
+              <span class="info-row__value">
+                {{ detail.address || detail.actualAddress || '地址信息完善中' }}
+              </span>
+            </div>
+          </div>
+        </section>
+
+        <section class="price-section">
+          <div class="section-heading">
+            <div>
+              <h2>月参考价格</h2>
+              <p>以下为费用区间，实际价格以机构确认为准</p>
+            </div>
+            <van-icon name="gold-coin-o" />
+          </div>
+          <div class="price-grid">
+            <div class="price-item price-item--primary">
+              <span class="price-label">总费用</span>
+              <span class="price-value">
+                ¥{{ detail.priceRanges?.total?.min || 1500 }} ~ ¥{{ detail.priceRanges?.total?.max || 3500 }}
+              </span>
+            </div>
+            <div class="price-item">
+              <span class="price-label">床位费</span>
+              <span class="price-value">
+                ¥{{ detail.priceRanges?.total?.min || detail.priceRanges?.bed?.min || 500 }} ~ ¥{{ detail.priceRanges?.total?.max || detail.priceRanges?.bed?.max || 800 }}
+              </span>
+            </div>
+            <div class="price-item">
+              <span class="price-label">护理费</span>
+              <span class="price-value">
+                ¥{{ detail.priceRanges?.nursing?.min || 800 }} ~ ¥{{ detail.priceRanges?.nursing?.max || 2000 }}
+              </span>
+            </div>
+            <div class="price-item">
+              <span class="price-label">膳食费</span>
+              <span class="price-value">
+                ¥{{ detail.priceRanges?.diet?.min || 600 }} ~ ¥{{ detail.priceRanges?.diet?.max || 1200 }}
+              </span>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <van-tabs v-model:active="activeTab" class="detail-tabs" sticky offset-top="46">
         <van-tab title="机构介绍" name="intro">
-          <!-- 生活设施 -->
-          <van-cell-group v-if="detail.lifeFacilities && detail.lifeFacilities.length > 0" title="生活设施">
+          <van-cell-group
+            v-if="detail.lifeFacilities && detail.lifeFacilities.length > 0"
+            title="生活设施"
+          >
             <div class="facility-grid">
               <div v-for="(facility, index) in detail.lifeFacilities" :key="index" class="facility-item">
-                <svg-icon :icon-class="facility.icon" class="facility-icon" />
+                <span class="facility-icon-wrap">
+                  <svg-icon :icon-class="facility.icon" class="facility-icon" />
+                </span>
                 <span>{{ facility.name }}</span>
               </div>
             </div>
           </van-cell-group>
 
-          <!-- 医疗设施 -->
-          <van-cell-group v-if="detail.medicalFacilities && detail.medicalFacilities.length > 0" title="医疗设施">
+          <van-cell-group
+            v-if="detail.medicalFacilities && detail.medicalFacilities.length > 0"
+            title="医疗设施"
+          >
             <div class="facility-grid">
               <div v-for="(facility, index) in detail.medicalFacilities" :key="index" class="facility-item">
-                <svg-icon :icon-class="facility.icon" class="facility-icon medical" />
+                <span class="facility-icon-wrap facility-icon-wrap--medical">
+                  <svg-icon :icon-class="facility.icon" class="facility-icon medical" />
+                </span>
                 <span>{{ facility.name }}</span>
               </div>
             </div>
           </van-cell-group>
 
-          <!-- 每日服务 -->
-          <van-cell-group v-if="detail.dailyServices && detail.dailyServices.length > 0" title="每日服务">
+          <van-cell-group
+            v-if="detail.dailyServices && detail.dailyServices.length > 0"
+            title="每日服务"
+          >
             <div class="service-schedule">
               <div v-for="(service, index) in detail.dailyServices" :key="index" class="schedule-item">
                 <div class="schedule-time">{{ service.time }}</div>
@@ -138,84 +188,92 @@
             </div>
           </van-cell-group>
 
-          <!-- 机构介绍 -->
           <van-cell-group title="机构介绍">
             <div class="intro-content">
-              {{ detail.description }}
+              {{ detail.description || '机构介绍正在完善中' }}
             </div>
           </van-cell-group>
         </van-tab>
 
         <van-tab title="评价" name="review">
-          <!-- 加载状态 -->
           <div v-if="reviewLoading" class="review-loading">
-            <van-loading size="20px">加载评价中...</van-loading>
+            <van-loading size="20px">加载评价中</van-loading>
           </div>
 
-          <!-- 有评价时显示 -->
           <template v-else-if="reviewList.length > 0">
-            <!-- 评价统计摘要 -->
-            <div class="review-summary">
+            <div class="review-summary h5-card">
               <div class="overall-rating">
-                <div class="rating-score">{{ detail.rating || 0 }}</div>
-                <van-rate v-model="detail.rating" :size="16" color="#ffd21e" void-icon="star" void-color="#eee" readonly />
-                <div class="rating-count">{{ detail.reviewCount || 0 }}条评价</div>
+                <strong class="rating-score">{{ detail.rating || 0 }}</strong>
+                <div class="rating-meta">
+                  <van-rate
+                    v-model="detail.rating"
+                    :size="18"
+                    color="var(--h5-color-warning)"
+                    void-icon="star"
+                    void-color="var(--h5-color-border-strong)"
+                    readonly
+                  />
+                  <span>{{ detail.reviewCount || 0 }} 条真实评价</span>
+                </div>
               </div>
             </div>
 
-            <!-- 评价列表 -->
-            <div class="review-list">
-              <div v-for="(review, index) in reviewList" :key="review.reviewId || index" class="review-item">
+            <div class="review-list h5-card">
+              <article
+                v-for="(review, index) in reviewList"
+                :key="review.reviewId || index"
+                class="review-item"
+              >
                 <div class="review-header">
-                  <van-image
-                    round
-                    width="40"
-                    height="40"
-                    :src="review.avatar || 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'"
+                  <img
+                    class="review-avatar"
+                    :src="review.avatar || userAvatarPlaceholder"
+                    :alt="`${review.userName || '用户'}头像`"
+                    @error="handleImageError($event, userAvatarPlaceholder)"
                   />
                   <div class="review-user">
                     <div class="user-name">{{ review.userName }}</div>
-                    <van-rate v-model="review.rating" :size="12" color="#ffd21e" void-icon="star" void-color="#eee" readonly />
+                    <van-rate
+                      v-model="review.rating"
+                      :size="14"
+                      color="var(--h5-color-warning)"
+                      void-icon="star"
+                      void-color="var(--h5-color-border-strong)"
+                      readonly
+                    />
                   </div>
-                  <div class="review-date">{{ review.createTime }}</div>
+                  <time class="review-date">{{ review.createTime }}</time>
                 </div>
-                <div class="review-content">{{ review.content }}</div>
+                <p class="review-content">{{ review.content }}</p>
                 <div v-if="review.images && review.images.length > 0" class="review-images">
-                  <van-image
+                  <img
                     v-for="(img, imgIndex) in review.images"
                     :key="imgIndex"
-                    width="80"
-                    height="80"
-                    :src="img"
-                    fit="cover"
+                    class="review-image"
+                    :src="img || institutionPlaceholder"
+                    alt="评价图片"
+                    loading="lazy"
+                    @error="handleImageError"
                     @click="previewReviewImage(review.images, imgIndex)"
                   />
                 </div>
-              </div>
+              </article>
             </div>
           </template>
 
-          <!-- 暂无评价 -->
-          <div v-else class="no-reviews">
-            <van-empty description="暂无评价" image-size="80" />
+          <div v-else class="no-reviews h5-card">
+            <van-empty description="暂无评价，入住体验后可以分享感受" image-size="96" />
           </div>
         </van-tab>
       </van-tabs>
 
-      <!-- 底部操作栏 -->
-      <div class="action-bar">
-        <van-button round plain @click="toggleFavorite">
+      <div class="action-bar h5-fixed-action-bar">
+        <van-button round plain icon="star-o" @click="toggleFavorite">
           {{ detail.isFavorite ? '已收藏' : '收藏' }}
         </van-button>
-        <van-button round plain @click="makeCall">
-          电话
-        </van-button>
-        <van-button round plain type="warning" @click="bookVisit">
-          预约
-        </van-button>
-        <van-button round type="primary" @click="applyEnter">
-          入住
-        </van-button>
+        <van-button round plain icon="phone-o" @click="makeCall">电话</van-button>
+        <van-button round plain type="primary" icon="calendar-o" @click="bookVisit">预约</van-button>
+        <van-button round type="primary" icon="home-o" @click="applyEnter">入住</van-button>
       </div>
     </div>
   </div>
@@ -228,6 +286,8 @@ import { showToast, showDialog, showImagePreview } from 'vant'
 import { getInstitutionDetail, favoriteInstitution, unfavoriteInstitution, checkFavorite } from '@/api/institution'
 import { getReviewList, getReviewStatistics } from '@/api/review'
 import { getToken } from '@/utils/auth'
+import institutionPlaceholder from '@/assets/images/institution-placeholder.svg'
+import userAvatarPlaceholder from '@/assets/images/user-avatar-placeholder.svg'
 
 const route = useRoute()
 const router = useRouter()
@@ -258,7 +318,7 @@ const imageData = ref({
 })
 
 // 顶部显示的图片
-const headerImage = ref('/images/default-institution.png')
+const headerImage = ref(institutionPlaceholder)
 
 // 评价相关数据
 const reviewList = ref([])
@@ -269,7 +329,7 @@ const detail = ref({})
 
 // 获取图片完整URL
 const getImageUrl = (url) => {
-  if (!url) return '/images/default-institution.png'
+  if (!url) return institutionPlaceholder
 
   if (url.startsWith('http://') || url.startsWith('https://')) {
     return url
@@ -283,6 +343,16 @@ const getImageUrl = (url) => {
   return baseUrl + (url.startsWith('/') ? url : '/' + url)
 }
 
+const handleHeaderImageError = () => {
+  headerImage.value = institutionPlaceholder
+}
+
+const handleImageError = (event, fallback = institutionPlaceholder) => {
+  if (event.target.dataset.fallbackApplied) return
+  event.target.dataset.fallbackApplied = 'true'
+  event.target.src = fallback
+}
+
 // 切换图片标签
 const switchImageTab = (key) => {
   activeImageTab.value = key
@@ -291,7 +361,7 @@ const switchImageTab = (key) => {
   if (images.length > 0) {
     headerImage.value = getImageUrl(images[0])
   } else {
-    headerImage.value = '/images/default-institution.png'
+    headerImage.value = institutionPlaceholder
   }
 }
 
@@ -557,577 +627,736 @@ const loadDetail = async () => {
 onMounted(() => {
   loadDetail()
 })
+
 </script>
 
 <style scoped>
 .institution-detail {
-  min-height: 100vh;
-  background-color: #f5f6fc;
-  padding-bottom: 60px;
-  font-family: 'PingFang SC', '苹方-简', sans-serif;
+  overflow-x: hidden;
+}
+
+.detail-content {
+  padding-bottom: calc(var(--h5-action-bar-min-height) + var(--h5-safe-area-bottom) + var(--h5-space-6));
 }
 
 .loading-container {
   display: flex;
-  justify-content: center;
+  min-height: 100vh;
+  min-height: 100dvh;
   align-items: center;
-  height: 300px;
+  justify-content: center;
+  color: var(--h5-color-text-tertiary);
 }
 
-/* ========== 顶部图片区域 ========== */
-.header-section {
-  width: 100%;
-  height: 200px;
+.hero-section {
   position: relative;
+  height: 264px;
   overflow: hidden;
+  background: var(--h5-color-primary-soft);
+  cursor: pointer;
 }
 
-.header-bg {
+.hero-image {
   width: 100%;
   height: 100%;
+  object-fit: cover;
 }
 
-.header-overlay {
+.hero-overlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(15, 31, 50, 0.52) 0%, transparent 34%),
+    linear-gradient(180deg, transparent 54%, rgba(15, 31, 50, 0.68) 100%);
+}
+
+.hero-controls {
+  position: absolute;
+  top: calc(var(--h5-safe-area-top) + var(--h5-space-3));
+  right: var(--h5-page-padding);
+  left: var(--h5-page-padding);
+  z-index: 3;
+  display: flex;
+  justify-content: space-between;
+}
+
+.hero-control {
+  display: inline-flex;
+  width: 42px;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  color: var(--h5-color-text-inverse);
+  font-size: 22px;
+  background: rgba(15, 31, 50, 0.56);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 50%;
+  backdrop-filter: blur(8px);
+}
+
+.hero-control:active {
+  background: rgba(15, 31, 50, 0.76);
 }
 
 .image-tabs {
   position: absolute;
-  bottom: 50px;
-  left: 12px;
+  bottom: var(--h5-space-4);
+  left: var(--h5-page-padding);
+  z-index: 3;
   display: flex;
-  padding: 2px 2px;
-  border-radius: 4px;
-  opacity: 1;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(4px);
+  max-width: calc(100% - 142px);
+  gap: var(--h5-space-1);
+  padding: var(--h5-space-1);
+  overflow-x: auto;
+  background: rgba(15, 31, 50, 0.56);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--h5-radius-pill);
+  backdrop-filter: blur(8px);
+  scrollbar-width: none;
+}
+
+.image-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .image-tab-item {
-  padding: 0 8px;
-  border-radius: 3px;
-  height: 20px;
-  line-height: 20px;
+  flex: 0 0 auto;
+  min-width: 44px;
+  min-height: 32px;
+  padding: 4px var(--h5-space-2);
+  color: rgba(255, 255, 255, 0.84);
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-medium);
+  line-height: 24px;
+  background: transparent;
+  border: 0;
+  border-radius: var(--h5-radius-pill);
 }
 
 .image-tab-item.active {
-  background: linear-gradient(0deg, #38a9ff 0%, #0f73ff 100%);
-  backdrop-filter: blur(6px);
-}
-
-.image-tab-text {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 12px;
-  font-weight: normal;
-}
-
-.image-tab-text.active {
-  color: #ffffff;
+  color: var(--h5-color-primary-800);
+  background: var(--h5-color-surface);
 }
 
 .view-all-btn {
   position: absolute;
-  bottom: 50px;
-  right: 12px;
-  padding: 6px 10px;
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(4px);
-  display: flex;
+  right: var(--h5-page-padding);
+  bottom: var(--h5-space-4);
+  z-index: 3;
+  display: inline-flex;
+  min-height: 42px;
   align-items: center;
-  gap: 2px;
-  cursor: pointer;
+  gap: var(--h5-space-1);
+  padding: var(--h5-space-2) var(--h5-space-3);
+  color: var(--h5-color-text-inverse);
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-medium);
+  background: rgba(15, 31, 50, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: var(--h5-radius-pill);
+  backdrop-filter: blur(8px);
 }
 
-.view-all-text {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 11px;
+.vr-hint {
+  position: absolute;
+  bottom: 68px;
+  left: 50%;
+  z-index: 3;
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  gap: var(--h5-space-1);
+  padding: var(--h5-space-1) var(--h5-space-3);
+  color: var(--h5-color-text-inverse);
+  font-size: var(--h5-font-size-sm);
+  background: rgba(15, 31, 50, 0.62);
+  border-radius: var(--h5-radius-pill);
+  transform: translateX(-50%);
+  white-space: nowrap;
 }
 
-.view-all-arrow {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 12px;
-}
-
-/* ========== 机构信息卡片 ========== */
-.institution-info-card {
-  width: calc(100% - 24px);
-  border-radius: 10px;
-  background: #ffffff;
-  margin: -30px auto 12px;
-  padding: 14px;
-  box-sizing: border-box;
+.detail-main {
   position: relative;
-  z-index: 1;
+  z-index: 4;
+  padding: 0 var(--h5-page-padding);
+  margin-top: -12px;
+}
+
+.institution-info-card {
+  padding: var(--h5-space-4);
+  box-shadow: var(--h5-shadow-md);
 }
 
 .institution-info-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 12px;
+  gap: var(--h5-space-3);
 }
 
-.institution-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: #1a1a1a;
+.institution-heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.favorite-mark {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  gap: var(--h5-space-1);
+  padding: 2px var(--h5-space-2);
+  margin-bottom: var(--h5-space-2);
+  color: var(--h5-color-primary);
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-medium);
+  line-height: 22px;
+  background: var(--h5-color-primary-soft);
+  border-radius: var(--h5-radius-pill);
+}
+
+.institution-heading h1 {
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-2xl);
+  font-weight: var(--h5-font-weight-bold);
+  line-height: 1.4;
 }
 
 .institution-price {
   display: flex;
+  flex: 0 0 auto;
   align-items: baseline;
+  color: var(--h5-color-danger);
 }
 
-.price-number {
-  height: 24px;
-  color: #e5252b;
-  font-size: 22px;
-  font-weight: 600;
+.price-symbol {
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-semibold);
+}
+
+.institution-price strong {
+  font-size: var(--h5-font-size-3xl);
+  font-weight: var(--h5-font-weight-bold);
+  line-height: 1;
 }
 
 .price-unit {
-  height: 20px;
-  color: #e5252b;
-  font-size: 14px;
+  margin-left: 2px;
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-sm);
 }
 
-/* 机构详细信息卡片 */
-.institution-detail-card {
-  padding: 10px;
-  border-radius: 5px;
-  background: #f7f9fa;
+.price-pending {
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-md);
+  font-weight: var(--h5-font-weight-medium);
+}
+
+.institution-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: var(--h5-space-4);
+  padding: var(--h5-space-3) 0;
+  background: var(--h5-color-surface-subtle);
+  border: 1px solid var(--h5-color-divider);
+  border-radius: var(--h5-radius-md);
+}
+
+.fact-item {
+  position: relative;
   display: flex;
+  min-width: 0;
   align-items: center;
-  justify-content: space-around;
-}
-
-.institution-detail-item {
-  display: flex;
   flex-direction: column;
-  align-items: center;
+  gap: var(--h5-space-1);
+  padding: 0 var(--h5-space-2);
+  text-align: center;
 }
 
-.detail-value {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
+.fact-item + .fact-item::before {
+  position: absolute;
+  top: 10%;
+  bottom: 10%;
+  left: 0;
+  width: 1px;
+  background: var(--h5-color-divider);
+  content: '';
 }
 
-.detail-number {
-  color: #333333;
-  font-size: 15px;
-  font-weight: 500;
+.fact-value {
+  overflow: hidden;
+  max-width: 100%;
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-lg);
+  font-weight: var(--h5-font-weight-semibold);
+  line-height: 22px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.detail-unit {
-  color: #333333;
-  font-size: 13px;
+.fact-value small {
+  margin-left: 2px;
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-regular);
 }
 
-.detail-value-text {
-  color: #333333;
-  font-size: 15px;
-  font-weight: 500;
+.fact-value--date {
+  font-size: var(--h5-font-size-sm);
 }
 
-.detail-label {
-  color: #888888;
-  font-size: 11px;
-  margin-top: 4px;
+.fact-label {
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-sm);
+  line-height: 20px;
 }
 
-/* ========== 收住对象和地址信息 ========== */
 .location-card {
-  width: calc(100% - 24px);
-  border-radius: 10px;
-  background: #ffffff;
-  margin: 0 auto 12px;
-  padding: 14px;
-  box-sizing: border-box;
+  padding: 0 var(--h5-space-4);
+  margin-top: var(--h5-space-3);
+  box-shadow: none;
 }
 
-.location-content {
+.info-row {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
+  min-height: 72px;
+  align-items: flex-start;
+  gap: var(--h5-space-3);
+  padding: var(--h5-space-3) 0;
 }
 
-.location-left {
+.info-row + .info-row {
+  border-top: 1px solid var(--h5-color-divider);
+}
+
+.info-row__icon {
+  display: inline-flex;
+  flex: 0 0 38px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  color: var(--h5-color-primary);
+  font-size: 19px;
+  background: var(--h5-color-primary-soft);
+  border-radius: var(--h5-radius-md);
+}
+
+.info-row__content {
+  display: flex;
   flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--h5-space-1);
 }
 
-.location-header {
-  display: flex;
-  align-items: center;
-  margin-bottom: 4px;
+.info-row__label {
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-sm);
 }
 
-.location-icon {
-  color: #1281ff;
-  font-size: 14px;
-  margin-right: 6px;
+.info-row__value {
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-md);
+  line-height: 22px;
 }
 
-.location-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: #1a1a1a;
-}
-
-.location-text {
-  font-size: 13px;
-  color: #666666;
-  line-height: 1.5;
-}
-
-.address-row {
-  display: flex;
-  align-items: center;
-  padding-top: 8px;
-  border-top: 1px solid #f0f0f0;
-}
-
-.address-row .location-icon {
-  margin-right: 6px;
-}
-
-.address-text {
-  flex: 1;
-  font-size: 13px;
-  color: #333333;
-}
-
-/* ========== 月参考价格区 ========== */
 .price-section {
-  width: calc(100% - 24px);
-  background: linear-gradient(135deg, #ebf6ff 0%, #f0f9ff 100%);
-  border-radius: 10px;
-  padding: 12px;
-  margin: 0 auto 12px;
-  box-shadow: 0 2px 8px rgba(18, 129, 255, 0.08);
+  padding: var(--h5-space-4);
+  margin-top: var(--h5-space-3);
+  background: var(--h5-color-info-soft);
+  border: 1px solid var(--h5-color-primary-100);
+  border-radius: var(--h5-radius-lg);
 }
 
-.price-header {
-  font-size: 13px;
-  font-weight: 500;
-  color: #1281ff;
-  margin-bottom: 8px;
+.section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--h5-space-3);
+  margin-bottom: var(--h5-space-4);
+}
+
+.section-heading h2 {
+  color: var(--h5-color-primary-800);
+  font-size: var(--h5-font-size-lg);
+  font-weight: var(--h5-font-weight-semibold);
+}
+
+.section-heading p {
+  margin-top: var(--h5-space-1);
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-sm);
+}
+
+.section-heading > .van-icon {
+  color: var(--h5-color-primary);
+  font-size: 24px;
 }
 
 .price-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--h5-space-2);
 }
 
 .price-item {
   display: flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 12px;
+  min-width: 0;
+  min-height: 64px;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--h5-space-1);
+  padding: var(--h5-space-2) var(--h5-space-3);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--h5-color-primary-100);
+  border-radius: var(--h5-radius-md);
+}
+
+.price-item--primary {
+  background: var(--h5-color-surface);
+  border-color: var(--h5-color-primary-200);
 }
 
 .price-label {
-  color: #666;
-  white-space: nowrap;
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-sm);
 }
 
 .price-value {
-  color: #1281ff;
-  font-weight: 600;
+  overflow: hidden;
+  color: var(--h5-color-primary-700);
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-semibold);
+  line-height: 20px;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* ========== 其他原有样式 ========== */
-/* 设施网格 */
+.detail-tabs {
+  margin-top: var(--h5-space-4);
+}
+
 .facility-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  padding: 16px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--h5-space-4) var(--h5-space-2);
+  padding: var(--h5-space-4);
 }
 
 .facility-item {
   display: flex;
-  flex-direction: column;
+  min-width: 0;
   align-items: center;
-  gap: 10px;
-}
-
-.facility-icon {
-  width: 28px;
-  height: 28px;
-  color: #1281ff;
-}
-
-.facility-icon.medical {
-  color: #00d9a5;
-}
-
-.facility-item span {
-  font-size: 12px;
-  color: #666;
+  flex-direction: column;
+  gap: var(--h5-space-2);
   text-align: center;
 }
 
-/* 服务时间表 */
+.facility-icon-wrap {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  color: var(--h5-color-primary);
+  background: var(--h5-color-primary-soft);
+  border-radius: var(--h5-radius-md);
+}
+
+.facility-icon-wrap--medical {
+  color: var(--h5-color-success);
+  background: var(--h5-color-success-soft);
+}
+
+.facility-icon {
+  width: 24px;
+  height: 24px;
+  color: currentColor;
+}
+
+.facility-item > span:last-child {
+  overflow: hidden;
+  max-width: 100%;
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-sm);
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .service-schedule {
-  padding: 16px;
+  padding: 0 var(--h5-space-4) var(--h5-space-2);
 }
 
 .schedule-item {
   display: flex;
-  padding: 12px 0;
-  border-bottom: 1px solid #f0f0f0;
+  gap: var(--h5-space-3);
+  padding: var(--h5-space-3) 0;
+  border-bottom: 1px solid var(--h5-color-divider);
 }
 
 .schedule-item:last-child {
-  border-bottom: none;
+  border-bottom: 0;
 }
 
 .schedule-time {
-  width: 80px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #1281ff;
-  flex-shrink: 0;
+  flex: 0 0 72px;
+  color: var(--h5-color-primary);
+  font-size: var(--h5-font-size-md);
+  font-weight: var(--h5-font-weight-semibold);
 }
 
-.schedule-content {
-  flex: 1;
-  font-size: 14px;
-  color: #333;
-  line-height: 1.6;
-}
-
-/* 机构介绍 */
+.schedule-content,
 .intro-content {
-  padding: 16px;
-  font-size: 14px;
-  color: #666;
-  line-height: 1.8;
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-md);
+  line-height: var(--h5-line-height-relaxed);
 }
 
-/* 评价摘要 */
+.intro-content {
+  padding: 0 var(--h5-space-4) var(--h5-space-5);
+  white-space: pre-line;
+}
+
+.review-summary,
+.review-list,
+.no-reviews {
+  margin: var(--h5-space-3) var(--h5-page-padding);
+}
+
 .review-summary {
-  background: #fff;
-  padding: 16px;
-  margin-bottom: 12px;
-  border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  padding: var(--h5-space-4);
+  box-shadow: none;
 }
 
 .overall-rating {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: var(--h5-space-4);
 }
 
 .rating-score {
-  font-size: 32px;
-  font-weight: bold;
-  color: #ffb800;
+  color: var(--h5-color-warning);
+  font-size: 36px;
+  font-weight: var(--h5-font-weight-bold);
+  line-height: 1;
 }
 
-.rating-count {
-  font-size: 14px;
-  color: #666;
-}
-
-.rating-breakdown {
+.rating-meta {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--h5-space-2);
 }
 
-.rating-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.rating-meta span {
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-sm);
 }
 
-.rating-label {
-  width: 40px;
-  font-size: 14px;
-  color: #666;
-}
-
-/* 评价列表 */
 .review-list {
-  background: #fff;
-  border-radius: 10px;
   overflow: hidden;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  box-shadow: none;
 }
 
 .review-item {
-  padding: 16px;
-  border-bottom: 1px solid #f0f0f0;
+  padding: var(--h5-space-4);
 }
 
-.review-item:last-child {
-  border-bottom: none;
+.review-item + .review-item {
+  border-top: 1px solid var(--h5-color-divider);
 }
 
 .review-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: var(--h5-space-3);
+}
+
+.review-avatar {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border: 1px solid var(--h5-color-border);
+  border-radius: 50%;
 }
 
 .review-user {
-  flex: 1;
   display: flex;
+  flex: 1;
+  min-width: 0;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--h5-space-1);
 }
 
 .user-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
+  overflow: hidden;
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-md);
+  font-weight: var(--h5-font-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .review-date {
-  font-size: 12px;
-  color: #999;
+  flex: 0 0 auto;
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-sm);
 }
 
 .review-content {
-  font-size: 14px;
-  color: #666;
-  line-height: 1.6;
-  margin-bottom: 12px;
+  margin-top: var(--h5-space-3);
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-md);
+  line-height: var(--h5-line-height-relaxed);
+  white-space: pre-line;
 }
 
 .review-images {
   display: flex;
-  gap: 10px;
   flex-wrap: wrap;
+  gap: var(--h5-space-2);
+  margin-top: var(--h5-space-3);
+}
+
+.review-image {
+  width: 84px;
+  height: 84px;
+  object-fit: cover;
+  border: 1px solid var(--h5-color-divider);
+  border-radius: var(--h5-radius-md);
+  cursor: pointer;
 }
 
 .review-loading {
   display: flex;
+  min-height: 180px;
+  align-items: center;
   justify-content: center;
-  padding: 20px;
-  color: #999;
+  color: var(--h5-color-text-tertiary);
 }
 
 .no-reviews {
-  padding: 20px;
+  box-shadow: none;
 }
 
-/* 底部操作栏 */
 .action-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  gap: 10px;
-  padding: 10px 14px;
-  background: #fff;
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
-  z-index: 100;
+  max-width: var(--h5-page-max-width);
+  margin: 0 auto;
 }
 
-.action-bar .van-button {
+.action-bar :deep(.van-button) {
   flex: 1;
-  font-size: 13px;
-  height: 36px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 var(--h5-space-2);
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-semibold);
 }
 
-.action-bar .van-button--primary {
-  background: linear-gradient(135deg, #1281ff 0%, #4fc7ff 100%);
-  border: none;
-  font-weight: 500;
+.action-bar :deep(.van-button--plain) {
+  background: var(--h5-color-surface);
 }
 
-.action-bar .van-button--warning {
-  background: linear-gradient(135deg, #ffb800 0%, #ffc832 100%);
-  border: none;
-  font-weight: 500;
+.detail-tabs :deep(.van-tabs__wrap) {
+  height: 50px;
+  border-top: 1px solid var(--h5-color-divider);
+  border-bottom: 1px solid var(--h5-color-divider);
+  box-shadow: var(--h5-shadow-xs);
 }
 
-.action-bar .van-button--plain {
-  border-color: #e0e0e0;
-  color: #666;
-  font-weight: 500;
+.detail-tabs :deep(.van-tabs__nav) {
+  padding: 0 var(--h5-page-padding);
+  background: var(--h5-color-surface);
 }
 
-/* Vant 组件样式覆盖 */
-:deep(.van-tabs__nav) {
-  background: #fff;
-  padding: 0 12px;
+.detail-tabs :deep(.van-tab) {
+  min-height: 48px;
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-md);
+  font-weight: var(--h5-font-weight-medium);
 }
 
-:deep(.van-tab) {
-  color: #666;
-  font-size: 15px;
-  font-weight: 500;
+.detail-tabs :deep(.van-tab--active) {
+  color: var(--h5-color-primary);
+  font-weight: var(--h5-font-weight-semibold);
 }
 
-:deep(.van-tab--active) {
-  color: #1281ff;
+.detail-tabs :deep(.van-tabs__line) {
+  width: 32px;
+  height: 3px;
+  background: var(--h5-color-primary);
+  border-radius: var(--h5-radius-pill);
 }
 
-:deep(.van-tabs__line) {
-  display: none;
-}
-
-:deep(.van-cell-group__title) {
-  color: #1a1a1a;
-  font-size: 16px;
-  font-weight: 500;
-  padding: 12px 16px 8px;
-}
-
-:deep(.van-cell-group) {
-  background: #fff;
-  margin: 10px 12px;
-  border-radius: 10px;
+.detail-tabs :deep(.van-cell-group) {
+  margin: var(--h5-space-3) var(--h5-page-padding);
   overflow: hidden;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  background: var(--h5-color-surface);
+  border: 1px solid var(--h5-color-divider);
+  border-radius: var(--h5-radius-lg);
+  box-shadow: none;
 }
 
-:deep(.van-cell-group .van-cell__right-icon) {
-  display: none;
+.detail-tabs :deep(.van-cell-group__title) {
+  padding: var(--h5-space-4) var(--h5-space-4) var(--h5-space-3);
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-lg);
+  font-weight: var(--h5-font-weight-semibold);
 }
 
-:deep(.van-cell::after) {
-  display: none;
-}
-
-:deep(.van-tabs__content) {
+.detail-tabs :deep(.van-tabs__content),
+.detail-tabs :deep(.van-tab__panel) {
   background: transparent;
 }
 
-:deep(.van-tab__panel) {
-  background: transparent;
+:deep(.van-empty__description) {
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-md);
 }
 
-:deep(.van-nav-bar) {
-  background: #fff;
-}
+@media (max-width: 360px) {
+  .hero-section {
+    height: 244px;
+  }
 
-:deep(.van-nav-bar__title) {
-  font-size: 17px;
-  font-weight: 500;
-  color: #1a1a1a;
-}
+  .image-tabs {
+    max-width: calc(100% - 126px);
+  }
 
-:deep(.van-hairline--bottom::after) {
-  border-color: #f0f0f0;
+  .detail-main {
+    padding-right: var(--h5-space-3);
+    padding-left: var(--h5-space-3);
+  }
+
+  .institution-info-header {
+    flex-direction: column;
+  }
+
+  .institution-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--h5-space-3) 0;
+  }
+
+  .fact-item:nth-child(3)::before {
+    display: none;
+  }
+
+  .price-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .facility-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .action-bar {
+    gap: var(--h5-space-2);
+    padding-right: var(--h5-space-3);
+    padding-left: var(--h5-space-3);
+  }
+
+  .action-bar :deep(.van-button) {
+    padding: 0 var(--h5-space-1);
+  }
 }
 </style>

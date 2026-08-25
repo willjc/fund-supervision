@@ -1,127 +1,130 @@
 <template>
-  <div class="home-page">
-    <!-- 轮播图区域 -->
-    <div class="banner-section">
+  <div class="home-page h5-page h5-page--constrained h5-page--tabbar">
+    <header class="hero-section">
       <van-swipe
-        class="banner-swiper"
+        v-if="bannerList.length"
+        class="hero-swiper"
         :autoplay="3000"
         :show-indicators="false"
         @change="onBannerChange"
       >
-        <van-swipe-item v-for="(banner, index) in bannerList" :key="index" @click="handleBannerClick(banner)">
-          <img class="banner-image" :src="getImageUrl(banner.imageUrl || banner.image)" mode="widthFix" />
+        <van-swipe-item
+          v-for="(banner, index) in bannerList"
+          :key="index"
+          @click="handleBannerClick(banner)"
+        >
+          <img
+            class="hero-image"
+            :src="getImageUrl(banner.imageUrl || banner.image) || institutionPlaceholder"
+            :alt="banner.title || '养老服务宣传图'"
+            @error="handleImageError"
+          />
         </van-swipe-item>
       </van-swipe>
+      <img
+        v-else
+        class="hero-image"
+        :src="institutionPlaceholder"
+        alt="养老服务机构"
+      />
+      <div class="hero-overlay"></div>
+      <div class="hero-copy">
+        <span class="hero-eyebrow">郑州市养老服务</span>
+        <h1>安心养老，放心选择</h1>
+        <p>查机构、看服务、管费用，一站安心办理</p>
+      </div>
 
-      <!-- 自定义指示点 -->
-      <div class="banner-indicators">
-        <div
-          class="indicator-dot"
+      <div v-if="bannerList.length > 1" class="banner-indicators" aria-hidden="true">
+        <span
           v-for="(item, index) in bannerList"
           :key="index"
+          class="indicator-dot"
           :class="{ active: currentBannerIndex === index }"
-        ></div>
+        ></span>
       </div>
 
-      <!-- 悬浮搜索栏 -->
-      <div class="search-section" @click="goToSearch">
-        <div class="search-bar">
-          <van-icon name="search" class="search-icon" />
-          <span class="search-placeholder">搜索你想要的机构</span>
-        </div>
-      </div>
-    </div>
+      <button class="hero-search" type="button" @click="goToSearch">
+        <van-icon name="search" class="search-icon" />
+        <span>搜索机构名称、区域或服务</span>
+        <van-icon name="arrow" class="search-arrow" />
+      </button>
+    </header>
 
-    <!-- 金刚位（4个） -->
-    <div class="icon-grid">
-      <div
-        class="icon-item"
-        v-for="(item, index) in iconList"
-        :key="index"
-        @click="handleIconClick(item)"
-      >
-        <div class="icon-wrapper" :style="{ backgroundColor: item.color }">
-          <van-icon :name="item.icon" size="24" color="#fff" />
-        </div>
-        <span class="icon-text">{{ item.name }}</span>
-      </div>
-    </div>
-
-    <!-- 通知栏 -->
-    <div class="notice-wrapper">
-      <div class="notice-section"></div>
-      <div class="notice-content">
-        <van-icon name="volume-o" class="notice-icon" />
-        <span class="notice-label">最新通知：</span>
-        <div class="notice-scroll-container">
-          <div class="notice-scroll-content">
-            <span class="notice-text" @click="goToNoticeDetail">{{ noticeText || '暂无通知' }}</span>
+    <main class="home-content">
+      <section class="quick-services h5-card" aria-labelledby="quick-services-title">
+        <div class="quick-services__header">
+          <div>
+            <h2 id="quick-services-title">便捷服务</h2>
+            <p>常用功能，一步直达</p>
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- 优选机构列表 -->
-    <div class="listings-section">
-      <!-- 标题和更多按钮 -->
-      <div class="section-header">
-        <div class="section-title">优选机构</div>
-        <div class="section-more" @click="goToInstitutionList">
-          <span class="more-text">更多</span>
-          <van-icon name="arrow" class="more-arrow" />
-        </div>
-      </div>
-
-      <!-- 机构卡片列表 -->
-      <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
-        <van-list
-          v-model:loading="loading"
-          :finished="finished"
-          finished-text="没有更多了"
-          @load="onLoad"
-        >
-          <div
-            class="listing-card"
-            v-for="item in institutionList"
-            :key="item.institutionId"
-            @click="goToDetail(item)"
+        <div class="icon-grid">
+          <button
+            v-for="item in iconList"
+            :key="item.key"
+            type="button"
+            class="icon-item"
+            @click="handleIconClick(item)"
           >
-            <img
-              class="listing-image"
-              :src="item.coverImage || defaultImage"
-              mode="aspectFill"
-            />
-            <div class="listing-info">
-              <div class="listing-header">
-                <span class="listing-title">{{ item.institutionName }}</span>
-                <!-- <span class="listing-distance">附近</span> -->
-              </div>
-              <div class="listing-status">
-                <span
-                  class="status-text"
-                  :class="{ available: item.availableBeds > 0 }"
-                >
-                  {{ item.availableBeds > 0 ? '有床位' : '暂无床位' }}
-                </span>
-                <span class="status-divider">|</span>
-                <span class="status-count">共{{ item.bedCount }}床</span>
-              </div>
-              <span class="listing-address">{{ item.address }}</span>
-              <div class="listing-tags">
-                <span class="tag" v-for="(tag, tagIndex) in item.tags" :key="tagIndex">
-                  {{ tag }}
-                </span>
-              </div>
-              <div class="listing-price">
-                <span class="price-number">{{ item.minPrice }}</span>
-                <span class="price-unit">元</span>
-                <span class="price-suffix">/月起</span>
-              </div>
-            </div>
+            <span class="icon-wrapper" :class="`icon-wrapper--${item.key}`">
+              <van-icon :name="item.icon" />
+            </span>
+            <span class="icon-text">{{ item.name }}</span>
+          </button>
+        </div>
+      </section>
+
+      <button class="notice-card h5-card" type="button" @click="goToNoticeDetail">
+        <span class="notice-icon-wrap"><van-icon name="volume-o" /></span>
+        <span class="notice-copy">
+          <strong>最新通知</strong>
+          <span>{{ noticeText || '暂无通知，点击查看通知公告' }}</span>
+        </span>
+        <van-icon name="arrow" class="notice-arrow" />
+      </button>
+
+      <section class="listings-section" aria-labelledby="recommended-title">
+        <div class="h5-section-header">
+          <div>
+            <h2 id="recommended-title" class="h5-section-title">优选养老机构</h2>
+            <p class="h5-section-subtitle">综合服务与床位信息，为您安心筛选</p>
           </div>
-        </van-list>
-      </van-pull-refresh>
-    </div>
+          <button class="h5-section-action" type="button" @click="goToInstitutionList">
+            查看更多 <van-icon name="arrow" />
+          </button>
+        </div>
+
+        <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
+          <van-list
+            v-model:loading="loading"
+            :finished="finished"
+            :finished-text="institutionList.length ? '已展示全部优选机构' : ''"
+            @load="onLoad"
+          >
+            <div class="institution-stack">
+              <InstitutionCard
+                v-for="item in institutionList"
+                :key="item.institutionId"
+                :institution="item"
+                :navigate-on-click="false"
+                @select="goToDetail"
+              />
+            </div>
+            <template #loading>
+              <div class="list-feedback">
+                <van-loading size="20px">正在加载优选机构</van-loading>
+              </div>
+            </template>
+          </van-list>
+          <van-empty
+            v-if="!loading && finished && institutionList.length === 0"
+            :image="institutionPlaceholder"
+            image-size="128"
+            description="暂无优选机构，稍后再来看看"
+          />
+        </van-pull-refresh>
+      </section>
+    </main>
   </div>
 </template>
 
@@ -133,6 +136,8 @@ import { getRecommendInstitutions } from '@/api/institution'
 import { getBannerList } from '@/api/banner'
 import { getNoticeDetail } from '@/api/notice'
 import { getImageUrl } from '@/utils/image'
+import InstitutionCard from '@/components/InstitutionCard.vue'
+import institutionPlaceholder from '@/assets/images/institution-placeholder.svg'
 
 const router = useRouter()
 
@@ -150,26 +155,22 @@ const iconList = ref([
   {
     name: '通知公告',
     icon: 'hotel-o',
-    key: 'notice',
-    color: '#5B8FF9'
+    key: 'notice'
   },
   {
     name: '待办事项',
     icon: 'calendar-o',
-    key: 'todo',
-    color: '#FFC107'
+    key: 'todo'
   },
   {
     name: '老人信息',
     icon: 'goods-collect-o',
-    key: 'elder',
-    color: '#FF6B6B'
+    key: 'elder'
   },
   {
     name: '费用查询',
     icon: 'balance-list-o',
-    key: 'fee',
-    color: '#00BCD4'
+    key: 'fee'
   }
 ])
 
@@ -179,11 +180,15 @@ const loading = ref(false)
 const finished = ref(false)
 const refreshing = ref(false)
 
-const defaultImage = 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
-
 // 轮播图切换
 const onBannerChange = (index) => {
   currentBannerIndex.value = index
+}
+
+const handleImageError = (event) => {
+  if (event.target.dataset.fallbackApplied) return
+  event.target.dataset.fallbackApplied = 'true'
+  event.target.src = institutionPlaceholder
 }
 
 // 幻灯片点击处理
@@ -294,8 +299,12 @@ const transformInstitutionData = (institution) => {
     institutionId: institution.institutionId,
     institutionName: institution.institutionName || '未命名机构',
     bedCount: institution.bedCount || 0,
+    totalBeds: institution.totalBeds || institution.bedCount || 0,
+    availableBeds: institution.availableBeds || 0,
+    institutionNature: institution.institutionNature,
+    ratingLevel: institution.ratingLevel,
     address: institution.address || '地址未填写',
-    coverImage: getImageUrl(institution.coverImage) || 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg',
+    coverImage: getImageUrl(institution.coverImage) || institutionPlaceholder,
     minPrice: minPrice,
     tags: tags.slice(0, 3) // 最多显示3个生活设施标签
   }
@@ -350,407 +359,339 @@ onMounted(() => {
   loadInstitutions()
 })
 </script>
-
 <style scoped>
 .home-page {
-  min-height: 100vh;
-  background-color: #f5f6fc;
-  padding-bottom: 20px;
+  overflow-x: hidden;
 }
 
-/* 轮播图区域 */
-.banner-section {
+.hero-section {
   position: relative;
-  width: 100%;
-  margin-bottom: 10px;
+  height: 232px;
+  overflow: visible;
+  background: var(--h5-color-primary-800);
 }
 
-.banner-swiper {
-  width: 100%;
-  height: 125px; /* 250rpx ≈ 125px */
-}
-
-.banner-image {
+.hero-swiper,
+.hero-image {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  display: block;
 }
 
-/* 自定义指示点 */
+.hero-image {
+  object-fit: cover;
+}
+
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(16, 44, 78, 0.1) 8%, rgba(16, 44, 78, 0.75) 100%),
+    linear-gradient(90deg, rgba(16, 44, 78, 0.54), transparent 75%);
+}
+
+.hero-copy {
+  position: absolute;
+  top: calc(var(--h5-safe-area-top) + var(--h5-space-6));
+  left: var(--h5-page-padding);
+  z-index: 2;
+  max-width: 76%;
+  color: var(--h5-color-text-inverse);
+  text-shadow: 0 1px 8px rgba(15, 31, 50, 0.26);
+}
+
+.hero-eyebrow {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  padding: 2px var(--h5-space-2);
+  margin-bottom: var(--h5-space-2);
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-medium);
+  line-height: 22px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  border-radius: var(--h5-radius-pill);
+  backdrop-filter: blur(8px);
+}
+
+.hero-copy h1 {
+  font-size: var(--h5-font-size-display);
+  font-weight: var(--h5-font-weight-bold);
+  line-height: var(--h5-line-height-tight);
+  letter-spacing: 0.02em;
+}
+
+.hero-copy p {
+  margin-top: var(--h5-space-2);
+  font-size: var(--h5-font-size-md);
+  line-height: var(--h5-line-height-normal);
+  opacity: 0.94;
+}
+
 .banner-indicators {
   position: absolute;
-  bottom: 24px;
-  right: 12px;
+  right: var(--h5-page-padding);
+  bottom: 54px;
+  z-index: 3;
   display: flex;
   align-items: center;
   gap: 6px;
-  z-index: 100;
 }
 
 .indicator-dot {
-  width: 5px;
-  height: 5px;
-  opacity: 1;
-  background: rgba(0, 0, 0, 0.5);
-  border-radius: 50%;
+  width: 6px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.56);
+  border-radius: var(--h5-radius-pill);
+  transition: width var(--h5-motion-base) var(--h5-ease-standard);
 }
 
 .indicator-dot.active {
-  background: #ffffff;
+  width: 20px;
+  background: var(--h5-color-surface);
 }
 
-/* 悬浮搜索栏 */
-.search-section {
+.hero-search {
   position: absolute;
-  bottom: -20px;
-  left: 0;
-  right: 0;
-  padding: 0 12px;
-  z-index: 10;
+  right: var(--h5-page-padding);
+  bottom: -24px;
+  left: var(--h5-page-padding);
+  z-index: 4;
+  display: flex;
+  min-height: 50px;
+  align-items: center;
+  gap: var(--h5-space-2);
+  padding: 0 var(--h5-space-4);
+  color: var(--h5-color-text-tertiary);
+  text-align: left;
+  background: var(--h5-color-surface);
+  border: 1px solid var(--h5-color-divider);
+  border-radius: var(--h5-radius-lg);
+  box-shadow: var(--h5-shadow-md);
 }
 
-.search-bar {
-  width: 100%;
-  max-width: 351px;
-  height: 40px;
-  border-radius: 10px;
-  opacity: 1;
-  background: #ffffff;
-  display: flex;
-  align-items: center;
-  padding: 0 15px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  margin: 0 auto;
-  cursor: pointer;
+.hero-search span {
+  flex: 1;
+  font-size: var(--h5-font-size-md);
 }
 
 .search-icon {
-  font-size: 14px;
-  margin-right: 10px;
-  color: #999;
+  color: var(--h5-color-primary);
+  font-size: 20px;
 }
 
-.search-placeholder {
-  font-size: 14px;
-  color: #999;
+.search-arrow {
+  color: var(--h5-color-text-tertiary);
+  font-size: 15px;
 }
 
-/* 金刚位（4个，1行4列） */
+.home-content {
+  padding: 42px var(--h5-page-padding) var(--h5-space-6);
+}
+
+.quick-services {
+  padding: var(--h5-space-4);
+}
+
+.quick-services__header {
+  margin-bottom: var(--h5-space-3);
+}
+
+.quick-services__header h2 {
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-lg);
+  font-weight: var(--h5-font-weight-semibold);
+}
+
+.quick-services__header p {
+  margin-top: var(--h5-space-1);
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-sm);
+}
+
 .icon-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  padding: 15px 12px;
-  background: #ffffff;
-  margin: 32px 12px 10px;
-  border-radius: 10px;
-  opacity: 1;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--h5-space-2);
 }
 
 .icon-item {
   display: flex;
-  flex-direction: column;
+  min-width: 0;
+  min-height: 82px;
   align-items: center;
+  flex-direction: column;
   justify-content: center;
-  cursor: pointer;
+  gap: var(--h5-space-2);
+  color: var(--h5-color-text);
+  background: transparent;
+  border: 0;
+  border-radius: var(--h5-radius-md);
+}
+
+.icon-item:active {
+  background: var(--h5-color-primary-soft);
 }
 
 .icon-wrapper {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  display: flex;
+  display: inline-flex;
+  width: 48px;
+  height: 48px;
   align-items: center;
   justify-content: center;
-  margin-bottom: 5px;
+  color: var(--h5-color-primary);
+  font-size: 24px;
+  background: var(--h5-color-primary-soft);
+  border: 1px solid var(--h5-color-primary-100);
+  border-radius: var(--h5-radius-lg);
+}
+
+.icon-wrapper--todo {
+  color: var(--h5-color-warning);
+  background: var(--h5-color-warning-soft);
+  border-color: var(--h5-color-warning-soft);
+}
+
+.icon-wrapper--elder {
+  color: var(--h5-color-accent);
+  background: var(--h5-color-accent-soft);
+  border-color: var(--h5-color-accent-soft);
+}
+
+.icon-wrapper--fee {
+  color: var(--h5-color-info);
+  background: var(--h5-color-info-soft);
+  border-color: var(--h5-color-info-soft);
 }
 
 .icon-text {
-  font-size: 12px;
-  color: #333333;
-  text-align: center;
-  line-height: 20px;
-}
-
-/* 通知栏 */
-.notice-wrapper {
-  width: 351px;
-  height: 45px;
-  border-radius: 10px;
-  opacity: 1;
-  background: #ffffff;
-  margin: 12px;
-  position: relative;
   overflow: hidden;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.notice-section {
-  width: 216px;
-  height: 42px;
-  margin-left: 2px;
-  border-radius: 9px;
-  opacity: 1;
-  background: linear-gradient(90deg, #ebf6ff 0%, rgba(235, 246, 255, 0) 100%);
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 1;
-}
-
-.notice-content {
+.notice-card {
+  display: flex;
   width: 100%;
-  height: 100%;
-  display: flex;
+  min-height: 64px;
   align-items: center;
-  padding: 0 18px;
-  position: relative;
-  z-index: 2;
+  gap: var(--h5-space-3);
+  padding: var(--h5-space-3) var(--h5-space-4);
+  margin-top: var(--h5-space-3);
+  color: var(--h5-color-text);
+  text-align: left;
 }
 
-.notice-icon {
-  font-size: 22px;
-  color: #1281ff;
-  margin-right: 8px;
-  flex-shrink: 0;
+.notice-icon-wrap {
+  display: inline-flex;
+  flex: 0 0 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  color: var(--h5-color-primary);
+  font-size: 20px;
+  background: var(--h5-color-primary-soft);
+  border-radius: var(--h5-radius-md);
 }
 
-.notice-label {
-  font-size: 13px;
-  font-weight: 500;
-  color: #1281ff;
-  font-family: 'PingFang SC', '苹方-简', sans-serif;
-  flex-shrink: 0;
-  height: 22px;
-  line-height: 22px;
-}
-
-.notice-scroll-container {
+.notice-copy {
+  display: flex;
   flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.notice-copy strong {
+  color: var(--h5-color-primary);
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-semibold);
+}
+
+.notice-copy > span {
   overflow: hidden;
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-sm);
+  line-height: 20px;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.notice-scroll-content {
-  display: inline-block;
-  white-space: nowrap;
-  padding-left: 100%;
-  animation: scroll-left 20s linear infinite;
+.notice-arrow {
+  flex: 0 0 auto;
+  color: var(--h5-color-text-tertiary);
 }
 
-.notice-text {
-  font-size: 13px;
-  color: #333333;
-  font-family: 'PingFang SC', '苹方-简', sans-serif;
-  display: inline-block;
-  /* height: 0.96667rem; */
-  line-height: 1.96667rem;
-  cursor: pointer;
-  /* height: 22px;
-  line-height: 22px; */
-}
-
-@keyframes scroll-left {
-  0% {
-    transform: translateX(0);
-  }
-  100% {
-    transform: translateX(-100%);
-  }
-}
-
-/* 机构列表区域 */
 .listings-section {
-  padding: 8px 12px 15px;
+  margin-top: var(--h5-space-6);
 }
 
-/* 标题和更多按钮容器 */
-.section-header {
-  display: flex;
-  justify-content: space-between;
+.h5-section-action {
+  display: inline-flex;
   align-items: center;
-  margin-bottom: 12px;
-  position: relative;
+  gap: 2px;
+  background: transparent;
+  border: 0;
 }
 
-.section-title {
-  font-size: 18px;
-  font-weight: 500;
-  color: #1a1a1a;
-  position: relative;
-  padding-left: 8px;
-  font-family: 'PingFang SC', '苹方-简', sans-serif;
-}
-
-.section-title::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 16px;
-  background: linear-gradient(180deg, #0f73ff 0%, #4fc7ff 100%);
-  border-radius: 2px;
-}
-
-.section-more {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  padding: 4px 0;
-}
-
-.section-more .more-text {
-  font-size: 14px;
-  color: #999;
-  margin-right: 2px;
-}
-
-.section-more .more-arrow {
-  font-size: 12px;
-  color: #999;
-}
-
-/* 机构卡片 */
-.listing-card {
-  display: flex;
-  background-color: #fff;
-  padding: 8px;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  margin-bottom: 15px;
-  cursor: pointer;
-}
-
-.listing-image {
-  width: 96px;
-  height: 119px;
-  border-radius: 8px;
-  margin-right: 12px;
-  flex-shrink: 0;
-  object-fit: cover;
-}
-
-.listing-info {
-  flex: 1;
-  padding: 4px;
+.institution-stack {
   display: flex;
   flex-direction: column;
+  gap: var(--h5-space-3);
 }
 
-.listing-header {
+.list-feedback {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 2px;
-}
-
-.listing-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: #1a1a1a;
-  line-height: 20px;
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.listing-distance {
-  font-size: 12px;
-  color: #999999;
-  line-height: 20px;
-  margin-left: 75px;
-}
-
-.listing-status {
-  display: flex;
+  min-height: 72px;
   align-items: center;
-  margin-bottom: 3px;
+  justify-content: center;
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-sm);
 }
 
-.status-text {
-  font-size: 12px;
-  color: #999;
-  font-family: 'PingFang SC', '苹方-简', sans-serif;
+:deep(.van-pull-refresh) {
+  overflow: visible;
 }
 
-.status-text.available {
-  color: #207fff;
-  font-weight: 500;
+:deep(.van-list__finished-text) {
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-sm);
 }
 
-.status-divider {
-  color: #cfcfcf;
-  font-size: 12px;
-  margin: 0 5px;
+:deep(.van-empty) {
+  padding: var(--h5-space-8) 0;
 }
 
-.status-count {
-  font-size: 12px;
-  color: #999999;
-  font-family: 'PingFang SC', '苹方-简', sans-serif;
+:deep(.van-empty__description) {
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-md);
 }
 
-.listing-address {
-  font-size: 12px;
-  color: #333333;
-  line-height: 20px;
-  margin-bottom: 3px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+@media (max-width: 360px) {
+  .hero-copy {
+    max-width: 84%;
+  }
 
-.listing-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-bottom: 6px;
-}
+  .hero-copy h1 {
+    font-size: var(--h5-font-size-3xl);
+  }
 
-.tag {
-  font-size: 10px;
-  color: #4c617d;
-  line-height: 16px;
-  background-color: #f5f5f5;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
+  .home-content {
+    padding-right: var(--h5-space-3);
+    padding-left: var(--h5-space-3);
+  }
 
-.listing-price {
-  display: flex;
-  align-items: baseline;
-  margin-top: auto;
-}
+  .quick-services {
+    padding-right: var(--h5-space-3);
+    padding-left: var(--h5-space-3);
+  }
 
-.price-number {
-  font-size: 15px;
-  color: #e5252b;
-  font-weight: 700;
-  line-height: 20px;
-  font-family: 'HarmonyOSSansSC', sans-serif;
-}
-
-.price-unit {
-  font-size: 14px;
-  color: #e5252b;
-  font-weight: normal;
-  line-height: 20px;
-  font-family: 'PingFang SC', '苹方-简', sans-serif;
-  margin-left: 2px;
-}
-
-.price-suffix {
-  font-size: 14px;
-  color: #000000;
-  font-weight: normal;
-  line-height: 20px;
-  font-family: 'PingFang SC', '苹方-简', sans-serif;
-  margin-left: 2px;
+  .icon-grid {
+    gap: var(--h5-space-1);
+  }
 }
 </style>

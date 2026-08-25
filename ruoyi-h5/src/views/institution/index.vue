@@ -1,15 +1,25 @@
 <template>
-  <div class="institution-page">
-    <!-- 搜索栏 -->
-    <div class="search-bar">
-      <van-search
-        v-model="searchValue"
-        placeholder="请输入机构名称"
-        shape="square"
-        :show-action="false"
-      />
-      <van-button type="primary" size="small" @click="onSearch">搜索</van-button>
-    </div>
+  <div class="institution-page h5-page h5-page--constrained h5-page--tabbar">
+    <header class="discovery-header">
+      <div class="discovery-heading">
+        <div>
+          <span class="discovery-eyebrow">养老机构服务名录</span>
+          <h1>查找合适的养老机构</h1>
+          <p>按区域、照护能力与价格，安心筛选</p>
+        </div>
+        <span class="verified-mark"><van-icon name="shield-o" /> 监管服务</span>
+      </div>
+      <div class="search-bar">
+        <van-search
+          v-model="searchValue"
+          placeholder="输入机构名称"
+          shape="round"
+          :show-action="false"
+          @search="onSearch"
+        />
+        <van-button type="primary" @click="onSearch">搜索</van-button>
+      </div>
+    </header>
 
     <!-- 筛选栏 -->
     <div class="filter-bar">
@@ -63,68 +73,36 @@
         >
           <!-- 机构列表项（卡片+价格区域） -->
           <template v-for="institution in institutionList" :key="institution.institutionId">
-            <!-- 统一样式的机构卡片 -->
-            <div
-              class="listing-card"
-              @click="goToDetail(institution.institutionId)"
-            >
-              <img
-                class="listing-image"
-                :src="institution.coverImage || defaultImage"
-                mode="aspectFill"
-              />
-              <div class="listing-info">
-                <div class="listing-header">
-                  <span class="listing-title">{{ institution.institutionName }}</span>
-                  <span class="listing-nature" :class="getNatureClass(institution.institutionNature)">
-                    {{ getNatureText(institution.institutionNature) }}
-                  </span>
-                </div>
-                <div class="listing-status">
-                  <span
-                    class="status-text"
-                    :class="{ available: institution.availableBeds > 0 }"
-                  >
-                    {{ institution.availableBeds > 0 ? '有床位' : '暂无床位' }}
-                  </span>
-                  <span class="status-divider">|</span>
-                  <span class="status-count">共{{ institution.bedCount || 0 }}床</span>
-                </div>
-                <span class="listing-address">{{ institution.address }}</span>
-                <div class="listing-tags" v-if="institution.lifeFacilities && institution.lifeFacilities.length > 0">
-                  <span class="tag" v-for="(tag, tagIndex) in institution.lifeFacilities.slice(0, 3)" :key="tagIndex">
-                    {{ tag }}
-                  </span>
-                </div>
-                <div class="listing-price" v-if="institution.priceRanges">
-                  <span class="price-number">{{ institution.priceRanges.total?.min || institution.priceRanges.bed?.min || 0 }}</span>
-                  <span class="price-unit">元</span>
-                  <span class="price-suffix">/月起</span>
-                </div>
-              </div>
-            </div>
+            <InstitutionCard
+              :institution="institution"
+              :navigate-on-click="false"
+              @select="goToDetail(institution.institutionId)"
+            />
 
             <!-- 月参考价格区域 -->
             <div
               class="price-detail-card"
               v-if="institution.priceRanges"
             >
-              <div class="price-header">月参考价格</div>
+              <div class="price-header">
+                <span><van-icon name="gold-coin-o" /> 月参考价格</span>
+                <span class="price-note">实际费用以机构确认为准</span>
+              </div>
               <div class="price-grid">
                 <div class="price-item">
-                  <span class="price-label">总费用:</span>
+                  <span class="price-label">总费用</span>
                   <span class="price-value">¥{{ institution.priceRanges.total?.min || 0 }} ~ ¥{{ institution.priceRanges.total?.max || 0 }}</span>
                 </div>
                 <div class="price-item">
-                  <span class="price-label">床位费:</span>
+                  <span class="price-label">床位费</span>
                   <span class="price-value">¥{{ institution.priceRanges.bed?.min || 0 }} ~ ¥{{ institution.priceRanges.bed?.max || 0 }}</span>
                 </div>
                 <div class="price-item">
-                  <span class="price-label">护理费:</span>
+                  <span class="price-label">护理费</span>
                   <span class="price-value">¥{{ institution.priceRanges.nursing?.min || 0 }} ~ ¥{{ institution.priceRanges.nursing?.max || 0 }}</span>
                 </div>
                 <div class="price-item">
-                  <span class="price-label">膳食费:</span>
+                  <span class="price-label">膳食费</span>
                   <span class="price-value">¥{{ institution.priceRanges.diet?.min || 0 }} ~ ¥{{ institution.priceRanges.diet?.max || 0 }}</span>
                 </div>
               </div>
@@ -136,6 +114,8 @@
       <!-- 空状态 -->
       <van-empty
         v-if="!loading && institutionList.length === 0"
+        :image="institutionPlaceholder"
+        image-size="132"
         description="暂无符合条件的机构"
       />
     </div>
@@ -325,7 +305,7 @@
     </van-popup>
 
     <!-- 底部导航 -->
-    <van-tabbar v-model="activeTab" fixed>
+    <van-tabbar v-model="activeTab" class="institution-tabbar" fixed safe-area-inset-bottom>
       <van-tabbar-item icon="home-o" to="/index">首页</van-tabbar-item>
       <van-tabbar-item icon="apps-o" to="/institution">机构</van-tabbar-item>
       <van-tabbar-item icon="orders-o" to="/order">订单</van-tabbar-item>
@@ -340,9 +320,10 @@ import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { getInstitutionList } from '@/api/institution'
 import { getImageUrl } from '@/utils/image'
+import InstitutionCard from '@/components/InstitutionCard.vue'
+import institutionPlaceholder from '@/assets/images/institution-placeholder.svg'
 
 const router = useRouter()
-const defaultImage = 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
 
 // 底部导航
 const activeTab = ref(1)
@@ -621,7 +602,7 @@ const loadInstitutions = async () => {
         priceRangeMax: item.priceRanges?.total?.max || item.priceRangeMax || 3500,
         bedCount: item.bedCount || 50,
         address: item.address || '地址信息完善中',
-        coverImage: getImageUrl(item.coverImage) || '',
+        coverImage: getImageUrl(item.coverImage) || institutionPlaceholder,
         totalBeds: item.totalBeds || item.bedCount || 50,
         availableBeds: item.availableBeds || 0,
         priceRanges: item.priceRanges || {
@@ -723,638 +704,456 @@ onMounted(() => {
   loadInstitutions()
 })
 </script>
-
 <style scoped>
 .institution-page {
-  min-height: 100vh;
-  background-color: #f5f6fc;
-  padding-bottom: 60px;
+  overflow-x: hidden;
 }
 
-/* 搜索栏 */
+.discovery-header {
+  padding:
+    calc(var(--h5-safe-area-top) + var(--h5-space-5))
+    var(--h5-page-padding)
+    var(--h5-space-4);
+  color: var(--h5-color-text-inverse);
+  background:
+    radial-gradient(circle at 88% 12%, rgba(255, 255, 255, 0.18), transparent 30%),
+    linear-gradient(145deg, var(--h5-color-primary-700), var(--h5-color-primary-500));
+}
+
+.discovery-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--h5-space-3);
+}
+
+.discovery-eyebrow {
+  display: block;
+  margin-bottom: var(--h5-space-1);
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-medium);
+  opacity: 0.86;
+}
+
+.discovery-heading h1 {
+  font-size: var(--h5-font-size-3xl);
+  font-weight: var(--h5-font-weight-bold);
+  line-height: var(--h5-line-height-tight);
+}
+
+.discovery-heading p {
+  margin-top: var(--h5-space-2);
+  font-size: var(--h5-font-size-sm);
+  line-height: var(--h5-line-height-normal);
+  opacity: 0.9;
+}
+
+.verified-mark {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-height: 30px;
+  align-items: center;
+  gap: var(--h5-space-1);
+  padding: 3px var(--h5-space-2);
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-medium);
+  line-height: 24px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: var(--h5-radius-pill);
+}
+
 .search-bar {
   display: flex;
   align-items: center;
-  padding: 10px 12px;
-  background: #fff;
-  gap: 10px;
+  gap: var(--h5-space-2);
+  padding: var(--h5-space-2);
+  margin-top: var(--h5-space-4);
+  background: var(--h5-color-surface);
+  border-radius: var(--h5-radius-lg);
+  box-shadow: var(--h5-shadow-md);
 }
 
-.search-bar .van-search {
+.search-bar :deep(.van-search) {
   flex: 1;
+  min-width: 0;
   padding: 0;
+  background: transparent;
 }
 
-.search-bar .van-button {
-  flex-shrink: 0;
+.search-bar :deep(.van-search__content) {
+  min-height: 42px;
+  padding-left: var(--h5-space-3);
+  background: var(--h5-color-surface-subtle);
+  border: 1px solid var(--h5-color-border);
+  border-radius: var(--h5-radius-md);
 }
 
-/* 筛选栏 */
+.search-bar :deep(.van-field__control) {
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-md);
+}
+
+.search-bar :deep(.van-button) {
+  flex: 0 0 auto;
+  min-width: 64px;
+  min-height: 42px;
+  padding: 0 var(--h5-space-4);
+  font-size: var(--h5-font-size-md);
+  font-weight: var(--h5-font-weight-semibold);
+  border-radius: var(--h5-radius-md);
+}
+
 .filter-bar {
-  background: #fff;
-  border-bottom: 1px solid #eee;
-  /* padding: 12px; */
+  position: sticky;
+  top: 0;
+  z-index: var(--h5-z-sticky);
+  padding: var(--h5-space-3) var(--h5-page-padding);
+  background: rgba(244, 247, 251, 0.96);
+  border-bottom: 1px solid var(--h5-color-divider);
+  backdrop-filter: blur(10px);
 }
 
 .filter-tabs {
   display: flex;
   align-items: center;
-  background: #f5f5f5;
-  border-radius: 8px;
-  padding: 4px;
+  min-height: 48px;
+  padding: var(--h5-space-1);
+  background: var(--h5-color-surface);
+  border: 1px solid var(--h5-color-border);
+  border-radius: var(--h5-radius-md);
+  box-shadow: var(--h5-shadow-xs);
 }
 
 .filter-tab {
-  flex: 1;
+  position: relative;
   display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
   align-items: center;
   justify-content: center;
-  padding: 10px 12px;
+  gap: var(--h5-space-1);
+  padding: var(--h5-space-2);
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-medium);
+  border-radius: var(--h5-radius-sm);
   cursor: pointer;
-  transition: all 0.2s ease;
-  position: relative;
-  color: #666;
-  font-size: 14px;
 }
 
 .filter-tab .van-icon {
-  font-size: 16px;
-  margin-right: 4px;
-}
-
-.filter-tab span {
-  font-size: 14px;
+  flex: 0 0 auto;
+  font-size: 17px;
 }
 
 .filter-tab.has-badge {
-  color: #1989fa;
+  color: var(--h5-color-primary);
+  background: var(--h5-color-primary-soft);
 }
 
 .filter-tab:active {
-  background: rgba(25, 137, 250, 0.1);
-  border-radius: 6px;
+  color: var(--h5-color-primary);
+  background: var(--h5-color-primary-soft);
 }
 
 .filter-badge {
   display: inline-flex;
+  min-width: 22px;
+  height: 22px;
   align-items: center;
   justify-content: center;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
-  background: #1989fa;
-  color: #fff;
-  font-size: 10px;
-  border-radius: 8px;
-  margin-left: 4px;
+  padding: 0 6px;
+  color: var(--h5-color-text-inverse);
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-semibold);
+  background: var(--h5-color-primary);
+  border-radius: var(--h5-radius-pill);
 }
 
 .filter-tab-divider {
   width: 1px;
-  height: 16px;
-  background: #ddd;
+  height: 22px;
+  background: var(--h5-color-divider);
 }
 
-/* 机构列表 */
 .institution-list {
-  padding: 8px 12px 15px;
+  padding: var(--h5-space-1) var(--h5-page-padding) var(--h5-space-6);
 }
 
-/* 统一样式的机构卡片（参考首页） */
-.listing-card {
-  display: flex;
-  background-color: #fff;
-  padding: 8px;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  margin-bottom: 10px;
-  cursor: pointer;
+.institution-list :deep(.institution-card) {
+  margin-top: var(--h5-space-3);
 }
 
-.listing-image {
-  width: 96px;
-  height: 119px;
-  border-radius: 8px;
-  margin-right: 12px;
-  flex-shrink: 0;
-  object-fit: cover;
-}
-
-.listing-info {
-  flex: 1;
-  padding: 4px;
-  display: flex;
-  flex-direction: column;
-}
-
-.listing-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 2px;
-}
-
-.listing-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: #1a1a1a;
-  line-height: 20px;
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* 机构性质标签 */
-.listing-nature {
-  font-size: 10px;
-  color: #fff;
-  padding: 2px 6px;
-  border-radius: 4px;
-  margin-left: 8px;
-  flex-shrink: 0;
-}
-
-/* .nature-private {
-  background: linear-gradient(135deg, #5B8FF9 0%, #3d7bd9 100%);
-} */
-
-.nature-public {
-  background: linear-gradient(135deg, #07c160 0%, #06ad56 100%);
-}
-
-.nature-ppp {
-  background: linear-gradient(135deg, #ff976a 0%, #f37b1d 100%);
-}
-
-.listing-status {
-  display: flex;
-  align-items: center;
-  margin-bottom: 3px;
-}
-
-.status-text {
-  font-size: 12px;
-  color: #999;
-}
-
-.status-text.available {
-  color: #207fff;
-  font-weight: 500;
-}
-
-.status-divider {
-  color: #cfcfcf;
-  font-size: 12px;
-  margin: 0 5px;
-}
-
-.status-count {
-  font-size: 12px;
-  color: #999;
-}
-
-.listing-address {
-  font-size: 12px;
-  color: #333;
-  line-height: 20px;
-  margin-bottom: 3px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.listing-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-bottom: 6px;
-}
-
-.tag {
-  font-size: 10px;
-  color: #4c617d;
-  line-height: 16px;
-  background-color: #f5f5f5;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.listing-price {
-  display: flex;
-  align-items: baseline;
-  margin-top: auto;
-}
-
-.price-number {
-  font-size: 15px;
-  color: #e5252b;
-  font-weight: 700;
-  line-height: 20px;
-}
-
-.price-unit {
-  font-size: 14px;
-  color: #e5252b;
-  font-weight: normal;
-  line-height: 20px;
-  margin-left: 2px;
-}
-
-.price-suffix {
-  font-size: 12px;
-  color: #999;
-  font-weight: normal;
-  line-height: 20px;
-  margin-left: 2px;
-}
-
-/* 月参考价格区域 */
 .price-detail-card {
-  background: #e8f4fc;
-  border-radius: 8px;
-  padding: 10px 12px;
-  margin-bottom: 10px;
-  margin-top: -8px;
+  padding: var(--h5-space-3) var(--h5-space-4);
+  margin-top: var(--h5-space-2);
+  margin-bottom: var(--h5-space-4);
+  background: var(--h5-color-info-soft);
+  border: 1px solid var(--h5-color-primary-100);
+  border-radius: var(--h5-radius-md);
 }
 
 .price-header {
-  font-size: 12px;
-  color: #1989fa;
-  margin-bottom: 8px;
-  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--h5-space-2);
+  margin-bottom: var(--h5-space-3);
+}
+
+.price-header > span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--h5-space-1);
+  color: var(--h5-color-primary);
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-semibold);
+}
+
+.price-note {
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-sm);
 }
 
 .price-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--h5-space-2) var(--h5-space-3);
 }
 
 .price-item {
-  font-size: 12px;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .price-label {
-  color: #666;
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-sm);
 }
 
 .price-value {
-  color: #1989fa;
-  margin-left: 4px;
+  overflow: hidden;
+  color: var(--h5-color-primary-700);
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-semibold);
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* 增强的筛选样式 */
-.filter-content-enhanced {
-  max-height: 70vh;
-  overflow-y: auto;
-  padding: 16px;
-}
-
-.selected-summary {
-  margin-bottom: 16px;
-}
-
-.filter-section-enhanced {
-  margin-bottom: 20px;
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.section-header .van-icon {
-  color: #1989fa;
-  margin-right: 8px;
-  font-size: 16px;
-}
-
-.section-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: #323233;
-  flex: 1;
-}
-
-.section-count {
-  font-size: 12px;
-  color: #969799;
-  background: #f7f8fa;
-  padding: 2px 6px;
-  border-radius: 8px;
-}
-
-/* 区域选择网格 */
-.filter-options-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-
-.area-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  border: 1px solid #ebedf0;
-  border-radius: 8px;
-  background: #fff;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  min-height: 40px;
-}
-
-.area-item:hover {
-  border-color: #1989fa;
-  background: #f0f8ff;
-}
-
-.area-item.selected {
-  border-color: #1989fa;
-  background: #ecf5ff;
-  box-shadow: 0 2px 4px rgba(25, 137, 250, 0.15);
-}
-
-.area-text {
-  font-size: 13px;
-  color: #323233;
-  flex: 1;
-  text-align: center;
-}
-
-.area-item.selected .area-text {
-  color: #1989fa;
-  font-weight: 500;
-}
-
-.check-icon {
-  color: #07c160;
-  font-size: 14px;
-  margin-left: 4px;
-}
-
-/* 街道选择容器 */
-.street-container {
-  background: #fafafa;
-  border-radius: 8px;
-  padding: 12px;
-  border: 1px solid #ebedf0;
-}
-
-.street-tip {
-  display: flex;
-  align-items: center;
-  margin-bottom: 10px;
-  padding: 8px 12px;
-  background: #fff7e6;
-  border: 1px solid #ffd591;
-  border-radius: 6px;
-  font-size: 12px;
-  color: #fa8c16;
-}
-
-.street-tip .van-icon {
-  margin-right: 6px;
-}
-
-.filter-options-scroll {
-  max-height: 200px;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-.filter-options-scroll::-webkit-scrollbar {
-  width: 4px;
-}
-
-.filter-options-scroll::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 2px;
-}
-
-.filter-options-scroll::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 2px;
-}
-
-.street-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 10px;
-  margin-bottom: 6px;
-  border: 1px solid #ebedf0;
-  border-radius: 6px;
-  background: #fff;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.street-item:hover {
-  border-color: #1989fa;
-  background: #f0f8ff;
-}
-
-.street-item.selected {
-  border-color: #1989fa;
-  background: #ecf5ff;
-  box-shadow: 0 1px 3px rgba(25, 137, 250, 0.1);
-}
-
-.street-text {
-  font-size: 13px;
-  color: #323233;
-  flex: 1;
-  line-height: 1.3;
-}
-
-.street-item.selected .street-text {
-  color: #1989fa;
-  font-weight: 500;
-}
-
-/* 增强的操作按钮 */
-.filter-actions-enhanced {
-  display: flex;
-  gap: 12px;
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid #f0f0f0;
-}
-
-.filter-actions-enhanced .van-button {
-  flex: 1;
-  border-radius: 8px;
-  font-weight: 500;
-}
-
-/* 侧边筛选面板 */
 .filter-panel {
   display: flex;
-  flex-direction: column;
   height: 100%;
-  background: #f5f5f5;
+  flex-direction: column;
+  background: var(--h5-color-page);
 }
 
 .filter-panel-header {
   display: flex;
-  justify-content: space-between;
+  min-height: 60px;
   align-items: center;
-  padding: 16px;
-  background: #fff;
-  border-bottom: 1px solid #eee;
+  justify-content: space-between;
+  padding:
+    calc(var(--h5-safe-area-top) + var(--h5-space-3))
+    var(--h5-space-4)
+    var(--h5-space-3);
+  background: var(--h5-color-surface);
+  border-bottom: 1px solid var(--h5-color-divider);
 }
 
 .filter-panel-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #323233;
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-xl);
+  font-weight: var(--h5-font-weight-semibold);
 }
 
 .filter-panel-header .van-icon {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  color: var(--h5-color-text-secondary);
   font-size: 20px;
-  color: #969799;
+  border-radius: var(--h5-radius-md);
   cursor: pointer;
+}
+
+.filter-panel-header .van-icon:active {
+  color: var(--h5-color-primary);
+  background: var(--h5-color-primary-soft);
 }
 
 .filter-panel-content {
   flex: 1;
+  padding: var(--h5-space-4);
   overflow-y: auto;
-  padding: 16px;
+  overscroll-behavior: contain;
 }
 
 .filter-section-panel {
-  background: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 12px;
+  padding: var(--h5-space-4);
+  margin-bottom: var(--h5-space-3);
+  background: var(--h5-color-surface);
+  border: 1px solid var(--h5-color-divider);
+  border-radius: var(--h5-radius-lg);
 }
 
 .filter-section-title {
   display: flex;
   align-items: center;
-  font-size: 14px;
-  font-weight: 600;
-  color: #323233;
-  margin-bottom: 12px;
+  gap: var(--h5-space-2);
+  margin-bottom: var(--h5-space-3);
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-lg);
+  font-weight: var(--h5-font-weight-semibold);
 }
 
 .filter-section-title .van-icon {
-  color: #1989fa;
-  margin-right: 8px;
-  font-size: 16px;
+  color: var(--h5-color-primary);
+  font-size: 18px;
 }
 
 .filter-radio-item,
-.filter-checkbox-item {
-  padding: 10px 0;
-  border-bottom: 1px solid #f5f5f5;
-}
-
-.filter-radio-item :deep(.van-radio__label),
-.filter-checkbox-item :deep(.van-checkbox__label) {
-  font-size: 14px;
+.filter-checkbox-item,
+.filter-radio-item-large {
+  min-height: 48px;
+  padding: var(--h5-space-3) 0;
+  border-bottom: 1px solid var(--h5-color-divider);
 }
 
 .filter-radio-item:last-child,
-.filter-checkbox-item:last-child {
-  border-bottom: none;
+.filter-checkbox-item:last-child,
+.filter-radio-item-large:last-child {
+  border-bottom: 0;
+}
+
+.filter-radio-item :deep(.van-radio__label),
+.filter-checkbox-item :deep(.van-checkbox__label),
+.filter-radio-item-large :deep(.van-radio__label) {
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-md);
+  line-height: 22px;
 }
 
 .filter-panel-footer {
   display: flex;
-  gap: 12px;
-  padding: 16px;
-  background: #fff;
-  border-top: 1px solid #eee;
+  gap: var(--h5-space-3);
+  padding:
+    var(--h5-space-3)
+    max(var(--h5-space-4), var(--h5-safe-area-right))
+    calc(var(--h5-space-3) + var(--h5-safe-area-bottom))
+    max(var(--h5-space-4), var(--h5-safe-area-left));
+  background: var(--h5-color-surface);
+  border-top: 1px solid var(--h5-color-divider);
+  box-shadow: var(--h5-shadow-top-sm);
 }
 
-.filter-panel-footer .van-button {
+.filter-panel-footer :deep(.van-button) {
   flex: 1;
-  border-radius: 8px;
-  font-weight: 500;
+  min-height: 44px;
+  font-size: var(--h5-font-size-md);
+  font-weight: var(--h5-font-weight-semibold);
+  border-radius: var(--h5-radius-md);
 }
 
-/* 区域街道面板样式 */
 .area-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  /* gap: 8px; */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--h5-space-2);
 }
 
-.area-grid-item {
-  padding: 12px 8px;
+.area-grid-item,
+.street-list-item {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: var(--h5-space-2) var(--h5-space-3);
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-sm);
+  line-height: 20px;
   text-align: center;
-  border: 1px solid #ebedf0;
-  border-radius: 8px;
-  background: #fff;
+  background: var(--h5-color-surface-subtle);
+  border: 1px solid var(--h5-color-border);
+  border-radius: var(--h5-radius-md);
   cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 13px;
 }
 
-.area-grid-item:hover {
-  border-color: #1989fa;
-  background: #f0f8ff;
-}
-
-.area-grid-item.selected {
-  border-color: #1989fa;
-  background: #ecf5ff;
-  color: #1989fa;
-  font-weight: 500;
+.area-grid-item.selected,
+.street-list-item.selected {
+  color: var(--h5-color-primary);
+  font-weight: var(--h5-font-weight-semibold);
+  background: var(--h5-color-primary-soft);
+  border-color: var(--h5-color-primary-300);
+  box-shadow: var(--h5-shadow-focus);
 }
 
 .street-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--h5-space-2);
 }
 
 .street-list-item {
-  padding: 12px 16px;
-  border: 1px solid #ebedf0;
-  border-radius: 8px;
-  background: #fff;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 14px;
+  justify-content: flex-start;
+  min-height: 48px;
+  text-align: left;
 }
 
-.street-list-item:hover {
-  border-color: #1989fa;
-  background: #f0f8ff;
+.institution-tabbar {
+  border-top: 1px solid var(--h5-color-divider);
+  box-shadow: var(--h5-shadow-top-sm);
 }
 
-.street-list-item.selected {
-  border-color: #1989fa;
-  background: #ecf5ff;
-  color: #1989fa;
-  font-weight: 500;
+.institution-tabbar :deep(.van-tabbar-item) {
+  min-height: 48px;
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-medium);
 }
 
-.filter-radio-item-large {
-  padding: 16px 0;
-  font-size: 15px;
+.institution-tabbar :deep(.van-tabbar-item--active) {
+  color: var(--h5-color-primary);
+  background: var(--h5-color-surface);
 }
 
-/* 响应式调整 */
-@media (max-width: 375px) {
-  .filter-options-grid {
-    grid-template-columns: repeat(2, 1fr);
+.institution-tabbar :deep(.van-tabbar-item__icon) {
+  font-size: 23px;
+}
+
+:deep(.van-list__finished-text),
+:deep(.van-list__loading) {
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-sm);
+}
+
+:deep(.van-empty__description) {
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-md);
+}
+
+@media (max-width: 360px) {
+  .discovery-header,
+  .filter-bar,
+  .institution-list {
+    padding-right: var(--h5-space-3);
+    padding-left: var(--h5-space-3);
   }
 
-  .area-text {
-    font-size: 12px;
+  .verified-mark {
+    display: none;
   }
 
-  .street-text {
-    font-size: 12px;
+  .price-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .price-note {
+    display: none;
   }
 }
 </style>

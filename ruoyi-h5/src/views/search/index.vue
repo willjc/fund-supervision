@@ -1,106 +1,100 @@
 <template>
-  <div class="search-page">
-    <!-- 搜索头部 -->
-    <div class="search-header">
-      <van-icon name="arrow-left" class="back-icon" @click="goBack" />
+  <div class="search-page h5-page h5-page--constrained h5-page--safe-top">
+    <header class="search-header">
+      <button class="back-button" type="button" aria-label="返回" @click="goBack">
+        <van-icon name="arrow-left" />
+      </button>
       <van-search
         v-model="searchValue"
-        placeholder="搜索你想要的机构"
+        placeholder="搜索机构名称、地址"
         shape="round"
-        @search="onSearch"
         autofocus
+        clearable
+        @search="onSearch"
       />
-    </div>
+      <button class="search-submit" type="button" @click="onSearch">搜索</button>
+    </header>
 
-    <!-- 搜索历史 -->
-    <div class="search-history" v-if="searchHistory.length > 0 && !hasSearched">
-      <div class="history-header">
-        <span class="history-title">搜索历史</span>
-        <van-icon name="delete-o" class="delete-icon" @click="clearHistory" />
-      </div>
-      <div class="history-tags">
-        <van-tag
-          v-for="(item, index) in searchHistory"
-          :key="index"
-          plain
-          type="primary"
-          size="medium"
-          @click="searchByHistory(item)"
-        >
-          {{ item }}
-        </van-tag>
-      </div>
-    </div>
-
-    <!-- 热门搜索 -->
-    <div class="hot-search" v-if="!hasSearched">
-      <div class="hot-header">
-        <span class="hot-title">热门搜索</span>
-      </div>
-      <div class="hot-tags">
-        <van-tag
-          v-for="(item, index) in hotSearchList"
-          :key="index"
-          plain
-          :type="index < 3 ? 'danger' : 'default'"
-          size="medium"
-          @click="searchByHot(item)"
-        >
-          {{ item }}
-        </van-tag>
-      </div>
-    </div>
-
-    <!-- 搜索结果 -->
-    <div class="search-results" v-if="hasSearched">
-      <div class="result-count" v-if="searchResults.length > 0">
-        找到 {{ searchResults.length }} 个相关机构
-      </div>
-      <div class="no-result" v-else>
-        <van-empty description="未找到相关机构" />
-      </div>
-
-      <!-- 机构列表 -->
-      <div
-        class="listing-card"
-        v-for="item in searchResults"
-        :key="item.institutionId"
-        @click="goToDetail(item)"
-      >
-        <img
-          class="listing-image"
-          :src="item.coverImage || defaultImage"
-          mode="aspectFill"
-        />
-        <div class="listing-info">
-          <div class="listing-header">
-            <span class="listing-title">{{ item.institutionName }}</span>
-            <span class="listing-distance">附近</span>
+    <main class="search-content">
+      <section v-if="searchHistory.length > 0 && !hasSearched" class="search-block h5-card">
+        <div class="search-block__header">
+          <div>
+            <h2>搜索历史</h2>
+            <p>快速继续最近的查找</p>
           </div>
-          <div class="listing-status">
-            <span
-              class="status-text"
-              :class="{ available: item.bedCount > 0 }"
-            >
-              {{ item.bedCount > 0 ? '有床位' : '暂无床位' }}
-            </span>
-            <span class="status-divider">|</span>
-            <span class="status-count">共{{ item.bedCount }}床</span>
-          </div>
-          <span class="listing-address">{{ item.address }}</span>
-          <div class="listing-tags">
-            <span class="tag" v-for="(tag, tagIndex) in item.tags" :key="tagIndex">
-              {{ tag }}
-            </span>
-          </div>
-          <div class="listing-price">
-            <span class="price-number">{{ item.minPrice }}</span>
-            <span class="price-unit">元</span>
-            <span class="price-suffix">/月起</span>
-          </div>
+          <button class="clear-button" type="button" @click="clearHistory">
+            <van-icon name="delete-o" /> 清空
+          </button>
         </div>
-      </div>
-    </div>
+        <div class="chip-list">
+          <button
+            v-for="item in searchHistory"
+            :key="item"
+            class="search-chip"
+            type="button"
+            @click="searchByHistory(item)"
+          >
+            <van-icon name="clock-o" />
+            {{ item }}
+          </button>
+        </div>
+      </section>
+
+      <section v-if="!hasSearched" class="search-block h5-card">
+        <div class="search-block__header">
+          <div>
+            <h2>热门搜索</h2>
+            <p>大家都在关注的养老服务</p>
+          </div>
+          <span class="hot-mark"><van-icon name="fire-o" /> 热门</span>
+        </div>
+        <div class="chip-list">
+          <button
+            v-for="(item, index) in hotSearchList"
+            :key="item"
+            class="search-chip"
+            :class="{ 'search-chip--hot': index < 3 }"
+            type="button"
+            @click="searchByHot(item)"
+          >
+            <span class="chip-index">{{ index + 1 }}</span>
+            {{ item }}
+          </button>
+        </div>
+      </section>
+
+      <section v-if="hasSearched" class="search-results" aria-live="polite">
+        <div v-if="searchResults.length" class="result-header">
+          <div>
+            <h2>搜索结果</h2>
+            <p>“{{ searchValue }}”相关机构</p>
+          </div>
+          <span class="result-count">共 {{ searchResults.length }} 家</span>
+        </div>
+
+        <div v-if="searching" class="search-loading">
+          <van-loading size="22px">正在查找机构</van-loading>
+        </div>
+        <div v-else-if="searchResults.length" class="institution-stack">
+          <InstitutionCard
+            v-for="item in searchResults"
+            :key="item.institutionId"
+            :institution="item"
+            :navigate-on-click="false"
+            @select="goToDetail"
+          />
+        </div>
+        <div v-else class="no-result h5-card">
+          <van-empty
+            :image="institutionPlaceholder"
+            image-size="132"
+            description="暂未找到相关机构"
+          >
+            <p class="empty-tip">换个机构名称、区域或服务关键词试试</p>
+          </van-empty>
+        </div>
+      </section>
+    </main>
   </div>
 </template>
 
@@ -109,6 +103,9 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { getRecommendInstitutions } from '@/api/institution'
+import { getImageUrl } from '@/utils/image'
+import InstitutionCard from '@/components/InstitutionCard.vue'
+import institutionPlaceholder from '@/assets/images/institution-placeholder.svg'
 
 const router = useRouter()
 
@@ -120,6 +117,7 @@ const hasSearched = ref(false)
 
 // 搜索结果
 const searchResults = ref([])
+const searching = ref(false)
 
 // 搜索历史
 const searchHistory = ref(['养老院', '护理中心', '康养'])
@@ -133,8 +131,6 @@ const hotSearchList = ref([
   '老年公寓',
   '康复中心'
 ])
-
-const defaultImage = 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
 
 // 返回
 const goBack = () => {
@@ -152,6 +148,8 @@ const onSearch = async () => {
   addToHistory(searchValue.value)
 
   try {
+    searching.value = true
+    hasSearched.value = true
     const response = await getRecommendInstitutions()
 
     if (response.code === 200 && response.data) {
@@ -164,14 +162,14 @@ const onSearch = async () => {
           return name.includes(keyword) || address.includes(keyword)
         })
         .map(transformInstitutionData)
-
-      hasSearched.value = true
     } else {
       showToast(response.msg || '搜索失败')
     }
   } catch (error) {
     console.error('搜索失败:', error)
     showToast('搜索失败')
+  } finally {
+    searching.value = false
   }
 }
 
@@ -244,13 +242,20 @@ const transformInstitutionData = (institution) => {
     tags.push(getTypeText(institution.institutionType))
   }
 
+  const coverImages = institution.coverImage || institution.coverImages
+  const coverImage = Array.isArray(coverImages) ? coverImages[0] : coverImages
+
   return {
     institutionId: institution.institutionId,
     institutionName: institution.institutionName || '未命名机构',
     bedCount: institution.bedCount || 0,
+    totalBeds: institution.totalBeds || institution.bedCount || 0,
+    availableBeds: institution.availableBeds ?? institution.bedCount ?? 0,
+    institutionNature: institution.institutionNature,
+    ratingLevel: institution.ratingLevel,
     address: institution.actualAddress || institution.registeredAddress || '地址未填写',
-    coverImage: institution.coverImages,
-    minPrice: institution.priceRangeMin || 0,
+    coverImage: getImageUrl(coverImage) || institutionPlaceholder,
+    minPrice: institution.priceRanges?.total?.min || institution.priceRangeMin || 0,
     tags: tags.slice(0, 3) // 最多显示3个标签
   }
 }
@@ -278,247 +283,243 @@ const loadSearchHistory = () => {
 // 初始化
 loadSearchHistory()
 </script>
-
 <style scoped>
 .search-page {
-  min-height: 100vh;
-  background-color: #f5f6fc;
-  padding-bottom: 20px;
+  overflow-x: hidden;
 }
 
-/* 搜索头部 */
 .search-header {
-  display: flex;
-  align-items: center;
-  padding: 10px 12px;
-  background: #fff;
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: var(--h5-z-sticky);
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  gap: var(--h5-space-2);
+  padding: var(--h5-space-2) var(--h5-page-padding);
+  background: var(--h5-color-surface);
+  border-bottom: 1px solid var(--h5-color-divider);
+  box-shadow: var(--h5-shadow-xs);
 }
 
-.back-icon {
-  font-size: 20px;
-  margin-right: 10px;
-  cursor: pointer;
-  color: #333;
+.back-button,
+.search-submit,
+.clear-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--h5-color-text-secondary);
+  background: transparent;
+  border: 0;
+}
+
+.back-button {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  font-size: 22px;
+  border-radius: var(--h5-radius-md);
+}
+
+.back-button:active,
+.clear-button:active {
+  color: var(--h5-color-primary);
+  background: var(--h5-color-primary-soft);
 }
 
 .search-header :deep(.van-search) {
   flex: 1;
+  min-width: 0;
   padding: 0;
+  background: transparent;
 }
 
-/* 搜索历史 */
-.search-history {
-  background: #fff;
-  margin: 10px 12px;
-  padding: 15px;
-  border-radius: 8px;
+.search-header :deep(.van-search__content) {
+  min-height: 42px;
+  padding-left: var(--h5-space-3);
+  background: var(--h5-color-surface-subtle);
+  border: 1px solid var(--h5-color-border);
+  border-radius: var(--h5-radius-md);
 }
 
-.history-header {
+.search-header :deep(.van-field__control) {
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-md);
+}
+
+.search-submit {
+  flex: 0 0 auto;
+  min-width: 44px;
+  min-height: 40px;
+  color: var(--h5-color-primary);
+  font-size: var(--h5-font-size-md);
+  font-weight: var(--h5-font-weight-semibold);
+  border-radius: var(--h5-radius-sm);
+}
+
+.search-submit:active {
+  background: var(--h5-color-primary-soft);
+}
+
+.search-content {
+  padding: var(--h5-space-4) var(--h5-page-padding) var(--h5-space-8);
+}
+
+.search-block {
+  padding: var(--h5-space-4);
+}
+
+.search-block + .search-block {
+  margin-top: var(--h5-space-3);
+}
+
+.search-block__header,
+.result-header {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
+  gap: var(--h5-space-3);
+  margin-bottom: var(--h5-space-4);
 }
 
-.history-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
+.search-block__header h2,
+.result-header h2 {
+  color: var(--h5-color-text);
+  font-size: var(--h5-font-size-lg);
+  font-weight: var(--h5-font-weight-semibold);
+  line-height: var(--h5-line-height-tight);
 }
 
-.delete-icon {
-  font-size: 18px;
-  color: #999;
-  cursor: pointer;
+.search-block__header p,
+.result-header p {
+  margin-top: var(--h5-space-1);
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-sm);
 }
 
-.history-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.clear-button {
+  gap: var(--h5-space-1);
+  min-height: 36px;
+  padding: 0 var(--h5-space-2);
+  font-size: var(--h5-font-size-sm);
+  border-radius: var(--h5-radius-sm);
 }
 
-/* 热门搜索 */
-.hot-search {
-  background: #fff;
-  margin: 10px 12px;
-  padding: 15px;
-  border-radius: 8px;
-}
-
-.hot-header {
-  margin-bottom: 12px;
-}
-
-.hot-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
-}
-
-.hot-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-/* 搜索结果 */
-.search-results {
-  padding: 0 12px;
-}
-
+.hot-mark,
 .result-count {
-  padding: 10px 0;
-  font-size: 14px;
-  color: #666;
-  text-align: center;
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-height: 28px;
+  align-items: center;
+  gap: var(--h5-space-1);
+  padding: 2px var(--h5-space-2);
+  color: var(--h5-color-primary);
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-medium);
+  line-height: 24px;
+  background: var(--h5-color-primary-soft);
+  border-radius: var(--h5-radius-pill);
+}
+
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--h5-space-2);
+}
+
+.search-chip {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 6px;
+  padding: var(--h5-space-2) var(--h5-space-3);
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-sm);
+  font-weight: var(--h5-font-weight-medium);
+  line-height: 22px;
+  background: var(--h5-color-surface-subtle);
+  border: 1px solid var(--h5-color-border);
+  border-radius: var(--h5-radius-pill);
+}
+
+.search-chip .van-icon {
+  color: var(--h5-color-text-tertiary);
+  font-size: 15px;
+}
+
+.search-chip--hot {
+  color: var(--h5-color-primary);
+  background: var(--h5-color-primary-soft);
+  border-color: var(--h5-color-primary-100);
+}
+
+.search-chip:active {
+  color: var(--h5-color-primary);
+  background: var(--h5-color-primary-100);
+  border-color: var(--h5-color-primary-200);
+}
+
+.chip-index {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  color: var(--h5-color-text-inverse);
+  font-size: var(--h5-font-size-sm);
+  background: var(--h5-color-primary);
+  border-radius: 50%;
+}
+
+.search-results {
+  min-height: 280px;
+}
+
+.result-header {
+  align-items: center;
+}
+
+.institution-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--h5-space-3);
+}
+
+.search-loading {
+  display: flex;
+  min-height: 240px;
+  align-items: center;
+  justify-content: center;
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-sm);
 }
 
 .no-result {
-  padding: 40px 0;
+  padding: var(--h5-space-4);
+  box-shadow: none;
 }
 
-/* 机构卡片样式（复用首页样式） */
-.listing-card {
-  display: flex;
-  background-color: #fff;
-  padding: 8px;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  margin-bottom: 15px;
-  cursor: pointer;
+.empty-tip {
+  margin-top: var(--h5-space-2);
+  color: var(--h5-color-text-tertiary);
+  font-size: var(--h5-font-size-sm);
+  text-align: center;
 }
 
-.listing-image {
-  width: 96px;
-  height: 119px;
-  border-radius: 8px;
-  margin-right: 12px;
-  flex-shrink: 0;
-  object-fit: cover;
+:deep(.van-empty__description) {
+  color: var(--h5-color-text-secondary);
+  font-size: var(--h5-font-size-md);
 }
 
-.listing-info {
-  flex: 1;
-  padding: 4px;
-  display: flex;
-  flex-direction: column;
-}
+@media (max-width: 360px) {
+  .search-header,
+  .search-content {
+    padding-right: var(--h5-space-3);
+    padding-left: var(--h5-space-3);
+  }
 
-.listing-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 2px;
-}
-
-.listing-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: #1a1a1a;
-  line-height: 20px;
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.listing-distance {
-  font-size: 12px;
-  color: #999999;
-  line-height: 20px;
-  margin-left: 75px;
-}
-
-.listing-status {
-  display: flex;
-  align-items: center;
-  margin-bottom: 3px;
-}
-
-.status-text {
-  font-size: 12px;
-  color: #999;
-  font-family: 'PingFang SC', '苹方-简', sans-serif;
-}
-
-.status-text.available {
-  color: #207fff;
-  font-weight: 500;
-}
-
-.status-divider {
-  color: #cfcfcf;
-  font-size: 12px;
-  margin: 0 5px;
-}
-
-.status-count {
-  font-size: 12px;
-  color: #999999;
-  font-family: 'PingFang SC', '苹方-简', sans-serif;
-}
-
-.listing-address {
-  font-size: 12px;
-  color: #333333;
-  line-height: 20px;
-  margin-bottom: 3px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.listing-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-bottom: 6px;
-}
-
-.tag {
-  font-size: 10px;
-  color: #4c617d;
-  line-height: 16px;
-  background-color: #f5f5f5;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.listing-price {
-  display: flex;
-  align-items: baseline;
-  margin-top: auto;
-}
-
-.price-number {
-  font-size: 15px;
-  color: #e5252b;
-  font-weight: 700;
-  line-height: 20px;
-  font-family: 'HarmonyOSSansSC', sans-serif;
-}
-
-.price-unit {
-  font-size: 14px;
-  color: #e5252b;
-  font-weight: normal;
-  line-height: 20px;
-  font-family: 'PingFang SC', '苹方-简', sans-serif;
-  margin-left: 2px;
-}
-
-.price-suffix {
-  font-size: 14px;
-  color: #000000;
-  font-weight: normal;
-  line-height: 20px;
-  font-family: 'PingFang SC', '苹方-简', sans-serif;
-  margin-left: 2px;
+  .search-submit {
+    min-width: 40px;
+  }
 }
 </style>
