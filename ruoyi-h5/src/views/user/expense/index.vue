@@ -26,12 +26,12 @@
             <div class="overview-topline">
               <div>
                 <p v-if="institutionName" class="institution-name">{{ institutionName }}</p>
-                <span id="account-title" class="total-label">账户可用总余额</span>
+                <span id="account-title" class="total-label">账户资金总额</span>
               </div>
               <span class="account-shield"><van-icon name="shield-o" /> 资金受监管</span>
             </div>
             <strong class="total-amount"><small>¥</small>{{ formatAmount(accountBalance) }}</strong>
-            <p class="overview-note">余额以监管账户最新记录为准</p>
+            <p class="overview-note">包含服务费、押金和会员费，三类资金使用规则不同</p>
           </div>
 
           <div class="balance-grid" aria-label="账户分类余额">

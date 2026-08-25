@@ -416,10 +416,8 @@ const districtOptions = ref([
 const institutionTypeOptions = ref([
   { text: '全部', value: '' },
   { text: '养老院', value: 'nursing_home' },
-  { text: '养老服务中心', value: 'service_center' },
-  { text: '日间照料中心', value: 'day_care' },
-  { text: '养老公寓', value: 'senior_apartment' },
-  { text: '其他', value: 'other' }
+  { text: '护理中心', value: 'care_center' },
+  { text: '养老服务中心', value: 'service_center' }
 ])
 
 const careLevelOptions = ref([
@@ -450,6 +448,8 @@ const institutionList = ref([])
 const loading = ref(false)
 const finished = ref(false)
 const refreshing = ref(false)
+const requesting = ref(false)
+let institutionRequestSequence = 0
 
 // 获取筛选条件数量
 const getFilterCount = () => {
@@ -538,7 +538,7 @@ const confirmAreaFilterFromPanel = () => {
 const onFilterChange = () => {
   institutionList.value = []
   finished.value = false
-  loadInstitutions()
+  loadInstitutions({ force: true })
 }
 
 // 搜索
@@ -548,22 +548,40 @@ const onSearch = () => {
 }
 
 // 加载机构列表
-const loadInstitutions = async () => {
-  if (loading.value || finished.value) return
+const loadInstitutions = async ({ force = false } = {}) => {
+  if (!force && (requesting.value || finished.value)) {
+    if (!requesting.value) loading.value = false
+    return
+  }
 
+  const requestId = ++institutionRequestSequence
+  const filterSnapshot = {
+    institutionName: filterParams.value.institutionName,
+    areaCodes: [...filterParams.value.areaCodes],
+    streetNames: [...filterParams.value.streetNames],
+    institutionType: filterParams.value.institutionType,
+    careLevels: [...filterParams.value.careLevels],
+    ratingLevel: filterParams.value.ratingLevel,
+    priceRange: filterParams.value.priceRange,
+    sortType: sortType.value
+  }
+
+  requesting.value = true
   loading.value = true
   try {
     // 构建查询参数
     const params = {
       pageNum: 1,
       pageSize: 50,
-      institutionName: filterParams.value.institutionName || undefined,
-      areaCodes: filterParams.value.areaCodes.length > 0 ? filterParams.value.areaCodes : undefined,
-      streetNames: filterParams.value.streetNames.length > 0 ? filterParams.value.streetNames : undefined
+      institutionName: filterSnapshot.institutionName || undefined,
+      areaCodes: filterSnapshot.areaCodes.length > 0 ? filterSnapshot.areaCodes : undefined,
+      streetNames: filterSnapshot.streetNames.length > 0 ? filterSnapshot.streetNames : undefined
     }
 
     // 调用真实API
     const response = await getInstitutionList(params)
+
+    if (requestId !== institutionRequestSequence) return
 
     if (response.code === 200 && response.rows) {
       let processedList = response.rows.map(item => ({
@@ -593,26 +611,26 @@ const loadInstitutions = async () => {
       }))
 
       // 按机构类型筛选
-      if (filterParams.value.institutionType) {
+      if (filterSnapshot.institutionType) {
         processedList = processedList.filter(item => {
           // 兼容两种格式：数字值(1)和英文代码(nursing_home)
           const itemType = item.institutionType || item.institution_type || ''
-          return itemType === filterParams.value.institutionType
+          return itemType === filterSnapshot.institutionType
         })
       }
 
       // 按收住类型筛选（兼容 careLevels 和 acceptElderType 两种字段）
-      if (filterParams.value.careLevels.length > 0) {
+      if (filterSnapshot.careLevels.length > 0) {
         processedList = processedList.filter(item => {
           // 优先使用 careLevels 字段
           if (item.careLevels) {
             const itemLevels = (item.careLevels || '').split(',')
-            return filterParams.value.careLevels.some(level => itemLevels.includes(level))
+            return filterSnapshot.careLevels.some(level => itemLevels.includes(level))
           }
           // 如果 careLevels 为空，尝试使用 acceptElderType 字段
           if (item.acceptElderType) {
             const itemLevels = (item.acceptElderType || '').split(',')
-            return filterParams.value.careLevels.some(level => itemLevels.includes(level))
+            return filterSnapshot.careLevels.some(level => itemLevels.includes(level))
           }
           // 如果两者都为空，返回 false（不匹配）
           return false
@@ -620,13 +638,13 @@ const loadInstitutions = async () => {
       }
 
       // 按星级筛选
-      if (filterParams.value.ratingLevel) {
-        processedList = processedList.filter(item => item.ratingLevel >= filterParams.value.ratingLevel)
+      if (filterSnapshot.ratingLevel) {
+        processedList = processedList.filter(item => item.ratingLevel >= filterSnapshot.ratingLevel)
       }
 
       // 按价格区间筛选
-      if (filterParams.value.priceRange) {
-        const [min, max] = filterParams.value.priceRange.split('-').map(Number)
+      if (filterSnapshot.priceRange) {
+        const [min, max] = filterSnapshot.priceRange.split('-').map(Number)
         processedList = processedList.filter(item => {
           const price = item.priceRanges?.total?.min || item.priceRangeMin || 0
           return price >= min && price <= max
@@ -634,9 +652,9 @@ const loadInstitutions = async () => {
       }
 
       // 排序
-      if (sortType.value === 'priceAsc') {
+      if (filterSnapshot.sortType === 'priceAsc') {
         processedList.sort((a, b) => a.priceRangeMin - b.priceRangeMin)
-      } else if (sortType.value === 'priceDesc') {
+      } else if (filterSnapshot.sortType === 'priceDesc') {
         processedList.sort((a, b) => b.priceRangeMin - a.priceRangeMin)
       }
 
@@ -646,10 +664,16 @@ const loadInstitutions = async () => {
       throw new Error(response.msg || '数据加载失败')
     }
   } catch (error) {
+    if (requestId !== institutionRequestSequence) return
+
     console.error('加载失败:', error)
     showToast('加载失败: ' + (error.message || '网络错误'))
   } finally {
-    loading.value = false
+    if (requestId === institutionRequestSequence) {
+      requesting.value = false
+      loading.value = false
+      refreshing.value = false
+    }
   }
 }
 
@@ -658,9 +682,7 @@ const onRefresh = () => {
   finished.value = false
   refreshing.value = true
   institutionList.value = []
-  loadInstitutions().then(() => {
-    refreshing.value = false
-  })
+  loadInstitutions({ force: true })
 }
 
 // 上拉加载

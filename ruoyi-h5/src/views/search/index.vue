@@ -103,7 +103,7 @@
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
-import { getRecommendInstitutions } from '@/api/institution'
+import { getInstitutionList } from '@/api/institution'
 import { getImageUrl } from '@/utils/image'
 import InstitutionCard from '@/components/InstitutionCard.vue'
 import institutionPlaceholder from '@/assets/images/institution-placeholder.svg'
@@ -119,6 +119,7 @@ const hasSearched = ref(false)
 // 搜索结果
 const searchResults = ref([])
 const searching = ref(false)
+let searchRequestSequence = 0
 
 // 搜索历史
 const searchHistory = ref(['养老院', '护理中心', '康养'])
@@ -140,41 +141,55 @@ const goBack = () => {
 
 // 搜索
 const onSearch = async () => {
-  if (!searchValue.value.trim()) {
+  const keywordSnapshot = searchValue.value.trim()
+  if (!keywordSnapshot) {
     showToast('请输入搜索关键词')
     return
   }
 
   // 添加到搜索历史
-  addToHistory(searchValue.value)
+  addToHistory(keywordSnapshot)
+
+  const requestId = ++searchRequestSequence
+  searching.value = true
 
   try {
-    searching.value = true
-    const response = await getRecommendInstitutions()
+    const response = await getInstitutionList({
+      pageNum: 1,
+      pageSize: 10000
+    })
 
-    if (response.code === 200 && response.data) {
+    if (requestId !== searchRequestSequence) return
+
+    if (response.code === 200 && Array.isArray(response.rows)) {
       // 过滤匹配的机构
-      const keyword = searchValue.value.toLowerCase()
-      searchResults.value = response.data
+      const keyword = keywordSnapshot.toLowerCase()
+      searchResults.value = response.rows
         .filter(item => {
           const name = (item.institutionName || '').toLowerCase()
-          const address = (item.actualAddress || item.registeredAddress || '').toLowerCase()
-          return name.includes(keyword) || address.includes(keyword)
+          const addresses = [item.address, item.actualAddress, item.registeredAddress]
+            .filter(Boolean)
+            .map(address => String(address).toLowerCase())
+          return name.includes(keyword) || addresses.some(address => address.includes(keyword))
         })
         .map(transformInstitutionData)
       hasSearched.value = true
     } else {
-      hasSearched.value = false
+      hasSearched.value = true
       searchResults.value = []
       showToast(response.msg || '搜索失败')
     }
   } catch (error) {
-    hasSearched.value = false
+    if (requestId !== searchRequestSequence) return
+
+    hasSearched.value = true
     searchResults.value = []
     console.error('搜索失败:', error)
     showToast('搜索失败')
   } finally {
-    searching.value = false
+    if (requestId === searchRequestSequence) {
+      searching.value = false
+    }
   }
 }
 
@@ -258,7 +273,7 @@ const transformInstitutionData = (institution) => {
     availableBeds: institution.availableBeds ?? null,
     institutionNature: institution.institutionNature,
     ratingLevel: institution.ratingLevel,
-    address: institution.actualAddress || institution.registeredAddress || '地址未填写',
+    address: institution.address || institution.actualAddress || institution.registeredAddress || '地址未填写',
     coverImage: getImageUrl(coverImage) || institutionPlaceholder,
     minPrice: institution.priceRanges?.total?.min || institution.priceRangeMin || 0,
     tags: tags.slice(0, 3) // 最多显示3个标签
