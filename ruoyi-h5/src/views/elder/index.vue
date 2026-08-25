@@ -33,8 +33,12 @@
                   height="60"
                   round
                   fit="cover"
-                  @error="onAvatarError"
-                />
+                  alt=""
+                >
+                  <template #error>
+                    <img :src="defaultAvatar" alt="" class="image-fallback" />
+                  </template>
+                </van-image>
               </div>
               <div class="elder-info">
                 <div class="elder-name">{{ elder.elderName }}</div>
@@ -97,12 +101,6 @@ const pageSize = ref(10)
 
 // 默认头像
 const defaultAvatar = elderAvatarPlaceholder
-
-const onAvatarError = (event) => {
-  const image = event?.target
-  if (!image || image.getAttribute('src') === defaultAvatar) return
-  image.src = defaultAvatar
-}
 
 // 模拟老人数据
 const mockElders = [
@@ -279,6 +277,13 @@ const formatDate = (date) => {
 
 .elder-avatar {
   flex-shrink: 0;
+}
+
+.image-fallback {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .elder-info {

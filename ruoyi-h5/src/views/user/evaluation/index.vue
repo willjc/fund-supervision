@@ -28,8 +28,12 @@
                   :src="item.institutionImage"
                   fit="cover"
                   round
-                  @error="onInstitutionImageError"
-                />
+                  alt=""
+                >
+                  <template #error>
+                    <img :src="institutionPlaceholder" alt="" class="image-fallback" />
+                  </template>
+                </van-image>
                 <div class="institution-detail">
                   <div class="institution-name">{{ item.institutionName }}</div>
                   <div class="order-info">订单号: {{ item.orderNo }}</div>
@@ -75,8 +79,12 @@
                   fit="cover"
                   round
                   class="institution-avatar"
-                  @error="onInstitutionImageError"
-                />
+                  alt=""
+                >
+                  <template #error>
+                    <img :src="institutionPlaceholder" alt="" class="image-fallback" />
+                  </template>
+                </van-image>
                 <div class="header-info">
                   <div class="name-row">
                     <span class="institution-name">{{ item.institutionName }}</span>
@@ -112,6 +120,7 @@
                     height="72"
                     :src="img"
                     fit="cover"
+                    alt=""
                     @click="previewImages(item.images, index)"
                   />
                 </div>
@@ -162,12 +171,6 @@ const completedList = ref([])
 const pageNum = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
-
-const onInstitutionImageError = (event) => {
-  const image = event?.target
-  if (!image || image.getAttribute('src') === institutionPlaceholder) return
-  image.src = institutionPlaceholder
-}
 
 // Tab切换
 const onTabChange = (name) => {
@@ -360,6 +363,13 @@ onMounted(() => {
 :deep(.van-tab) {
   font-size: 15px;
   font-weight: 500;
+}
+
+.image-fallback {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 /* 评价列表 */

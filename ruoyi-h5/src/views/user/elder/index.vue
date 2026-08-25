@@ -20,8 +20,12 @@
                 :src="elder.avatar"
                 fit="cover"
                 round
-                @error="onAvatarError"
-              />
+                alt=""
+              >
+                <template #error>
+                  <img :src="elderAvatarPlaceholder" alt="" class="image-fallback" />
+                </template>
+              </van-image>
               <div class="elder-info">
                 <div class="elder-name">{{ elder.name }}</div>
                 <div class="elder-idcard">{{ elder.idCard }}</div>
@@ -137,12 +141,6 @@ const elderList = computed(() => {
   }))
 })
 
-const onAvatarError = (event) => {
-  const image = event?.target
-  if (!image || image.getAttribute('src') === elderAvatarPlaceholder) return
-  image.src = elderAvatarPlaceholder
-}
-
 // 根据关系类型码转换为文字（对应数据库定义：0:本人 1:子女 2:配偶 3:兄弟姐妹 4:其他亲属 5:朋友）
 const getRelationText = (relationType) => {
   const relationMap = {
@@ -235,6 +233,13 @@ const handleDelete = async (elder) => {
   display: flex;
   gap: 12px;
   flex: 1;
+}
+
+.image-fallback {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .elder-info {

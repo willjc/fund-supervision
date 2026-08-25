@@ -14,8 +14,12 @@
             :src="displayAvatar"
             fit="cover"
             class="avatar-image"
-            @error="onAvatarError"
-          />
+            alt="当前头像"
+          >
+            <template #error>
+              <img :src="defaultAvatar" alt="当前头像占位图" class="image-fallback" />
+            </template>
+          </van-image>
           <van-icon name="arrow" class="arrow-icon" />
         </div>
       </div>
@@ -128,12 +132,6 @@ const displayAvatar = computed(() => {
   if (!avatar) return defaultAvatar
   return getImageUrl(avatar) || defaultAvatar
 })
-
-const onAvatarError = (event) => {
-  const image = event?.target
-  if (!image || image.getAttribute('src') === defaultAvatar) return
-  image.src = defaultAvatar
-}
 
 // 性别文本
 const genderText = computed(() => {
@@ -286,6 +284,13 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.image-fallback {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .profile-page {
   min-height: 100vh;
   background-color: #f5f6fc;

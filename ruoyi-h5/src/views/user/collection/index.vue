@@ -20,8 +20,12 @@
                   :src="item.coverImage || defaultImage"
                   fit="cover"
                   round
-                  @error="onCoverError"
-                />
+                  alt=""
+                >
+                  <template #error>
+                    <img :src="defaultImage" alt="" class="image-fallback" />
+                  </template>
+                </van-image>
                 <div class="institution-info">
                   <div class="institution-name">{{ item.name }}</div>
                   <div class="institution-address">{{ item.address }}</div>
@@ -91,12 +95,6 @@ const pageNum = ref(1)
 const pageSize = ref(10)
 
 const defaultImage = institutionPlaceholder
-
-const onCoverError = (event) => {
-  const image = event?.target
-  if (!image || image.getAttribute('src') === defaultImage) return
-  image.src = defaultImage
-}
 
 // 格式化时间
 const formatTime = (time) => {
@@ -251,6 +249,13 @@ onMounted(() => {
   display: flex;
   gap: 12px;
   flex: 1;
+}
+
+.image-fallback {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .institution-info {
