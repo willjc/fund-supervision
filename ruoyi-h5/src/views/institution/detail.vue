@@ -281,7 +281,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showToast, showDialog, showImagePreview } from 'vant'
 import { getInstitutionDetail, favoriteInstitution, unfavoriteInstitution, checkFavorite } from '@/api/institution'
@@ -296,8 +296,6 @@ const router = useRouter()
 const loading = ref(false)
 const activeTab = ref('intro')
 const activeImageTab = ref('main') // 默认选中主图
-const selectedFacilityType = ref('room')
-
 // 图片类型标签
 const imageTabs = ref([
   { key: 'vr', name: 'VR' },
@@ -1251,8 +1249,6 @@ onMounted(() => {
 .action-bar {
   gap: var(--h5-space-1);
   max-width: var(--h5-page-max-width);
-  padding-right: var(--h5-space-3);
-  padding-left: var(--h5-space-3);
   margin: 0 auto;
 }
 
@@ -1372,9 +1368,7 @@ onMounted(() => {
   }
 
   .action-bar {
-    gap: var(--h5-space-1);
-    padding-right: var(--h5-space-3);
-    padding-left: var(--h5-space-3);
+    gap: 2px;
   }
 
   .action-bar :deep(.van-button) {

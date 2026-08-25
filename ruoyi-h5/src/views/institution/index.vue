@@ -1,5 +1,5 @@
 <template>
-  <div class="institution-page h5-page h5-page--constrained h5-page--tabbar">
+  <div class="institution-page h5-page h5-page--constrained">
     <header class="discovery-header">
       <div class="discovery-heading">
         <div>
@@ -25,40 +25,56 @@
     <div class="filter-bar">
       <div class="filter-tabs">
         <!-- 区域街道 -->
-        <div
+        <button
+          type="button"
           class="filter-tab"
           :class="{ 'has-badge': filterParams.areaCodes.length > 0 || filterParams.streetNames.length > 0 }"
+          :aria-expanded="showAreaPanel"
+          aria-controls="area-filter-panel"
+          :aria-label="`区域街道筛选，已选${filterParams.areaCodes.length + filterParams.streetNames.length}项`"
           @click="showAreaPanel = true"
         >
-          <van-icon name="location-o" />
+          <van-icon name="location-o" aria-hidden="true" />
           <span>区域街道</span>
           <span class="filter-badge" v-if="filterParams.areaCodes.length > 0 || filterParams.streetNames.length > 0">
             {{ filterParams.areaCodes.length + filterParams.streetNames.length }}
           </span>
-        </div>
+        </button>
 
-        <div class="filter-tab-divider"></div>
+        <span class="filter-tab-divider" aria-hidden="true"></span>
 
         <!-- 筛选 -->
-        <div
+        <button
+          type="button"
           class="filter-tab"
           :class="{ 'has-badge': getFilterCount() > 0 }"
+          :aria-expanded="showFilterPanel"
+          aria-controls="advanced-filter-panel"
+          :aria-label="`更多筛选，已选${getFilterCount()}项`"
           @click="showFilterPanel = true"
         >
-          <van-icon name="filter-o" />
+          <van-icon name="filter-o" aria-hidden="true" />
           <span>筛选</span>
           <span class="filter-badge" v-if="getFilterCount() > 0">
             {{ getFilterCount() }}
           </span>
-        </div>
+        </button>
 
-        <div class="filter-tab-divider"></div>
+        <span class="filter-tab-divider" aria-hidden="true"></span>
 
         <!-- 排序 -->
-        <div class="filter-tab" @click="showSortPanel = true">
-          <van-icon name="exchange" />
+        <button
+          type="button"
+          class="filter-tab"
+          :class="{ 'has-badge': sortType !== '' }"
+          :aria-expanded="showSortPanel"
+          aria-controls="sort-filter-panel"
+          :aria-label="`排序方式：${getSortShortText()}`"
+          @click="showSortPanel = true"
+        >
+          <van-icon name="exchange" aria-hidden="true" />
           <span>{{ getSortShortText() }}</span>
-        </div>
+        </button>
       </div>
     </div>
 
@@ -126,24 +142,27 @@
       position="right"
       :style="{ width: '85%', height: '100%' }"
     >
-      <div class="filter-panel">
+      <div id="advanced-filter-panel" class="filter-panel" role="dialog" aria-modal="true" aria-labelledby="advanced-filter-title">
         <div class="filter-panel-header">
-          <span class="filter-panel-title">筛选条件</span>
-          <van-icon name="cross" @click="showFilterPanel = false" />
+          <h2 id="advanced-filter-title" class="filter-panel-title">筛选条件</h2>
+          <button class="panel-close" type="button" aria-label="关闭筛选条件面板" @click="showFilterPanel = false">
+            <van-icon name="cross" aria-hidden="true" />
+          </button>
         </div>
 
         <div class="filter-panel-content">
           <!-- 机构性质 -->
           <div class="filter-section-panel">
-            <div class="filter-section-title">
+            <h3 id="institution-type-title" class="filter-section-title">
               <van-icon name="shop-o" />
               机构类型
-            </div>
-            <van-radio-group v-model="filterParams.institutionType">
+            </h3>
+            <van-radio-group v-model="filterParams.institutionType" aria-labelledby="institution-type-title">
               <van-radio
                 v-for="item in institutionTypeOptions"
                 :key="item.value"
                 :name="item.value"
+                :aria-label="`机构类型：${item.text}`"
                 class="filter-radio-item"
               >
                 {{ item.text }}
@@ -153,15 +172,16 @@
 
           <!-- 收住类型 -->
           <div class="filter-section-panel">
-            <div class="filter-section-title">
+            <h3 id="care-level-title" class="filter-section-title">
               <van-icon name="user-o" />
               收住类型
-            </div>
-            <van-checkbox-group v-model="filterParams.careLevels">
+            </h3>
+            <van-checkbox-group v-model="filterParams.careLevels" aria-labelledby="care-level-title">
               <van-checkbox
                 v-for="item in careLevelOptions"
                 :key="item.value"
                 :name="item.value"
+                :aria-label="`收住类型：${item.text}`"
                 class="filter-checkbox-item"
               >
                 {{ item.text }}
@@ -171,15 +191,16 @@
 
           <!-- 机构星级 -->
           <div class="filter-section-panel">
-            <div class="filter-section-title">
+            <h3 id="rating-level-title" class="filter-section-title">
               <van-icon name="star-o" />
               机构星级
-            </div>
-            <van-radio-group v-model="filterParams.ratingLevel">
+            </h3>
+            <van-radio-group v-model="filterParams.ratingLevel" aria-labelledby="rating-level-title">
               <van-radio
                 v-for="item in ratingOptions"
                 :key="item.value"
                 :name="item.value"
+                :aria-label="`机构星级：${item.text}`"
                 class="filter-radio-item"
               >
                 {{ item.text }}
@@ -189,15 +210,16 @@
 
           <!-- 价格区间 -->
           <div class="filter-section-panel">
-            <div class="filter-section-title">
+            <h3 id="price-range-title" class="filter-section-title">
               <van-icon name="gold-coin-o" />
               价格区间
-            </div>
-            <van-radio-group v-model="filterParams.priceRange">
+            </h3>
+            <van-radio-group v-model="filterParams.priceRange" aria-labelledby="price-range-title">
               <van-radio
                 v-for="item in priceRangeOptions"
                 :key="item.value"
                 :name="item.value"
+                :aria-label="`价格区间：${item.text}`"
                 class="filter-radio-item"
               >
                 {{ item.text }}
@@ -221,48 +243,54 @@
       position="right"
       :style="{ width: '85%', height: '100%' }"
     >
-      <div class="filter-panel">
+      <div id="area-filter-panel" class="filter-panel" role="dialog" aria-modal="true" aria-labelledby="area-filter-title">
         <div class="filter-panel-header">
-          <span class="filter-panel-title">区域街道</span>
-          <van-icon name="cross" @click="showAreaPanel = false" />
+          <h2 id="area-filter-title" class="filter-panel-title">区域街道</h2>
+          <button class="panel-close" type="button" aria-label="关闭区域街道面板" @click="showAreaPanel = false">
+            <van-icon name="cross" aria-hidden="true" />
+          </button>
         </div>
 
         <div class="filter-panel-content">
           <!-- 区域选择 -->
           <div class="filter-section-panel">
-            <div class="filter-section-title">
+            <h3 id="district-options-title" class="filter-section-title">
               <van-icon name="location-o" />
               所属区域（可多选）
-            </div>
-            <div class="area-grid">
-              <div
+            </h3>
+            <div class="area-grid" role="group" aria-labelledby="district-options-title">
+              <button
                 v-for="item in districtOptions"
                 :key="item.value"
+                type="button"
                 class="area-grid-item"
                 :class="{ 'selected': filterParams.areaCodes.includes(item.value) }"
+                :aria-pressed="filterParams.areaCodes.includes(item.value)"
                 @click="toggleArea(item.value)"
               >
                 {{ item.text }}
-              </div>
+              </button>
             </div>
           </div>
 
           <!-- 街道选择 -->
           <div class="filter-section-panel" v-if="filterParams.areaCodes.length > 0">
-            <div class="filter-section-title">
+            <h3 id="street-options-title" class="filter-section-title">
               <van-icon name="home-o" />
               所属街道（可多选）
-            </div>
-            <div class="street-list">
-              <div
+            </h3>
+            <div class="street-list" role="group" aria-labelledby="street-options-title">
+              <button
                 v-for="street in getAvailableStreets()"
                 :key="street"
+                type="button"
                 class="street-list-item"
                 :class="{ 'selected': filterParams.streetNames.includes(street) }"
+                :aria-pressed="filterParams.streetNames.includes(street)"
                 @click="toggleStreet(street)"
               >
                 {{ street }}
-              </div>
+              </button>
             </div>
           </div>
         </div>
@@ -282,18 +310,21 @@
       position="right"
       :style="{ width: '70%', height: '100%' }"
     >
-      <div class="filter-panel">
+      <div id="sort-filter-panel" class="filter-panel" role="dialog" aria-modal="true" aria-labelledby="sort-filter-title">
         <div class="filter-panel-header">
-          <span class="filter-panel-title">价格排序</span>
-          <van-icon name="cross" @click="showSortPanel = false" />
+          <h2 id="sort-filter-title" class="filter-panel-title">价格排序</h2>
+          <button class="panel-close" type="button" aria-label="关闭价格排序面板" @click="showSortPanel = false">
+            <van-icon name="cross" aria-hidden="true" />
+          </button>
         </div>
 
         <div class="filter-panel-content">
-          <van-radio-group v-model="sortType">
+          <van-radio-group v-model="sortType" aria-label="价格排序选项">
             <van-radio
               v-for="item in sortOptions"
               :key="item.value"
               :name="item.value"
+              :aria-label="item.text"
               class="filter-radio-item-large"
               @click="confirmSort"
             >
@@ -304,13 +335,6 @@
       </div>
     </van-popup>
 
-    <!-- 底部导航 -->
-    <van-tabbar v-model="activeTab" class="institution-tabbar" fixed safe-area-inset-bottom>
-      <van-tabbar-item icon="home-o" to="/index">首页</van-tabbar-item>
-      <van-tabbar-item icon="apps-o" to="/institution">机构</van-tabbar-item>
-      <van-tabbar-item icon="orders-o" to="/order">订单</van-tabbar-item>
-      <van-tabbar-item icon="user-o" to="/my">我的</van-tabbar-item>
-    </van-tabbar>
   </div>
 </template>
 
@@ -324,9 +348,6 @@ import InstitutionCard from '@/components/InstitutionCard.vue'
 import institutionPlaceholder from '@/assets/images/institution-placeholder.svg'
 
 const router = useRouter()
-
-// 底部导航
-const activeTab = ref(1)
 
 // 搜索值
 const searchValue = ref('')
@@ -348,16 +369,12 @@ const sortOptions = [
 const filterParams = ref({
   areaCodes: [],        // 区域代码多选
   streetNames: [],      // 街道名称多选
-  institutionNature: '',
   institutionType: '',  // 机构类型
   careLevels: [],
   ratingLevel: null,
   institutionName: '',
   priceRange: ''        // 价格区间
 })
-
-// 筛选面板引用
-// areaFilterRef 已移除，改为侧边面板
 
 // 区域街道数据映射
 const areaStreetMap = ref({
@@ -394,13 +411,6 @@ const districtOptions = ref([
   { text: '经济技术开发区', value: '410171' },
   { text: '高新技术产业开发区', value: '410172' },
   { text: '郑东新区', value: '410173' }
-])
-
-const natureOptions = ref([
-  { text: '全部', value: '' },
-  { text: '民办', value: '1' },
-  { text: '公办', value: '2' },
-  { text: '公建民营', value: '3' }
 ])
 
 const institutionTypeOptions = ref([
@@ -444,32 +454,11 @@ const refreshing = ref(false)
 // 获取筛选条件数量
 const getFilterCount = () => {
   let count = 0
-  if (filterParams.value.institutionNature) count++
   if (filterParams.value.institutionType) count++
   if (filterParams.value.careLevels.length > 0) count++
   if (filterParams.value.ratingLevel !== null) count++
   if (filterParams.value.priceRange) count++
   return count
-}
-
-// 获取机构性质文字
-const getNatureText = (nature) => {
-  const map = {
-    '1': '民办',
-    '2': '公办',
-    '3': '公建民营'
-  }
-  return map[nature] || ''
-}
-
-// 获取机构性质样式类
-const getNatureClass = (nature) => {
-  const map = {
-    '1': 'nature-private',
-    '2': 'nature-public',
-    '3': 'nature-ppp'
-  }
-  return map[nature] || 'nature-private'
 }
 
 // 区域街道筛选方法
@@ -512,7 +501,6 @@ const resetAreaFilter = () => {
 const resetFilter = () => {
   filterParams.value.areaCodes = []
   filterParams.value.streetNames = []
-  filterParams.value.institutionNature = ''
   filterParams.value.institutionType = ''
   filterParams.value.careLevels = []
   filterParams.value.ratingLevel = null
@@ -522,16 +510,6 @@ const resetFilter = () => {
 const confirmFilter = () => {
   showFilterPanel.value = false
   onFilterChange()
-}
-
-// 获取排序文字
-const getSortText = () => {
-  const map = {
-    '': '价格排序',
-    'priceAsc': '价格从低到高',
-    'priceDesc': '价格从高到低'
-  }
-  return map[sortType.value] || '价格排序'
 }
 
 // 获取排序简短文字
@@ -604,7 +582,7 @@ const loadInstitutions = async () => {
         address: item.address || '地址信息完善中',
         coverImage: getImageUrl(item.coverImage) || institutionPlaceholder,
         totalBeds: item.totalBeds || item.bedCount || 50,
-        availableBeds: item.availableBeds || 0,
+        availableBeds: item.availableBeds ?? null,
         priceRanges: item.priceRanges || {
           total: { min: 1500, max: 3500 },
           bed: { min: 500, max: 800 },
@@ -613,11 +591,6 @@ const loadInstitutions = async () => {
         },
         lifeFacilities: item.lifeFacilities || []
       }))
-
-      // 前端筛选：按机构性质筛选
-      if (filterParams.value.institutionNature) {
-        processedList = processedList.filter(item => item.institutionNature === filterParams.value.institutionNature)
-      }
 
       // 按机构类型筛选
       if (filterParams.value.institutionType) {
@@ -806,7 +779,7 @@ onMounted(() => {
 
 .filter-bar {
   position: sticky;
-  top: 0;
+  top: var(--h5-safe-area-top);
   z-index: var(--h5-z-sticky);
   padding: var(--h5-space-3) var(--h5-page-padding);
   background: rgba(244, 247, 251, 0.96);
@@ -836,8 +809,11 @@ onMounted(() => {
   gap: var(--h5-space-1);
   padding: var(--h5-space-2);
   color: var(--h5-color-text-secondary);
+  font: inherit;
   font-size: var(--h5-font-size-sm);
   font-weight: var(--h5-font-weight-medium);
+  background: transparent;
+  border: 0;
   border-radius: var(--h5-radius-sm);
   cursor: pointer;
 }
@@ -970,19 +946,24 @@ onMounted(() => {
   font-weight: var(--h5-font-weight-semibold);
 }
 
-.filter-panel-header .van-icon {
+.panel-close {
   display: inline-flex;
   width: 40px;
   height: 40px;
   align-items: center;
   justify-content: center;
   color: var(--h5-color-text-secondary);
-  font-size: 20px;
+  background: transparent;
+  border: 0;
   border-radius: var(--h5-radius-md);
   cursor: pointer;
 }
 
-.filter-panel-header .van-icon:active {
+.panel-close .van-icon {
+  font-size: 20px;
+}
+
+.panel-close:active {
   color: var(--h5-color-primary);
   background: var(--h5-color-primary-soft);
 }
@@ -1074,6 +1055,7 @@ onMounted(() => {
   justify-content: center;
   padding: var(--h5-space-2) var(--h5-space-3);
   color: var(--h5-color-text-secondary);
+  font: inherit;
   font-size: var(--h5-font-size-sm);
   line-height: 20px;
   text-align: center;
@@ -1081,6 +1063,14 @@ onMounted(() => {
   border: 1px solid var(--h5-color-border);
   border-radius: var(--h5-radius-md);
   cursor: pointer;
+}
+
+.filter-tab:focus-visible,
+.area-grid-item:focus-visible,
+.street-list-item:focus-visible,
+.panel-close:focus-visible {
+  outline: 2px solid var(--h5-color-primary);
+  outline-offset: 2px;
 }
 
 .area-grid-item.selected,
@@ -1102,27 +1092,6 @@ onMounted(() => {
   justify-content: flex-start;
   min-height: 48px;
   text-align: left;
-}
-
-.institution-tabbar {
-  border-top: 1px solid var(--h5-color-divider);
-  box-shadow: var(--h5-shadow-top-sm);
-}
-
-.institution-tabbar :deep(.van-tabbar-item) {
-  min-height: 48px;
-  color: var(--h5-color-text-secondary);
-  font-size: var(--h5-font-size-sm);
-  font-weight: var(--h5-font-weight-medium);
-}
-
-.institution-tabbar :deep(.van-tabbar-item--active) {
-  color: var(--h5-color-primary);
-  background: var(--h5-color-surface);
-}
-
-.institution-tabbar :deep(.van-tabbar-item__icon) {
-  font-size: 23px;
 }
 
 :deep(.van-list__finished-text),

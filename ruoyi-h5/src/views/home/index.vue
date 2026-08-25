@@ -261,7 +261,7 @@ const handleIconClick = (item) => {
 
 // 跳转搜索页
 const goToSearch = () => {
-  router.push('/institution')
+  router.push({ name: 'Search' })
 }
 
 // 跳转机构列表
@@ -300,7 +300,7 @@ const transformInstitutionData = (institution) => {
     institutionName: institution.institutionName || '未命名机构',
     bedCount: institution.bedCount || 0,
     totalBeds: institution.totalBeds || institution.bedCount || 0,
-    availableBeds: institution.availableBeds || 0,
+    availableBeds: institution.availableBeds ?? null,
     institutionNature: institution.institutionNature,
     ratingLevel: institution.ratingLevel,
     address: institution.address || '地址未填写',

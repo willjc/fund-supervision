@@ -18,9 +18,9 @@
       />
       <span
         class="institution-card__status"
-        :class="{ 'institution-card__status--available': hasAvailability }"
+        :class="`institution-card__status--${availabilityState}`"
       >
-        {{ hasAvailability ? '有床位' : '暂无床位' }}
+        {{ availabilityText }}
       </span>
     </div>
 
@@ -90,24 +90,38 @@ const institutionName = computed(() => (
   props.institution.institutionName || props.institution.name || '未命名机构'
 ))
 
-const hasAvailability = computed(() => {
+const availabilityState = computed(() => {
   const availableBeds = props.institution.availableBeds
-  if (availableBeds !== undefined && availableBeds !== null) {
-    return Number(availableBeds) > 0
+  if (availableBeds === undefined || availableBeds === null) return 'unknown'
+
+  const normalizedBeds = Number(availableBeds)
+  if (!Number.isFinite(normalizedBeds) || normalizedBeds < 0) return 'unknown'
+  return normalizedBeds > 0 ? 'available' : 'full'
+})
+
+const availabilityText = computed(() => {
+  const textMap = {
+    available: '有床位',
+    full: '暂无床位',
+    unknown: '床位待确认'
   }
-  return Number(props.institution.bedCount || props.institution.totalBeds || 0) > 0
+  return textMap[availabilityState.value]
 })
 
 const bedSummary = computed(() => {
-  const availableBeds = Number(props.institution.availableBeds || 0)
+  const availableBeds = Number(props.institution.availableBeds)
   const totalBeds = Number(
     props.institution.totalBeds || props.institution.bedCount || 0
   )
 
-  if (availableBeds > 0 && totalBeds > 0) {
+  if (availabilityState.value === 'unknown') {
+    return totalBeds > 0 ? `共${totalBeds}床 · 余量待确认` : '床位信息待确认'
+  }
+  if (availabilityState.value === 'available' && totalBeds > 0) {
     return `余${availableBeds}床 · 共${totalBeds}床`
   }
-  return totalBeds > 0 ? `共${totalBeds}床` : '床位信息完善中'
+  if (availabilityState.value === 'available') return `余${availableBeds}床`
+  return totalBeds > 0 ? `共${totalBeds}床 · 当前无空余` : '当前暂无空余床位'
 })
 
 const natureText = computed(() => {
@@ -224,6 +238,16 @@ const handleSelect = () => {
 .institution-card__status--available {
   color: var(--h5-color-success);
   background: rgba(234, 247, 241, 0.94);
+}
+
+.institution-card__status--full {
+  color: var(--h5-color-danger);
+  background: rgba(255, 240, 241, 0.94);
+}
+
+.institution-card__status--unknown {
+  color: var(--h5-color-pending);
+  background: rgba(255, 248, 232, 0.94);
 }
 
 .institution-card__body {

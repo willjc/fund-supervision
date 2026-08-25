@@ -1,5 +1,5 @@
 <template>
-  <div class="search-page h5-page h5-page--constrained h5-page--safe-top">
+  <div class="search-page h5-page h5-page--constrained">
     <header class="search-header">
       <button class="back-button" type="button" aria-label="返回" @click="goBack">
         <van-icon name="arrow-left" />
@@ -16,7 +16,11 @@
     </header>
 
     <main class="search-content">
-      <section v-if="searchHistory.length > 0 && !hasSearched" class="search-block h5-card">
+      <section v-if="searching" class="search-loading search-loading--standalone h5-card" aria-live="polite">
+        <van-loading size="22px">正在查找机构</van-loading>
+      </section>
+
+      <section v-if="!searching && searchHistory.length > 0 && !hasSearched" class="search-block h5-card">
         <div class="search-block__header">
           <div>
             <h2>搜索历史</h2>
@@ -40,7 +44,7 @@
         </div>
       </section>
 
-      <section v-if="!hasSearched" class="search-block h5-card">
+      <section v-if="!searching && !hasSearched" class="search-block h5-card">
         <div class="search-block__header">
           <div>
             <h2>热门搜索</h2>
@@ -63,7 +67,7 @@
         </div>
       </section>
 
-      <section v-if="hasSearched" class="search-results" aria-live="polite">
+      <section v-if="!searching && hasSearched" class="search-results" aria-live="polite">
         <div v-if="searchResults.length" class="result-header">
           <div>
             <h2>搜索结果</h2>
@@ -72,10 +76,7 @@
           <span class="result-count">共 {{ searchResults.length }} 家</span>
         </div>
 
-        <div v-if="searching" class="search-loading">
-          <van-loading size="22px">正在查找机构</van-loading>
-        </div>
-        <div v-else-if="searchResults.length" class="institution-stack">
+        <div v-if="searchResults.length" class="institution-stack">
           <InstitutionCard
             v-for="item in searchResults"
             :key="item.institutionId"
@@ -99,7 +100,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { getRecommendInstitutions } from '@/api/institution'
@@ -164,10 +165,12 @@ const onSearch = async () => {
       hasSearched.value = true
     } else {
       hasSearched.value = false
+      searchResults.value = []
       showToast(response.msg || '搜索失败')
     }
   } catch (error) {
     hasSearched.value = false
+    searchResults.value = []
     console.error('搜索失败:', error)
     showToast('搜索失败')
   } finally {
@@ -252,7 +255,7 @@ const transformInstitutionData = (institution) => {
     institutionName: institution.institutionName || '未命名机构',
     bedCount: institution.bedCount || 0,
     totalBeds: institution.totalBeds || institution.bedCount || 0,
-    availableBeds: institution.availableBeds ?? institution.bedCount ?? 0,
+    availableBeds: institution.availableBeds ?? null,
     institutionNature: institution.institutionNature,
     ratingLevel: institution.ratingLevel,
     address: institution.actualAddress || institution.registeredAddress || '地址未填写',
@@ -269,6 +272,12 @@ const goToDetail = (item) => {
     params: { id: item.institutionId }
   })
 }
+
+watch(searchValue, () => {
+  if (!hasSearched.value) return
+  hasSearched.value = false
+  searchResults.value = []
+})
 
 // 加载搜索历史
 const loadSearchHistory = () => {
@@ -295,10 +304,13 @@ loadSearchHistory()
   top: 0;
   z-index: var(--h5-z-sticky);
   display: flex;
-  min-height: 64px;
+  min-height: calc(64px + var(--h5-safe-area-top));
   align-items: center;
   gap: var(--h5-space-2);
-  padding: var(--h5-space-2) var(--h5-page-padding);
+  padding:
+    calc(var(--h5-space-2) + var(--h5-safe-area-top))
+    var(--h5-page-padding)
+    var(--h5-space-2);
   background: var(--h5-color-surface);
   border-bottom: 1px solid var(--h5-color-divider);
   box-shadow: var(--h5-shadow-xs);
@@ -494,6 +506,11 @@ loadSearchHistory()
   justify-content: center;
   color: var(--h5-color-text-tertiary);
   font-size: var(--h5-font-size-sm);
+}
+
+.search-loading--standalone {
+  margin: var(--h5-space-4) 0;
+  border: 1px solid var(--h5-color-divider);
 }
 
 .no-result {
