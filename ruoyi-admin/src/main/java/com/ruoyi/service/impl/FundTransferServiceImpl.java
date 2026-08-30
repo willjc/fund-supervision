@@ -578,28 +578,12 @@ public class FundTransferServiceImpl implements IFundTransferService
             int skippedCount = 0;
             Date paidTime = new Date();
 
-            // 按机构分组处理
-            Map<Long, List<FundTransfer>> groupByInstitution = new java.util.HashMap<>();
+            // 逐单条件更新，确保数据库更新结果与监管流水一一对应
             for (FundTransfer transfer : pendingTransfers) {
                 Long institutionId = transfer.getInstitutionId();
-                if (!groupByInstitution.containsKey(institutionId)) {
-                    groupByInstitution.put(institutionId, new java.util.ArrayList<>());
-                }
-                groupByInstitution.get(institutionId).add(transfer);
-            }
-
-            // 对每个机构的划拨单进行处理
-            for (Map.Entry<Long, List<FundTransfer>> entry : groupByInstitution.entrySet()) {
-                Long institutionId = entry.getKey();
-                List<FundTransfer> transfers = entry.getValue();
-                List<Long> transferIds = new java.util.ArrayList<>();
-
-                for (FundTransfer transfer : transfers) {
-                    transferIds.add(transfer.getTransferId());
-                }
-
+                List<Long> transferIds = java.util.Collections.singletonList(transfer.getTransferId());
                 try {
-                    // 批量更新为已划付状态
+                    // 只有仍处于待划付状态的记录才会更新成功
                     int updated = fundTransferMapper.batchUpdatePaidStatus(
                         transferIds,
                         paidTime,
@@ -607,36 +591,29 @@ public class FundTransferServiceImpl implements IFundTransferService
                         null
                     );
 
-                    successCount += updated;
-                    int skipped = transferIds.size() - updated;
-                    skippedCount += skipped;
+                    if (updated == 1) {
+                        successCount++;
+                        log.info("机构ID={} 成功划拨 1 单", institutionId);
 
-                    if (skipped > 0) {
-                        log.warn("机构ID={} 有 {} 单未更新，记录可能已被其他任务处理或状态已变化",
-                            institutionId, skipped);
-                    }
-
-                    if (updated > 0) {
-                        log.info("机构ID={} 成功划拨 {} 单", institutionId, updated);
-
-                        // 为每个划拨单生成监管账户流水
-                        for (FundTransfer transfer : transfers) {
-                            try {
-                                supervisionAccountLogService.recordTransferOut(
-                                    institutionId,
-                                    transfer.getTransferId(),
-                                    transfer.getTransferAmount(),
-                                    "自动划拨-" + billingMonth + "账单-" + transfer.getTransferNo(),
-                                    "基本账户"
-                                );
-                                log.info("生成划拨流水成功：划拨单号={}, 金额={}", transfer.getTransferNo(), transfer.getTransferAmount());
-                            } catch (Exception ex) {
-                                log.error("生成划拨流水失败：划拨单号={}, 错误={}", transfer.getTransferNo(), ex.getMessage());
-                            }
+                        try {
+                            supervisionAccountLogService.recordTransferOut(
+                                institutionId,
+                                transfer.getTransferId(),
+                                transfer.getTransferAmount(),
+                                "自动划拨-" + billingMonth + "账单-" + transfer.getTransferNo(),
+                                "基本账户"
+                            );
+                            log.info("生成划拨流水成功：划拨单号={}, 金额={}", transfer.getTransferNo(), transfer.getTransferAmount());
+                        } catch (Exception ex) {
+                            log.error("生成划拨流水失败：划拨单号={}, 错误={}", transfer.getTransferNo(), ex.getMessage());
                         }
+                    } else {
+                        skippedCount++;
+                        log.warn("划拨单未更新，记录可能已被其他任务处理或状态已变化：划拨单号={}",
+                            transfer.getTransferNo());
                     }
                 } catch (Exception e) {
-                    log.error("机构ID={} 划拨失败: {}", institutionId, e.getMessage());
+                    log.error("划拨单执行失败：划拨单号={}, 错误={}", transfer.getTransferNo(), e.getMessage());
 
                     // 记录失败状态
                     try {
@@ -646,16 +623,17 @@ public class FundTransferServiceImpl implements IFundTransferService
                             "2", // 失败
                             "系统异常: " + e.getMessage()
                         );
-                        failCount += failed;
-                        int skipped = transferIds.size() - failed;
-                        skippedCount += skipped;
-                        if (skipped > 0) {
-                            log.warn("机构ID={} 有 {} 单未能记录失败状态，记录可能已被其他任务处理或状态已变化",
-                                institutionId, skipped);
+                        if (failed == 1) {
+                            failCount++;
+                        } else {
+                            skippedCount++;
+                            log.warn("划拨单未能记录失败状态，记录可能已被其他任务处理或状态已变化：划拨单号={}",
+                                transfer.getTransferNo());
                         }
                     } catch (Exception ex) {
-                        skippedCount += transferIds.size();
-                        log.error("记录失败状态时发生异常: {}", ex.getMessage());
+                        skippedCount++;
+                        log.error("记录划拨失败状态时发生异常：划拨单号={}, 错误={}",
+                            transfer.getTransferNo(), ex.getMessage());
                     }
                 }
             }
