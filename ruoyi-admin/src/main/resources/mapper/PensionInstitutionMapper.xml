@@ -90,6 +90,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                     select institution_id from sys_user_institution where user_id = #{currentUserId}
                 )
             </if>
+            <if test="institutionId != null"> and institution_id = #{institutionId}</if>
             <if test="institutionName != null and institutionName != ''"> and institution_name like concat('%', #{institutionName}, '%')</if>
             <if test="creditCode != null and creditCode != ''"> and credit_code = #{creditCode}</if>
             <if test="contactPerson != null and contactPerson != ''"> and contact_person like concat('%', #{contactPerson}, '%')</if>

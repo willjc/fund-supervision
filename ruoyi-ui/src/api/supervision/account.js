@@ -95,6 +95,26 @@ export function transferSupervisionFunds(data) {
   })
 }
 
+export function listBankMerchant(query) {
+  return request({ url: '/supervision/account/bank-merchant/list', method: 'get', params: query })
+}
+
+export function getBankMerchant(configId) {
+  return request({ url: '/supervision/account/bank-merchant/' + configId, method: 'get' })
+}
+
+export function addBankMerchant(data) {
+  return request({ url: '/supervision/account/bank-merchant', method: 'post', data })
+}
+
+export function updateBankMerchant(data) {
+  return request({ url: '/supervision/account/bank-merchant', method: 'put', data })
+}
+
+export function delBankMerchant(configId) {
+  return request({ url: '/supervision/account/bank-merchant/' + configId, method: 'delete' })
+}
+
 // 查询订单管理列表
 export function listOrder(query) {
   return request({
