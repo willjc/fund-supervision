@@ -569,12 +569,13 @@ public class FundTransferServiceImpl implements IFundTransferService
                 result.put("totalCount", 0);
                 result.put("successCount", 0);
                 result.put("failCount", 0);
+                result.put("skippedCount", 0);
                 return result;
             }
 
-            // 收集需要划拨的ID
-            List<Long> successIds = new java.util.ArrayList<>();
-            List<Long> failIds = new java.util.ArrayList<>();
+            int successCount = 0;
+            int failCount = 0;
+            int skippedCount = 0;
             Date paidTime = new Date();
 
             // 按机构分组处理
@@ -606,8 +607,16 @@ public class FundTransferServiceImpl implements IFundTransferService
                         null
                     );
 
+                    successCount += updated;
+                    int skipped = transferIds.size() - updated;
+                    skippedCount += skipped;
+
+                    if (skipped > 0) {
+                        log.warn("机构ID={} 有 {} 单未更新，记录可能已被其他任务处理或状态已变化",
+                            institutionId, skipped);
+                    }
+
                     if (updated > 0) {
-                        successIds.addAll(transferIds);
                         log.info("机构ID={} 成功划拨 {} 单", institutionId, updated);
 
                         // 为每个划拨单生成监管账户流水
@@ -628,17 +637,24 @@ public class FundTransferServiceImpl implements IFundTransferService
                     }
                 } catch (Exception e) {
                     log.error("机构ID={} 划拨失败: {}", institutionId, e.getMessage());
-                    failIds.addAll(transferIds);
 
                     // 记录失败状态
                     try {
-                        fundTransferMapper.batchUpdatePaidStatus(
+                        int failed = fundTransferMapper.batchUpdatePaidStatus(
                             transferIds,
                             paidTime,
                             "2", // 失败
                             "系统异常: " + e.getMessage()
                         );
+                        failCount += failed;
+                        int skipped = transferIds.size() - failed;
+                        skippedCount += skipped;
+                        if (skipped > 0) {
+                            log.warn("机构ID={} 有 {} 单未能记录失败状态，记录可能已被其他任务处理或状态已变化",
+                                institutionId, skipped);
+                        }
                     } catch (Exception ex) {
+                        skippedCount += transferIds.size();
                         log.error("记录失败状态时发生异常: {}", ex.getMessage());
                     }
                 }
@@ -647,11 +663,12 @@ public class FundTransferServiceImpl implements IFundTransferService
             result.put("success", true);
             result.put("message", "划拨处理完成");
             result.put("totalCount", pendingTransfers.size());
-            result.put("successCount", successIds.size());
-            result.put("failCount", failIds.size());
+            result.put("successCount", successCount);
+            result.put("failCount", failCount);
+            result.put("skippedCount", skippedCount);
 
-            log.info("按月划拨执行完成：总单数={}, 成功={}, 失败={}",
-                pendingTransfers.size(), successIds.size(), failIds.size());
+            log.info("按月划拨执行完成：总单数={}, 成功={}, 失败={}, 未更新={}",
+                pendingTransfers.size(), successCount, failCount, skippedCount);
 
         } catch (Exception e) {
             log.error("按月划拨执行异常", e);

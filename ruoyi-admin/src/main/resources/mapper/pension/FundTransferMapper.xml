@@ -284,31 +284,31 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         ORDER BY ft.institution_id, ft.elder_id
     </select>
 
-    <!-- 批量更新划拨单为已划付状态 -->
+    <!-- 批量更新划拨执行结果 -->
     <update id="batchUpdatePaidStatus">
         UPDATE fund_transfer
-        SET is_paid = '1',
-            paid_time = #{paidTime},
-            transfer_status = #{transferStatus},
+        SET transfer_status = #{transferStatus},
             <if test="transferStatus == '1'">
+                is_paid = '1',
+                paid_time = #{paidTime},
                 status = 'completed',
+                failure_reason = NULL,
             </if>
             <if test="transferStatus == '2'">
+                is_paid = '0',
+                paid_time = NULL,
                 status = 'failed',
+                failure_reason = #{failureReason},
             </if>
             execute_user = 'system',
             execute_time = #{paidTime},
-            <if test="transferStatus == '2'">
-                failure_reason = #{failureReason},
-            </if>
-            <if test="transferStatus == '1'">
-                failure_reason = NULL,
-            </if>
             update_time = #{paidTime}
         WHERE transfer_id IN
         <foreach item="transferId" collection="transferIds" open="(" separator="," close=")">
             #{transferId}
         </foreach>
+          AND transfer_status = '0'
+          AND status = 'pending'
           AND (is_paid = '0' OR is_paid IS NULL)
     </update>
 

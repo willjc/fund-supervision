@@ -96,9 +96,11 @@ public class FundTransferTask
                 Integer totalCount = (Integer) result.get("totalCount");
                 Integer successCount = (Integer) result.get("successCount");
                 Integer failCount = (Integer) result.get("failCount");
+                Integer skippedCount = (Integer) result.get("skippedCount");
 
                 log.info("资金自动划拨任务执行成功: {}", result.get("message"));
-                log.info("划拨统计: 总单数={}, 成功={}, 失败={}", totalCount, successCount, failCount);
+                log.info("划拨统计: 总单数={}, 成功={}, 失败={}, 未更新={}",
+                    totalCount, successCount, failCount, skippedCount);
             } else {
                 log.error("资金自动划拨任务执行失败: {}", result.get("message"));
             }
