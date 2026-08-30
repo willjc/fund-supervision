@@ -669,6 +669,9 @@ public class FundTransferServiceImpl implements IFundTransferService
     @Override
     public int batchUpdatePaidStatus(List<Long> transferIds, Date paidTime, String transferStatus, String failureReason)
     {
+        if (!"1".equals(transferStatus) && !"2".equals(transferStatus)) {
+            throw new IllegalArgumentException("划拨状态仅支持1（成功）或2（失败）");
+        }
         return fundTransferMapper.batchUpdatePaidStatus(transferIds, paidTime, transferStatus, failureReason);
     }
 }

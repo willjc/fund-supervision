@@ -287,19 +287,26 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <!-- 批量更新划拨执行结果 -->
     <update id="batchUpdatePaidStatus">
         UPDATE fund_transfer
-        SET transfer_status = #{transferStatus},
-            <if test="transferStatus == '1'">
+        SET
+            <choose>
+            <when test='transferStatus == "1"'>
+                transfer_status = '1',
                 is_paid = '1',
                 paid_time = #{paidTime},
                 status = 'completed',
                 failure_reason = NULL,
-            </if>
-            <if test="transferStatus == '2'">
+            </when>
+            <when test='transferStatus == "2"'>
+                transfer_status = '2',
                 is_paid = '0',
                 paid_time = NULL,
                 status = 'failed',
                 failure_reason = #{failureReason},
-            </if>
+            </when>
+            <otherwise>
+                transfer_id = transfer_id,
+            </otherwise>
+            </choose>
             execute_user = 'system',
             execute_time = #{paidTime},
             update_time = #{paidTime}
@@ -310,6 +317,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
           AND transfer_status = '0'
           AND status = 'pending'
           AND (is_paid = '0' OR is_paid IS NULL)
+          AND #{transferStatus} IN ('1', '2')
     </update>
 
 </mapper>
