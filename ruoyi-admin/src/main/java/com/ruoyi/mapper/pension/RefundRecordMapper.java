@@ -2,6 +2,7 @@ package com.ruoyi.mapper.pension;
 
 import java.util.List;
 import com.ruoyi.domain.pension.RefundRecord;
+import org.apache.ibatis.annotations.Param;
 
 /**
  * 退款记录Mapper接口
@@ -18,6 +19,15 @@ public interface RefundRecordMapper
      * @return 退款记录
      */
     public RefundRecord selectRefundRecordByRefundId(Long refundId);
+
+    /**
+     * 加锁查询退款记录，用于审批事务防止重复处理
+     *
+     * @param refundId 退款记录主键
+     * @return 退款记录
+     */
+    public RefundRecord selectRefundRecordForUpdate(@Param("refundId") Long refundId,
+                                                    @Param("currentUserId") Long currentUserId);
 
     /**
      * 查询退款记录列表

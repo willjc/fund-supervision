@@ -19,7 +19,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="approver"     column="approver"     />
         <result property="approveTime"  column="approve_time"  />
         <result property="approveRemark" column="approve_remark" />
+        <result property="createBy"      column="create_by"      />
         <result property="createTime"   column="create_time"   />
+        <result property="updateBy"      column="update_by"      />
         <result property="updateTime"   column="update_time"   />
         <result property="serviceRefundAmount" column="service_refund_amount" />
         <result property="depositRefundAmount" column="deposit_refund_amount" />
@@ -40,7 +42,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <sql id="selectRefundRecordWithRelations">
         select rr.refund_id, rr.refund_no, rr.order_id, rr.payment_id, rr.elder_id, rr.institution_id,
                rr.refund_amount, rr.refund_reason, rr.refund_status, rr.refund_method, rr.refund_time,
-               rr.approver, rr.approve_time, rr.approve_remark, rr.create_time, rr.update_time,
+               rr.approver, rr.approve_time, rr.approve_remark,
+               rr.create_by, rr.create_time, rr.update_by, rr.update_time,
                rr.service_refund_amount, rr.deposit_refund_amount, rr.member_refund_amount,
                rr.refund_desc, rr.evidence_images,
                ei.elder_name, pi.institution_name, oi.order_no, pr.payment_no
@@ -60,6 +63,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                     SELECT institution_id FROM sys_user_institution WHERE user_id = #{currentUserId}
                 )
             </if>
+            <if test="createBy != null and createBy != ''"> and rr.create_by = #{createBy}</if>
+            <if test="refundId != null"> and rr.refund_id = #{refundId}</if>
             <if test="refundNo != null  and refundNo != ''"> and rr.refund_no like concat('%', #{refundNo}, '%')</if>
             <if test="orderId != null "> and rr.order_id = #{orderId}</if>
             <if test="elderId != null "> and rr.elder_id = #{elderId}</if>
@@ -74,6 +79,22 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <select id="selectRefundRecordByRefundId" parameterType="Long" resultMap="RefundRecordResult">
         <include refid="selectRefundRecordWithRelations"/>
         where rr.refund_id = #{refundId}
+    </select>
+
+    <select id="selectRefundRecordForUpdate" parameterType="Long" resultMap="RefundRecordResult">
+        select refund_id, refund_no, order_id, payment_id, elder_id, institution_id,
+               refund_amount, refund_reason, refund_status, refund_method, refund_time,
+               approver, approve_time, approve_remark, create_by, create_time, update_by, update_time,
+               service_refund_amount, deposit_refund_amount, member_refund_amount,
+               refund_desc, evidence_images
+        from refund_record
+        where refund_id = #{refundId}
+        <if test="currentUserId != null">
+            and institution_id in (
+                select institution_id from sys_user_institution where user_id = #{currentUserId}
+            )
+        </if>
+        for update
     </select>
 
     <select id="selectRefundRecordByOrderId" parameterType="Long" resultMap="RefundRecordResult">

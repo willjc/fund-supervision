@@ -44,6 +44,21 @@ public interface IRefundRecordService
     public int updateRefundRecord(RefundRecord refundRecord);
 
     /**
+     * 审批通过退款，并在同一事务中扣减账户余额、记录费用和监管流水
+     *
+     * @param refundId 退款记录主键
+     * @param approver 审批人
+     * @param currentUserId 非管理员的数据权限用户ID，管理员传null
+     * @return 更新结果
+     */
+    public int approveRefund(Long refundId, String approver, Long currentUserId);
+
+    /**
+     * 审批拒绝退款，在加锁后校验状态和机构数据权限
+     */
+    public int rejectRefund(Long refundId, String approver, String approveRemark, Long currentUserId);
+
+    /**
      * 批量删除退款记录
      *
      * @param refundIds 需要删除的退款记录主键集合

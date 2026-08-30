@@ -27,7 +27,12 @@ import com.ruoyi.common.config.RuoYiConfig;
 import com.ruoyi.common.utils.file.FileUploadUtils;
 import com.ruoyi.common.utils.file.MimeTypeUtils;
 import com.ruoyi.domain.pension.RefundRecord;
+import com.ruoyi.domain.pension.AccountInfo;
+import com.ruoyi.domain.ElderFamily;
+import com.ruoyi.service.IElderFamilyService;
+import com.ruoyi.service.pension.IAccountInfoService;
 import com.ruoyi.service.pension.IRefundRecordService;
+import com.ruoyi.common.utils.uuid.IdUtils;
 import com.ruoyi.framework.config.ServerConfig;
 
 /**
@@ -41,6 +46,12 @@ public class H5RefundController extends BaseController
 {
     @Autowired
     private IRefundRecordService refundRecordService;
+
+    @Autowired
+    private IElderFamilyService elderFamilyService;
+
+    @Autowired
+    private IAccountInfoService accountInfoService;
 
     @Autowired
     private ServerConfig serverConfig;
@@ -115,6 +126,35 @@ public class H5RefundController extends BaseController
             return AjaxResult.error("请选择退款原因");
         }
 
+        ElderFamily familyQuery = new ElderFamily();
+        familyQuery.setUserId(userId);
+        familyQuery.setElderId(elderId);
+        if (elderFamilyService.selectElderFamilyList(familyQuery).isEmpty())
+        {
+            return AjaxResult.error("无权为该老人申请退款");
+        }
+
+        AccountInfo accountQuery = new AccountInfo();
+        accountQuery.setElderId(elderId);
+        accountQuery.setInstitutionId(institutionId);
+        List<AccountInfo> accounts = accountInfoService.selectAccountInfoList(accountQuery);
+        if (accounts == null || accounts.isEmpty())
+        {
+            return AjaxResult.error("老人和养老机构不匹配，未找到对应账户");
+        }
+        AccountInfo account = accounts.get(0);
+        if (!"1".equals(account.getAccountStatus()))
+        {
+            return AjaxResult.error("老人账户不是正常状态");
+        }
+        if (balance(account.getServiceBalance()).compareTo(serviceRefundAmount) < 0
+                || balance(account.getDepositBalance()).compareTo(depositRefundAmount) < 0
+                || balance(account.getMemberBalance()).compareTo(memberRefundAmount) < 0
+                || balance(account.getTotalBalance()).compareTo(totalRefundAmount) < 0)
+        {
+            return AjaxResult.error("退款金额超过账户可用余额");
+        }
+
         // 创建退款申请
         RefundRecord refundRecord = new RefundRecord();
         refundRecord.setElderId(elderId);
@@ -138,7 +178,8 @@ public class H5RefundController extends BaseController
         }
 
         // 生成退款单号
-        String refundNo = "REF" + new SimpleDateFormat("yyyyMMddHHmmss").format(new Date()) + userId;
+        String refundNo = "REF" + new SimpleDateFormat("yyyyMMddHHmmss").format(new Date())
+                + IdUtils.fastSimpleUUID().substring(0, 8).toUpperCase();
         refundRecord.setRefundNo(refundNo);
 
         int result = refundRecordService.insertRefundRecord(refundRecord);
@@ -328,5 +369,10 @@ public class H5RefundController extends BaseController
         }
 
         return result;
+    }
+
+    private BigDecimal balance(BigDecimal amount)
+    {
+        return amount == null ? BigDecimal.ZERO : amount;
     }
 }

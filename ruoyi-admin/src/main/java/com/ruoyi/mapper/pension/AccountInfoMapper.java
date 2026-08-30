@@ -37,6 +37,12 @@ public interface AccountInfoMapper
     public AccountInfo selectAccountInfoByElderId(Long elderId);
 
     /**
+     * 按老人和机构加锁查询账户，用于资金变更事务
+     */
+    public AccountInfo selectAccountInfoForUpdate(@Param("elderId") Long elderId,
+                                                  @Param("institutionId") Long institutionId);
+
+    /**
      * 根据机构ID查询账户列表
      *
      * @param institutionId 机构ID

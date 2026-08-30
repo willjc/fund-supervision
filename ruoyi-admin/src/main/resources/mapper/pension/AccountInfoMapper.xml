@@ -60,6 +60,16 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where a.elder_id = #{elderId}
     </select>
 
+    <select id="selectAccountInfoForUpdate" resultMap="AccountInfoResult">
+        select account_id, elder_id, institution_id, account_no, account_name, account_status,
+               total_balance, service_balance, deposit_balance, member_balance,
+               create_by, create_time, update_by, update_time, remark
+        from account_info
+        where elder_id = #{elderId} and institution_id = #{institutionId}
+        limit 1
+        for update
+    </select>
+
     <select id="selectAccountInfoByInstitutionId" parameterType="Long" resultMap="AccountInfoResult">
         <include refid="selectAccountInfoVo"/>
         where a.institution_id = #{institutionId}
