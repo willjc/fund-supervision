@@ -51,6 +51,8 @@ import com.ruoyi.domain.RenewDTO;
 import com.ruoyi.domain.BedAllocation;
 import com.ruoyi.domain.vo.ElderCurrentPriceVO;
 import com.ruoyi.domain.pension.FundTransfer;
+import com.ruoyi.bank.gateway.BankResult;
+import com.ruoyi.service.bank.IBankPaymentService;
 
 /**
  * H5订单Controller
@@ -111,6 +113,9 @@ public class H5OrderController extends BaseController
 
     @Autowired
     private IResidentService residentService;
+
+    @Autowired
+    private IBankPaymentService bankPaymentService;
 
     /**
      * 获取订单列表
@@ -977,16 +982,15 @@ public class H5OrderController extends BaseController
                 return error("订单已支付");
             }
             if ("2".equals(order.getOrderStatus())) {
-                return error("���单已取消");
+                return error("订单已取消");
             }
             // 允许状态为 '0'（续费订单待支付）或 '5'（入驻订单审核通过待付款）的订单支付
             if (!"0".equals(order.getOrderStatus()) && !"5".equals(order.getOrderStatus())) {
                 return error("订单状态异常，无法支付");
             }
 
-            // 默认支付方式为现金
-            if (!StringUtils.hasText(paymentMethod)) {
-                paymentMethod = "现金";
+            if (!"alipay".equals(paymentMethod) && !"wechat".equals(paymentMethod)) {
+                return error("当前仅支持支付宝或微信渠道支付");
             }
 
             // 支付方式映射：前端传的是英文，需要转换为中文
@@ -1000,12 +1004,26 @@ public class H5OrderController extends BaseController
             // 生成支付流水号
             String paymentNo = "PAY" + System.currentTimeMillis() + (int)(Math.random() * 1000);
 
-            // 模拟支付处理
-            try {
-                // 模拟支付接口调用延迟
-                Thread.sleep(1000);
+            BankResult bankResult = bankPaymentService.createPayment(order.getOrderId(),
+                    order.getInstitutionId(), order.getOrderAmount(), paymentMethodText,
+                    "养老服务订单-" + order.getOrderNo());
+            if ("FAILED".equals(bankResult.getStatus())) {
+                return error("银行支付受理失败：" + bankResult.getResponseMessage());
+            }
+            if (!"SUCCESS".equals(bankResult.getStatus())) {
+                Map<String, Object> pendingResult = new HashMap<>();
+                pendingResult.put("success", false);
+                pendingResult.put("paymentStatus", bankResult.getStatus());
+                pendingResult.put("payUrl", bankResult.getPayUrl());
+                pendingResult.put("bankSerialNo", bankResult.getBankSerialNo());
+                pendingResult.put("orderId", orderId);
+                pendingResult.put("orderNo", order.getOrderNo());
+                pendingResult.put("message", "银行已受理，等待用户完成支付");
+                return success(pendingResult);
+            }
 
-                // 支付成功，更新订单状态
+            // 仅银行明确返回成功时进入原有入账逻辑；异步支付必须等待回调后再入账。
+            {
                 order.setOrderStatus("1"); // 1-已支付
                 order.setPaymentTime(new Date());
                 order.setPaidAmount(order.getOrderAmount());
@@ -1023,7 +1041,8 @@ public class H5OrderController extends BaseController
                 paymentRecord.setPaymentMethod(paymentMethod);
                 paymentRecord.setPaymentStatus("1"); // 1-成功
                 paymentRecord.setPaymentTime(new Date());
-                paymentRecord.setTransactionId(paymentNo); // 暂时使用流水号作为第三方交易号
+                paymentRecord.setTransactionId(bankResult.getBankSerialNo());
+                paymentRecord.setGatewayResponse(bankResult.getResponseCode() + ":" + bankResult.getResponseMessage());
                 paymentRecord.setOperator(currentUserId.toString());
                 paymentRecord.setElderName(order.getElderName() != null ? order.getElderName() : "未知老人");
                 paymentRecord.setInstitutionName(order.getInstitutionId() != null ?
@@ -1082,9 +1101,6 @@ public class H5OrderController extends BaseController
 
                 return success(result);
 
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return error("支付处理被中断");
             }
 
         } catch (Exception e) {

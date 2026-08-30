@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Date;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,6 +15,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.ruoyi.common.exception.ServiceException;
+import com.ruoyi.bank.gateway.BankGateway;
+import com.ruoyi.bank.gateway.BankResult;
 import com.ruoyi.domain.PensionInstitution;
 import com.ruoyi.domain.bank.BankMerchantConfig;
 import com.ruoyi.mapper.PensionInstitutionMapper;
@@ -26,6 +30,9 @@ class BankMerchantConfigServiceImplTest
 
     @Mock
     private PensionInstitutionMapper institutionMapper;
+
+    @Mock
+    private BankGateway bankGateway;
 
     @InjectMocks
     private BankMerchantConfigServiceImpl service;
@@ -107,5 +114,44 @@ class BankMerchantConfigServiceImplTest
                 () -> service.update(config, "admin"));
 
         assertEquals("商户号尚未通过银行环境验证，不能启用", exception.getMessage());
+    }
+
+    @Test
+    void verifyShouldPersistSuccessfulResult()
+    {
+        config.setConfigId(1L);
+        config.setMerId("MER001");
+        config.setSettlementAccountNo("619900001111");
+        when(merchantConfigMapper.selectById(1L)).thenReturn(config);
+        when(bankGateway.verifyMerchant("MER001", "619900001111"))
+                .thenReturn(BankResult.success("VERIFY001"));
+        when(merchantConfigMapper.updateVerification(
+                org.mockito.ArgumentMatchers.eq(1L), org.mockito.ArgumentMatchers.eq("1"),
+                org.mockito.ArgumentMatchers.any(Date.class), org.mockito.ArgumentMatchers.eq("admin"),
+                org.mockito.ArgumentMatchers.eq("成功"))).thenReturn(1);
+
+        BankResult result = service.verify(1L, "admin");
+
+        assertEquals("SUCCESS", result.getStatus());
+    }
+
+    @Test
+    void verifyShouldReturnFailureAfterPersistingFailedStatus()
+    {
+        config.setConfigId(1L);
+        config.setMerId("MER001");
+        config.setSettlementAccountNo("619900001111");
+        when(merchantConfigMapper.selectById(1L)).thenReturn(config);
+        when(bankGateway.verifyMerchant("MER001", "619900001111"))
+                .thenThrow(new ServiceException("银行对接尚未启用"));
+        when(merchantConfigMapper.updateVerification(
+                org.mockito.ArgumentMatchers.eq(1L), org.mockito.ArgumentMatchers.eq("2"),
+                org.mockito.ArgumentMatchers.any(Date.class), org.mockito.ArgumentMatchers.eq("admin"),
+                org.mockito.ArgumentMatchers.eq("银行对接尚未启用"))).thenReturn(1);
+
+        BankResult result = service.verify(1L, "admin");
+
+        assertEquals("FAILED", result.getStatus());
+        assertEquals("银行对接尚未启用", result.getResponseMessage());
     }
 }

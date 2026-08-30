@@ -115,6 +115,10 @@ export function delBankMerchant(configId) {
   return request({ url: '/supervision/account/bank-merchant/' + configId, method: 'delete' })
 }
 
+export function verifyBankMerchant(configId) {
+  return request({ url: '/supervision/account/bank-merchant/' + configId + '/verify', method: 'post' })
+}
+
 // 查询订单管理列表
 export function listOrder(query) {
   return request({

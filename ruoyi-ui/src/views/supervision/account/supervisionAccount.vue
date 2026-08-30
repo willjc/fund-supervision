@@ -61,9 +61,11 @@
       </el-table-column>
       <el-table-column label="银行验证" width="100" align="center">
         <template slot-scope="scope">
-          <el-tag v-if="scope.row.verifyStatus === '1'" type="success" size="small">已验证</el-tag>
-          <el-tag v-else-if="scope.row.verifyStatus === '2'" type="danger" size="small">失败</el-tag>
-          <el-tag v-else type="info" size="small">待验证</el-tag>
+          <el-tooltip :content="scope.row.verifyMessage || '尚未验证'" placement="top">
+            <el-tag v-if="scope.row.verifyStatus === '1'" type="success" size="small">已验证</el-tag>
+            <el-tag v-else-if="scope.row.verifyStatus === '2'" type="danger" size="small">失败</el-tag>
+            <el-tag v-else type="info" size="small">待验证</el-tag>
+          </el-tooltip>
         </template>
       </el-table-column>
       <el-table-column label="启用状态" width="90" align="center">
@@ -73,8 +75,9 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="130" fixed="right" align="center">
+      <el-table-column label="操作" width="175" fixed="right" align="center">
         <template slot-scope="scope">
+          <el-button type="text" size="mini" icon="el-icon-connection" @click="handleVerify(scope.row)">验证</el-button>
           <el-button type="text" size="mini" icon="el-icon-edit" @click="handleEdit(scope.row)">编辑</el-button>
           <el-button type="text" size="mini" icon="el-icon-delete" @click="handleDelete(scope.row)">删除</el-button>
         </template>
@@ -143,7 +146,7 @@
 
 <script>
 import { listInstitution } from '@/api/supervision/institution'
-import { listBankMerchant, getBankMerchant, addBankMerchant, updateBankMerchant, delBankMerchant } from '@/api/supervision/account'
+import { listBankMerchant, getBankMerchant, addBankMerchant, updateBankMerchant, delBankMerchant, verifyBankMerchant } from '@/api/supervision/account'
 
 export default {
   name: 'SupervisionAccount',
@@ -226,6 +229,12 @@ export default {
     handleDelete(row) {
       this.$modal.confirm('确认删除商户号“' + row.merId + '”的绑定吗？').then(() => delBankMerchant(row.configId)).then(() => {
         this.$modal.msgSuccess('删除成功')
+        this.getList()
+      }).catch(() => {})
+    },
+    handleVerify(row) {
+      this.$modal.confirm('确认在当前银行环境验证商户号“' + row.merId + '”吗？').then(() => verifyBankMerchant(row.configId)).then(() => {
+        this.$modal.msgSuccess('商户号验证通过')
         this.getList()
       }).catch(() => {})
     },

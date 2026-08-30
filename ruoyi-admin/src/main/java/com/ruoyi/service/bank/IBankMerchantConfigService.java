@@ -2,6 +2,7 @@ package com.ruoyi.service.bank;
 
 import java.util.List;
 
+import com.ruoyi.bank.gateway.BankResult;
 import com.ruoyi.domain.bank.BankMerchantConfig;
 
 public interface IBankMerchantConfigService
@@ -15,6 +16,8 @@ public interface IBankMerchantConfigService
     int insert(BankMerchantConfig config, String operator);
 
     int update(BankMerchantConfig config, String operator);
+
+    BankResult verify(Long configId, String operator);
 
     int delete(Long configId);
 }

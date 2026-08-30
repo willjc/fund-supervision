@@ -68,7 +68,6 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { showToast, showLoadingToast, closeToast } from 'vant'
-import dayjs from 'dayjs'
 import { processPayment } from '@/api/order'
 
 const router = useRouter()
@@ -114,7 +113,7 @@ const onCountdownFinish = () => {
 
 // 确认支付
 const confirmPayment = async () => {
-  const loadingToast = showLoadingToast({
+  showLoadingToast({
     message: '支付处理中...',
     forbidClick: true,
     duration: 0
@@ -129,7 +128,13 @@ const confirmPayment = async () => {
 
     closeToast()
 
-    if (response.code === 200 && response.data && response.data.success) {
+    if (response.code === 200 && response.data && response.data.payUrl) {
+      if (response.data.payUrl.startsWith('mock-bank://')) {
+        showToast('模拟银行已受理，等待测试回调确认')
+      } else {
+        window.location.href = response.data.payUrl
+      }
+    } else if (response.code === 200 && response.data && response.data.success) {
       // 支付成功，跳转到支付成功页面
       router.push({
         name: 'PaymentSuccess',

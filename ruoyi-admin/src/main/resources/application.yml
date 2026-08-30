@@ -137,6 +137,11 @@ xss:
   # 匹配链接
   urlPatterns: /system/*,/monitor/*,/tool/*
 
+# 银行对接开关。生产默认禁用，测试时显式设置 BANK_INTEGRATION_MODE=mock。
+bank:
+  integration:
+    mode: ${BANK_INTEGRATION_MODE:disabled}
+
 # 郑好办配置
 zhenghaoban:
   # 网关配置

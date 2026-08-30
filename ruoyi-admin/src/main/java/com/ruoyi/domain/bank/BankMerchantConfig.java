@@ -25,6 +25,7 @@ public class BankMerchantConfig extends BaseEntity
     private String channelType;
     private String environment;
     private String verifyStatus;
+    private String verifyMessage;
     private String isDefault;
     private String status;
     private Long currentUserId;
@@ -58,6 +59,8 @@ public class BankMerchantConfig extends BaseEntity
     public void setEnvironment(String environment) { this.environment = environment; }
     public String getVerifyStatus() { return verifyStatus; }
     public void setVerifyStatus(String verifyStatus) { this.verifyStatus = verifyStatus; }
+    public String getVerifyMessage() { return verifyMessage; }
+    public void setVerifyMessage(String verifyMessage) { this.verifyMessage = verifyMessage; }
     public String getIsDefault() { return isDefault; }
     public void setIsDefault(String isDefault) { this.isDefault = isDefault; }
     public String getStatus() { return status; }

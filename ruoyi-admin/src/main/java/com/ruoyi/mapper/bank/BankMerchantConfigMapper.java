@@ -1,6 +1,7 @@
 package com.ruoyi.mapper.bank;
 
 import java.util.List;
+import java.util.Date;
 
 import org.apache.ibatis.annotations.Param;
 
@@ -22,6 +23,12 @@ public interface BankMerchantConfigMapper
 
     int clearDefault(@Param("institutionId") Long institutionId,
                      @Param("excludeConfigId") Long excludeConfigId);
+
+    int updateVerification(@Param("configId") Long configId,
+                           @Param("verifyStatus") String verifyStatus,
+                           @Param("lastVerifiedTime") Date lastVerifiedTime,
+                           @Param("operator") String operator,
+                           @Param("verifyMessage") String verifyMessage);
 
     int deleteById(Long configId);
 }

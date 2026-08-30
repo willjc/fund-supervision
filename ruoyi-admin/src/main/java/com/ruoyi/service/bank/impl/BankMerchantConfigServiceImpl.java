@@ -15,6 +15,8 @@ import com.ruoyi.domain.bank.BankMerchantConfig;
 import com.ruoyi.mapper.PensionInstitutionMapper;
 import com.ruoyi.mapper.bank.BankMerchantConfigMapper;
 import com.ruoyi.service.bank.IBankMerchantConfigService;
+import com.ruoyi.bank.gateway.BankGateway;
+import com.ruoyi.bank.gateway.BankResult;
 
 @Service
 public class BankMerchantConfigServiceImpl implements IBankMerchantConfigService
@@ -27,6 +29,9 @@ public class BankMerchantConfigServiceImpl implements IBankMerchantConfigService
 
     @Autowired
     private PensionInstitutionMapper institutionMapper;
+
+    @Autowired
+    private BankGateway bankGateway;
 
     @Override
     public BankMerchantConfig selectById(Long configId)
@@ -88,11 +93,13 @@ public class BankMerchantConfigServiceImpl implements IBankMerchantConfigService
         if (bindingChanged)
         {
             config.setVerifyStatus("0");
+            config.setVerifyMessage(null);
             config.setStatus("0");
         }
         else
         {
             config.setVerifyStatus(existing.getVerifyStatus());
+            config.setVerifyMessage(existing.getVerifyMessage());
             if ("1".equals(config.getStatus()) && !"1".equals(existing.getVerifyStatus()))
             {
                 throw new ServiceException("商户号尚未通过银行环境验证，不能启用");
@@ -120,6 +127,43 @@ public class BankMerchantConfigServiceImpl implements IBankMerchantConfigService
             throw new ServiceException("已启用的商户配置不能删除，请先停用");
         }
         return merchantConfigMapper.deleteById(configId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public BankResult verify(Long configId, String operator)
+    {
+        BankMerchantConfig config = merchantConfigMapper.selectById(configId);
+        if (config == null)
+        {
+            throw new ServiceException("商户配置不存在");
+        }
+
+        BankResult result;
+        try
+        {
+            result = bankGateway.verifyMerchant(config.getMerId(), config.getSettlementAccountNo());
+        }
+        catch (Exception e)
+        {
+            result = BankResult.failed("VERIFY_EXCEPTION", e.getMessage());
+        }
+        String verifyStatus = result != null && "SUCCESS".equals(result.getStatus()) ? "1" : "2";
+        String message = normalizeVerificationMessage(result == null ? "银行验证返回为空"
+                : result.getResponseMessage());
+        int updated = merchantConfigMapper.updateVerification(configId, verifyStatus,
+                new Date(), operator, message);
+        if (updated != 1)
+        {
+            throw new ServiceException("更新商户验证状态失败");
+        }
+        return result == null ? BankResult.failed("EMPTY_RESPONSE", message) : result;
+    }
+
+    private String normalizeVerificationMessage(String message)
+    {
+        String normalized = StringUtils.isEmpty(message) ? "银行未返回验证说明" : message;
+        return normalized.length() > 500 ? normalized.substring(0, 500) : normalized;
     }
 
     private void normalizeAndValidate(BankMerchantConfig config, Long currentConfigId)

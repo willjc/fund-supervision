@@ -18,6 +18,7 @@ import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
+import com.ruoyi.bank.gateway.BankResult;
 import com.ruoyi.domain.bank.BankMerchantConfig;
 import com.ruoyi.domain.PensionInstitution;
 import com.ruoyi.service.IPensionInstitutionService;
@@ -88,6 +89,24 @@ public class BankMerchantConfigController extends BaseController
             return AjaxResult.error("商户配置不存在或无权删除");
         }
         return toAjax(merchantConfigService.delete(configId));
+    }
+
+    @PreAuthorize("@ss.hasPermi('supervision:account:supervision')")
+    @Log(title = "验证银行商户号绑定", businessType = BusinessType.UPDATE)
+    @PostMapping("/{configId}/verify")
+    public AjaxResult verify(@PathVariable Long configId)
+    {
+        if (findAccessible(configId) == null)
+        {
+            return AjaxResult.error("商户配置不存在或无权验证");
+        }
+        BankResult result = merchantConfigService.verify(configId, getUsername());
+        if (result != null && "SUCCESS".equals(result.getStatus()))
+        {
+            return AjaxResult.success("商户号验证通过");
+        }
+        String message = result == null ? "银行未返回验证结果" : result.getResponseMessage();
+        return AjaxResult.error("商户号验证失败：" + message);
     }
 
     private BankMerchantConfig findAccessible(Long configId)
