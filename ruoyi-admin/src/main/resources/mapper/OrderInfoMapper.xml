@@ -87,6 +87,18 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where o.order_id = #{orderId}
     </select>
 
+    <select id="selectOrderInfoByOrderIdForUpdate" parameterType="Long" resultMap="OrderInfoResult">
+        select order_id, order_no, order_type, elder_id, creator_user_id, institution_id,
+               check_in_id, bed_id, order_amount, paid_amount, order_status, payment_method,
+               channel, payment_time, payment_proof, payment_proof_remark, order_date,
+               service_start_date, service_end_date, billing_cycle, month_count,
+               original_amount, discount_amount, due_date, create_by, create_time,
+               update_by, update_time, remark
+        from order_info
+        where order_id = #{orderId}
+        for update
+    </select>
+
     <select id="selectOrderInfoByOrderNo" parameterType="String" resultMap="OrderInfoResult">
         <include refid="selectOrderInfoVo"/>
         where o.order_no = #{orderNo}
@@ -204,6 +216,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             payment_method = #{paymentMethod},
             payment_time = #{paymentTime}
         where order_id = #{orderId}
+    </update>
+
+    <update id="markOrderPaid">
+        update order_info
+        set order_status = '1', paid_amount = #{paidAmount}, payment_method = #{paymentMethod},
+            payment_time = #{paymentTime}, update_by = #{updateBy}, update_time = NOW()
+        where order_id = #{orderId} and order_status in ('0', '5')
     </update>
 
     <delete id="deleteOrderInfoByOrderId" parameterType="Long">

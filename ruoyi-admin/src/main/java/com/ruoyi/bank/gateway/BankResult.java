@@ -2,6 +2,7 @@ package com.ruoyi.bank.gateway;
 
 public class BankResult
 {
+    private String requestNo;
     private String status;
     private String bankSerialNo;
     private String payUrl;
@@ -38,6 +39,8 @@ public class BankResult
         return result;
     }
 
+    public String getRequestNo() { return requestNo; }
+    public void setRequestNo(String requestNo) { this.requestNo = requestNo; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     public String getBankSerialNo() { return bankSerialNo; }

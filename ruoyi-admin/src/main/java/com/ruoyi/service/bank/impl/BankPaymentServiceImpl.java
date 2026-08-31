@@ -99,13 +99,16 @@ public class BankPaymentServiceImpl implements IBankPaymentService
             result = BankResult.failed("EMPTY_RESPONSE", "银行网关返回为空");
         }
 
-        transaction.setStatus(result.getStatus());
+        result.setRequestNo(requestNo);
+        // 同步成功也必须走统一结算服务。此处仍保留 PENDING，避免先把银行交易
+        // 标成成功、后续订单入账却失败而形成不一致状态。
+        transaction.setStatus("SUCCESS".equals(result.getStatus()) ? "PENDING" : result.getStatus());
         transaction.setBankSerialNo(result.getBankSerialNo());
         transaction.setPayUrl(result.getPayUrl());
         transaction.setResponseCode(result.getResponseCode());
         transaction.setResponseMessage(result.getResponseMessage());
         transaction.setUpdateTime(new Date());
-        if ("SUCCESS".equals(result.getStatus()) || "FAILED".equals(result.getStatus()))
+        if ("FAILED".equals(result.getStatus()))
         {
             transaction.setCompleteTime(new Date());
         }
@@ -119,6 +122,7 @@ public class BankPaymentServiceImpl implements IBankPaymentService
     private BankResult toResult(BankTransaction transaction)
     {
         BankResult result = new BankResult();
+        result.setRequestNo(transaction.getRequestNo());
         result.setStatus(transaction.getStatus());
         result.setBankSerialNo(transaction.getBankSerialNo());
         result.setPayUrl(transaction.getPayUrl());

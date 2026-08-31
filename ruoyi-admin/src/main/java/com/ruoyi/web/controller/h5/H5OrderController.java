@@ -39,19 +39,18 @@ import com.ruoyi.domain.PensionInstitutionPublic;
 import com.ruoyi.domain.pension.AccountInfo;
 import com.ruoyi.domain.pension.DepositApply;
 import com.ruoyi.domain.pension.ExpenseRecord;
-import com.ruoyi.domain.PaymentRecord;
 import com.ruoyi.service.pension.IAccountInfoService;
 import com.ruoyi.service.pension.IDepositApplyService;
 import com.ruoyi.service.pension.IExpenseRecordService;
-import com.ruoyi.service.IPaymentRecordService;
 import com.ruoyi.domain.pension.MealFeeConfig;
 import com.ruoyi.service.IMealFeeConfigService;
 import com.ruoyi.service.IResidentService;
 import com.ruoyi.domain.RenewDTO;
 import com.ruoyi.domain.BedAllocation;
 import com.ruoyi.domain.vo.ElderCurrentPriceVO;
-import com.ruoyi.domain.pension.FundTransfer;
+import com.ruoyi.domain.bank.BankPaymentCompletionResult;
 import com.ruoyi.bank.gateway.BankResult;
+import com.ruoyi.service.bank.IBankPaymentCompletionService;
 import com.ruoyi.service.bank.IBankPaymentService;
 
 /**
@@ -97,13 +96,7 @@ public class H5OrderController extends BaseController
     private IExpenseRecordService expenseRecordService;
 
     @Autowired
-    private IPaymentRecordService paymentRecordService;
-
-    @Autowired
     private IMealFeeConfigService mealFeeConfigService;
-
-    @Autowired
-    private com.ruoyi.service.pension.ISupervisionAccountLogService supervisionAccountLogService;
 
     @Autowired
     private com.ruoyi.service.pension.IFundTransferService fundTransferService;
@@ -116,6 +109,9 @@ public class H5OrderController extends BaseController
 
     @Autowired
     private IBankPaymentService bankPaymentService;
+
+    @Autowired
+    private IBankPaymentCompletionService bankPaymentCompletionService;
 
     /**
      * 获取订单列表
@@ -1001,9 +997,6 @@ public class H5OrderController extends BaseController
                 paymentMethod = "微信";
             }
 
-            // 生成支付流水号
-            String paymentNo = "PAY" + System.currentTimeMillis() + (int)(Math.random() * 1000);
-
             BankResult bankResult = bankPaymentService.createPayment(order.getOrderId(),
                     order.getInstitutionId(), order.getOrderAmount(), paymentMethodText,
                     "养老服务订单-" + order.getOrderNo());
@@ -1014,6 +1007,7 @@ public class H5OrderController extends BaseController
                 Map<String, Object> pendingResult = new HashMap<>();
                 pendingResult.put("success", false);
                 pendingResult.put("paymentStatus", bankResult.getStatus());
+                pendingResult.put("requestNo", bankResult.getRequestNo());
                 pendingResult.put("payUrl", bankResult.getPayUrl());
                 pendingResult.put("bankSerialNo", bankResult.getBankSerialNo());
                 pendingResult.put("orderId", orderId);
@@ -1022,326 +1016,24 @@ public class H5OrderController extends BaseController
                 return success(pendingResult);
             }
 
-            // 仅银行明确返回成功时进入原有入账逻辑；异步支付必须等待回调后再入账。
-            {
-                order.setOrderStatus("1"); // 1-已支付
-                order.setPaymentTime(new Date());
-                order.setPaidAmount(order.getOrderAmount());
-                order.setPaymentMethod(paymentMethod); // 更新支付方式
-                orderInfoService.updateOrderInfo(order);
-
-                // 创建支付记录
-                PaymentRecord paymentRecord = new PaymentRecord();
-                paymentRecord.setPaymentNo(paymentNo);
-                paymentRecord.setOrderId(order.getOrderId());
-                paymentRecord.setOrderNo(order.getOrderNo());
-                paymentRecord.setElderId(order.getElderId());
-                paymentRecord.setInstitutionId(order.getInstitutionId());
-                paymentRecord.setPaymentAmount(order.getOrderAmount());
-                paymentRecord.setPaymentMethod(paymentMethod);
-                paymentRecord.setPaymentStatus("1"); // 1-成功
-                paymentRecord.setPaymentTime(new Date());
-                paymentRecord.setTransactionId(bankResult.getBankSerialNo());
-                paymentRecord.setGatewayResponse(bankResult.getResponseCode() + ":" + bankResult.getResponseMessage());
-                paymentRecord.setOperator(currentUserId.toString());
-                paymentRecord.setElderName(order.getElderName() != null ? order.getElderName() : "未知老人");
-                paymentRecord.setInstitutionName(order.getInstitutionId() != null ?
-                    getInstitutionName(order.getInstitutionId()) : "未知机构");
-
-                paymentRecordService.insertPaymentRecord(paymentRecord);
-
-                // 记录监管账户流水
-                try {
-                    // 获取老人名称用于流水描述
-                    String elderName = "未知老人";
-                    if (order.getElderId() != null) {
-                        ElderInfo elder = elderInfoService.selectElderInfoByElderId(order.getElderId());
-                        if (elder != null && elder.getElderName() != null) {
-                            elderName = elder.getElderName();
-                        }
-                    }
-
-                    supervisionAccountLogService.recordIncome(
-                        order.getInstitutionId(),
-                        order.getOrderId(),
-                        order.getOrderAmount(),
-                        "用户支付订单-" + elderName,
-                        currentUserId.toString()
-                    );
-                } catch (Exception e) {
-                    logger.error("记录监管账户流水失败", e);
-                    // 不影响支付流程，只记录错误
-                }
-
-                // 处理账户信息
-                boolean accountUpdated = false;
-                AccountInfo account = accountInfoService.selectAccountInfoByElderId(order.getElderId());
-
-                if (account == null) {
-                    // 创建新账户
-                    account = accountInfoService.createAccountInfo(
-                        order.getElderId(),
-                        order.getInstitutionId(),
-                        BigDecimal.ZERO
-                    );
-                }
-
-                // 更新账户余额（基于订单金额分配）
-                updateAccountBalanceFromOrder(account, order);
-                accountUpdated = true;
-
-                Map<String, Object> result = new HashMap<>();
-                result.put("success", true);
-                result.put("message", "支付成功");
-                result.put("orderId", orderId);
-                result.put("orderNo", order.getOrderNo());
-                result.put("paymentTime", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, new Date()));
-                result.put("paidAmount", order.getPaidAmount());
-                result.put("accountUpdated", accountUpdated);
-
-                return success(result);
-
-            }
+            BankPaymentCompletionResult completion = bankPaymentCompletionService.completePayment(
+                    bankResult.getRequestNo(), bankResult.getBankSerialNo(), bankResult.getResponseCode(),
+                    bankResult.getResponseMessage(), currentUserId.toString());
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", true);
+            result.put("message", completion.isAlreadyProcessed() ? "支付已处理" : "支付成功");
+            result.put("orderId", completion.getOrderId());
+            result.put("orderNo", completion.getOrderNo());
+            result.put("paymentTime", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS,
+                    completion.getPaymentTime()));
+            result.put("paidAmount", completion.getPaidAmount());
+            result.put("accountUpdated", true);
+            return success(result);
 
         } catch (Exception e) {
             logger.error("处理支付请求失败", e);
             return error("支付失败：" + e.getMessage());
         }
-    }
-
-    /**
-     * 根据订单信息更新账户余额
-     */
-    private void updateAccountBalanceFromOrder(AccountInfo account, OrderInfo order) {
-        try {
-            BigDecimal totalAmount = order.getOrderAmount() != null ? order.getOrderAmount() : BigDecimal.ZERO;
-
-            // 根据订单明细项（order_item）的实际金额分配到不同余额类型
-            BigDecimal serviceAmount = BigDecimal.ZERO;
-            BigDecimal depositAmount = BigDecimal.ZERO;
-            BigDecimal memberAmount = BigDecimal.ZERO;
-
-            // 查询订单明细
-            List<OrderItem> orderItems = orderItemService.selectOrderItemsByOrderId(order.getOrderId());
-
-            if (orderItems != null && !orderItems.isEmpty()) {
-                // 根据订单明细项的类型分配金额
-                for (OrderItem item : orderItems) {
-                    BigDecimal itemTotal = item.getTotalAmount() != null ? item.getTotalAmount() : BigDecimal.ZERO;
-                    String itemType = item.getItemType();
-
-                    if ("deposit".equals(itemType)) {
-                        // 押金类型
-                        depositAmount = depositAmount.add(itemTotal);
-                    } else if ("member_fee".equals(itemType)) {
-                        // 会员费类型
-                        memberAmount = memberAmount.add(itemTotal);
-                    } else {
-                        // 其他类型（床位费、护理费等）归入服务费
-                        serviceAmount = serviceAmount.add(itemTotal);
-                    }
-                }
-            } else {
-                // 如果没有订单明细，使用旧的比例分配方式（向后兼容）
-                String orderType = order.getOrderType();
-                if ("1".equals(orderType)) { // 入驻订单
-                    depositAmount = totalAmount.multiply(new BigDecimal("0.4")); // 40%押金
-                    memberAmount = totalAmount.multiply(new BigDecimal("0.1"));  // 10%会员费
-                    serviceAmount = totalAmount.subtract(depositAmount).subtract(memberAmount); // 剩余为服务费
-                } else if ("2".equals(orderType)) { // 续费订单
-                    serviceAmount = totalAmount.multiply(new BigDecimal("0.9")); // 90%服务费
-                    memberAmount = totalAmount.multiply(new BigDecimal("0.1"));  // 10%其他费用
-                } else { // 其他类型
-                    serviceAmount = totalAmount.multiply(new BigDecimal("0.8")); // 80%服务费
-                    depositAmount = totalAmount.multiply(new BigDecimal("0.2")); // 20%其他
-                }
-            }
-
-            // 更新账户余额
-            BigDecimal currentTotal = account.getTotalBalance() != null ? account.getTotalBalance() : BigDecimal.ZERO;
-            BigDecimal currentService = account.getServiceBalance() != null ? account.getServiceBalance() : BigDecimal.ZERO;
-            BigDecimal currentDeposit = account.getDepositBalance() != null ? account.getDepositBalance() : BigDecimal.ZERO;
-            BigDecimal currentMember = account.getMemberBalance() != null ? account.getMemberBalance() : BigDecimal.ZERO;
-
-            account.setTotalBalance(currentTotal.add(totalAmount));
-            account.setServiceBalance(currentService.add(serviceAmount));
-            account.setDepositBalance(currentDeposit.add(depositAmount));
-            account.setMemberBalance(currentMember.add(memberAmount));
-            account.setUpdateTime(new Date());
-            account.setRemark(account.getRemark() + " | 支付订单" + order.getOrderNo() + "增加余额" + totalAmount + "元");
-
-            accountInfoService.updateAccountInfo(account);
-
-            // 生成订单支付费用记录
-            try {
-                int recordResult = expenseRecordService.createOrderExpenseRecords(
-                    account.getElderId(),
-                    account.getAccountId(),
-                    order.getOrderId(),
-                    order.getOrderType(),
-                    depositAmount,
-                    serviceAmount,
-                    memberAmount,
-                    BigDecimal.ZERO, // otherAmount 暂时为0
-                    currentTotal,     // 支付前余额
-                    account.getTotalBalance() // 支付后余额
-                );
-                if (recordResult <= 0) {
-                    logger.warn("创建订单费用记录失败，但支付流程继续执行");
-                } else {
-                    // 费用记录生成成功后，如果是入驻订单，需要扣除首月服务费
-                    if ("1".equals(order.getOrderType())) {
-                        // 计算首月服务费并从账户余额中扣除
-                        BigDecimal firstMonthServiceFee = calculateFirstMonthServiceFee(order.getOrderId());
-                        if (firstMonthServiceFee.compareTo(BigDecimal.ZERO) > 0) {
-                            // 检查服务费余额是否足够
-                            if (account.getServiceBalance().compareTo(firstMonthServiceFee) >= 0) {
-                                BigDecimal newServiceBalance = account.getServiceBalance().subtract(firstMonthServiceFee);
-                                BigDecimal newTotalBalance = account.getTotalBalance().subtract(firstMonthServiceFee);
-
-                                account.setServiceBalance(newServiceBalance);
-                                account.setTotalBalance(newTotalBalance);
-
-                                // 再次更新账户余额（扣除首月服务费）
-                                accountInfoService.updateAccountInfo(account);
-
-                                // 生成监管账户划拨流水记录（首月服务费划拨到机构基本账户）
-                                try {
-                                    supervisionAccountLogService.recordTransferOut(
-                                        order.getInstitutionId(),
-                                        order.getOrderId(),
-                                        firstMonthServiceFee,
-                                        "首月服务费划拨-" + order.getOrderNo(),
-                                        "基本账户"
-                                    );
-                                    logger.info("生成首月服务费划拨流水：" + firstMonthServiceFee + "元，订单号：" + order.getOrderNo());
-                                } catch (Exception e) {
-                                    logger.error("记录首月服务费划拨流水失败", e);
-                                    // 划拨流水记录失败不影响主流程
-                                }
-
-                                logger.info("扣除首月服务费：" + firstMonthServiceFee + "元，订单号：" + order.getOrderNo());
-
-                                // 生成首月服务费立即划拨的拨付单（已完成状态）
-                                try {
-                                    createFirstMonthTransfer(order, firstMonthServiceFee);
-                                    logger.info("生成首月服务费拨付单成功，订单号：" + order.getOrderNo());
-                                } catch (Exception e) {
-                                    logger.error("生成首月服务费拨付单失败", e);
-                                }
-
-                                // 生成后续月份的拨付单（从次月开始）
-                                try {
-                                    Integer monthCount = order.getMonthCount() != null ? order.getMonthCount() : 1;
-                                    // 如果只有1个月，则不生成后续拨付单
-                                    if (monthCount > 1) {
-                                        fundTransferService.generateMonthlyTransfersForOrder(
-                                            order.getOrderId(),
-                                            order.getInstitutionId(),
-                                            order.getElderId(),
-                                            monthCount - 1, // 首月已处理，生成剩余月份
-                                            order.getServiceStartDate() != null ? order.getServiceStartDate() : new Date(),
-                                            firstMonthServiceFee, // 使用首月服务费作为月费参考
-                                            false // 从次月开始
-                                        );
-                                        logger.info("生成后续月份拨付单成功，月数：" + (monthCount - 1) + "，订单号：" + order.getOrderNo());
-                                    }
-                                } catch (Exception e) {
-                                    logger.error("生成后续月份拨付单失败", e);
-                                }
-                            } else {
-                                logger.warn("服务费余额不足以扣除首月服务费：" + firstMonthServiceFee + "元，当前余额：" + account.getServiceBalance() + "元");
-                            }
-                        }
-                    }
-                    // 续费订单处理逻辑
-                    else if ("2".equals(order.getOrderType())) {
-                        try {
-                            Integer monthCount = order.getMonthCount() != null ? order.getMonthCount() : 1;
-
-                            // 1. 更新床位分配的到期日期
-                            if (monthCount > 0 && order.getServiceEndDate() != null) {
-                                BedAllocation bedAllocation = bedAllocationMapper.selectBedAllocationByElderId(order.getElderId());
-                                if (bedAllocation != null) {
-                                    Date newDueDate = order.getServiceEndDate();
-                                    bedAllocation.setDueDate(newDueDate);
-                                    bedAllocation.setUpdateTime(new Date());
-                                    bedAllocationMapper.updateBedAllocation(bedAllocation);
-                                    logger.info("续费订单到期日期已更新：" + DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD, newDueDate) + "，订单号：" + order.getOrderNo());
-                                }
-                            }
-
-                            // 2. 计算正确的月服务费（不含押金和会员费）
-                            BigDecimal monthlyServiceFee = calculateRenewMonthlyFee(order.getOrderId());
-
-                            // 3. 生成续费月份的拨付单（从次月开始）
-                            if (monthCount > 0 && monthlyServiceFee.compareTo(BigDecimal.ZERO) > 0) {
-                                fundTransferService.generateMonthlyTransfersForOrder(
-                                    order.getOrderId(),
-                                    order.getInstitutionId(),
-                                    order.getElderId(),
-                                    monthCount,
-                                    order.getServiceStartDate() != null ? order.getServiceStartDate() : new Date(),
-                                    monthlyServiceFee,
-                                    false // 从次月开始，不跳过首月
-                                );
-
-                                logger.info("生成续费订单拨付单成功，月数：" + monthCount + "，月服务费：" + monthlyServiceFee + "，订单号：" + order.getOrderNo());
-                            }
-                        } catch (Exception e) {
-                            logger.error("续费订单后续处理失败", e);
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                logger.error("创建订单费用记录异常：" + e.getMessage());
-                // 费用记录创建失败不影响主流程
-            }
-
-        } catch (Exception e) {
-            logger.error("更新账户余额失败", e);
-            throw new RuntimeException("更新账户余额失败：" + e.getMessage());
-        }
-    }
-
-    /**
-     * 创建首月服务费立即划拨的拨付单
-     *
-     * @param order 订单信息
-     * @param amount 划拨金额
-     */
-    private void createFirstMonthTransfer(OrderInfo order, BigDecimal amount) {
-        com.ruoyi.domain.pension.FundTransfer transfer = new com.ruoyi.domain.pension.FundTransfer();
-        transfer.setInstitutionId(order.getInstitutionId());
-        transfer.setElderId(order.getElderId());
-        transfer.setOrderId(order.getOrderId());
-
-        // 生成拨付单号
-        String transferNo = "TRF" + System.currentTimeMillis() + "FM" + String.format("%02d", (int)(Math.random() * 100));
-        transfer.setTransferNo(transferNo);
-        transfer.setTransferType("1"); // 自动划拨
-        transfer.setTransferAmount(amount);
-        transfer.setTransferDate(new Date());
-
-        // 设置当前月份为划拨周期
-        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM");
-        String currentPeriod = sdf.format(new Date());
-        transfer.setTransferPeriod(currentPeriod);
-        transfer.setBillingMonth(currentPeriod);
-
-        transfer.setElderCount(1);
-        transfer.setTransferStatus("1"); // 已完成
-        transfer.setIsPaid("1"); // 已划拨
-        transfer.setStatus("completed"); // 已完成
-        transfer.setExecuteUser("system");
-        transfer.setExecuteTime(new Date());
-        transfer.setPaidTime(new Date()); // 设置实际划拨时间
-        transfer.setPaidMethod("auto");
-        transfer.setCreateBy("system");
-        transfer.setCreateTime(new Date());
-        transfer.setRemark("首月服务费立即划拨-" + order.getOrderNo());
-
-        fundTransferService.insertFundTransfer(transfer);
     }
 
     /**
@@ -2081,42 +1773,6 @@ public class H5OrderController extends BaseController
         }
     }
 
-    /**
-     * 计算首月服务费
-     * 根据订单明细中的床位费、护理费和餐费计算首月费用
-     *
-     * @param orderId 订单ID
-     * @return 首月服务费金额
-     */
-    private BigDecimal calculateFirstMonthServiceFee(Long orderId) {
-        try {
-            List<OrderItem> orderItems = orderItemService.selectOrderItemsByOrderId(orderId);
-            BigDecimal firstMonthFee = BigDecimal.ZERO;
-
-            if (orderItems != null && !orderItems.isEmpty()) {
-                for (OrderItem item : orderItems) {
-                    String itemType = item.getItemType();
-                    BigDecimal totalAmount = item.getTotalAmount() != null ? item.getTotalAmount() : BigDecimal.ZERO;
-                    Integer quantity = item.getQuantity() != null ? item.getQuantity().intValue() : 1;
-
-                    if ("bed_fee".equals(itemType) || "care_fee".equals(itemType) || "meal_fee".equals(itemType)) {
-                        // 计算单月费用：总金额 / 数量（月份数）
-                        if (quantity > 0) {
-                            BigDecimal monthlyFee = totalAmount.divide(new BigDecimal(quantity), 2, BigDecimal.ROUND_HALF_UP);
-                            firstMonthFee = firstMonthFee.add(monthlyFee);
-                        }
-                    }
-                }
-            }
-
-            return firstMonthFee;
-        } catch (Exception e) {
-            // 计算失败时返回0，避免影响主流程
-            logger.error("计算首月服务费异常：" + e.getMessage());
-            return BigDecimal.ZERO;
-        }
-    }
-
     // ========================= 续费功能 =========================
 
     /**
@@ -2311,46 +1967,6 @@ public class H5OrderController extends BaseController
         } catch (Exception e) {
             logger.error("提交续费订单失败", e);
             return error("提交续费订单失败：" + e.getMessage());
-        }
-    }
-
-    /**
-     * 计算续费订单的月服务费
-     * 根据订单明细计算纯服务费（不含押金和会员费）
-     *
-     * @param orderId 订单ID
-     * @return 月服务费
-     */
-    private BigDecimal calculateRenewMonthlyFee(Long orderId) {
-        try {
-            List<OrderItem> orderItems = orderItemService.selectOrderItemsByOrderId(orderId);
-            BigDecimal serviceFeeTotal = BigDecimal.ZERO;
-            Integer monthCount = 1;
-
-            if (orderItems != null && !orderItems.isEmpty()) {
-                for (OrderItem item : orderItems) {
-                    String itemType = item.getItemType();
-                    BigDecimal totalAmount = item.getTotalAmount() != null ? item.getTotalAmount() : BigDecimal.ZERO;
-                    Integer quantity = item.getQuantity() != null ? item.getQuantity().intValue() : 1;
-
-                    // 累加服务费（床位费、护理费、餐费）
-                    if ("bed_fee".equals(itemType) || "care_fee".equals(itemType) || "meal_fee".equals(itemType)) {
-                        serviceFeeTotal = serviceFeeTotal.add(totalAmount);
-                        if ("bed_fee".equals(itemType)) {
-                            monthCount = quantity; // 使用床位费的月数作为总月数
-                        }
-                    }
-                }
-            }
-
-            // 计算月服务费
-            if (monthCount > 0) {
-                return serviceFeeTotal.divide(new BigDecimal(monthCount), 2, BigDecimal.ROUND_HALF_UP);
-            }
-            return BigDecimal.ZERO;
-        } catch (Exception e) {
-            logger.error("计算续费月服务费异常：" + e.getMessage());
-            return BigDecimal.ZERO;
         }
     }
 }

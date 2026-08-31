@@ -2,6 +2,7 @@ package com.ruoyi.mapper;
 
 import java.util.List;
 import com.ruoyi.domain.OrderInfo;
+import org.apache.ibatis.annotations.Param;
 
 /**
  * 订单主表Mapper接口
@@ -18,6 +19,9 @@ public interface OrderInfoMapper
      * @return 订单主表
      */
     public OrderInfo selectOrderInfoByOrderId(Long orderId);
+
+    /** 支付结算时加锁查询订单。 */
+    public OrderInfo selectOrderInfoByOrderIdForUpdate(Long orderId);
 
     /**
      * 查询订单主表列表
@@ -93,4 +97,11 @@ public interface OrderInfoMapper
      * @return 结果
      */
     public int updateOrderPaymentStatus(Long orderId, String orderStatus, String paymentMethod, java.util.Date paymentTime);
+
+    /** 仅将待支付订单原子更新为已支付。 */
+    public int markOrderPaid(@Param("orderId") Long orderId,
+                             @Param("paidAmount") java.math.BigDecimal paidAmount,
+                             @Param("paymentMethod") String paymentMethod,
+                             @Param("paymentTime") java.util.Date paymentTime,
+                             @Param("updateBy") String updateBy);
 }

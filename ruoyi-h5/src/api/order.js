@@ -144,6 +144,17 @@ export function processPayment(orderId, config) {
 }
 
 /**
+ * 在 mock 银行模式下确认模拟支付完成。
+ * 金额、机构和银行流水均由后端根据请求号读取，前端不可传入。
+ */
+export function completeMockPayment(requestNo) {
+  return request({
+    url: `/h5/payment/mock/complete/${encodeURIComponent(requestNo)}`,
+    method: 'post'
+  })
+}
+
+/**
  * 获取订单明细
  * @param {Number} orderId - 订单ID
  */

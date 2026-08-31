@@ -168,6 +168,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where institution_id = #{institutionId}
     </select>
 
+    <select id="selectPensionInstitutionForUpdate" parameterType="Long" resultMap="PensionInstitutionResult">
+        select institution_id, institution_name
+        from pension_institution
+        where institution_id = #{institutionId}
+        for update
+    </select>
+
     <insert id="insertPensionInstitution" parameterType="PensionInstitution" useGeneratedKeys="true" keyProperty="institutionId">
         insert into pension_institution
         <trim prefix="(" suffix=")" suffixOverrides=",">

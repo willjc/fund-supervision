@@ -65,6 +65,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where elder_id = #{elderId}
     </select>
 
+    <select id="selectElderInfoForUpdate" parameterType="Long" resultMap="ElderInfoResult">
+        <include refid="selectElderInfoVo"/>
+        where elder_id = #{elderId}
+        for update
+    </select>
+
     <select id="selectElderInfoByIdCard" parameterType="String" resultMap="ElderInfoResult">
         <include refid="selectElderInfoVo"/>
         where id_card = #{idCard}

@@ -240,6 +240,20 @@ public class ExpenseRecordServiceImpl implements IExpenseRecordService
                                         java.math.BigDecimal memberAmount, java.math.BigDecimal otherAmount,
                                         java.math.BigDecimal balanceBefore, java.math.BigDecimal balanceAfter)
     {
+        BigDecimal firstMonthServiceFee = "1".equals(orderType)
+                ? calculateFirstMonthServiceFee(orderId) : BigDecimal.ZERO;
+        return createOrderExpenseRecords(elderId, accountId, orderId, orderType,
+                depositAmount, serviceAmount, memberAmount, otherAmount,
+                balanceBefore, balanceAfter, firstMonthServiceFee);
+    }
+
+    @Override
+    public int createOrderExpenseRecords(Long elderId, Long accountId, Long orderId, String orderType,
+                                        java.math.BigDecimal depositAmount, java.math.BigDecimal serviceAmount,
+                                        java.math.BigDecimal memberAmount, java.math.BigDecimal otherAmount,
+                                        java.math.BigDecimal balanceBefore, java.math.BigDecimal balanceAfter,
+                                        java.math.BigDecimal firstMonthServiceFee)
+    {
         int result = 0;
         String description = "订单支付：" + getTranslatedOrderType(orderType);
 
@@ -269,9 +283,7 @@ public class ExpenseRecordServiceImpl implements IExpenseRecordService
 
         // 如果是入驻订单，立即扣除首月服务费（支出）
         if ("1".equals(orderType) && serviceAmount != null && serviceAmount.compareTo(java.math.BigDecimal.ZERO) > 0) {
-            // 计算首月服务费：床位费 + 护理费
-            BigDecimal firstMonthServiceFee = calculateFirstMonthServiceFee(orderId);
-            if (firstMonthServiceFee.compareTo(java.math.BigDecimal.ZERO) > 0) {
+            if (firstMonthServiceFee != null && firstMonthServiceFee.compareTo(java.math.BigDecimal.ZERO) > 0) {
                 result += createExpenseRecord(elderId, accountId, "service", "expense",
                     firstMonthServiceFee, description + "-首月服务费扣除", orderId, "order_info", balanceAfter, balanceAfter.subtract(firstMonthServiceFee));
             }

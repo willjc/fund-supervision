@@ -19,6 +19,9 @@ public interface ElderInfoMapper
      */
     public ElderInfo selectElderInfoByElderId(Long elderId);
 
+    /** 账户不存在时锁定老人主记录，串行化该老人的账户创建。 */
+    public ElderInfo selectElderInfoForUpdate(Long elderId);
+
     /**
      * 查询老人基础信息列表
      *

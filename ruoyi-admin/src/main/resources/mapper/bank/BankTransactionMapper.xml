@@ -40,6 +40,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where request_no = #{requestNo}
     </select>
 
+    <select id="selectByRequestNoForUpdate" resultMap="BankTransactionResult">
+        <include refid="selectTransaction" />
+        where request_no = #{requestNo}
+        for update
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="transactionId">
         insert into bank_transaction (
             request_no, business_type, business_id, institution_id, mer_id, bank_code,
@@ -56,5 +62,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             response_code = #{responseCode}, response_message = #{responseMessage},
             complete_time = #{completeTime}, update_time = #{updateTime}
         where transaction_id = #{transactionId}
+    </update>
+
+    <update id="markSuccess">
+        update bank_transaction
+        set status = 'SUCCESS', bank_serial_no = #{bankSerialNo},
+            response_code = #{responseCode}, response_message = #{responseMessage},
+            complete_time = #{completeTime}, update_time = #{updateTime}
+        where transaction_id = #{transactionId} and status = 'PENDING'
     </update>
 </mapper>

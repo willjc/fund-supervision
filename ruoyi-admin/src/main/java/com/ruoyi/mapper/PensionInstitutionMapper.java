@@ -20,6 +20,9 @@ public interface PensionInstitutionMapper
      */
     public PensionInstitution selectPensionInstitutionByInstitutionId(Long institutionId);
 
+    /** 支付入账时锁定机构，串行化监管账户余额流水。 */
+    public PensionInstitution selectPensionInstitutionForUpdate(Long institutionId);
+
     /**
      * 查询养老机构信息列表
      *

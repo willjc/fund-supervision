@@ -129,4 +129,13 @@ public interface IExpenseRecordService
                                         java.math.BigDecimal depositAmount, java.math.BigDecimal serviceAmount,
                                         java.math.BigDecimal memberAmount, java.math.BigDecimal otherAmount,
                                         java.math.BigDecimal balanceBefore, java.math.BigDecimal balanceAfter);
+
+    /**
+     * 使用调用方已经严格校验的首月服务费生成订单费用记录，供银行支付原子入账使用。
+     */
+    public int createOrderExpenseRecords(Long elderId, Long accountId, Long orderId, String orderType,
+                                        java.math.BigDecimal depositAmount, java.math.BigDecimal serviceAmount,
+                                        java.math.BigDecimal memberAmount, java.math.BigDecimal otherAmount,
+                                        java.math.BigDecimal balanceBefore, java.math.BigDecimal balanceAfter,
+                                        java.math.BigDecimal firstMonthServiceFee);
 }

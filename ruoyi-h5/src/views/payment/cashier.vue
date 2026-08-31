@@ -67,8 +67,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { showToast, showLoadingToast, closeToast } from 'vant'
-import { processPayment } from '@/api/order'
+import { showToast, showLoadingToast, closeToast, showConfirmDialog } from 'vant'
+import { processPayment, completeMockPayment } from '@/api/order'
 
 const router = useRouter()
 const route = useRoute()
@@ -111,6 +111,45 @@ const onCountdownFinish = () => {
   }, 1500)
 }
 
+const goToPaymentSuccess = (data) => {
+  router.push({
+    name: 'PaymentSuccess',
+    query: {
+      orderNo: data.orderNo || route.query.orderNo,
+      amount: data.paidAmount || paymentAmount.value,
+      paymentMethod: selectedPaymentMethod.value,
+      elderName: route.query.elderName
+    }
+  })
+}
+
+const confirmMockPayment = async (requestNo) => {
+  try {
+    await showConfirmDialog({
+      title: '测试环境模拟支付',
+      message: '此操作不会调用真实银行。确认后将模拟银行支付成功，并执行订单入账与拨付数据生成。',
+      confirmButtonText: '确认模拟支付',
+      cancelButtonText: '暂不支付'
+    })
+  } catch (action) {
+    return
+  }
+
+  showLoadingToast({ message: '正在模拟支付完成...', forbidClick: true, duration: 0 })
+  try {
+    const response = await completeMockPayment(requestNo)
+    closeToast()
+    if (response.code === 200 && response.data) {
+      goToPaymentSuccess(response.data)
+    } else {
+      showToast(response.msg || '模拟支付失败，请重试')
+    }
+  } catch (error) {
+    closeToast()
+    showToast(error.response?.data?.msg || '模拟支付失败，请重试')
+  }
+}
+
 // 确认支付
 const confirmPayment = async () => {
   showLoadingToast({
@@ -130,21 +169,13 @@ const confirmPayment = async () => {
 
     if (response.code === 200 && response.data && response.data.payUrl) {
       if (response.data.payUrl.startsWith('mock-bank://')) {
-        showToast('模拟银行已受理，等待测试回调确认')
+        await confirmMockPayment(response.data.requestNo)
       } else {
         window.location.href = response.data.payUrl
       }
     } else if (response.code === 200 && response.data && response.data.success) {
       // 支付成功，跳转到支付成功页面
-      router.push({
-        name: 'PaymentSuccess',
-        query: {
-          orderNo: response.data.orderNo || route.query.orderNo,
-          amount: paymentAmount.value,
-          paymentMethod: selectedPaymentMethod.value,
-          elderName: route.query.elderName
-        }
-      })
+      goToPaymentSuccess(response.data)
     } else {
       showToast(response.msg || '支付失败，请重试')
     }
