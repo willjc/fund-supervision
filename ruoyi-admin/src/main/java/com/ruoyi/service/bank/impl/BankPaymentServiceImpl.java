@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.ruoyi.bank.gateway.BankGateway;
 import com.ruoyi.bank.gateway.BankPaymentRequest;
+import com.ruoyi.bank.gateway.BankQueryRequest;
 import com.ruoyi.bank.gateway.BankResult;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.common.utils.uuid.IdUtils;
@@ -52,7 +53,7 @@ public class BankPaymentServiceImpl implements IBankPaymentService
             throw new ServiceException("该养老机构没有已验证、已启用的默认银行商户号");
         }
 
-        String requestNo = "BP" + IdUtils.fastSimpleUUID().toUpperCase();
+        String requestNo = "BP" + IdUtils.fastSimpleUUID().substring(0, 30).toUpperCase();
         Date now = new Date();
         BankTransaction transaction = new BankTransaction();
         transaction.setRequestNo(requestNo);
@@ -79,6 +80,7 @@ public class BankPaymentServiceImpl implements IBankPaymentService
         request.setAmount(amount);
         request.setChannelType(channelType);
         request.setSubject(subject);
+        request.setRequestTime(now);
 
         BankResult result;
         try
@@ -116,6 +118,38 @@ public class BankPaymentServiceImpl implements IBankPaymentService
         {
             throw new ServiceException("更新银行交易结果失败");
         }
+        return result;
+    }
+
+    @Override
+    public BankResult queryPayment(Long orderId)
+    {
+        BankTransaction transaction = transactionMapper.selectByBusiness("PAY", orderId);
+        if (transaction == null)
+        {
+            throw new ServiceException("该订单没有银行支付记录");
+        }
+        if (!"PENDING".equals(transaction.getStatus()))
+        {
+            return toResult(transaction);
+        }
+
+        BankQueryRequest request = new BankQueryRequest();
+        request.setMerId(transaction.getMerId());
+        request.setOriginalRequestNo(transaction.getRequestNo());
+        request.setOriginalRequestTime(transaction.getCreateTime());
+        request.setBankSerialNo(transaction.getBankSerialNo());
+        BankResult result = bankGateway.queryPayment(request);
+        if (result == null || result.getStatus() == null)
+        {
+            throw new ServiceException("银行查单返回为空");
+        }
+        if ("SUCCESS".equals(result.getStatus())
+                && (result.getPaidAmount() == null || result.getPaidAmount().compareTo(transaction.getAmount()) != 0))
+        {
+            throw new ServiceException("银行支付金额与订单金额不一致，禁止入账");
+        }
+        result.setRequestNo(transaction.getRequestNo());
         return result;
     }
 

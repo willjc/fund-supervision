@@ -1,6 +1,7 @@
 package com.ruoyi.bank.gateway;
 
 import java.math.BigDecimal;
+import java.util.Date;
 
 public class BankPaymentRequest
 {
@@ -11,6 +12,7 @@ public class BankPaymentRequest
     private BigDecimal amount;
     private String channelType;
     private String subject;
+    private Date requestTime;
 
     public String getRequestNo() { return requestNo; }
     public void setRequestNo(String requestNo) { this.requestNo = requestNo; }
@@ -26,4 +28,6 @@ public class BankPaymentRequest
     public void setChannelType(String channelType) { this.channelType = channelType; }
     public String getSubject() { return subject; }
     public void setSubject(String subject) { this.subject = subject; }
+    public Date getRequestTime() { return requestTime; }
+    public void setRequestTime(Date requestTime) { this.requestTime = requestTime; }
 }

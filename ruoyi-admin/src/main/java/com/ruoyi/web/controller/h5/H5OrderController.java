@@ -990,7 +990,6 @@ public class H5OrderController extends BaseController
             }
 
             // 支付方式映射：前端传的是英文，需要转换为中文
-            String paymentMethodText = paymentMethod;
             if ("alipay".equals(paymentMethod)) {
                 paymentMethod = "支付宝";
             } else if ("wechat".equals(paymentMethod)) {
@@ -998,7 +997,7 @@ public class H5OrderController extends BaseController
             }
 
             BankResult bankResult = bankPaymentService.createPayment(order.getOrderId(),
-                    order.getInstitutionId(), order.getOrderAmount(), paymentMethodText,
+                    order.getInstitutionId(), order.getOrderAmount(), paymentMethod,
                     "养老服务订单-" + order.getOrderNo());
             if ("FAILED".equals(bankResult.getStatus())) {
                 return error("银行支付受理失败：" + bankResult.getResponseMessage());
@@ -1033,6 +1032,63 @@ public class H5OrderController extends BaseController
         } catch (Exception e) {
             logger.error("处理支付请求失败", e);
             return error("支付失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 用户从银行小程序手动返回后，主动查询银行支付状态。
+     */
+    @GetMapping("/payment/status/{orderId}")
+    public AjaxResult queryPaymentStatus(@PathVariable Long orderId) {
+        try {
+            Long currentUserId = getCurrentUserId();
+            if (currentUserId == null) {
+                return error("用户未登录或身份验证失败");
+            }
+            OrderInfo order = orderInfoService.selectOrderInfoByOrderId(orderId);
+            if (order == null) {
+                return error("订单不存在");
+            }
+            if (order.getElderId() != null && !hasElderAccess(currentUserId, order.getElderId())) {
+                return error("无权操作该订单");
+            }
+            if ("1".equals(order.getOrderStatus())) {
+                Map<String, Object> paid = new HashMap<>();
+                paid.put("success", true);
+                paid.put("paymentStatus", "SUCCESS");
+                paid.put("orderId", order.getOrderId());
+                paid.put("orderNo", order.getOrderNo());
+                paid.put("paidAmount", order.getOrderAmount());
+                paid.put("paymentTime", order.getPaymentTime() == null ? null
+                        : DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, order.getPaymentTime()));
+                return success(paid);
+            }
+
+            BankResult bankResult = bankPaymentService.queryPayment(orderId);
+            if (!"SUCCESS".equals(bankResult.getStatus())) {
+                Map<String, Object> result = new HashMap<>();
+                result.put("success", false);
+                result.put("paymentStatus", bankResult.getStatus());
+                result.put("responseCode", bankResult.getResponseCode());
+                result.put("message", bankResult.getResponseMessage());
+                return success(result);
+            }
+
+            BankPaymentCompletionResult completion = bankPaymentCompletionService.completePayment(
+                    bankResult.getRequestNo(), bankResult.getBankSerialNo(), bankResult.getResponseCode(),
+                    bankResult.getResponseMessage(), currentUserId.toString());
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", true);
+            result.put("paymentStatus", "SUCCESS");
+            result.put("orderId", completion.getOrderId());
+            result.put("orderNo", completion.getOrderNo());
+            result.put("paidAmount", completion.getPaidAmount());
+            result.put("paymentTime", DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS,
+                    completion.getPaymentTime()));
+            return success(result);
+        } catch (Exception e) {
+            logger.error("查询银行支付状态失败，订单ID：{}", orderId, e);
+            return error("查询支付状态失败：" + e.getMessage());
         }
     }
 

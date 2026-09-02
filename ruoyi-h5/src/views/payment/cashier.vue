@@ -59,16 +59,27 @@
         >
           确认支付
         </van-button>
+        <van-button
+          v-if="bankPaymentPending"
+          round
+          block
+          plain
+          class="query-button"
+          @click="checkPaymentStatus(true)"
+        >
+          我已完成支付，查询结果
+        </van-button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { showToast, showLoadingToast, closeToast, showConfirmDialog } from 'vant'
-import { processPayment, completeMockPayment } from '@/api/order'
+import { processPayment, completeMockPayment, queryPaymentStatus } from '@/api/order'
+import { launchZzBankAlipayMiniProgram } from '@/utils/zhb'
 
 const router = useRouter()
 const route = useRoute()
@@ -81,6 +92,9 @@ const countdown = ref(900000)
 
 // 选中的支付方式
 const selectedPaymentMethod = ref('alipay')
+const bankPaymentPending = ref(false)
+const checkingPayment = ref(false)
+let lastQueryAt = 0
 
 // 支付方式列表
 const paymentMethods = [
@@ -150,6 +164,35 @@ const confirmMockPayment = async (requestNo) => {
   }
 }
 
+const checkPaymentStatus = async (showPendingMessage = false) => {
+  if (!bankPaymentPending.value || checkingPayment.value || Date.now() - lastQueryAt < 2000) return
+  checkingPayment.value = true
+  lastQueryAt = Date.now()
+  showLoadingToast({ message: '正在查询支付结果...', forbidClick: true, duration: 0 })
+  try {
+    const response = await queryPaymentStatus(route.params.orderId)
+    closeToast()
+    if (response.code === 200 && response.data?.success) {
+      sessionStorage.removeItem('zzbankPendingOrderId')
+      bankPaymentPending.value = false
+      goToPaymentSuccess(response.data)
+    } else if (showPendingMessage) {
+      showToast(response.data?.message || response.msg || '暂未查询到支付成功，请稍后再试')
+    }
+  } catch (error) {
+    closeToast()
+    if (showPendingMessage) {
+      showToast(error.response?.data?.msg || '查询支付结果失败，请稍后重试')
+    }
+  } finally {
+    checkingPayment.value = false
+  }
+}
+
+const queryWhenVisible = () => {
+  if (!document.hidden) checkPaymentStatus(false)
+}
+
 // 确认支付
 const confirmPayment = async () => {
   showLoadingToast({
@@ -170,6 +213,10 @@ const confirmPayment = async () => {
     if (response.code === 200 && response.data && response.data.payUrl) {
       if (response.data.payUrl.startsWith('mock-bank://')) {
         await confirmMockPayment(response.data.requestNo)
+      } else if (response.data.payUrl.startsWith('zzbank-alipay://')) {
+        bankPaymentPending.value = true
+        sessionStorage.setItem('zzbankPendingOrderId', String(orderId))
+        await launchZzBankAlipayMiniProgram(response.data.payUrl)
       } else {
         window.location.href = response.data.payUrl
       }
@@ -196,6 +243,18 @@ onMounted(() => {
 
   // 模拟倒计时开始时间(从15分钟开始)
   countdown.value = 15 * 60 * 1000
+
+  bankPaymentPending.value = sessionStorage.getItem('zzbankPendingOrderId') === String(route.params.orderId)
+  document.addEventListener('visibilitychange', queryWhenVisible)
+  window.addEventListener('pageshow', queryWhenVisible)
+  window.addEventListener('focus', queryWhenVisible)
+  queryWhenVisible()
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('visibilitychange', queryWhenVisible)
+  window.removeEventListener('pageshow', queryWhenVisible)
+  window.removeEventListener('focus', queryWhenVisible)
 })
 </script>
 
@@ -306,6 +365,15 @@ onMounted(() => {
   background: #fff;
   box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.08);
   z-index: 100;
+}
+
+.query-button {
+  margin-top: 12px;
+  border-color: #ff6b00;
+}
+
+.query-button :deep(.van-button__text) {
+  color: #ff6b00;
 }
 
 .confirm-button {

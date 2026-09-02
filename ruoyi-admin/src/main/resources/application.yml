@@ -141,6 +141,12 @@ xss:
 bank:
   integration:
     mode: ${BANK_INTEGRATION_MODE:disabled}
+    gateway-url: ${ZZBANK_GATEWAY_URL:https://obk.lovingfox.cn:7000/openapi/zfbz/v1}
+    app-id: ${ZZBANK_APP_ID:}
+    app-secret: ${ZZBANK_APP_SECRET:}
+    client-private-key-path: ${ZZBANK_CLIENT_PRIVATE_KEY_PATH:}
+    bank-public-key: ${ZZBANK_BANK_PUBLIC_KEY:}
+    callback-url: ${ZZBANK_CALLBACK_URL:}
 
 # 郑好办配置
 zhenghaoban:

@@ -16,6 +16,12 @@ public class DisabledBankGateway implements BankGateway
     }
 
     @Override
+    public BankResult queryPayment(BankQueryRequest request)
+    {
+        throw new ServiceException("银行支付尚未启用，不能查询交易状态");
+    }
+
+    @Override
     public BankResult verifyMerchant(String merId, String settlementAccountNo)
     {
         throw new ServiceException("银行对接尚未启用，不能验证商户号");

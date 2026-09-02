@@ -1,5 +1,7 @@
 package com.ruoyi.bank.gateway;
 
+import java.math.BigDecimal;
+
 public class BankResult
 {
     private String requestNo;
@@ -8,6 +10,7 @@ public class BankResult
     private String payUrl;
     private String responseCode;
     private String responseMessage;
+    private BigDecimal paidAmount;
 
     public static BankResult success(String bankSerialNo)
     {
@@ -51,4 +54,6 @@ public class BankResult
     public void setResponseCode(String responseCode) { this.responseCode = responseCode; }
     public String getResponseMessage() { return responseMessage; }
     public void setResponseMessage(String responseMessage) { this.responseMessage = responseMessage; }
+    public BigDecimal getPaidAmount() { return paidAmount; }
+    public void setPaidAmount(BigDecimal paidAmount) { this.paidAmount = paidAmount; }
 }

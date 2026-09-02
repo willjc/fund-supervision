@@ -144,6 +144,16 @@ export function processPayment(orderId, config) {
 }
 
 /**
+ * 用户从银行小程序返回后主动查询支付状态。
+ */
+export function queryPaymentStatus(orderId) {
+  return request({
+    url: `/h5/payment/status/${orderId}`,
+    method: 'get'
+  })
+}
+
+/**
  * 在 mock 银行模式下确认模拟支付完成。
  * 金额、机构和银行流水均由后端根据请求号读取，前端不可传入。
  */

@@ -21,6 +21,12 @@ public class MockBankGateway implements BankGateway
     }
 
     @Override
+    public BankResult queryPayment(BankQueryRequest request)
+    {
+        return BankResult.pending(request.getBankSerialNo(), null);
+    }
+
+    @Override
     public BankResult verifyMerchant(String merId, String settlementAccountNo)
     {
         if (merId == null || settlementAccountNo == null)

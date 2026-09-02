@@ -74,6 +74,45 @@ export function closeWebView() {
 }
 
 /**
+ * 拉起郑州银行支付宝小程序。启动参数由后端生成，H5 不拼接商户号或金额。
+ * @param {string} payUrl 后端返回的 zzbank-alipay:// 参数
+ */
+export function launchZzBankAlipayMiniProgram(payUrl) {
+  return new Promise((resolve, reject) => {
+    try {
+      const prefix = 'zzbank-alipay://'
+      if (!payUrl || !payUrl.startsWith(prefix)) {
+        throw new Error('银行小程序启动参数无效')
+      }
+      let encoded = payUrl.slice(prefix.length).replace(/-/g, '+').replace(/_/g, '/')
+      encoded += '='.repeat((4 - encoded.length % 4) % 4)
+      const binary = window.atob(encoded)
+      const json = decodeURIComponent(Array.from(binary)
+        .map(char => `%${char.charCodeAt(0).toString(16).padStart(2, '0')}`).join(''))
+      const launch = JSON.parse(json)
+
+      ready(() => {
+        window.AlipayJSBridge.call('startApp', {
+          appId: launch.appId,
+          param: {
+            page: launch.page,
+            query: launch.query
+          }
+        }, result => {
+          if (result && (result.error || result.errorMessage)) {
+            reject(new Error(result.errorMessage || result.error))
+          } else {
+            resolve(result)
+          }
+        })
+      })
+    } catch (error) {
+      reject(error)
+    }
+  })
+}
+
+/**
  * 郑好办登录
  * @param {Function} loginApi 后端登录API函数
  * @returns {Promise} 返回登录结果

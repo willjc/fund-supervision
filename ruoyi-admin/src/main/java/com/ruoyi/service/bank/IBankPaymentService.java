@@ -8,4 +8,6 @@ public interface IBankPaymentService
 {
     BankResult createPayment(Long orderId, Long institutionId, BigDecimal amount,
                              String channelType, String subject);
+
+    BankResult queryPayment(Long orderId);
 }
