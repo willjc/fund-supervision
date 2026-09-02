@@ -6,10 +6,16 @@ import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.Random;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
+import com.ruoyi.common.enums.BusinessType;
+import com.ruoyi.common.utils.StringUtils;
+import com.ruoyi.domain.PensionInstitution;
+import com.ruoyi.service.IPensionInstitutionService;
 import com.ruoyi.service.pension.ISupervisionAccountLogService;
 
 /**
@@ -25,19 +31,26 @@ public class AccountManageController extends BaseController
     @Autowired
     private ISupervisionAccountLogService supervisionAccountLogService;
 
+    @Autowired
+    private IPensionInstitutionService pensionInstitutionService;
+
     /**
      * 获取机构账户统计数据
      */
+    @PreAuthorize("@ss.hasPermi('supervision:account:institution')")
     @GetMapping("/institution/statistics")
     public AjaxResult getInstitutionStatistics()
     {
-        Map<String, Object> statistics = supervisionAccountLogService.getInstitutionStatistics();
+        Map<String, Object> params = new HashMap<>();
+        applyInstitutionScope(params);
+        Map<String, Object> statistics = supervisionAccountLogService.getInstitutionStatistics(params);
         return success(statistics);
     }
 
     /**
      * 机构账户查询列表
      */
+    @PreAuthorize("@ss.hasPermi('supervision:account:institution')")
     @GetMapping("/institution/list")
     public TableDataInfo getInstitutionAccountList(
             @RequestParam(required = false) String institutionName,
@@ -55,9 +68,62 @@ public class AccountManageController extends BaseController
         if (accountStatus != null && !accountStatus.isEmpty()) {
             params.put("accountStatus", accountStatus);
         }
+        applyInstitutionScope(params);
 
         List<Map<String, Object>> list = supervisionAccountLogService.selectInstitutionAccountList(params);
         return getDataTable(list);
+    }
+
+    @PreAuthorize("@ss.hasPermi('supervision:account:institution')")
+    @Log(title = "维护机构监管账户", businessType = BusinessType.UPDATE)
+    @PutMapping("/institution/update")
+    public AjaxResult updateInstitutionAccount(@RequestBody PensionInstitution institution)
+    {
+        if (!hasInstitutionAccess(institution.getInstitutionId()))
+        {
+            return AjaxResult.error("养老机构不存在或无权修改");
+        }
+        institution.setSuperviseAccount(StringUtils.trim(institution.getSuperviseAccount()));
+        institution.setSuperviseBank(StringUtils.trim(institution.getSuperviseBank()));
+        institution.setBankAccount(StringUtils.trim(institution.getBankAccount()));
+        institution.setBasicBank(StringUtils.trim(institution.getBasicBank()));
+        if (StringUtils.isEmpty(institution.getSuperviseAccount())
+                || StringUtils.isEmpty(institution.getSuperviseBank())
+                || StringUtils.isEmpty(institution.getBankAccount())
+                || StringUtils.isEmpty(institution.getBasicBank()))
+        {
+            return AjaxResult.error("监管账户、基本账户及开户行不能为空");
+        }
+        if (institution.getSuperviseAccount().length() > 100 || institution.getSuperviseBank().length() > 100
+                || institution.getBankAccount().length() > 100 || institution.getBasicBank().length() > 100)
+        {
+            return AjaxResult.error("账户及开户行长度不能超过100个字符");
+        }
+        institution.setUpdateBy(getUsername());
+        return toAjax(pensionInstitutionService.updatePensionInstitution(institution));
+    }
+
+    private void applyInstitutionScope(Map<String, Object> params)
+    {
+        if (!Long.valueOf(1L).equals(getUserId()))
+        {
+            params.put("currentUserId", getUserId());
+        }
+    }
+
+    private boolean hasInstitutionAccess(Long institutionId)
+    {
+        if (institutionId == null)
+        {
+            return false;
+        }
+        PensionInstitution query = new PensionInstitution();
+        query.setInstitutionId(institutionId);
+        if (!Long.valueOf(1L).equals(getUserId()))
+        {
+            query.setCurrentUserId(getUserId());
+        }
+        return !pensionInstitutionService.selectPensionInstitutionList(query).isEmpty();
     }
 
     /**

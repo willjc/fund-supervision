@@ -1,8 +1,8 @@
 <template>
   <div class="app-container">
-    <el-alert title="郑州银行商户号绑定" type="info" :closable="false" show-icon class="mb16">
+    <el-alert title="银行商户配置" type="info" :closable="false" show-icon class="mb16">
       <div slot="description">
-        每家养老机构可配置多个 merId；结算账户固定取机构档案中的监管账户，划拨目标固定取基本账户。
+        每家养老机构可配置多个 merId；结算账户固定取“监管账户管理”中的监管账户，划拨目标固定取基本账户。
         新配置默认停用，待郑州银行测试环境验证通过后才能启用。
       </div>
     </el-alert>
@@ -35,6 +35,9 @@
     <el-row :gutter="10" class="mb8">
       <el-col :span="1.5">
         <el-button type="primary" plain icon="el-icon-plus" size="mini" @click="handleAdd">新增商户号</el-button>
+      </el-col>
+      <el-col :span="1.5">
+        <el-button plain icon="el-icon-bank-card" size="mini" @click="$router.push('/supervision/account/institutionAccount')">维护机构账户</el-button>
       </el-col>
     </el-row>
 

@@ -1,5 +1,9 @@
 <template>
   <div class="app-container">
+    <el-alert title="监管账户管理" type="info" :closable="false" show-icon class="mb20">
+      <div slot="description">维护养老机构的监管账户和基本账户；银行商户号请到“银行商户配置”页面绑定。</div>
+    </el-alert>
+
     <!-- 统计卡片 -->
     <el-row :gutter="20" class="mb20">
       <el-col :span="6">
@@ -133,8 +137,9 @@
           <el-tag v-else type="info">未知</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="180">
+      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="240">
         <template slot-scope="scope">
+          <el-button size="mini" type="text" icon="el-icon-edit" @click="handleEdit(scope.row)">维护</el-button>
           <el-button size="mini" type="text" icon="el-icon-view" @click="handleDetail(scope.row)">详情</el-button>
           <el-button size="mini" type="text" icon="el-icon-tickets" @click="handleFlow(scope.row)">流水</el-button>
         </template>
@@ -148,6 +153,31 @@
       :limit.sync="queryParams.pageSize"
       @pagination="getList"
     />
+
+    <el-dialog title="维护机构账户" :visible.sync="editOpen" width="620px" append-to-body>
+      <el-form ref="accountForm" :model="accountForm" :rules="accountRules" label-width="110px">
+        <el-form-item label="养老机构">
+          <el-input :value="accountForm.institutionName" disabled />
+        </el-form-item>
+        <el-form-item label="监管账户" prop="superviseAccount">
+          <el-input v-model.trim="accountForm.superviseAccount" maxlength="100" />
+        </el-form-item>
+        <el-form-item label="监管开户行" prop="superviseBank">
+          <el-input v-model.trim="accountForm.superviseBank" maxlength="100" />
+        </el-form-item>
+        <el-form-item label="基本账户" prop="bankAccount">
+          <el-input v-model.trim="accountForm.bankAccount" maxlength="100" />
+        </el-form-item>
+        <el-form-item label="基本开户行" prop="basicBank">
+          <el-input v-model.trim="accountForm.basicBank" maxlength="100" />
+        </el-form-item>
+        <el-alert title="账户变更后，已绑定的银行商户号会自动停用并等待重新验证。" type="warning" :closable="false" show-icon />
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button type="primary" @click="submitAccount">确 定</el-button>
+        <el-button @click="editOpen = false">取 消</el-button>
+      </div>
+    </el-dialog>
 
     <!-- 账户详情对话框 -->
     <el-dialog title="机构账户详情" :visible.sync="detailOpen" width="900px" append-to-body>
@@ -262,7 +292,7 @@
 </template>
 
 <script>
-import { listInstitutionAccount, getInstitutionStatistics } from '@/api/supervision/account'
+import { listInstitutionAccount, getInstitutionStatistics, updateInstitutionAccount } from '@/api/supervision/account'
 import { getPaymentList, getSupervisionList } from '@/api/pension/bank'
 
 export default {
@@ -282,6 +312,14 @@ export default {
       total: 0,
       // 账户列表
       accountList: [],
+      editOpen: false,
+      accountForm: {},
+      accountRules: {
+        superviseAccount: [{ required: true, message: '请输入监管账户', trigger: 'blur' }],
+        superviseBank: [{ required: true, message: '请输入监管开户行', trigger: 'blur' }],
+        bankAccount: [{ required: true, message: '请输入基本账户', trigger: 'blur' }],
+        basicBank: [{ required: true, message: '请输入基本开户行', trigger: 'blur' }]
+      },
       // 当前选择的机构
       currentInstitution: null,
       // 是否显示详情弹出层
@@ -378,6 +416,28 @@ export default {
     handleDetail(row) {
       this.detailData = { ...row }
       this.detailOpen = true
+    },
+    handleEdit(row) {
+      this.accountForm = {
+        institutionId: row.institutionId,
+        institutionName: row.institutionName,
+        superviseAccount: row.superviseAccount || '',
+        superviseBank: row.superviseBank || '',
+        bankAccount: row.bankAccount || '',
+        basicBank: row.basicBank || ''
+      }
+      this.editOpen = true
+      this.$nextTick(() => this.$refs.accountForm && this.$refs.accountForm.clearValidate())
+    },
+    submitAccount() {
+      this.$refs.accountForm.validate(valid => {
+        if (!valid) return
+        updateInstitutionAccount(this.accountForm).then(() => {
+          this.$modal.msgSuccess('账户信息已更新')
+          this.editOpen = false
+          this.getList()
+        })
+      })
     },
     /** 流水按钮操作 */
     handleFlow(row) {

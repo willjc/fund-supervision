@@ -159,5 +159,5 @@ public interface SupervisionAccountLogMapper
      *
      * @return 统计数据
      */
-    public Map<String, Object> selectInstitutionStatistics();
+    public Map<String, Object> selectInstitutionStatistics(@Param("params") Map<String, Object> params);
 }

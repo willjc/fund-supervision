@@ -358,6 +358,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
               WHERE institution_id = pi.institution_id)) as supervisionBalance
         FROM pension_institution pi
         <where>
+            <if test="params.currentUserId != null">
+                AND pi.institution_id IN (
+                    SELECT institution_id FROM sys_user_institution WHERE user_id = #{params.currentUserId}
+                )
+            </if>
             <if test="params.institutionName != null and params.institutionName != ''">
                 AND pi.institution_name LIKE CONCAT('%', #{params.institutionName}, '%')
             </if>
@@ -385,13 +390,16 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                  FROM account_info
                  WHERE institution_id = pi.institution_id)
             ), 0) as totalSupervisionBalance,
-            (SELECT COUNT(*)
-             FROM pension_institution
-             WHERE supervise_account_status = '2') as frozenAccountCount,
-            (SELECT COUNT(*)
-             FROM pension_institution
-             WHERE supervise_account_status = '3') as abnormalAccountCount
+            SUM(CASE WHEN pi.supervise_account_status = '2' THEN 1 ELSE 0 END) as frozenAccountCount,
+            SUM(CASE WHEN pi.supervise_account_status = '3' THEN 1 ELSE 0 END) as abnormalAccountCount
         FROM pension_institution pi
+        <where>
+            <if test="params.currentUserId != null">
+                pi.institution_id IN (
+                    SELECT institution_id FROM sys_user_institution WHERE user_id = #{params.currentUserId}
+                )
+            </if>
+        </where>
     </select>
 
 </mapper>

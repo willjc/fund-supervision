@@ -1,10 +1,14 @@
 package com.ruoyi.service.impl;
 
 import java.util.List;
+import java.util.Objects;
 import com.ruoyi.common.utils.DateUtils;
+import com.ruoyi.common.utils.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import com.ruoyi.mapper.PensionInstitutionMapper;
+import com.ruoyi.mapper.bank.BankMerchantConfigMapper;
 import com.ruoyi.domain.PensionInstitution;
 import com.ruoyi.service.IPensionInstitutionService;
 
@@ -19,6 +23,9 @@ public class PensionInstitutionServiceImpl implements IPensionInstitutionService
 {
     @Autowired
     private PensionInstitutionMapper pensionInstitutionMapper;
+
+    @Autowired
+    private BankMerchantConfigMapper bankMerchantConfigMapper;
 
     /**
      * 查询养老机构信息
@@ -75,10 +82,34 @@ public class PensionInstitutionServiceImpl implements IPensionInstitutionService
      * @return 结果
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int updatePensionInstitution(PensionInstitution pensionInstitution)
     {
+        PensionInstitution existing = pensionInstitutionMapper.selectPensionInstitutionByInstitutionId(
+                pensionInstitution.getInstitutionId());
+        boolean bankAccountChanged = existing != null && (
+                changed(pensionInstitution.getSuperviseAccount(), existing.getSuperviseAccount())
+                || changed(pensionInstitution.getSuperviseBank(), existing.getSuperviseBank())
+                || changed(pensionInstitution.getBankAccount(), existing.getBankAccount())
+                || changed(pensionInstitution.getBasicBank(), existing.getBasicBank()));
         pensionInstitution.setUpdateTime(DateUtils.getNowDate());
-        return pensionInstitutionMapper.updatePensionInstitution(pensionInstitution);
+        int result = pensionInstitutionMapper.updatePensionInstitution(pensionInstitution);
+        if (result == 1 && bankAccountChanged)
+        {
+            bankMerchantConfigMapper.invalidateByInstitutionAccountChange(
+                    pensionInstitution.getInstitutionId(),
+                    StringUtils.isNotEmpty(pensionInstitution.getSuperviseAccount())
+                            ? pensionInstitution.getSuperviseAccount() : existing.getSuperviseAccount(),
+                    StringUtils.isNotEmpty(pensionInstitution.getBankAccount())
+                            ? pensionInstitution.getBankAccount() : existing.getBankAccount(),
+                    pensionInstitution.getUpdateBy());
+        }
+        return result;
+    }
+
+    private boolean changed(String newValue, String oldValue)
+    {
+        return StringUtils.isNotEmpty(newValue) && !Objects.equals(newValue, oldValue);
     }
 
     /**

@@ -126,6 +126,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where config_id = #{configId}
     </update>
 
+    <update id="invalidateByInstitutionAccountChange">
+        update bank_merchant_config
+        set settlement_account_no = #{settlementAccountNo}, basic_account_no = #{basicAccountNo},
+            verify_status = '0', verify_message = '机构账户已变更，请重新验证',
+            status = '0', last_verified_time = null, update_by = #{operator}, update_time = now()
+        where institution_id = #{institutionId}
+    </update>
+
     <delete id="deleteById">
         delete from bank_merchant_config where config_id = #{configId}
     </delete>

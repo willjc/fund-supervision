@@ -317,8 +317,8 @@ public class SupervisionAccountLogServiceImpl implements ISupervisionAccountLogS
      * @return 统计数据
      */
     @Override
-    public Map<String, Object> getInstitutionStatistics()
+    public Map<String, Object> getInstitutionStatistics(Map<String, Object> params)
     {
-        return supervisionAccountLogMapper.selectInstitutionStatistics();
+        return supervisionAccountLogMapper.selectInstitutionStatistics(params);
     }
 }

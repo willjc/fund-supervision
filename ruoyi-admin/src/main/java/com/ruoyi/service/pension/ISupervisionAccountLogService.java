@@ -173,5 +173,5 @@ public interface ISupervisionAccountLogService
      *
      * @return 统计数据
      */
-    public Map<String, Object> getInstitutionStatistics();
+    public Map<String, Object> getInstitutionStatistics(Map<String, Object> params);
 }
