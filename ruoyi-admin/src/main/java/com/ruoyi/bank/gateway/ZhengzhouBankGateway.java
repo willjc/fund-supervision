@@ -21,6 +21,7 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Date;
+import java.util.stream.Collectors;
 
 import javax.crypto.Cipher;
 
@@ -44,6 +45,11 @@ public class ZhengzhouBankGateway implements BankGateway
 
     @Value("${bank.integration.app-id:}")
     private String appId;
+
+    // 开放银行 appId：银行小程序拉起参数使用 obk 形态标识（见郑银支付小程序说明），
+    // 与 openapi 报文信封的数字 appId 可能不同，未配置时回退 appId。
+    @Value("${bank.integration.obk-app-id:}")
+    private String obkAppId;
 
     @Value("${bank.integration.app-secret:}")
     private String appSecret;
@@ -90,7 +96,7 @@ public class ZhengzhouBankGateway implements BankGateway
         query.put("txnOrderDetail", truncate(request.getSubject(), 128));
         query.put("txnCcyType", "156");
         query.put("payChl", "OBK");
-        query.put("obkAppId", appId);
+        query.put("obkAppId", isBlank(obkAppId) ? appId : obkAppId);
         query.put("istest", "1");
         query.put("dev", "uata");
         if (!isBlank(callbackUrl))
@@ -101,7 +107,10 @@ public class ZhengzhouBankGateway implements BankGateway
         JSONObject launch = new JSONObject();
         launch.put("appId", ALIPAY_MINI_APP_ID);
         launch.put("page", "pages/index/index");
-        launch.put("query", JSON.toJSONString(query));
+        launch.put("query", query.entrySet().stream()
+                .filter(entry -> entry.getValue() != null)
+                .map(entry -> entry.getKey() + "=" + entry.getValue())
+                .collect(Collectors.joining("&")));
         String encoded = Base64.getUrlEncoder().withoutPadding()
                 .encodeToString(JSON.toJSONString(launch).getBytes(StandardCharsets.UTF_8));
         return BankResult.pending(null, "zzbank-alipay://" + encoded);

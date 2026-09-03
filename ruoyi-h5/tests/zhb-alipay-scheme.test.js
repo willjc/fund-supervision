@@ -8,7 +8,7 @@ async function main() {
   const launch = {
     appId: '2021002182634333',
     page: 'pages/index/index',
-    query: JSON.stringify({ txnType: '1007', txnAmt: '1' })
+    query: 'txnType=1007&txnAmt=1'
   }
   const payUrl = `zzbank-alipay://${Buffer.from(JSON.stringify(launch)).toString('base64url')}`
   let bridgeCalls = 0

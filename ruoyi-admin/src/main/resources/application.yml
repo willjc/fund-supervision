@@ -143,6 +143,7 @@ bank:
     mode: ${BANK_INTEGRATION_MODE:disabled}
     gateway-url: ${ZZBANK_GATEWAY_URL:https://obk.lovingfox.cn:7000/openapi/zfbz/v1}
     app-id: ${ZZBANK_APP_ID:}
+    obk-app-id: ${ZZBANK_OBK_APP_ID:}
     app-secret: ${ZZBANK_APP_SECRET:}
     client-private-key-path: ${ZZBANK_CLIENT_PRIVATE_KEY_PATH:}
     bank-public-key: ${ZZBANK_BANK_PUBLIC_KEY:}

@@ -75,12 +75,34 @@ class ZhengzhouBankGatewayTest
 
         String encoded = result.getPayUrl().substring("zzbank-alipay://".length());
         JSONObject launch = JSON.parseObject(new String(Base64.getUrlDecoder().decode(encoded), StandardCharsets.UTF_8));
-        JSONObject query = JSON.parseObject(launch.getString("query"));
+        String query = "&" + launch.getString("query") + "&";
         assertEquals("PENDING", result.getStatus());
         assertEquals("2021002182634333", launch.getString("appId"));
-        assertEquals("8202106040000001", query.getString("merId"));
-        assertEquals("1", query.getString("txnAmt"));
-        assertEquals("APP001", query.getString("obkAppId"));
+        assertTrue(query.contains("&merId=8202106040000001&"));
+        assertTrue(query.contains("&txnAmt=1&"));
+        assertTrue(query.contains("&obkAppId=APP001&"));
+    }
+
+    @Test
+    void shouldPreferConfiguredObkAppIdOverEnvelopeAppId()
+    {
+        ZhengzhouBankGateway gateway = new ZhengzhouBankGateway();
+        ReflectionTestUtils.setField(gateway, "appId", "APP001");
+        ReflectionTestUtils.setField(gateway, "obkAppId", "obk1298393");
+        BankPaymentRequest request = new BankPaymentRequest();
+        request.setRequestNo("BP123456789012345678901234567890");
+        request.setMerId("8202106040000001");
+        request.setAmount(new BigDecimal("0.01"));
+        request.setChannelType("支付宝");
+        request.setSubject("测试订单");
+        request.setRequestTime(new Date());
+
+        BankResult result = gateway.createPayment(request);
+
+        String encoded = result.getPayUrl().substring("zzbank-alipay://".length());
+        JSONObject launch = JSON.parseObject(new String(Base64.getUrlDecoder().decode(encoded), StandardCharsets.UTF_8));
+        String query = "&" + launch.getString("query") + "&";
+        assertTrue(query.contains("&obkAppId=obk1298393&"));
     }
 
     @Test
