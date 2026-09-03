@@ -90,27 +90,10 @@ export function launchZzBankAlipayMiniProgram(payUrl) {
       const json = decodeURIComponent(Array.from(binary)
         .map(char => `%${char.charCodeAt(0).toString(16).padStart(2, '0')}`).join(''))
       const launch = JSON.parse(json)
-      const scheme = `alipays://platformapi/startapp?appId=${encodeURIComponent(launch.appId)}` +
-        `&page=${encodeURIComponent(launch.page)}&query=${encodeURIComponent(launch.query)}`
-      const fallbackUrl = `https://ds.alipay.com/?scheme=${encodeURIComponent(scheme)}`
-
-      ready(() => {
-        window.AlipayJSBridge.call('startApp', {
-          appId: launch.appId,
-          param: {
-            page: launch.page,
-            query: launch.query
-          }
-        }, result => {
-          if (result && (result.error || result.errorMessage)) {
-            console.warn('郑好办 startApp 拉起失败，改用支付宝 Scheme')
-            window.location.href = fallbackUrl
-            resolve({ fallback: true })
-          } else {
-            resolve(result)
-          }
-        })
-      })
+      const scheme = `alipays://platformapi/startapp?appId=${launch.appId}` +
+        `&page=${launch.page}&query=${encodeURIComponent(launch.query)}`
+      window.location.href = `https://ds.alipay.com/?scheme=${encodeURIComponent(scheme)}`
+      resolve({ external: true })
     } catch (error) {
       reject(error)
     }
