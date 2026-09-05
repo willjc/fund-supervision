@@ -33,6 +33,9 @@ public class BankMerchantConfigServiceImpl implements IBankMerchantConfigService
     @Autowired
     private BankGateway bankGateway;
 
+    @Autowired
+    private com.ruoyi.mapper.bank.BankSettlementMapper settlementMapper;
+
     @Override
     public BankMerchantConfig selectById(Long configId)
     {
@@ -56,10 +59,15 @@ public class BankMerchantConfigServiceImpl implements IBankMerchantConfigService
     public int insert(BankMerchantConfig config, String operator)
     {
         normalizeAndValidate(config, null);
+        institutionMapper.selectPensionInstitutionForUpdate(config.getInstitutionId());
+        if ("1".equals(config.getIsDefault()) && (settlementMapper.hasBankFunds(config.getInstitutionId()) > 0
+                || settlementMapper.hasUnresolved(config.getInstitutionId()) > 0))
+        { throw new ServiceException("存在银行资金或未决交易，不能切换默认银行账户"); }
         config.setBankCode(BANK_CODE);
         config.setBankName(BANK_NAME);
         config.setVerifyStatus("0");
         config.setStatus("0");
+        config.setPayoutEnabled(0);
         config.setCreateBy(operator);
         config.setCreateTime(new Date());
         if ("1".equals(config.getIsDefault()))
@@ -83,21 +91,52 @@ public class BankMerchantConfigServiceImpl implements IBankMerchantConfigService
             throw new ServiceException("商户配置不存在");
         }
 
+        if (!Objects.equals(existing.getInstitutionId(), config.getInstitutionId()))
+        {
+            throw new ServiceException("已有商户配置不能更换所属机构，请按新机构新建绑定");
+        }
+
         normalizeAndValidate(config, config.getConfigId());
+        if ("1".equals(config.getStatus()) && !"1".equals(existing.getVerifyStatus()))
+        {
+            throw new ServiceException("商户号尚未通过银行环境验证，不能启用");
+        }
+        institutionMapper.selectPensionInstitutionForUpdate(existing.getInstitutionId());
         boolean bindingChanged = !Objects.equals(existing.getInstitutionId(), config.getInstitutionId())
                 || !Objects.equals(existing.getMerId(), config.getMerId())
                 || !Objects.equals(existing.getSettlementAccountNo(), config.getSettlementAccountNo())
                 || !Objects.equals(existing.getBasicAccountNo(), config.getBasicAccountNo())
                 || !Objects.equals(existing.getChannelType(), config.getChannelType())
-                || !Objects.equals(existing.getEnvironment(), config.getEnvironment());
+                || !Objects.equals(existing.getEnvironment(), config.getEnvironment())
+                || !Objects.equals(existing.getSettlementAccountName(), config.getSettlementAccountName())
+                || !Objects.equals(existing.getBasicAccountName(), config.getBasicAccountName())
+                || !Objects.equals(existing.getBasicBankCode(), config.getBasicBankCode())
+                || !Objects.equals(existing.getCrossBank(), config.getCrossBank())
+                || !Objects.equals(existing.getIsDefault(), config.getIsDefault());
         if (bindingChanged)
         {
+            if (settlementMapper.hasBankFunds(existing.getInstitutionId()) > 0
+                    || settlementMapper.hasUnresolved(existing.getInstitutionId()) > 0)
+            {
+                throw new ServiceException("存在银行资金或未决交易，账户/环境变更须先核对处理");
+            }
+            config.setPayoutEnabled(0);
+            config.setSupervisionAgreementNo(null);
             config.setVerifyStatus("0");
             config.setVerifyMessage(null);
             config.setStatus("0");
         }
         else
         {
+            if (Integer.valueOf(1).equals(config.getPayoutEnabled())
+                    && (!"1".equals(existing.getVerifyStatus())
+                    || StringUtils.isEmpty(config.getSettlementAccountName())
+                    || StringUtils.isEmpty(config.getBasicAccountName())
+                    || StringUtils.isEmpty(config.getSupervisionAgreementNo())
+                    || (Integer.valueOf(1).equals(config.getCrossBank()) && StringUtils.isEmpty(config.getBasicBankCode()))))
+            {
+                throw new ServiceException("真实拨付需已验证账户、收款户名、监管签约信息及跨行联行号");
+            }
             config.setVerifyStatus(existing.getVerifyStatus());
             config.setVerifyMessage(existing.getVerifyMessage());
             if ("1".equals(config.getStatus()) && !"1".equals(existing.getVerifyStatus()))
@@ -208,7 +247,8 @@ public class BankMerchantConfigServiceImpl implements IBankMerchantConfigService
         config.setMerchantName(StringUtils.isEmpty(config.getMerchantName())
                 ? institution.getInstitutionName() : config.getMerchantName().trim());
         config.setSettlementAccountNo(institution.getSuperviseAccount());
-        config.setSettlementAccountName(institution.getInstitutionName() + "监管账户");
+        config.setSettlementAccountName(StringUtils.isEmpty(config.getSettlementAccountName())
+                ? null : config.getSettlementAccountName().trim());
         config.setBasicAccountNo(institution.getBankAccount());
         config.setChannelType(StringUtils.isEmpty(config.getChannelType()) ? "H5" : config.getChannelType());
         config.setEnvironment("prod".equals(config.getEnvironment()) ? "prod" : "sandbox");

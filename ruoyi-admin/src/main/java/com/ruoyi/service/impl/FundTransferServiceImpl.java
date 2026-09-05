@@ -7,8 +7,6 @@ import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import com.ruoyi.common.utils.DateUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,7 +17,6 @@ import com.ruoyi.domain.pension.AccountInfo;
 import com.ruoyi.domain.pension.TransferRuleConfig;
 import com.ruoyi.service.pension.IFundTransferService;
 import com.ruoyi.service.pension.ITransferRuleConfigService;
-import com.ruoyi.service.pension.ISupervisionAccountLogService;
 
 /**
  * 资金划拨记录Service业务层处理
@@ -30,7 +27,6 @@ import com.ruoyi.service.pension.ISupervisionAccountLogService;
 @Service
 public class FundTransferServiceImpl implements IFundTransferService
 {
-    private static final Logger log = LoggerFactory.getLogger(FundTransferServiceImpl.class);
 
     @Autowired
     private FundTransferMapper fundTransferMapper;
@@ -42,7 +38,9 @@ public class FundTransferServiceImpl implements IFundTransferService
     private ITransferRuleConfigService transferRuleConfigService;
 
     @Autowired
-    private ISupervisionAccountLogService supervisionAccountLogService;
+    private com.ruoyi.service.bank.impl.BankPayoutService bankPayoutService;
+    @Autowired
+    private com.ruoyi.mapper.bank.BankSettlementMapper settlementMapper;
 
     /**
      * 查询资金划拨记录
@@ -53,7 +51,9 @@ public class FundTransferServiceImpl implements IFundTransferService
     @Override
     public FundTransfer selectFundTransferByTransferId(Long transferId)
     {
-        return fundTransferMapper.selectFundTransferByTransferId(transferId);
+        FundTransfer transfer = fundTransferMapper.selectFundTransferByTransferId(transferId);
+        if (transfer != null) { bankPayoutService.checkScope(transfer.getInstitutionId()); }
+        return transfer;
     }
 
     /**
@@ -65,6 +65,8 @@ public class FundTransferServiceImpl implements IFundTransferService
     @Override
     public List<FundTransfer> selectFundTransferList(FundTransfer fundTransfer)
     {
+        Long user = com.ruoyi.common.utils.SecurityUtils.getUserId();
+        fundTransfer.setCurrentUserId(com.ruoyi.common.utils.SecurityUtils.isAdmin(user) ? null : user);
         return fundTransferMapper.selectFundTransferList(fundTransfer);
     }
 
@@ -77,6 +79,7 @@ public class FundTransferServiceImpl implements IFundTransferService
     @Override
     public List<FundTransfer> selectFundTransferByInstitutionId(Long institutionId)
     {
+        bankPayoutService.checkScope(institutionId);
         return fundTransferMapper.selectFundTransferByInstitutionId(institutionId);
     }
 
@@ -104,6 +107,9 @@ public class FundTransferServiceImpl implements IFundTransferService
     @Transactional
     public int updateFundTransfer(FundTransfer fundTransfer)
     {
+        FundTransfer existing = fundTransferMapper.selectFundTransferByTransferId(fundTransfer.getTransferId());
+        if (existing != null && (Integer.valueOf(1).equals(existing.getBankEligible()) || existing.getBankTransactionId() != null))
+        { throw new com.ruoyi.common.exception.ServiceException("银行拨付单禁止通用编辑，请使用审批或结果查询"); }
         fundTransfer.setUpdateTime(DateUtils.getNowDate());
         return fundTransferMapper.updateFundTransfer(fundTransfer);
     }
@@ -118,6 +124,7 @@ public class FundTransferServiceImpl implements IFundTransferService
     @Transactional
     public int deleteFundTransferByTransferIds(Long[] transferIds)
     {
+        for (Long id : transferIds) { requireDeletable(id); }
         return fundTransferMapper.deleteFundTransferByTransferIds(transferIds);
     }
 
@@ -131,7 +138,17 @@ public class FundTransferServiceImpl implements IFundTransferService
     @Transactional
     public int deleteFundTransferByTransferId(Long transferId)
     {
+        requireDeletable(transferId);
         return fundTransferMapper.deleteFundTransferByTransferId(transferId);
+    }
+
+    private void requireDeletable(Long id)
+    {
+        FundTransfer transfer = settlementMapper.lockTransfer(id);
+        if (transfer == null) { throw new com.ruoyi.common.exception.ServiceException("拨付单不存在"); }
+        bankPayoutService.checkScope(transfer.getInstitutionId());
+        if (Integer.valueOf(1).equals(transfer.getBankEligible()) || transfer.getBankTransactionId() != null)
+        { throw new com.ruoyi.common.exception.ServiceException("银行拨付单禁止删除，须保留资金审计记录"); }
     }
 
     /**
@@ -145,42 +162,7 @@ public class FundTransferServiceImpl implements IFundTransferService
     @Transactional
     public FundTransfer generateMonthlyTransfer(Long institutionId, String transferPeriod)
     {
-        // 生成划拨单号
-        String transferNo = "TRF" + System.currentTimeMillis() + String.format("%03d", (int)(Math.random() * 1000));
-
-        // 查询该机构的所有正常账户
-        List<AccountInfo> accounts = accountInfoMapper.selectAccountInfoByInstitutionId(institutionId);
-
-        // 计算划拨金额（这里简化处理，实际应该根据每个老人的月费用计算）
-        BigDecimal totalAmount = BigDecimal.ZERO;
-        int elderCount = 0;
-
-        for (AccountInfo account : accounts) {
-            if ("1".equals(account.getAccountStatus()) && account.getServiceBalance().compareTo(BigDecimal.ZERO) > 0) {
-                // 这里应该根据老人的实际月费用计算，简化处理：假设每人每月扣除3000元
-                BigDecimal monthlyFee = new BigDecimal("3000.00");
-                if (account.getServiceBalance().compareTo(monthlyFee) >= 0) {
-                    totalAmount = totalAmount.add(monthlyFee);
-                    elderCount++;
-                }
-            }
-        }
-
-        FundTransfer fundTransfer = new FundTransfer();
-        fundTransfer.setInstitutionId(institutionId);
-        fundTransfer.setTransferNo(transferNo);
-        fundTransfer.setTransferType("1"); // 自动划拨
-        fundTransfer.setTransferAmount(totalAmount);
-        fundTransfer.setTransferDate(new Date());
-        fundTransfer.setTransferPeriod(transferPeriod);
-        fundTransfer.setElderCount(elderCount);
-        fundTransfer.setTransferStatus("0"); // 待处理
-        fundTransfer.setCreateBy("system");
-        fundTransfer.setCreateTime(new Date());
-        fundTransfer.setRemark("系统自动生成的月度划拨");
-
-        fundTransferMapper.insertFundTransfer(fundTransfer);
-        return fundTransfer;
+        throw new com.ruoyi.common.exception.ServiceException("请使用支付订单生成的逐老人拨付明细，不能按固定金额汇总生成");
     }
 
     /**
@@ -196,10 +178,7 @@ public class FundTransferServiceImpl implements IFundTransferService
     @Transactional
     public int approveFundTransfer(Long transferId, String approveUser, String approveResult, String approveRemark)
     {
-        String transferStatus = "1".equals(approveResult) ? "1" : "2";
-        String failureReason = "1".equals(approveResult) ? null : approveRemark;
-
-        return fundTransferMapper.approveFundTransfer(transferId, transferStatus, approveUser, new Date(), failureReason);
+        return bankPayoutService.approve(transferId, approveUser, "1".equals(approveResult), approveRemark);
     }
 
     /**
@@ -213,37 +192,7 @@ public class FundTransferServiceImpl implements IFundTransferService
     @Transactional
     public int executeFundTransfer(Long transferId, String executeUser)
     {
-        // 查询划拨记录
-        FundTransfer transfer = fundTransferMapper.selectFundTransferByTransferId(transferId);
-        if (transfer == null || !"1".equals(transfer.getTransferStatus())) {
-            return 0;
-        }
-
-        // 生成银行订单号（模拟）
-        String bankOrderNo = "BANK" + System.currentTimeMillis();
-
-        // 执行扣费操作
-        List<AccountInfo> accounts = accountInfoMapper.selectAccountInfoByInstitutionId(transfer.getInstitutionId());
-
-        for (AccountInfo account : accounts) {
-            if ("1".equals(account.getAccountStatus()) && account.getServiceBalance().compareTo(BigDecimal.ZERO) > 0) {
-                // 扣除月费（这里简化处理）
-                BigDecimal monthlyFee = new BigDecimal("3000.00");
-                if (account.getServiceBalance().compareTo(monthlyFee) >= 0) {
-                    // 更新账户余额
-                    accountInfoMapper.updateAccountBalance(
-                        account.getAccountId(),
-                        account.getTotalBalance().subtract(monthlyFee),
-                        account.getServiceBalance().subtract(monthlyFee),
-                        account.getDepositBalance(),
-                        account.getMemberBalance()
-                    );
-                }
-            }
-        }
-
-        // 更新划拨状态为成功
-        return fundTransferMapper.executeFundTransfer(transferId, "1", executeUser, new Date(), bankOrderNo);
+        return bankPayoutService.queue(transferId, executeUser);
     }
 
     /**
@@ -266,41 +215,7 @@ public class FundTransferServiceImpl implements IFundTransferService
     @Transactional
     public Map<String, Object> executeAutoTransfer()
     {
-        Map<String, Object> result = new java.util.HashMap<>();
-
-        try {
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM");
-            String currentPeriod = sdf.format(new Date());
-
-            // 获取所有需要划拨的机构（这里简化处理，实际应该查询所有已入驻的机构）
-            // 这里假设只有一个机构，ID为1
-            Long institutionId = 1L;
-
-            // 生成月度划拨
-            FundTransfer transfer = generateMonthlyTransfer(institutionId, currentPeriod);
-
-            if (transfer.getTransferAmount().compareTo(BigDecimal.ZERO) > 0) {
-                // 自动审批
-                approveFundTransfer(transfer.getTransferId(), "system", "1", "系统自动审批");
-
-                // 自动执行
-                executeFundTransfer(transfer.getTransferId(), "system");
-
-                result.put("success", true);
-                result.put("message", "自动划拨执行成功");
-                result.put("transferId", transfer.getTransferId());
-                result.put("transferAmount", transfer.getTransferAmount());
-                result.put("elderCount", transfer.getElderCount());
-            } else {
-                result.put("success", true);
-                result.put("message", "本期无需执行划拨");
-            }
-        } catch (Exception e) {
-            result.put("success", false);
-            result.put("message", "自动划拨执行失败：" + e.getMessage());
-        }
-
-        return result;
+        return executeTransferByRule(null, null, null);
     }
 
     /**
@@ -316,22 +231,7 @@ public class FundTransferServiceImpl implements IFundTransferService
     @Transactional
     public int applyManualTransfer(Long institutionId, BigDecimal transferAmount, String transferType, String remark)
     {
-        String transferNo = "TRF" + System.currentTimeMillis() + String.format("%03d", (int)(Math.random() * 1000));
-
-        FundTransfer fundTransfer = new FundTransfer();
-        fundTransfer.setInstitutionId(institutionId);
-        fundTransfer.setTransferNo(transferNo);
-        fundTransfer.setTransferType(transferType);
-        fundTransfer.setTransferAmount(transferAmount);
-        fundTransfer.setTransferDate(new Date());
-        fundTransfer.setTransferPeriod(new SimpleDateFormat("yyyy-MM").format(new Date()));
-        fundTransfer.setElderCount(0); // 手动申请时先设为0
-        fundTransfer.setTransferStatus("0"); // 待处理
-        fundTransfer.setCreateBy("admin");
-        fundTransfer.setCreateTime(new Date());
-        fundTransfer.setRemark(remark);
-
-        return fundTransferMapper.insertFundTransfer(fundTransfer);
+        throw new com.ruoyi.common.exception.ServiceException("请通过资金拨付申请选择老人和待拨付明细");
     }
 
     /**
@@ -444,6 +344,12 @@ public class FundTransferServiceImpl implements IFundTransferService
         // 生成monthCount个月的划拨单
         for (int i = 0; i < monthCount; i++) {
             String billingMonth = sdf.format(cal.getTime());
+            String sourceKey = "MONTH:" + orderId + ":" + billingMonth;
+            if (settlementMapper.bySource(sourceKey) != null)
+            {
+                cal.add(Calendar.MONTH, cycleMonths);
+                continue;
+            }
 
             // 设置划拨日期（使用规则配置的日期）
             Calendar transferDateCal = Calendar.getInstance();
@@ -460,6 +366,7 @@ public class FundTransferServiceImpl implements IFundTransferService
             // 创建划拨单
             FundTransfer fundTransfer = new FundTransfer();
             fundTransfer.setInstitutionId(institutionId);
+            fundTransfer.setSourceKey(sourceKey);
             fundTransfer.setElderId(elderId);
             fundTransfer.setOrderId(orderId);
             fundTransfer.setTransferNo(transferNo);
@@ -555,105 +462,14 @@ public class FundTransferServiceImpl implements IFundTransferService
     @Transactional
     public Map<String, Object> executeTransferByRule(String billingMonth, Integer transferDay, String transferTime)
     {
+        // 旧任务不再修改账务；唯一自动发送入口为 bankSettlementTask.dispatch。
         Map<String, Object> result = new java.util.HashMap<>();
-
-        try {
-            log.info("开始执行按月划拨：账单月份={}, 划付日期={}, 划付时间={}", billingMonth, transferDay, transferTime);
-
-            // 查询该账单月份待划付的划拨单
-            List<FundTransfer> pendingTransfers = fundTransferMapper.selectPendingTransfersByBillingMonth(billingMonth);
-
-            if (pendingTransfers == null || pendingTransfers.isEmpty()) {
-                result.put("success", true);
-                result.put("message", "本期无待划付的划拨单");
-                result.put("totalCount", 0);
-                result.put("successCount", 0);
-                result.put("failCount", 0);
-                result.put("skippedCount", 0);
-                return result;
-            }
-
-            int successCount = 0;
-            int failCount = 0;
-            int skippedCount = 0;
-            Date paidTime = new Date();
-
-            // 逐单条件更新，确保数据库更新结果与监管流水一一对应
-            for (FundTransfer transfer : pendingTransfers) {
-                Long institutionId = transfer.getInstitutionId();
-                List<Long> transferIds = java.util.Collections.singletonList(transfer.getTransferId());
-                try {
-                    // 只有仍处于待划付状态的记录才会更新成功
-                    int updated = fundTransferMapper.batchUpdatePaidStatus(
-                        transferIds,
-                        paidTime,
-                        "1", // 成功
-                        null
-                    );
-
-                    if (updated == 1) {
-                        successCount++;
-                        log.info("机构ID={} 成功划拨 1 单", institutionId);
-
-                        try {
-                            supervisionAccountLogService.recordTransferOut(
-                                institutionId,
-                                transfer.getTransferId(),
-                                transfer.getTransferAmount(),
-                                "自动划拨-" + billingMonth + "账单-" + transfer.getTransferNo(),
-                                "基本账户"
-                            );
-                            log.info("生成划拨流水成功：划拨单号={}, 金额={}", transfer.getTransferNo(), transfer.getTransferAmount());
-                        } catch (Exception ex) {
-                            log.error("生成划拨流水失败：划拨单号={}, 错误={}", transfer.getTransferNo(), ex.getMessage());
-                        }
-                    } else {
-                        skippedCount++;
-                        log.warn("划拨单未更新，记录可能已被其他任务处理或状态已变化：划拨单号={}",
-                            transfer.getTransferNo());
-                    }
-                } catch (Exception e) {
-                    log.error("划拨单执行失败：划拨单号={}, 错误={}", transfer.getTransferNo(), e.getMessage());
-
-                    // 记录失败状态
-                    try {
-                        int failed = fundTransferMapper.batchUpdatePaidStatus(
-                            transferIds,
-                            paidTime,
-                            "2", // 失败
-                            "系统异常: " + e.getMessage()
-                        );
-                        if (failed == 1) {
-                            failCount++;
-                        } else {
-                            skippedCount++;
-                            log.warn("划拨单未能记录失败状态，记录可能已被其他任务处理或状态已变化：划拨单号={}",
-                                transfer.getTransferNo());
-                        }
-                    } catch (Exception ex) {
-                        skippedCount++;
-                        log.error("记录划拨失败状态时发生异常：划拨单号={}, 错误={}",
-                            transfer.getTransferNo(), ex.getMessage());
-                    }
-                }
-            }
-
-            result.put("success", true);
-            result.put("message", "划拨处理完成");
-            result.put("totalCount", pendingTransfers.size());
-            result.put("successCount", successCount);
-            result.put("failCount", failCount);
-            result.put("skippedCount", skippedCount);
-
-            log.info("按月划拨执行完成：总单数={}, 成功={}, 失败={}, 未更新={}",
-                pendingTransfers.size(), successCount, failCount, skippedCount);
-
-        } catch (Exception e) {
-            log.error("按月划拨执行异常", e);
-            result.put("success", false);
-            result.put("message", "划拨执行异常: " + e.getMessage());
-        }
-
+        result.put("success", true);
+        result.put("message", "由银行到期拨付任务统一处理，旧入口不发送资金");
+        result.put("totalCount", 0);
+        result.put("successCount", 0);
+        result.put("failCount", 0);
+        result.put("skippedCount", 0);
         return result;
     }
 
@@ -669,9 +485,6 @@ public class FundTransferServiceImpl implements IFundTransferService
     @Override
     public int batchUpdatePaidStatus(List<Long> transferIds, Date paidTime, String transferStatus, String failureReason)
     {
-        if (!"1".equals(transferStatus) && !"2".equals(transferStatus)) {
-            throw new IllegalArgumentException("划拨状态仅支持1（成功）或2（失败）");
-        }
-        return fundTransferMapper.batchUpdatePaidStatus(transferIds, paidTime, transferStatus, failureReason);
+        throw new com.ruoyi.common.exception.ServiceException("禁止直接修改拨付完成状态，须由银行结果记账");
     }
 }

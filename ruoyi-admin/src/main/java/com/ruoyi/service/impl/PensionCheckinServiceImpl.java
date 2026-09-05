@@ -452,37 +452,25 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
      * @param transferDate 划拨日期
      */
     private void createFirstMonthTransfer(OrderInfo orderInfo, Long elderId, Long institutionId,
-                                           BigDecimal amount, Date transferDate) {
+                                           BigDecimal amount, Date transferDate)
+    {
         com.ruoyi.domain.pension.FundTransfer transfer = new com.ruoyi.domain.pension.FundTransfer();
         transfer.setOrderId(orderInfo.getOrderId());
         transfer.setElderId(elderId);
         transfer.setInstitutionId(institutionId);
-
-        // 生成拨付单号
-        String transferNo = "TRF" + System.currentTimeMillis() + "FM" + String.format("%02d", (int)(Math.random() * 100));
-        transfer.setTransferNo(transferNo);
-        transfer.setTransferType("1"); // 自动划拨
+        transfer.setTransferNo("TRF-FIRST-" + orderInfo.getOrderId());
+        transfer.setSourceKey("FIRST:" + orderInfo.getOrderId());
+        transfer.setTransferType("1");
         transfer.setTransferAmount(amount);
         transfer.setTransferDate(transferDate);
-
-        // 设置当前月份为划拨周期
-        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM");
-        String currentPeriod = sdf.format(transferDate);
-        transfer.setTransferPeriod(currentPeriod);
-        transfer.setBillingMonth(currentPeriod);
-
+        transfer.setBillingMonth(new java.text.SimpleDateFormat("yyyy-MM").format(transferDate));
+        transfer.setTransferStatus("0");
+        transfer.setIsPaid("0");
+        transfer.setStatus("pending");
+        transfer.setBankEligible(0);
         transfer.setElderCount(1);
-        transfer.setTransferStatus("1"); // 已完成
-        transfer.setIsPaid("1"); // 已划拨
-        transfer.setStatus("completed"); // 已完成
-        transfer.setExecuteUser("system");
-        transfer.setExecuteTime(DateUtils.getNowDate());
-        transfer.setPaidTime(DateUtils.getNowDate()); // 设置实际划拨时间
-        transfer.setPaidMethod("auto");
         transfer.setCreateBy("system");
-        transfer.setCreateTime(DateUtils.getNowDate());
-        transfer.setRemark("首月服务费立即划拨-" + orderInfo.getOrderNo());
-
+        transfer.setRemark("线下资金待核查，未发生银行拨付");
         fundTransferService.insertFundTransfer(transfer);
     }
 
@@ -502,11 +490,10 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
             account = accountInfoService.createAccountInfo(elderId, institutionId, BigDecimal.ZERO);
         }
 
-        // 计算进入账户的金额 = 押金 + 会员费 + 剩余月份服务费
-        // 首月服务费已通过拨付单消耗，不计入余额
+        // 收款全部进入账面余额；首月尚未银行拨付，不提前扣除。
         BigDecimal deposit = dto.getDepositAmount() != null ? dto.getDepositAmount() : BigDecimal.ZERO;
         BigDecimal memberFee = dto.getMemberFee() != null ? dto.getMemberFee() : BigDecimal.ZERO;
-        BigDecimal remainingMonths = new BigDecimal(Math.max(0, monthCount - 1));
+        BigDecimal remainingMonths = new BigDecimal(Math.max(0, monthCount));
         BigDecimal remainingServiceFee = firstMonthServiceFee.multiply(remainingMonths);
 
         // 分别更新各类型余额（修复：押金和会员费不再错误地加到服务费余额）

@@ -140,6 +140,9 @@ xss:
 # 银行对接开关。生产默认禁用，测试时显式设置 BANK_INTEGRATION_MODE=mock。
 bank:
   integration:
+    # 需独立验收后启用；关闭发送不影响已受理交易的人工补查。
+    payout-enabled: ${ZZBANK_PAYOUT_ENABLED:false}
+    reconciliation-enabled: ${ZZBANK_RECONCILIATION_ENABLED:false}
     mode: ${BANK_INTEGRATION_MODE:disabled}
     gateway-url: ${ZZBANK_GATEWAY_URL:https://obk.lovingfox.cn:7000/openapi/zfbz/v1}
     app-id: ${ZZBANK_APP_ID:}

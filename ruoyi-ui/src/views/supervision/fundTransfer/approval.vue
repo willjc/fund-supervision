@@ -1,5 +1,6 @@
 <template>
   <div class="app-container">
+    <el-alert title="统计包含历史本地记录，不作为银行到账凭证。批准后待银行拨付；历史未接入银行的记录不允许直接补发。" type="info" :closable="false" class="mb8" />
     <!-- 搜索表单 -->
     <el-form :model="queryParams" ref="queryForm" :inline="true" v-show="showSearch" label-width="88px">
       <el-form-item label="划拨单号" prop="transferNo">
@@ -27,11 +28,14 @@
           <el-option label="特殊申请" value="3" />
         </el-select>
       </el-form-item>
-      <el-form-item label="划拨状态" prop="transferStatus">
-        <el-select v-model="queryParams.transferStatus" placeholder="请选择划拨状态" clearable size="small">
-          <el-option label="待处理" value="0" />
-          <el-option label="成功" value="1" />
-          <el-option label="失败" value="2" />
+      <el-form-item label="划拨状态" prop="status">
+        <el-select v-model="queryParams.status" placeholder="请选择划拨状态" clearable size="small">
+          <el-option label="待拨付" value="pending" />
+          <el-option label="银行处理中" value="processing" />
+          <el-option label="已完成（含历史）" value="completed" />
+          <el-option label="拨付失败" value="failed" />
+          <el-option label="已退汇" value="returned" />
+          <el-option label="已取消" value="cancelled" />
         </el-select>
       </el-form-item>
       <el-form-item label="划拨期间">
@@ -68,7 +72,7 @@
         <el-card shadow="hover" class="stat-card">
           <div class="stat-content">
             <div class="stat-number">{{ statistics.approvedCount || 0 }}</div>
-            <div class="stat-label">成功</div>
+            <div class="stat-label">账面完成（含历史）</div>
             <div class="stat-icon approved">
               <i class="el-icon-check"></i>
             </div>
@@ -173,7 +177,7 @@
       <el-table-column label="划拨期间" align="center" prop="transferPeriod" width="120" />
       <el-table-column label="划拨状态" align="center" prop="transferStatus" width="100">
         <template slot-scope="scope">
-          <dict-tag :options="dict.type.transfer_status" :value="scope.row.transferStatus"/>
+          <span>{{ payoutStatus(scope.row) }}</span>
         </template>
       </el-table-column>
       <el-table-column label="划拨日期" align="center" prop="transferDate" width="110">
@@ -192,7 +196,7 @@
           <span>{{ parseTime(scope.row.approveTime, '{y}-{m}-{d} {h}:{i}') }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="220">
+      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="300">
         <template slot-scope="scope">
           <el-button
             size="mini"
@@ -206,7 +210,7 @@
             type="text"
             icon="el-icon-check"
             @click="handleApprove(scope.row)"
-            v-if="scope.row.transferStatus === '0'"
+            v-if="canApprovePayout(scope.row)"
             v-hasPermi="['pension:fundTransfer:approve']"
           >通过</el-button>
           <el-button
@@ -214,9 +218,11 @@
             type="text"
             icon="el-icon-close"
             @click="handleReject(scope.row)"
-            v-if="scope.row.transferStatus === '0'"
+            v-if="canApprovePayout(scope.row)"
             v-hasPermi="['pension:fundTransfer:reject']"
           >拒绝</el-button>
+          <el-button v-if="scope.row.bankTransactionId" type="text" size="mini" v-hasPermi="['pension:fundTransfer:query']" @click="handleBankQuery(scope.row)">查询银行</el-button>
+          <el-button v-if="canRetryPayout(scope.row)" type="text" size="mini" v-hasPermi="['pension:fundTransfer:execute']" @click="handleRetry(scope.row)">失败重试</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -244,14 +250,14 @@
         <el-descriptions-item label="涉及老人">{{ currentTransfer.elderCount }}人</el-descriptions-item>
         <el-descriptions-item label="划拨期间">{{ currentTransfer.transferPeriod }}</el-descriptions-item>
         <el-descriptions-item label="划拨状态">
-          <dict-tag :options="dict.type.transfer_status" :value="currentTransfer.transferStatus"/>
+          <span>{{ payoutStatus(currentTransfer) }}</span>
         </el-descriptions-item>
         <el-descriptions-item label="划拨日期">{{ parseTime(currentTransfer.transferDate) }}</el-descriptions-item>
         <el-descriptions-item label="银行订单号" :span="2">{{ currentTransfer.bankOrderNo }}</el-descriptions-item>
         <el-descriptions-item label="创建时间">{{ parseTime(currentTransfer.createTime) }}</el-descriptions-item>
         <el-descriptions-item label="审批人">{{ currentTransfer.approveUser }}</el-descriptions-item>
         <el-descriptions-item label="审批时间">{{ parseTime(currentTransfer.approveTime) }}</el-descriptions-item>
-        <el-descriptions-item label="失败原因" v-if="currentTransfer.transferStatus === '2'">
+        <el-descriptions-item label="失败/核查原因" v-if="currentTransfer.failureReason">
           {{ currentTransfer.failureReason }}
         </el-descriptions-item>
         <el-descriptions-item label="备注" :span="2">{{ currentTransfer.remark }}</el-descriptions-item>
@@ -347,6 +353,8 @@
 
 <script>
 import { listApproval, listAllFundTransfer, getFundTransfer, approveFundTransfer, rejectFundTransfer, getApprovalStatistics, batchApprove, getTodayPending, getUrgentTransfers, exportApproval } from "@/api/pension/supervisionFundTransfer";
+import { queryPayout, retryPayout } from '@/api/pension/bank'
+import { payoutStatus, canApprovePayout, canRetryPayout } from '@/utils/payout'
 
 export default {
   name: "FundTransferApproval",
@@ -394,7 +402,7 @@ export default {
         transferNo: null,
         institutionName: null,
         transferType: null,
-        transferStatus: "0" // 默认只查询待处理
+        status: "pending" // 默认只查询待处理
       },
       // 拒绝表单
       rejectForm: {
@@ -414,6 +422,21 @@ export default {
     this.getStatistics();
   },
   methods: {
+    payoutStatus, canApprovePayout, canRetryPayout,
+    handleBankQuery(row) {
+      queryPayout(row.transferId).then(response => {
+        const result = response.data || {}
+        this.currentTransfer = { ...result.transfer, manualReview: result.manualReview }
+        this.detailOpen = true
+        this.getList()
+      })
+    },
+    handleRetry(row) {
+      this.$modal.confirm('确认重新提交明确失败的拨付“' + row.transferNo + '”？').then(() => retryPayout(row.transferId)).then(() => {
+        this.$modal.msgSuccess('重试已提交，请查询银行最终结果')
+        this.getList()
+      }).catch(() => {})
+    },
     /** 查询资金划拨审批列表 */
     getList() {
       this.loading = true;
@@ -454,8 +477,8 @@ export default {
     },
     // 多选框选中数据
     handleSelectionChange(selection) {
-      this.ids = selection.map(item => item.transferId);
-      this.multiple = !selection.length;
+      this.ids = selection.filter(canApprovePayout).map(item => item.transferId);
+      this.multiple = !this.ids.length;
     },
     /** 查看详情操作 */
     handleDetail(row) {
@@ -475,7 +498,7 @@ export default {
       }).then(() => {
         this.getList();
         this.getStatistics();
-        this.$modal.msgSuccess("审批通过成功");
+        this.$modal.msgSuccess("已批准，待银行拨付");
       }).catch(() => {});
     },
     /** 审批拒绝操作 */
@@ -521,9 +544,9 @@ export default {
     /** 显示全部切换 */
     handleShowAllChange(value) {
       if (value) {
-        this.queryParams.transferStatus = null; // 显示全部状态
+        this.queryParams.status = null; // 显示全部状态
       } else {
-        this.queryParams.transferStatus = "0"; // 只显示待处理
+        this.queryParams.status = "pending"; // 只显示待处理
       }
       this.queryParams.pageNum = 1;
       this.getList();

@@ -16,6 +16,25 @@ import com.ruoyi.common.core.domain.BaseEntity;
  */
 public class FundTransfer extends BaseEntity
 {
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private Long currentUserId;
+    public Long getCurrentUserId() { return currentUserId; }
+    public void setCurrentUserId(Long value) { currentUserId = value; }
+    private Integer bankEligible = 0;
+    public Integer getBankEligible() { return bankEligible; }
+    public void setBankEligible(Integer value) { bankEligible = value; }
+    private Long bankTransactionId;
+    public Long getBankTransactionId() { return bankTransactionId; }
+    public void setBankTransactionId(Long value) { bankTransactionId = value; }
+    private Integer manualReview;
+    public Integer getManualReview() { return manualReview; }
+    public void setManualReview(Integer value) { manualReview = value; }
+    private String sourceKey;
+    public String getSourceKey() { return sourceKey; }
+    public void setSourceKey(String value) { sourceKey = value; }
+    private String balanceType = "SERVICE";
+    public String getBalanceType() { return balanceType; }
+    public void setBalanceType(String value) { balanceType = value; }
     private static final long serialVersionUID = 1L;
 
     /** 划拨ID */

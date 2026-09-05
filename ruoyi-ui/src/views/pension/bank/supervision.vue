@@ -2,7 +2,7 @@
   <div class="app-container">
     <el-card>
       <div slot="header">
-        <span>监管账户划拨流水（已划拨）</span>
+        <span>监管账户本地记账流水（含历史记录，非银行对账单）</span>
       </div>
 
       <!-- 搜索条件 -->
@@ -67,12 +67,12 @@
             {{ formatDateTime(scope.row.paidTime) }}
           </template>
         </el-table-column>
-        <el-table-column label="监管账户余额" prop="supervisionBalance" width="140">
+        <el-table-column label="监管账面余额" prop="supervisionBalance" width="140">
           <template slot-scope="scope">
             <span style="font-weight: bold;">¥{{ formatMoney(scope.row.supervisionBalance) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="基本账户余额" prop="basicBalance" width="140">
+        <el-table-column label="基本账户本地统计" prop="basicBalance" width="150">
           <template slot-scope="scope">
             <span style="font-weight: bold; color: #67c23a;">¥{{ formatMoney(scope.row.basicBalance) }}</span>
           </template>

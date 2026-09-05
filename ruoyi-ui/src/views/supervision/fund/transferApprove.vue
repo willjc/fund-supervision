@@ -21,7 +21,10 @@
             <el-option label="全部" value="" />
             <el-option label="待家属确认" value="pending_family" />
             <el-option label="待监管审核" value="pending_supervision" />
-            <el-option label="已划拨" value="approved" />
+            <el-option label="已批准，待银行拨付" value="approved" />
+            <el-option label="银行处理中" value="processing" />
+            <el-option label="拨付失败" value="failed" />
+            <el-option label="已退汇" value="returned" />
             <el-option label="已拒绝" value="rejected" />
             <el-option label="已完成" value="completed" />
           </el-select>
@@ -130,6 +133,23 @@
         </el-descriptions-item>
         <el-descriptions-item label="备注" :span="2">{{ detailData.remark || '-' }}</el-descriptions-item>
       </el-descriptions>
+
+      <el-divider content-position="left">各笔拨付结果（以银行结果为准）</el-divider>
+      <el-table v-loading="transferLoading" :data="transferDetails" border>
+        <el-table-column label="划拨单号" prop="transferNo" min-width="170" />
+        <el-table-column label="月份" prop="billingMonth" width="100" />
+        <el-table-column label="金额（元）" prop="transferAmount" width="100" />
+        <el-table-column label="状态" min-width="150"><template slot-scope="scope">{{ payoutStatus(scope.row) }}</template></el-table-column>
+        <el-table-column label="银行流水" prop="bankOrderNo" min-width="160" />
+        <el-table-column label="失败/核查原因" prop="failureReason" min-width="150" />
+        <el-table-column label="操作" width="160">
+          <template slot-scope="scope">
+            <el-button v-if="scope.row.bankTransactionId" type="text" size="mini" v-hasPermi="['pension:fundTransfer:query']" @click="handleTransferQuery(scope.row)">查询银行</el-button>
+            <el-button v-if="canRetryPayout(scope.row)" type="text" size="mini" v-hasPermi="['pension:fundTransfer:execute']" @click="handleTransferRetry(scope.row)">失败重试</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <pagination v-show="transferTotal > 0" :total="transferTotal" :page.sync="transferQuery.pageNum" :limit.sync="transferQuery.pageSize" @pagination="loadTransferDetails" />
       <div slot="footer" class="dialog-footer">
         <el-button @click="detailOpen = false">关闭</el-button>
       </div>
@@ -172,6 +192,9 @@
 </template>
 
 <script>
+import { listFundTransfer } from '@/api/pension/fundTransfer'
+import { queryPayout, retryPayout } from '@/api/pension/bank'
+import { payoutStatus, canRetryPayout } from '@/utils/payout'
 import { listFundTransferApply, getFundTransferApply, supervisionApprove } from '@/api/pension/fundTransferApply'
 import { listAllInstitutions } from '@/api/pension/institution'
 
@@ -179,6 +202,8 @@ export default {
   name: 'TransferApprove',
   data() {
     return {
+      transferDetails: [], transferTotal: 0, transferLoading: false, transferQuery: { pageNum: 1, pageSize: 10 },
+      detailRequestGeneration: 0, transferRequestGeneration: 0,
       loading: false,
       showSearch: true,
       applyList: [],
@@ -216,6 +241,34 @@ export default {
     this.getList()
   },
   methods: {
+    payoutStatus, canRetryPayout,
+    loadTransferDetails() {
+      const generation = ++this.transferRequestGeneration
+      if (!this.detailData || !this.detailData.applyId) return
+      this.transferLoading = true
+      listFundTransfer({ ...this.transferQuery, applyId: this.detailData.applyId }).then(response => {
+        if (generation !== this.transferRequestGeneration) return
+        this.transferDetails = response.rows || []
+        this.transferTotal = response.total || 0
+      }).finally(() => {
+        if (generation === this.transferRequestGeneration) this.transferLoading = false
+      })
+    },
+    handleTransferQuery(row) {
+      const generation = this.transferRequestGeneration
+      queryPayout(row.transferId).then(response => {
+        if (generation !== this.transferRequestGeneration) return
+        const result = response.data || {}
+        const index = this.transferDetails.findIndex(item => item.transferId === row.transferId)
+        if (index >= 0) this.$set(this.transferDetails, index, { ...result.transfer, manualReview: result.manualReview })
+      })
+    },
+    handleTransferRetry(row) {
+      this.$modal.confirm('确认重新提交明确失败的拨付“' + row.transferNo + '”？').then(() => retryPayout(row.transferId)).then(() => {
+        this.$modal.msgSuccess('重试已提交，请查询银行最终结果')
+        this.loadTransferDetails()
+      }).catch(() => {})
+    },
     loadInstitutions() {
       listAllInstitutions().then(response => {
         this.institutionOptions = response.data || []
@@ -240,8 +293,15 @@ export default {
       this.handleQuery()
     },
     handleView(row) {
+      const generation = ++this.detailRequestGeneration
+      ++this.transferRequestGeneration
+      this.detailData = null
+      this.transferDetails = []; this.transferTotal = 0; this.transferLoading = false
       getFundTransferApply(row.applyId).then(response => {
+        if (generation !== this.detailRequestGeneration) return
         this.detailData = response.data
+        this.transferDetails = []; this.transferTotal = 0; this.transferQuery.pageNum = 1
+        this.loadTransferDetails()
         this.detailOpen = true
       })
     },
@@ -267,7 +327,7 @@ export default {
             remark: this.approveForm.remark
           }
           supervisionApprove(data).then(response => {
-            this.$message.success('审批成功')
+            this.$message.success(this.approveForm.approved ? '已批准，待银行拨付' : '已拒绝')
             this.approveOpen = false
             this.getList()
           })
@@ -285,7 +345,10 @@ export default {
       const map = {
         'pending_family': 'info',
         'pending_supervision': 'warning',
-        'approved': 'success',
+        'approved': 'warning',
+        'processing': 'warning',
+        'failed': 'danger',
+        'returned': 'danger',
         'rejected': 'danger',
         'completed': 'success'
       }
@@ -295,7 +358,10 @@ export default {
       const map = {
         'pending_family': '待家属确认',
         'pending_supervision': '待监管审核',
-        'approved': '已划拨',
+        'approved': '已批准，待银行拨付',
+        'processing': '银行处理中',
+        'failed': '拨付失败',
+        'returned': '已退汇',
         'rejected': '已拒绝',
         'completed': '已完成'
       }

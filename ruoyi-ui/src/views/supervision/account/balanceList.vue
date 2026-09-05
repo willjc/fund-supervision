@@ -1,5 +1,6 @@
 <template>
   <div class="app-container">
+    <el-alert title="平台账面余额（非银行实时余额）。预占金额尚未正式扣账，不可重复使用。" type="info" :closable="false" show-icon class="mb8" />
     <el-form :model="queryParams" ref="queryForm" size="small" :inline="true" label-width="68px">
       <el-form-item label="账户编号" prop="accountNo">
         <el-input
@@ -18,15 +19,15 @@
     <el-table v-loading="loading" :data="balanceList">
       <el-table-column label="账户编号" align="center" prop="accountNo" />
       <el-table-column label="老人姓名" align="center" prop="elderName" />
-      <el-table-column label="账户类型" align="center" prop="accountType" />
-      <el-table-column label="当前余额" align="center" prop="currentBalance" />
+      <el-table-column label="机构" align="center" prop="institutionName" />
+      <el-table-column label="账面总余额" align="center" prop="totalBalance" />
+      <el-table-column label="服务费预占" align="center" prop="serviceReserved" />
+      <el-table-column label="服务费可用" align="center" prop="serviceAvailable" />
+      <el-table-column label="押金预占" align="center" prop="depositReserved" />
+      <el-table-column label="押金可用" align="center" prop="depositAvailable" />
       <el-table-column label="可用余额" align="center" prop="availableBalance" />
-      <el-table-column label="账户状态" align="center" prop="accountStatus" />
-      <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
-        <template slot-scope="scope">
-          <el-button size="mini" type="text" icon="el-icon-view" @click="handleDetail(scope.row)">详情</el-button>
-          <el-button size="mini" type="text" icon="el-icon-money" @click="handleRecharge(scope.row)">充值</el-button>
-        </template>
+      <el-table-column label="账户状态" align="center" prop="accountStatus">
+        <template slot-scope="scope">{{ { '0': '冻结', '1': '正常', '2': '已销户' }[scope.row.accountStatus] || '待核实' }}</template>
       </el-table-column>
     </el-table>
 
@@ -41,6 +42,7 @@
 </template>
 
 <script>
+import { listAccountInfo } from '@/api/pension/accountInfo'
 export default {
   name: 'BalanceList',
   data() {
@@ -61,12 +63,10 @@ export default {
   methods: {
     getList() {
       this.loading = true
-      this.balanceList = [
-        { accountNo: 'ACC20230001', elderName: '张奶奶', accountType: '基本账户', currentBalance: 5000, availableBalance: 4500, accountStatus: '正常' },
-        { accountNo: 'ACC20230002', elderName: '李爷爷', accountType: '专项账户', currentBalance: 800, availableBalance: 800, accountStatus: '正常' }
-      ]
-      this.total = this.balanceList.length
-      this.loading = false
+      listAccountInfo(this.queryParams).then(response => {
+        this.balanceList = response.rows || []
+        this.total = response.total || 0
+      }).finally(() => { this.loading = false })
     },
     handleQuery() {
       this.queryParams.pageNum = 1
@@ -75,12 +75,6 @@ export default {
     resetQuery() {
       this.resetForm('queryForm')
       this.handleQuery()
-    },
-    handleDetail(row) {
-      console.log('详情', row)
-    },
-    handleRecharge(row) {
-      console.log('充值', row)
     }
   }
 }

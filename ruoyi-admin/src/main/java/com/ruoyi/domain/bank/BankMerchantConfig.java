@@ -10,6 +10,21 @@ import com.ruoyi.common.core.domain.BaseEntity;
  */
 public class BankMerchantConfig extends BaseEntity
 {
+    private String basicAccountName;
+    public String getBasicAccountName() { return basicAccountName; }
+    public void setBasicAccountName(String value) { basicAccountName = value; }
+    private String basicBankCode;
+    public String getBasicBankCode() { return basicBankCode; }
+    public void setBasicBankCode(String value) { basicBankCode = value; }
+    private Integer crossBank = 0;
+    public Integer getCrossBank() { return crossBank; }
+    public void setCrossBank(Integer value) { crossBank = value; }
+    private String supervisionAgreementNo;
+    public String getSupervisionAgreementNo() { return supervisionAgreementNo; }
+    public void setSupervisionAgreementNo(String value) { supervisionAgreementNo = value; }
+    private Integer payoutEnabled = 0;
+    public Integer getPayoutEnabled() { return payoutEnabled; }
+    public void setPayoutEnabled(Integer value) { payoutEnabled = value; }
     private static final long serialVersionUID = 1L;
 
     private Long configId;

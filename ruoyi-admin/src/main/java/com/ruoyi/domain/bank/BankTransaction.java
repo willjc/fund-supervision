@@ -5,6 +5,40 @@ import java.util.Date;
 
 public class BankTransaction
 {
+    private String bankTime;
+    private String environment;
+    private String snapshotJson;
+    private Integer attemptNo = 1;
+    private String bankStatus;
+    private String bookingStatus = "PENDING";
+    private Date nextQueryTime;
+    private Integer queryCount = 0;
+    private Integer manualReview = 0;
+    private String returnTime;
+    private String returnReason;
+
+    public String getBankTime() { return bankTime; }
+    public void setBankTime(String value) { bankTime = value; }
+    public String getEnvironment() { return environment; }
+    public void setEnvironment(String value) { environment = value; }
+    public String getSnapshotJson() { return snapshotJson; }
+    public void setSnapshotJson(String value) { snapshotJson = value; }
+    public Integer getAttemptNo() { return attemptNo; }
+    public void setAttemptNo(Integer value) { attemptNo = value; }
+    public String getBankStatus() { return bankStatus; }
+    public void setBankStatus(String value) { bankStatus = value; }
+    public String getBookingStatus() { return bookingStatus; }
+    public void setBookingStatus(String value) { bookingStatus = value; }
+    public Date getNextQueryTime() { return nextQueryTime; }
+    public void setNextQueryTime(Date value) { nextQueryTime = value; }
+    public Integer getQueryCount() { return queryCount; }
+    public void setQueryCount(Integer value) { queryCount = value; }
+    public Integer getManualReview() { return manualReview; }
+    public void setManualReview(Integer value) { manualReview = value; }
+    public String getReturnTime() { return returnTime; }
+    public void setReturnTime(String value) { returnTime = value; }
+    public String getReturnReason() { return returnReason; }
+    public void setReturnReason(String value) { returnReason = value; }
     private Long transactionId;
     private String requestNo;
     private String businessType;

@@ -142,10 +142,70 @@ public class ZhengzhouBankGateway implements BankGateway
         String queryCode = normalizeCode(response.getString("respCode"));
         if (!"0000".equals(queryCode))
         {
-            return result(queryCode, response.getString("respMsg"), response);
+            // 查询请求失败不等于原支付失败，不能据此释放资金或重新支付。
+            return BankResult.unknown(queryCode, response.getString("respMsg"));
         }
-        return result(normalizeCode(response.getString("origRespCode")),
-                response.getString("origRespMsg"), response);
+        String originalCode = normalizeCode(response.getString("origRespCode"));
+        boolean success = "0000".equals(originalCode);
+        String originalOrder = response.getString("origTxnOrderId");
+        if ((success && isBlank(originalOrder))
+                || (!isBlank(originalOrder) && !originalOrder.equals(request.getOriginalRequestNo())))
+        {
+            return BankResult.unknown("ORDER_MISMATCH", "银行查单原交易订单号缺失或不匹配");
+        }
+        String originalTime = response.getString("origTxnOrderTime");
+        if ((success && isBlank(originalTime)) || (!isBlank(originalTime)
+                && !format(request.getOriginalRequestTime(), "yyyyMMddHHmmss").equals(originalTime)))
+        {
+            return BankResult.unknown("ORDER_TIME_MISMATCH", "银行查单原交易订单时间缺失或不匹配");
+        }
+        String bankSerialNo = response.getString("origRespTxnSsn");
+        if (!isBlank(request.getBankSerialNo()) && (success || !isBlank(bankSerialNo))
+                && !request.getBankSerialNo().equals(bankSerialNo))
+        {
+            return BankResult.unknown("SERIAL_MISMATCH", "银行查单原交易流水与已保存流水不匹配");
+        }
+        return result(originalCode, response.getString("origRespMsg"), response);
+    }
+
+    @Override
+    public BankResult submitPayout(BankPayoutRequest request)
+    {
+        payoutBody(request);
+        // 业务字段已确认，但监管网关、信封和终态语义未确认。不能复用收单 zfbz 网关猜测发送。
+        return BankGateway.super.submitPayout(request);
+    }
+
+    @Override
+    public BankResult queryPayout(BankPayoutRequest request)
+    {
+        request.validateQuery();
+        return BankGateway.super.queryPayout(request);
+    }
+
+    /** v1.3 的 ylzjhb 业务字段；不代表监管报文信封已经获得银行确认。 */
+    JSONObject payoutBody(BankPayoutRequest request)
+    {
+        request.validate();
+        JSONObject body = new JSONObject();
+        body.put("trandt", format(request.getRequestTime(), "yyyyMMdd"));
+        body.put("trantm", format(request.getRequestTime(), "HHmmss"));
+        body.put("paylno", request.getRequestNo());
+        body.put("jgacct", request.getPayerAccountNo());
+        body.put("jgacna", request.getPayerAccountName());
+        body.put("pyeeac", request.getPayeeAccountNo());
+        body.put("pyeena", request.getPayeeAccountName());
+        if (!isBlank(request.getPayeeBankNo()))
+        {
+            body.put("pyeebk", request.getPayeeBankNo());
+        }
+        body.put("crcycd", "156");
+        body.put("tranam", request.getAmount().setScale(2, RoundingMode.UNNECESSARY));
+        if (!isBlank(request.getRemark()))
+        {
+            body.put("remark", request.getRemark());
+        }
+        return body;
     }
 
     @Override
@@ -233,16 +293,25 @@ public class ZhengzhouBankGateway implements BankGateway
     private BankResult result(String code, String message, JSONObject response)
     {
         String bankSerialNo = response.getString("origRespTxnSsn");
+        if ("EMPTY_CODE".equals(code) || !code.matches("[0-9]{4}"))
+        {
+            return BankResult.unknown(code, "银行未返回可识别的原交易状态");
+        }
         if ("0000".equals(code))
         {
             String amount = response.getString("origTxnAmt");
-            if (isBlank(amount))
+            if (isBlank(amount) || !amount.matches("[0-9]{1,12}") || new BigDecimal(amount).signum() <= 0)
             {
-                return BankResult.failed("AMOUNT_MISSING", "银行成功响应未返回原交易金额");
+                return BankResult.unknown("AMOUNT_INVALID", "银行成功响应未返回有效的原交易金额（整数分）");
+            }
+            if (isBlank(bankSerialNo))
+            {
+                return BankResult.unknown("SERIAL_MISSING", "银行成功响应未返回原交易流水");
             }
             BankResult result = BankResult.success(bankSerialNo);
             result.setResponseMessage(message);
             result.setPaidAmount(new BigDecimal(amount).movePointLeft(2));
+            result.setBankTransactionTime(response.getString("origRespTxnTime"));
             return result;
         }
         if (Arrays.asList("0002", "0003", "0004", "0005", "0007", "0008", "0009",
@@ -342,7 +411,7 @@ public class ZhengzhouBankGateway implements BankGateway
         {
             return "EMPTY_CODE";
         }
-        return code.length() > 4 ? code.substring(code.length() - 4) : code;
+        return code.length() == 7 ? code.substring(3) : code;
     }
 
     private String format(Date date, String pattern)

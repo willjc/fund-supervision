@@ -173,7 +173,7 @@
       </el-table-column>
       <el-table-column label="申请状态" align="center" prop="applyStatus" width="100">
         <template slot-scope="scope">
-          <dict-tag :options="dict.type.deposit_apply_status" :value="scope.row.applyStatus"/>
+          <span>{{ depositStatus(scope.row.applyStatus) }}</span>
         </template>
       </el-table-column>
       <el-table-column label="申请原因" align="center" prop="applyReason" min-width="150" show-overflow-tooltip />
@@ -245,7 +245,7 @@
           <dict-tag :options="dict.type.urgency_level" :value="currentApply.urgencyLevel"/>
         </el-descriptions-item>
         <el-descriptions-item label="申请状态">
-          <dict-tag :options="dict.type.deposit_apply_status" :value="currentApply.applyStatus"/>
+          <span>{{ depositStatus(currentApply.applyStatus) }}</span>
         </el-descriptions-item>
         <el-descriptions-item label="申请原因" :span="2">{{ currentApply.applyReason }}</el-descriptions-item>
         <el-descriptions-item label="详细说明" :span="2" v-if="currentApply.description">
@@ -513,6 +513,10 @@ export default {
     this.getStatistics();
   },
   methods: {
+    depositStatus(status) {
+      const labels = { draft: '草稿', pending_family: '待家属审批', family_approved: '待监管审批', pending_supervision: '待监管审批', approved: '已批准，待银行拨付', processing: '银行处理中', completed: '拨付完成', failed: '拨付失败', returned: '已退汇', rejected: '已拒绝', family_rejected: '家属拒绝', cancelled: '已取消' }
+      return labels[status] || status || '状态待核实'
+    },
     /** 查询押金使用审批列表 */
     getList() {
       this.loading = true;
@@ -563,7 +567,7 @@ export default {
       }).then(() => {
         this.getList();
         this.getStatistics();
-        this.$modal.msgSuccess("审批通过成功");
+        this.$modal.msgSuccess("已批准，待银行拨付");
         // 关闭可能打开的对话框
         this.todayPendingOpen = false;
         this.urgentOpen = false;

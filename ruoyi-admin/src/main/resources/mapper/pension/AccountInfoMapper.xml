@@ -5,6 +5,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 <mapper namespace="com.ruoyi.mapper.pension.AccountInfoMapper">
 
     <resultMap type="AccountInfo" id="AccountInfoResult">
+        <result property="serviceReserved" column="service_reserved" />
+        <result property="depositReserved" column="deposit_reserved" />
+        <result property="bankServiceBalance" column="bank_service_balance" />
+        <result property="bankDepositBalance" column="bank_deposit_balance" />
         <result property="accountId"    column="account_id"    />
         <result property="elderId"    column="elder_id"    />
         <result property="institutionId"    column="institution_id"    />
@@ -29,6 +33,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <sql id="selectAccountInfoVo">
         select a.account_id, a.elder_id, a.institution_id, a.account_no, a.account_name,
                a.account_status, a.total_balance, a.service_balance, a.deposit_balance, a.member_balance,
+               a.service_reserved, a.deposit_reserved, a.bank_service_balance, a.bank_deposit_balance,
                a.create_by, a.create_time, a.update_by, a.update_time, a.remark,
                e.elder_name, e.id_card, i.institution_name
         from account_info a
@@ -63,6 +68,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <select id="selectAccountInfoForUpdate" resultMap="AccountInfoResult">
         select account_id, elder_id, institution_id, account_no, account_name, account_status,
                total_balance, service_balance, deposit_balance, member_balance,
+               service_reserved, deposit_reserved, bank_service_balance, bank_deposit_balance,
                create_by, create_time, update_by, update_time, remark
         from account_info
         where elder_id = #{elderId} and institution_id = #{institutionId}
@@ -148,6 +154,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="remark != null">remark = #{remark},</if>
         </trim>
         where account_id = #{accountId}
+        <if test="serviceBalance != null">and #{serviceBalance} &gt;= GREATEST(service_reserved,bank_service_balance)</if>
+        <if test="depositBalance != null">and #{depositBalance} &gt;= GREATEST(deposit_reserved,bank_deposit_balance)</if>
+        <if test="totalBalance != null">and #{totalBalance} &gt;= bank_service_balance+bank_deposit_balance</if>
+        <if test="institutionId != null">and (institution_id=#{institutionId} or (bank_service_balance=0 and bank_deposit_balance=0))</if>
+        <if test="elderId != null">and (elder_id=#{elderId} or (bank_service_balance=0 and bank_deposit_balance=0))</if>
     </update>
 
     <update id="updateAccountBalance">
@@ -158,10 +169,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             member_balance = #{memberBalance},
             update_time = NOW()
         where account_id = #{accountId}
+          and #{serviceBalance} &gt;= GREATEST(service_reserved,bank_service_balance)
+          and #{depositBalance} &gt;= GREATEST(deposit_reserved,bank_deposit_balance)
+          and #{totalBalance} &gt;= bank_service_balance+bank_deposit_balance
     </update>
 
     <delete id="deleteAccountInfoByAccountId" parameterType="Long">
         delete from account_info where account_id = #{accountId}
+        and bank_service_balance=0 and bank_deposit_balance=0 and service_reserved=0 and deposit_reserved=0
     </delete>
 
     <delete id="deleteAccountInfoByAccountIds" parameterType="String">
@@ -169,5 +184,6 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <foreach item="accountId" collection="array" open="(" separator="," close=")">
             #{accountId}
         </foreach>
+        and bank_service_balance=0 and bank_deposit_balance=0 and service_reserved=0 and deposit_reserved=0
     </delete>
 </mapper>

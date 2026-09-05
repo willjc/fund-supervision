@@ -6,6 +6,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <resultMap id="BankMerchantConfigResult" type="com.ruoyi.domain.bank.BankMerchantConfig">
         <id property="configId" column="config_id" />
+        <result property="basicAccountName" column="basic_account_name" />
+        <result property="basicBankCode" column="basic_bank_code" />
+        <result property="crossBank" column="cross_bank" />
+        <result property="supervisionAgreementNo" column="supervision_agreement_no" />
+        <result property="payoutEnabled" column="payout_enabled" />
         <result property="institutionId" column="institution_id" />
         <result property="institutionName" column="institution_name" />
         <result property="bankCode" column="bank_code" />
@@ -33,7 +38,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         select c.config_id, c.institution_id, i.institution_name, c.bank_code, c.bank_name,
                c.mer_id, c.merchant_name, c.settlement_account_no, c.settlement_account_name,
                c.basic_account_no, c.channel_type, c.environment, c.verify_status, c.verify_message,
-               c.is_default, c.status,
+               c.is_default, c.status, c.basic_account_name, c.basic_bank_code, c.cross_bank,
+               c.supervision_agreement_no, c.payout_enabled,
                c.last_verified_time, c.create_by, c.create_time, c.update_by, c.update_time, c.remark
         from bank_merchant_config c
         inner join pension_institution i on i.institution_id = c.institution_id
@@ -82,12 +88,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             institution_id, bank_code, bank_name, mer_id, merchant_name,
             settlement_account_no, settlement_account_name, basic_account_no,
             channel_type, environment, verify_status, is_default, status,
-            create_by, create_time, remark
+            create_by, create_time, remark, basic_account_name, basic_bank_code, cross_bank, supervision_agreement_no
         ) values (
             #{institutionId}, #{bankCode}, #{bankName}, #{merId}, #{merchantName},
             #{settlementAccountNo}, #{settlementAccountName}, #{basicAccountNo},
             #{channelType}, #{environment}, #{verifyStatus}, #{isDefault}, #{status},
-            #{createBy}, #{createTime}, #{remark}
+            #{createBy}, #{createTime}, #{remark}, #{basicAccountName}, #{basicBankCode}, #{crossBank}, #{supervisionAgreementNo}
         )
     </insert>
 
@@ -99,6 +105,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             settlement_account_no = #{settlementAccountNo},
             settlement_account_name = #{settlementAccountName},
             basic_account_no = #{basicAccountNo},
+            basic_account_name = #{basicAccountName}, basic_bank_code = #{basicBankCode},
+            cross_bank = #{crossBank}, supervision_agreement_no = #{supervisionAgreementNo}, payout_enabled = #{payoutEnabled},
             channel_type = #{channelType},
             environment = #{environment},
             verify_status = #{verifyStatus},
@@ -130,7 +138,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         update bank_merchant_config
         set settlement_account_no = #{settlementAccountNo}, basic_account_no = #{basicAccountNo},
             verify_status = '0', verify_message = '机构账户已变更，请重新验证',
-            status = '0', last_verified_time = null, update_by = #{operator}, update_time = now()
+            status = '0', payout_enabled=0, supervision_agreement_no=NULL,
+            last_verified_time = null, update_by = #{operator}, update_time = now()
         where institution_id = #{institutionId}
     </update>
 

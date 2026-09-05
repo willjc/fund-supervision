@@ -57,6 +57,9 @@ public class BankPaymentCompletionServiceImpl implements IBankPaymentCompletionS
     @Autowired private ISupervisionAccountLogService supervisionAccountLogService;
     @Autowired private IFundTransferService fundTransferService;
     @Autowired private BedAllocationMapper bedAllocationMapper;
+    @Autowired private com.ruoyi.mapper.bank.BankSettlementMapper settlementMapper;
+    @org.springframework.beans.factory.annotation.Value("${bank.integration.mode:disabled}")
+    private String integrationMode;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -93,7 +96,7 @@ public class BankPaymentCompletionServiceImpl implements IBankPaymentCompletionS
         {
             throw new ServiceException("失败状态的银行交易不能完成支付");
         }
-        if (!STATUS_PENDING.equals(transaction.getStatus()))
+        if (!STATUS_PENDING.equals(transaction.getStatus()) && !"UNKNOWN".equals(transaction.getStatus()))
         {
             throw new ServiceException("当前银行交易状态不能完成支付：" + transaction.getStatus());
         }
@@ -146,8 +149,8 @@ public class BankPaymentCompletionServiceImpl implements IBankPaymentCompletionS
         insertPaymentRecord(transaction, order, bankSerialNo, responseCode,
                 responseMessage, paymentMethod, paymentTime, actualOperator);
 
-        BigDecimal finalTotal = balanceAfterIncome.subtract(firstMonthFee);
-        BigDecimal finalService = serviceBefore.add(allocation.serviceAmount).subtract(firstMonthFee);
+        BigDecimal finalTotal = balanceAfterIncome;
+        BigDecimal finalService = serviceBefore.add(allocation.serviceAmount);
         BigDecimal finalDeposit = depositBefore.add(allocation.depositAmount);
         BigDecimal finalMember = memberBefore.add(allocation.memberAmount);
         if (accountInfoMapper.updateAccountBalance(account.getAccountId(), finalTotal,
@@ -157,12 +160,11 @@ public class BankPaymentCompletionServiceImpl implements IBankPaymentCompletionS
         }
 
         int expectedExpenseCount = positiveCount(allocation.depositAmount,
-                allocation.serviceAmount, allocation.memberAmount, allocation.otherAmount)
-                + (firstMonthFee.signum() > 0 ? 1 : 0);
+                allocation.serviceAmount, allocation.memberAmount, allocation.otherAmount);
         int expenseCount = expenseRecordService.createOrderExpenseRecords(
                 order.getElderId(), account.getAccountId(), order.getOrderId(), order.getOrderType(),
                 allocation.depositAmount, allocation.serviceAmount, allocation.memberAmount,
-                allocation.otherAmount, balanceBefore, balanceAfterIncome, firstMonthFee);
+                allocation.otherAmount, balanceBefore, balanceAfterIncome, BigDecimal.ZERO);
         if (expenseCount != expectedExpenseCount)
         {
             throw new ServiceException("创建订单费用记录不完整");
@@ -174,6 +176,17 @@ public class BankPaymentCompletionServiceImpl implements IBankPaymentCompletionS
         requirePersistedLog(incomeLog, "记录监管账户收入流水失败");
 
         handleOrderFollowUp(order, items, firstMonthFee);
+
+        // 仅新、已验证银行收款可成为真实拨付来源；历史/现金/mock 不回填资格。
+        if ("zzbank".equals(integrationMode) && transaction.getEnvironment() != null
+                && "SUCCESS".equals(transaction.getBankStatus()))
+        {
+            if (settlementMapper.creditSource(account.getAccountId(), allocation.serviceAmount, allocation.depositAmount) != 1)
+            {
+                throw new ServiceException("记录银行资金来源失败");
+            }
+            settlementMapper.qualifyOrder(order.getOrderId());
+        }
 
         Date completeTime = new Date();
         if (transactionMapper.markSuccess(transaction.getTransactionId(), bankSerialNo,
@@ -348,11 +361,7 @@ public class BankPaymentCompletionServiceImpl implements IBankPaymentCompletionS
             {
                 return;
             }
-            FundTransfer transfer = createFirstMonthTransfer(order, firstMonthFee);
-            SupervisionAccountLog outLog = supervisionAccountLogService.recordTransferOut(
-                    order.getInstitutionId(), transfer.getTransferId(), firstMonthFee,
-                    "首月服务费划拨-" + order.getOrderNo(), "基本账户");
-            requirePersistedLog(outLog, "记录首月服务费划拨流水失败");
+            createFirstMonthTransfer(order, firstMonthFee);
 
             int monthCount = order.getMonthCount() == null ? 1 : order.getMonthCount();
             if (monthCount > 1)
@@ -398,22 +407,21 @@ public class BankPaymentCompletionServiceImpl implements IBankPaymentCompletionS
         transfer.setElderId(order.getElderId());
         transfer.setOrderId(order.getOrderId());
         transfer.setTransferNo("TRF-BANK-" + order.getOrderId() + "-FM");
+        transfer.setSourceKey("FIRST:" + order.getOrderId());
         transfer.setTransferType("1");
         transfer.setTransferAmount(amount);
         transfer.setTransferDate(now);
         transfer.setTransferPeriod(period);
         transfer.setBillingMonth(period);
         transfer.setElderCount(1);
-        transfer.setTransferStatus("1");
-        transfer.setIsPaid("1");
-        transfer.setStatus("completed");
+        transfer.setTransferStatus("0");
+        transfer.setIsPaid("0");
+        transfer.setStatus("pending");
         transfer.setExecuteUser("system");
-        transfer.setExecuteTime(now);
-        transfer.setPaidTime(now);
         transfer.setPaidMethod("auto");
         transfer.setCreateBy("system");
         transfer.setCreateTime(now);
-        transfer.setRemark("首月服务费立即划拨-" + order.getOrderNo());
+        transfer.setRemark("首月服务费待银行拨付-" + order.getOrderNo());
         if (fundTransferService.insertFundTransfer(transfer) != 1 || transfer.getTransferId() == null)
         {
             throw new ServiceException("生成首月服务费拨付单失败");

@@ -23,6 +23,9 @@ class PensionInstitutionServiceImplTest
     @Mock
     private BankMerchantConfigMapper merchantConfigMapper;
 
+    @Mock
+    private com.ruoyi.mapper.bank.BankSettlementMapper settlementMapper;
+
     @InjectMocks
     private PensionInstitutionServiceImpl service;
 
@@ -37,7 +40,7 @@ class PensionInstitutionServiceImplTest
         existing.setSuperviseBank("郑州银行原支行");
         existing.setBasicBank("郑州银行原支行");
 
-        when(institutionMapper.selectPensionInstitutionByInstitutionId(36L)).thenReturn(existing);
+        when(institutionMapper.selectPensionInstitutionForUpdate(36L)).thenReturn(existing);
         when(institutionMapper.updatePensionInstitution(update)).thenReturn(1);
 
         assertEquals(1, service.updatePensionInstitution(update));

@@ -3,7 +3,7 @@
     <el-alert title="银行商户配置" type="info" :closable="false" show-icon class="mb16">
       <div slot="description">
         每家养老机构可配置多个 merId；结算账户固定取“监管账户管理”中的监管账户，划拨目标固定取基本账户。
-        新配置默认停用，待郑州银行测试环境验证通过后才能启用。
+        新配置默认停用，待郑州银行测试环境验证通过后才能启用。拨付需另行登记银行已办理的监管签约资料；登记或启用机构开关不代表银行协议已验收，真实拨付仍受服务端总开关及协议确认控制。
       </div>
     </el-alert>
 
@@ -34,7 +34,7 @@
 
     <el-row :gutter="10" class="mb8">
       <el-col :span="1.5">
-        <el-button type="primary" plain icon="el-icon-plus" size="mini" @click="handleAdd">新增商户号</el-button>
+        <el-button type="primary" plain icon="el-icon-plus" size="mini" v-hasPermi="['supervision:account:supervision']" @click="handleAdd">新增商户号</el-button>
       </el-col>
       <el-col :span="1.5">
         <el-button plain icon="el-icon-bank-card" size="mini" @click="$router.push('/supervision/account/institutionAccount')">维护机构账户</el-button>
@@ -78,11 +78,14 @@
           </el-tag>
         </template>
       </el-table-column>
+      <el-table-column label="机构拨付开关" width="115" align="center">
+        <template slot-scope="scope">{{ Number(scope.row.payoutEnabled) === 1 ? '机构已开启' : '关闭' }}</template>
+      </el-table-column>
       <el-table-column label="操作" width="175" fixed="right" align="center">
         <template slot-scope="scope">
-          <el-button type="text" size="mini" icon="el-icon-connection" @click="handleVerify(scope.row)">验证</el-button>
-          <el-button type="text" size="mini" icon="el-icon-edit" @click="handleEdit(scope.row)">编辑</el-button>
-          <el-button type="text" size="mini" icon="el-icon-delete" @click="handleDelete(scope.row)">删除</el-button>
+          <el-button type="text" size="mini" icon="el-icon-connection" v-hasPermi="['supervision:account:supervision']" @click="handleVerify(scope.row)">验证</el-button>
+          <el-button type="text" size="mini" icon="el-icon-edit" v-hasPermi="['supervision:account:supervision']" @click="handleEdit(scope.row)">编辑</el-button>
+          <el-button type="text" size="mini" icon="el-icon-delete" v-hasPermi="['supervision:account:supervision']" @click="handleDelete(scope.row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -92,7 +95,7 @@
     <el-dialog :title="title" :visible.sync="open" width="680px" append-to-body>
       <el-form ref="form" :model="form" :rules="rules" label-width="130px">
         <el-form-item label="养老机构" prop="institutionId">
-          <el-select v-model="form.institutionId" filterable placeholder="请选择机构" style="width: 100%" @change="handleInstitutionChange">
+          <el-select v-model="form.institutionId" :disabled="form.configId != null" filterable placeholder="请选择机构" style="width: 100%" @change="handleInstitutionChange">
             <el-option v-for="item in institutionList" :key="item.institutionId" :label="item.institutionName" :value="item.institutionId" />
           </el-select>
         </el-form-item>
@@ -105,8 +108,27 @@
         <el-form-item label="监管结算账户">
           <el-input :value="selectedInstitution.superviseAccount || '机构档案尚未配置'" disabled />
         </el-form-item>
+        <el-form-item label="监管账户户名" prop="settlementAccountName">
+          <el-input v-model.trim="form.settlementAccountName" maxlength="200" placeholder="按银行真实登记户名填写，不使用机构名称自动合成" />
+        </el-form-item>
         <el-form-item label="基本账户">
           <el-input :value="selectedInstitution.bankAccount || '机构档案尚未配置'" disabled />
+        </el-form-item>
+        <el-form-item label="基本账户户名" prop="basicAccountName">
+          <el-input v-model.trim="form.basicAccountName" maxlength="200" placeholder="按银行已登记的基本账户户名填写" />
+        </el-form-item>
+        <el-form-item label="跨行拨付" prop="crossBank">
+          <el-radio-group v-model="form.crossBank"><el-radio :label="0">本行</el-radio><el-radio :label="1">跨行</el-radio></el-radio-group>
+        </el-form-item>
+        <el-form-item label="收款行联行号" prop="basicBankCode">
+          <el-input v-model.trim="form.basicBankCode" maxlength="64" placeholder="跨行拨付必填，按银行资料登记" />
+        </el-form-item>
+        <el-form-item label="监管协议编号" prop="supervisionAgreementNo">
+          <el-input v-model.trim="form.supervisionAgreementNo" maxlength="64" placeholder="银行已办理并确认的协议编号" />
+        </el-form-item>
+        <el-form-item label="机构拨付开关" prop="payoutEnabled">
+          <el-radio-group v-model="form.payoutEnabled"><el-radio :label="0">关闭</el-radio><el-radio :label="1" :disabled="form.verifyStatus !== '1'">开启</el-radio></el-radio-group>
+          <div class="form-tip">默认关闭。更改账户、跨行信息或协议后须重新确认；服务端银行协议未验收时仍禁止真实拨付。</div>
         </el-form-item>
         <el-form-item label="接入渠道" prop="channelType">
           <el-select v-model="form.channelType" style="width: 100%">
@@ -196,7 +218,7 @@ export default {
       this.handleQuery()
     },
     reset() {
-      this.form = { configId: null, institutionId: null, merId: '', merchantName: '', channelType: 'H5', environment: 'sandbox', verifyStatus: '0', isDefault: '0', status: '0', remark: '' }
+      this.form = { configId: null, institutionId: null, merId: '', merchantName: '', channelType: 'H5', environment: 'sandbox', verifyStatus: '0', isDefault: '0', status: '0', settlementAccountName: '', basicAccountName: '', basicBankCode: '', crossBank: 0, supervisionAgreementNo: '', payoutEnabled: 0, remark: '' }
       this.selectedInstitution = {}
       this.resetForm('form')
     },
@@ -208,7 +230,9 @@ export default {
     handleEdit(row) {
       this.reset()
       getBankMerchant(row.configId).then(response => {
-        this.form = response.data
+        this.form = { ...this.form, ...response.data }
+        this.form.crossBank = Number(this.form.crossBank) === 1 ? 1 : 0
+        this.form.payoutEnabled = Number(this.form.payoutEnabled) === 1 ? 1 : 0
         this.handleInstitutionChange(this.form.institutionId)
         this.title = '编辑郑州银行商户号'
         this.open = true
@@ -221,6 +245,10 @@ export default {
     submitForm() {
       this.$refs.form.validate(valid => {
         if (!valid) return
+        if (Number(this.form.payoutEnabled) === 1 && (!this.form.settlementAccountName || !this.form.basicAccountName || !this.form.supervisionAgreementNo || (Number(this.form.crossBank) === 1 && !this.form.basicBankCode))) {
+          this.$modal.msgError('启用拨付前请填写监管账户真实户名、基本账户户名、监管协议编号及跨行联行号')
+          return
+        }
         const request = this.form.configId ? updateBankMerchant(this.form) : addBankMerchant(this.form)
         request.then(() => {
           this.$modal.msgSuccess(this.form.configId ? '修改成功' : '新增成功，等待银行验证')

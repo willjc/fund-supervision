@@ -5,6 +5,17 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 <mapper namespace="com.ruoyi.mapper.bank.BankTransactionMapper">
     <resultMap id="BankTransactionResult" type="com.ruoyi.domain.bank.BankTransaction">
         <id property="transactionId" column="transaction_id" />
+        <result property="bankTime" column="bank_time" />
+        <result property="environment" column="environment" />
+        <result property="snapshotJson" column="snapshot_json" />
+        <result property="attemptNo" column="attempt_no" />
+        <result property="bankStatus" column="bank_status" />
+        <result property="bookingStatus" column="booking_status" />
+        <result property="nextQueryTime" column="next_query_time" />
+        <result property="queryCount" column="query_count" />
+        <result property="manualReview" column="manual_review" />
+        <result property="returnTime" column="return_time" />
+        <result property="returnReason" column="return_reason" />
         <result property="requestNo" column="request_no" />
         <result property="businessType" column="business_type" />
         <result property="businessId" column="business_id" />
@@ -26,13 +37,16 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <sql id="selectTransaction">
         select transaction_id, request_no, business_type, business_id, institution_id, mer_id,
                bank_code, channel_type, amount, status, bank_serial_no, pay_url,
-               response_code, response_message, complete_time, create_time, update_time
+               response_code, response_message, complete_time, create_time, update_time,
+               bank_time, environment, snapshot_json, attempt_no, bank_status, booking_status,
+               next_query_time, query_count, manual_review, return_time, return_reason
         from bank_transaction
     </sql>
 
     <select id="selectByBusiness" resultMap="BankTransactionResult">
         <include refid="selectTransaction" />
         where business_type = #{businessType} and business_id = #{businessId}
+        order by attempt_no desc limit 1
     </select>
 
     <select id="selectByRequestNo" resultMap="BankTransactionResult">
@@ -49,10 +63,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <insert id="insert" useGeneratedKeys="true" keyProperty="transactionId">
         insert into bank_transaction (
             request_no, business_type, business_id, institution_id, mer_id, bank_code,
-            channel_type, amount, status, create_time, update_time
+            channel_type, amount, status, create_time, update_time, environment, snapshot_json,
+            attempt_no, next_query_time
         ) values (
             #{requestNo}, #{businessType}, #{businessId}, #{institutionId}, #{merId}, #{bankCode},
-            #{channelType}, #{amount}, #{status}, #{createTime}, #{updateTime}
+            #{channelType}, #{amount}, #{status}, #{createTime}, #{updateTime}, #{environment}, #{snapshotJson},
+            #{attemptNo}, #{nextQueryTime}
         )
     </insert>
 
@@ -60,15 +76,16 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         update bank_transaction
         set status = #{status}, bank_serial_no = #{bankSerialNo}, pay_url = #{payUrl},
             response_code = #{responseCode}, response_message = #{responseMessage},
-            complete_time = #{completeTime}, update_time = #{updateTime}
+            complete_time = #{completeTime}, update_time = #{updateTime}, bank_time = #{bankTime}
         where transaction_id = #{transactionId}
     </update>
 
     <update id="markSuccess">
         update bank_transaction
-        set status = 'SUCCESS', bank_serial_no = #{bankSerialNo},
+        set status = 'SUCCESS', bank_status = 'SUCCESS', booking_status = 'DONE',
+            next_query_time = null, manual_review = 0, bank_serial_no = #{bankSerialNo},
             response_code = #{responseCode}, response_message = #{responseMessage},
             complete_time = #{completeTime}, update_time = #{updateTime}
-        where transaction_id = #{transactionId} and status = 'PENDING'
+        where transaction_id = #{transactionId} and status in ('PENDING','UNKNOWN')
     </update>
 </mapper>

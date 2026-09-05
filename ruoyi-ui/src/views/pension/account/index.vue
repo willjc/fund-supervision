@@ -68,7 +68,7 @@
       <el-table-column label="老人姓名" align="center" prop="elderName" />
       <el-table-column label="身份证号" align="center" prop="idCard" width="180" />
       <el-table-column label="机构名称" align="center" prop="institutionName" />
-      <el-table-column label="总余额" align="center" prop="totalBalance">
+      <el-table-column label="账面总余额" align="center" prop="totalBalance">
         <template slot-scope="scope">
           <span class="text-primary">¥{{ scope.row.totalBalance }}</span>
         </template>
@@ -88,6 +88,10 @@
           <span>¥{{ scope.row.memberBalance }}</span>
         </template>
       </el-table-column>
+      <el-table-column label="服务费预占" prop="serviceReserved" min-width="105" />
+      <el-table-column label="服务费可用" prop="serviceAvailable" min-width="105" />
+      <el-table-column label="押金预占" prop="depositReserved" min-width="105" />
+      <el-table-column label="押金可用" prop="depositAvailable" min-width="105" />
       <el-table-column label="账户状态" align="center" prop="accountStatus">
         <template slot-scope="scope">
           <dict-tag :options="dict.type.account_status" :value="scope.row.accountStatus"/>
@@ -153,6 +157,13 @@
 
     <!-- 查看账户详情对话框 -->
     <el-dialog :title="title" :visible.sync="open" width="800px" append-to-body>
+      <el-alert title="以下为平台账面资金，不代表银行实时可用余额；预占金额尚未扣账，不可重复使用。" type="info" :closable="false" class="mb8" />
+      <el-descriptions :column="2" border class="mb8">
+        <el-descriptions-item label="服务费预占">{{ form.serviceReserved == null ? '-' : form.serviceReserved }}</el-descriptions-item>
+        <el-descriptions-item label="服务费可用">{{ form.serviceAvailable == null ? '-' : form.serviceAvailable }}</el-descriptions-item>
+        <el-descriptions-item label="押金预占">{{ form.depositReserved == null ? '-' : form.depositReserved }}</el-descriptions-item>
+        <el-descriptions-item label="押金可用">{{ form.depositAvailable == null ? '-' : form.depositAvailable }}</el-descriptions-item>
+      </el-descriptions>
       <el-form ref="form" :model="form" label-width="100px">
         <el-row>
           <el-col :span="12">

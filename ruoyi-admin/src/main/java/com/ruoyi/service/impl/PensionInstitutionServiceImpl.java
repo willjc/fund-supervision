@@ -27,6 +27,9 @@ public class PensionInstitutionServiceImpl implements IPensionInstitutionService
     @Autowired
     private BankMerchantConfigMapper bankMerchantConfigMapper;
 
+    @Autowired
+    private com.ruoyi.mapper.bank.BankSettlementMapper settlementMapper;
+
     /**
      * 查询养老机构信息
      *
@@ -85,13 +88,18 @@ public class PensionInstitutionServiceImpl implements IPensionInstitutionService
     @Transactional(rollbackFor = Exception.class)
     public int updatePensionInstitution(PensionInstitution pensionInstitution)
     {
-        PensionInstitution existing = pensionInstitutionMapper.selectPensionInstitutionByInstitutionId(
+        PensionInstitution existing = pensionInstitutionMapper.selectPensionInstitutionForUpdate(
                 pensionInstitution.getInstitutionId());
         boolean bankAccountChanged = existing != null && (
                 changed(pensionInstitution.getSuperviseAccount(), existing.getSuperviseAccount())
                 || changed(pensionInstitution.getSuperviseBank(), existing.getSuperviseBank())
                 || changed(pensionInstitution.getBankAccount(), existing.getBankAccount())
                 || changed(pensionInstitution.getBasicBank(), existing.getBasicBank()));
+        if (bankAccountChanged && (settlementMapper.hasBankFunds(pensionInstitution.getInstitutionId()) > 0
+                || settlementMapper.hasUnresolved(pensionInstitution.getInstitutionId()) > 0))
+        {
+            throw new com.ruoyi.common.exception.ServiceException("存在银行资金或未决交易，不能变更机构银行账户");
+        }
         pensionInstitution.setUpdateTime(DateUtils.getNowDate());
         int result = pensionInstitutionMapper.updatePensionInstitution(pensionInstitution);
         if (result == 1 && bankAccountChanged)

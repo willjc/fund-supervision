@@ -114,6 +114,8 @@ public class SecurityConfig
                 requests.antMatchers("/login", "/register", "/captchaImage").permitAll()
                     // H5端接口允许匿名访问
                     .antMatchers("/h5/**").permitAll()
+                    // 仅银行通知的两个 POST 路由；控制器在银行协议验收前固定拒绝处理。
+                    .antMatchers(HttpMethod.POST, "/bank/zzbank/notify/payment", "/bank/zzbank/notify/returned").permitAll()
                     // 字典数据接口允许匿名访问
                     .antMatchers("/system/dict/data/type/**").permitAll()
                     // 静态资源，可匿名访问

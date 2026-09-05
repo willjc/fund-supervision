@@ -128,8 +128,8 @@ class BankPaymentCompletionServiceImplTest
         when(expenseRecordService.createOrderExpenseRecords(eq(30L), eq(40L), eq(10L), eq("1"),
                 eq(new BigDecimal("40.00")), eq(new BigDecimal("60.00")), eq(BigDecimal.ZERO),
                 eq(BigDecimal.ZERO), eq(new BigDecimal("10.00")), eq(new BigDecimal("110.00")),
-                eq(new BigDecimal("60.00"))))
-                .thenReturn(3);
+                eq(BigDecimal.ZERO)))
+                .thenReturn(2);
         when(supervisionAccountLogService.recordIncome(eq(20L), eq(10L), eq(new BigDecimal("100.00")),
                 eq("用户支付订单-ORD001"), eq("99"))).thenReturn(log(1L));
         when(fundTransferService.insertFundTransfer(any(FundTransfer.class))).thenAnswer(invocation -> {
@@ -137,9 +137,6 @@ class BankPaymentCompletionServiceImplTest
             transfer.setTransferId(50L);
             return 1;
         });
-        when(supervisionAccountLogService.recordTransferOut(eq(20L), any(Long.class),
-                eq(new BigDecimal("60.00")), eq("首月服务费划拨-ORD001"), eq("基本账户")))
-                .thenReturn(log(2L));
         when(transactionMapper.markSuccess(eq(1L), eq("BANK001"), eq("0000"), eq("成功"),
                 any(Date.class), any(Date.class))).thenReturn(1);
 
@@ -157,8 +154,13 @@ class BankPaymentCompletionServiceImplTest
         assertEquals("BANK001", paymentCaptor.getValue().getTransactionId());
 
         verify(accountInfoMapper).updateAccountBalance(40L,
-                new BigDecimal("50.00"), new BigDecimal("10.00"),
+                new BigDecimal("110.00"), new BigDecimal("70.00"),
                 new BigDecimal("40.00"), BigDecimal.ZERO);
+        ArgumentCaptor<FundTransfer> transferCaptor = ArgumentCaptor.forClass(FundTransfer.class);
+        verify(fundTransferService).insertFundTransfer(transferCaptor.capture());
+        assertEquals("pending", transferCaptor.getValue().getStatus());
+        assertEquals("0", transferCaptor.getValue().getIsPaid());
+        verify(supervisionAccountLogService, never()).recordTransferOut(any(), any(), any(), any(), any());
         verify(transactionMapper).markSuccess(eq(1L), eq("BANK001"), eq("0000"), eq("成功"),
                 any(Date.class), any(Date.class));
     }

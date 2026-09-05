@@ -42,7 +42,6 @@ public class SupervisionFundTransferController extends BaseController
     {
         startPage();
         // 默认查询待审批的划拨记录
-        fundTransfer.setTransferStatus("0");
         List<FundTransfer> list = fundTransferService.selectFundTransferList(fundTransfer);
         return getDataTable(list);
     }
@@ -90,21 +89,8 @@ public class SupervisionFundTransferController extends BaseController
     @PutMapping("/approval/approve/{transferId}")
     public AjaxResult approve(@PathVariable Long transferId)
     {
-        FundTransfer fundTransfer = fundTransferService.selectFundTransferByTransferId(transferId);
-        if (fundTransfer == null) {
-            return AjaxResult.error("划拨记录不存在");
-        }
-
-        if (!"0".equals(fundTransfer.getTransferStatus())) {
-            return AjaxResult.error("只能审批待处理状态的划拨");
-        }
-
-        // 更新状态为成功
-        fundTransfer.setTransferStatus("1");
-        fundTransfer.setApproveUser(getUsername());
-        fundTransfer.setApproveTime(new java.util.Date());
-
-        return toAjax(fundTransferService.updateFundTransfer(fundTransfer));
+        fundTransferService.approveFundTransfer(transferId, getUsername(), "1", "监管审批通过");
+        return AjaxResult.success("已批准，待银行拨付");
     }
 
     /**
@@ -115,22 +101,7 @@ public class SupervisionFundTransferController extends BaseController
     @PutMapping("/approval/reject/{transferId}")
     public AjaxResult reject(@PathVariable Long transferId, @RequestBody FundTransfer fundTransfer)
     {
-        FundTransfer existing = fundTransferService.selectFundTransferByTransferId(transferId);
-        if (existing == null) {
-            return AjaxResult.error("划拨记录不存在");
-        }
-
-        if (!"0".equals(existing.getTransferStatus())) {
-            return AjaxResult.error("只能审批待处理状态的划拨");
-        }
-
-        // 更新状态为失败
-        existing.setTransferStatus("2");
-        existing.setApproveUser(getUsername());
-        existing.setApproveTime(new java.util.Date());
-        existing.setRemark(fundTransfer.getRemark()); // 拒绝原因
-
-        return toAjax(fundTransferService.updateFundTransfer(existing));
+        return toAjax(fundTransferService.approveFundTransfer(transferId, getUsername(), "2", fundTransfer.getRemark()));
     }
 
     /**
@@ -179,10 +150,7 @@ public class SupervisionFundTransferController extends BaseController
             try {
                 FundTransfer fundTransfer = fundTransferService.selectFundTransferByTransferId(transferId);
                 if (fundTransfer != null && "0".equals(fundTransfer.getTransferStatus())) {
-                    fundTransfer.setTransferStatus("1");
-                    fundTransfer.setApproveUser(getUsername());
-                    fundTransfer.setApproveTime(new java.util.Date());
-                    fundTransferService.updateFundTransfer(fundTransfer);
+                    fundTransferService.approveFundTransfer(transferId, getUsername(), "1", "监管批量审批通过");
                     successCount++;
                 } else {
                     failCount++;

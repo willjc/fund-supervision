@@ -1,5 +1,6 @@
 <template>
   <div class="app-container">
+    <el-alert title="审批通过后由统一银行拨付流程处理。此页保留历史使用记录，历史实际金额不作为银行到账凭证；不再手工标记银行拨付成功。" type="info" :closable="false" show-icon class="mb8" />
     <!-- 搜索表单 -->
     <el-form :model="queryParams" ref="queryForm" size="small" :inline="true" v-show="showSearch" label-width="88px">
       <el-form-item label="入住人姓名" prop="elderName">
@@ -31,15 +32,19 @@
           <el-option label="待家属审批" value="pending_family" />
           <el-option label="家属已审批" value="family_approved" />
           <el-option label="待监管审批" value="pending_supervision" />
-          <el-option label="已通过" value="approved" />
+          <el-option label="已批准，待银行拨付" value="approved" />
+          <el-option label="银行处理中" value="processing" />
+          <el-option label="拨付完成" value="completed" />
+          <el-option label="拨付失败" value="failed" />
+          <el-option label="已退汇" value="returned" />
           <el-option label="已驳回" value="rejected" />
           <el-option label="已撤回" value="withdrawn" />
         </el-select>
       </el-form-item>
-      <el-form-item label="拨付状态" prop="paymentStatus">
-        <el-select v-model="queryParams.paymentStatus" placeholder="请选择拨付状态" clearable>
-          <el-option label="未拨付" value="0" />
-          <el-option label="已拨付" value="1" />
+      <el-form-item label="记账状态" prop="paymentStatus">
+        <el-select v-model="queryParams.paymentStatus" placeholder="请选择记账状态" clearable>
+          <el-option label="未记账" value="0" />
+          <el-option label="已记账" value="1" />
         </el-select>
       </el-form-item>
       <el-form-item>
@@ -118,10 +123,10 @@
           <el-tag :type="getStatusType(scope.row.applyStatus)">{{ getStatusText(scope.row.applyStatus) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="拨付状态" align="center" prop="actualAmount" width="100">
+      <el-table-column label="账面使用记录" align="center" prop="actualAmount" width="100">
         <template slot-scope="scope">
           <el-tag :type="scope.row.actualAmount ? 'success' : 'warning'">
-            {{ scope.row.actualAmount ? '已拨付' : '未拨付' }}
+            {{ scope.row.actualAmount ? '已记账' : '未记账' }}
           </el-tag>
         </template>
       </el-table-column>
@@ -160,15 +165,6 @@
             v-if="['pending_family', 'family_approved', 'pending_supervision'].includes(scope.row.applyStatus)"
           >撤回</el-button>
 
-          <!-- 已通过且未拨付可以拨付 -->
-          <el-button
-            size="mini"
-            type="text"
-            icon="el-icon-money"
-            @click="handlePayment(scope.row)"
-            v-hasPermi="['pension:deposit:payment']"
-            v-if="scope.row.applyStatus === 'approved' && !scope.row.actualAmount"
-          >拨付</el-button>
 
           <!-- 草稿和已撤回状态可以删除 -->
           <el-button
@@ -348,61 +344,11 @@
       </div>
     </el-dialog>
 
-    <!-- 拨付对话框 -->
-    <el-dialog title="押金拨付" :visible.sync="openPayment" width="600px" append-to-body>
-      <el-form ref="paymentForm" :model="paymentForm" :rules="paymentRules" label-width="120px">
-        <el-alert
-          title="请确认拨付信息"
-          type="warning"
-          :closable="false"
-          style="margin-bottom: 20px;">
-        </el-alert>
-
-        <el-descriptions :column="1" border style="margin-bottom: 20px;">
-          <el-descriptions-item label="申请编号">{{ currentPaymentData.applyNo }}</el-descriptions-item>
-          <el-descriptions-item label="入住人">{{ currentPaymentData.elderName }}</el-descriptions-item>
-          <el-descriptions-item label="申请金额">
-            <span style="font-size: 16px; font-weight: bold; color: #E6A23C;">￥{{ formatMoney(currentPaymentData.applyAmount) }}</span>
-          </el-descriptions-item>
-          <el-descriptions-item label="使用事由">{{ currentPaymentData.purpose }}</el-descriptions-item>
-        </el-descriptions>
-
-        <el-form-item label="拨付金额" prop="paymentAmount">
-          <el-input-number
-            v-model="paymentForm.paymentAmount"
-            :min="0"
-            :max="currentPaymentData.applyAmount"
-            :precision="2"
-            style="width: 100%;" />
-        </el-form-item>
-
-        <el-form-item label="拨付方式" prop="paymentMethod">
-          <el-select v-model="paymentForm.paymentMethod" placeholder="请选择拨付方式" style="width: 100%">
-            <el-option label="现金拨付" value="现金拨付"></el-option>
-            <el-option label="银行转账" value="银行转账"></el-option>
-            <el-option label="支票拨付" value="支票拨付"></el-option>
-          </el-select>
-        </el-form-item>
-
-        <el-form-item label="拨付备注">
-          <el-input
-            v-model="paymentForm.paymentRemark"
-            type="textarea"
-            :rows="3"
-            placeholder="拨付说明（可选）">
-          </el-input>
-        </el-form-item>
-      </el-form>
-      <div slot="footer" class="dialog-footer">
-        <el-button @click="openPayment = false">取消</el-button>
-        <el-button type="primary" @click="confirmPayment">确认拨付</el-button>
-      </div>
-    </el-dialog>
   </div>
 </template>
 
 <script>
-import { listDepositUse, getDepositUse, withdrawDepositUse, delDepositUse, paymentDepositUse } from "@/api/elder/depositUse";
+import { listDepositUse, getDepositUse, withdrawDepositUse, delDepositUse } from "@/api/elder/depositUse";
 import { exportDepositUse } from "@/api/pension/deposit";
 
 export default {
@@ -427,13 +373,8 @@ export default {
       title: "",
       // 是否显示详情弹出层
       openDetail: false,
-      // 是否显示拨付弹出层
-      openPayment: false,
       // 详情数据
       detailData: null,
-      // 当前操作数据
-      currentPaymentData: {},
-
       // 使用事由选项
       purposeOptions: [
         { label: "医疗费用", value: "医疗费用" },
@@ -453,23 +394,6 @@ export default {
         paymentStatus: null
       },
 
-      // 拨付表单数据
-      paymentForm: {
-        paymentAmount: null,
-        paymentMethod: '',
-        paymentRemark: ''
-      },
-
-      // 拨付表单校验
-      paymentRules: {
-        paymentAmount: [
-          { required: true, message: "请输入拨付金额", trigger: "blur" },
-          { type: 'number', min: 0.01, message: "拨付金额必须大于0", trigger: "blur" }
-        ],
-        paymentMethod: [
-          { required: true, message: "请选择拨付方式", trigger: "change" }
-        ]
-      }
     };
   },
   created() {
@@ -546,34 +470,6 @@ export default {
       }).catch(() => {});
     },
 
-    /** 拨付按钮操作 */
-    handlePayment(row) {
-      this.currentPaymentData = row;
-      this.paymentForm = {
-        paymentAmount: row.applyAmount,
-        paymentMethod: '',
-        paymentRemark: ''
-      };
-      this.openPayment = true;
-    },
-
-    /** 确认拨付 */
-    confirmPayment() {
-      this.$refs["paymentForm"].validate(valid => {
-        if (valid) {
-          const paymentData = {
-            applyId: this.currentPaymentData.applyId,
-            ...this.paymentForm
-          };
-          paymentDepositUse(paymentData).then(response => {
-            this.$modal.msgSuccess("拨付成功");
-            this.openPayment = false;
-            this.getList();
-          });
-        }
-      });
-    },
-
     /** 导出按钮操作 */
     handleExport() {
       this.download('pension/depositUse/export', {
@@ -598,7 +494,11 @@ export default {
         'pending_family': '待家属审批',
         'family_approved': '家属已审批',
         'pending_supervision': '待监管审批',
-        'approved': '已通过',
+        'approved': '已批准，待银行拨付',
+        'processing': '银行处理中',
+        'completed': '拨付完成',
+        'failed': '拨付失败',
+        'returned': '已退汇',
         'rejected': '已驳回',
         'withdrawn': '已撤回'
       };
@@ -612,7 +512,11 @@ export default {
         'pending_family': 'warning',
         'family_approved': 'primary',
         'pending_supervision': 'warning',
-        'approved': 'success',
+        'approved': 'warning',
+        'processing': 'warning',
+        'completed': 'success',
+        'failed': 'danger',
+        'returned': 'danger',
         'rejected': 'danger',
         'withdrawn': 'info'
       };

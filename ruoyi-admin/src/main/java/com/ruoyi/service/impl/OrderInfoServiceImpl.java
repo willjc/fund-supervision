@@ -694,51 +694,26 @@ public class OrderInfoServiceImpl implements IOrderInfoService
      * @param orderInfo 订单信息
      * @param amount 划拨金额
      */
-    private void createFirstMonthTransfer(OrderInfo orderInfo, BigDecimal amount) {
+    private void createFirstMonthTransfer(OrderInfo orderInfo, BigDecimal amount)
+    {
         com.ruoyi.domain.pension.FundTransfer transfer = new com.ruoyi.domain.pension.FundTransfer();
-        transfer.setInstitutionId(orderInfo.getInstitutionId());
-        transfer.setElderId(orderInfo.getElderId());
         transfer.setOrderId(orderInfo.getOrderId());
-
-        // 生成拨付单号
-        String transferNo = "TRF" + System.currentTimeMillis() + "FM" + String.format("%02d", (int)(Math.random() * 100));
-        transfer.setTransferNo(transferNo);
-        transfer.setTransferType("1"); // 自动划拨
+        transfer.setElderId(orderInfo.getElderId());
+        transfer.setInstitutionId(orderInfo.getInstitutionId());
+        transfer.setTransferNo("TRF-FIRST-" + orderInfo.getOrderId());
+        transfer.setSourceKey("FIRST:" + orderInfo.getOrderId());
+        transfer.setTransferType("1");
         transfer.setTransferAmount(amount);
         transfer.setTransferDate(new Date());
-
-        // 设置当前月份为划拨周期
-        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM");
-        String currentPeriod = sdf.format(new Date());
-        transfer.setTransferPeriod(currentPeriod);
-        transfer.setBillingMonth(currentPeriod);
-
+        transfer.setBillingMonth(new java.text.SimpleDateFormat("yyyy-MM").format(new Date()));
+        transfer.setTransferStatus("0");
+        transfer.setIsPaid("0");
+        transfer.setStatus("pending");
+        transfer.setBankEligible(0);
         transfer.setElderCount(1);
-        transfer.setTransferStatus("1"); // 已完成
-        transfer.setIsPaid("1"); // 已划拨
-        transfer.setStatus("completed"); // 已完成
-        transfer.setExecuteUser("system");
-        transfer.setExecuteTime(new Date());
-        transfer.setPaidTime(new Date()); // 设置实际划拨时间
-        transfer.setPaidMethod("auto");
         transfer.setCreateBy("system");
-        transfer.setCreateTime(new Date());
-        transfer.setRemark("首月服务费立即划拨-" + orderInfo.getOrderNo());
-
+        transfer.setRemark("线下资金待核查，未发生银行拨付");
         fundTransferService.insertFundTransfer(transfer);
-
-        // 生成监管账户划拨流水��录（首月服务费划拨到机构基本账户）
-        try {
-            supervisionAccountLogService.recordTransferOut(
-                orderInfo.getInstitutionId(),
-                transfer.getTransferId(),
-                amount,
-                "首月服务费划拨-" + orderInfo.getOrderNo(),
-                "基本账户"
-            );
-        } catch (Exception e) {
-            // 流水记录失败不影响主流程
-        }
     }
 
     /**

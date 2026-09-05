@@ -140,7 +140,7 @@ public class FundTransferController extends BaseController
     @PostMapping
     public AjaxResult add(@RequestBody FundTransfer fundTransfer)
     {
-        return toAjax(fundTransferService.insertFundTransfer(fundTransfer));
+        return AjaxResult.error("请通过支付订单、资金拨付申请或押金审批生成拨付单，不能直接指定银行执行资格");
     }
 
     /**

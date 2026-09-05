@@ -25,6 +25,8 @@ import com.ruoyi.service.pension.ISupervisionAccountLogService;
 @Service
 public class RefundRecordServiceImpl implements IRefundRecordService
 {
+    @org.springframework.beans.factory.annotation.Value("${bank.integration.mode:disabled}")
+    private String integrationMode;
     @Autowired
     private RefundRecordMapper refundRecordMapper;
 
@@ -91,6 +93,10 @@ public class RefundRecordServiceImpl implements IRefundRecordService
     @Transactional(rollbackFor = Exception.class)
     public int approveRefund(Long refundId, String approver, Long currentUserId)
     {
+        if ("zzbank".equals(integrationMode))
+        {
+            throw new ServiceException("原路退款尚未接通，不能扣账或标记已退款；申请保留待处理");
+        }
         RefundRecord refundRecord = refundRecordMapper.selectRefundRecordForUpdate(refundId, currentUserId);
         if (refundRecord == null)
         {

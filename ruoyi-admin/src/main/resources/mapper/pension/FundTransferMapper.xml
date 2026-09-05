@@ -5,6 +5,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 <mapper namespace="com.ruoyi.mapper.pension.FundTransferMapper">
 
     <resultMap type="FundTransfer" id="FundTransferResult">
+        <result property="bankEligible" column="bank_eligible" />
+        <result property="bankTransactionId" column="bank_transaction_id" />
+        <result property="manualReview" column="manual_review" />
+        <result property="sourceKey" column="source_key" />
+        <result property="balanceType" column="balance_type" />
         <result property="transferId"    column="transfer_id"    />
         <result property="institutionId"    column="institution_id"    />
         <result property="transferNo"    column="transfer_no"    />
@@ -44,20 +49,27 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                ft.failure_reason, ft.approve_user, ft.approve_time, ft.execute_user, ft.execute_time,
                ft.create_by, ft.create_time, ft.update_by, ft.update_time, ft.remark,
                ft.is_paid, ft.paid_time, ft.paid_method, ft.apply_id, ft.elder_id, ft.order_id,
-               ft.billing_month, ft.status,
-               pi.institution_name, ei.elder_name
+               ft.billing_month, ft.status, ft.bank_eligible, ft.bank_transaction_id, ft.source_key, ft.balance_type,
+               pi.institution_name, ei.elder_name, bt.manual_review
         from fund_transfer ft
         left join pension_institution pi on ft.institution_id = pi.institution_id
         left join elder_info ei on ft.elder_id = ei.elder_id
+        left join bank_transaction bt on ft.bank_transaction_id = bt.transaction_id
     </sql>
 
     <select id="selectFundTransferList" parameterType="FundTransfer" resultMap="FundTransferResult">
         <include refid="selectFundTransferVo"/>
         <where>
+            <if test="currentUserId != null">
+                and ft.institution_id in (select institution_id from sys_user_institution where user_id=#{currentUserId})
+            </if>
             <if test="institutionId != null "> and ft.institution_id = #{institutionId}</if>
+            <if test="applyId != null"> and ft.apply_id = #{applyId} and ft.balance_type='SERVICE'</if>
+            <if test="billingMonth != null and billingMonth != ''"> and ft.billing_month = #{billingMonth}</if>
             <if test="transferNo != null  and transferNo != ''"> and ft.transfer_no like concat('%', #{transferNo}, '%')</if>
             <if test="transferType != null  and transferType != ''"> and ft.transfer_type = #{transferType}</if>
             <if test="transferStatus != null  and transferStatus != ''"> and ft.transfer_status = #{transferStatus}</if>
+            <if test="status != null and status != ''"> and ft.status = #{status}</if>
             <if test="transferPeriod != null  and transferPeriod != ''"> and ft.transfer_period = #{transferPeriod}</if>
             <if test="institutionName != null  and institutionName != ''"> and pi.institution_name like concat('%', #{institutionName}, '%')</if>
             <if test="params.beginTime != null and params.beginTime != ''">
@@ -107,6 +119,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <insert id="insertFundTransfer" parameterType="FundTransfer" useGeneratedKeys="true" keyProperty="transferId">
         insert into fund_transfer
         <trim prefix="(" suffix=")" suffixOverrides=",">
+            bank_eligible, source_key, balance_type,
             <if test="institutionId != null">institution_id,</if>
             <if test="transferNo != null and transferNo != ''">transfer_no,</if>
             <if test="transferType != null and transferType != ''">transfer_type,</if>
@@ -134,6 +147,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="status != null">status,</if>
          </trim>
         <trim prefix="values (" suffix=")" suffixOverrides=",">
+            #{bankEligible}, #{sourceKey}, #{balanceType},
             <if test="institutionId != null">#{institutionId},</if>
             <if test="transferNo != null and transferNo != ''">#{transferNo},</if>
             <if test="transferType != null and transferType != ''">#{transferType},</if>

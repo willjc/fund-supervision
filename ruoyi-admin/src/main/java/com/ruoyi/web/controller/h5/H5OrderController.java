@@ -109,6 +109,8 @@ public class H5OrderController extends BaseController
 
     @Autowired
     private IBankPaymentService bankPaymentService;
+    @Autowired
+    private com.ruoyi.service.bank.impl.BankPaymentReconciler bankPaymentReconciler;
 
     @Autowired
     private IBankPaymentCompletionService bankPaymentCompletionService;
@@ -1064,7 +1066,7 @@ public class H5OrderController extends BaseController
                 return success(paid);
             }
 
-            BankResult bankResult = bankPaymentService.queryPayment(orderId);
+            BankResult bankResult = bankPaymentReconciler.queryAndComplete(orderId);
             if (!"SUCCESS".equals(bankResult.getStatus())) {
                 Map<String, Object> result = new HashMap<>();
                 result.put("success", false);

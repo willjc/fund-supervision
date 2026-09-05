@@ -16,6 +16,22 @@ import com.ruoyi.common.core.domain.BaseEntity;
  */
 public class AccountInfo extends BaseEntity
 {
+    public BigDecimal getServiceAvailable() { return value(getServiceBalance()).subtract(value(serviceReserved)); }
+    public BigDecimal getDepositAvailable() { return value(getDepositBalance()).subtract(value(depositReserved)); }
+    public BigDecimal getAvailableBalance() { return value(getTotalBalance()).subtract(value(serviceReserved)).subtract(value(depositReserved)); }
+    private BigDecimal value(BigDecimal value) { return value == null ? BigDecimal.ZERO : value; }
+    private BigDecimal serviceReserved = BigDecimal.ZERO;
+    public BigDecimal getServiceReserved() { return serviceReserved; }
+    public void setServiceReserved(BigDecimal value) { serviceReserved = value; }
+    private BigDecimal depositReserved = BigDecimal.ZERO;
+    public BigDecimal getDepositReserved() { return depositReserved; }
+    public void setDepositReserved(BigDecimal value) { depositReserved = value; }
+    private BigDecimal bankServiceBalance = BigDecimal.ZERO;
+    public BigDecimal getBankServiceBalance() { return bankServiceBalance; }
+    public void setBankServiceBalance(BigDecimal value) { bankServiceBalance = value; }
+    private BigDecimal bankDepositBalance = BigDecimal.ZERO;
+    public BigDecimal getBankDepositBalance() { return bankDepositBalance; }
+    public void setBankDepositBalance(BigDecimal value) { bankDepositBalance = value; }
     private static final long serialVersionUID = 1L;
 
     /** 账户ID */

@@ -65,6 +65,9 @@ public class BankPaymentServiceImpl implements IBankPaymentService
         transaction.setChannelType(channelType);
         transaction.setAmount(amount);
         transaction.setStatus("PENDING");
+        transaction.setEnvironment(merchant.getEnvironment());
+        transaction.setSnapshotJson(com.alibaba.fastjson2.JSON.toJSONString(merchant));
+        transaction.setNextQueryTime(new Date(now.getTime() + 60000L));
         transaction.setCreateTime(now);
         transaction.setUpdateTime(now);
         if (transactionMapper.insert(transaction) != 1)
@@ -94,11 +97,11 @@ public class BankPaymentServiceImpl implements IBankPaymentService
         }
         catch (Exception e)
         {
-            result = BankResult.failed("GATEWAY_EXCEPTION", e.getMessage());
+            result = BankResult.unknown("GATEWAY_EXCEPTION", "支付结果未知，请查询原交易");
         }
         if (result == null || result.getStatus() == null)
         {
-            result = BankResult.failed("EMPTY_RESPONSE", "银行网关返回为空");
+            result = BankResult.unknown("EMPTY_RESPONSE", "银行网关返回为空");
         }
 
         result.setRequestNo(requestNo);
@@ -129,7 +132,7 @@ public class BankPaymentServiceImpl implements IBankPaymentService
         {
             throw new ServiceException("该订单没有银行支付记录");
         }
-        if (!"PENDING".equals(transaction.getStatus()))
+        if (!"PENDING".equals(transaction.getStatus()) && !"UNKNOWN".equals(transaction.getStatus()))
         {
             return toResult(transaction);
         }
@@ -162,6 +165,8 @@ public class BankPaymentServiceImpl implements IBankPaymentService
         result.setPayUrl(transaction.getPayUrl());
         result.setResponseCode(transaction.getResponseCode());
         result.setResponseMessage(transaction.getResponseMessage());
+        result.setPaidAmount(transaction.getAmount());
+        result.setBankTransactionTime(transaction.getBankTime());
         return result;
     }
 }

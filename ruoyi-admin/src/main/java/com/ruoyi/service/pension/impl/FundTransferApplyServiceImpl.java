@@ -3,8 +3,6 @@ package com.ruoyi.service.pension.impl;
 import java.math.BigDecimal;
 import java.util.List;
 import com.ruoyi.common.utils.DateUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,10 +12,7 @@ import com.ruoyi.mapper.pension.FundTransferMapper;
 import com.ruoyi.domain.pension.FundTransferApply;
 import com.ruoyi.domain.pension.FundTransferApplyDetail;
 import com.ruoyi.domain.pension.FundTransfer;
-import com.ruoyi.domain.pension.AccountInfo;
 import com.ruoyi.service.pension.IFundTransferApplyService;
-import com.ruoyi.service.pension.IAccountInfoService;
-import com.ruoyi.service.pension.ISupervisionAccountLogService;
 
 /**
  * 资金划拨申请Service业务层处理
@@ -28,7 +23,8 @@ import com.ruoyi.service.pension.ISupervisionAccountLogService;
 @Service
 public class FundTransferApplyServiceImpl implements IFundTransferApplyService
 {
-    private static final Logger log = LoggerFactory.getLogger(FundTransferApplyServiceImpl.class);
+    @Autowired private com.ruoyi.mapper.bank.BankSettlementMapper settlementMapper;
+    @Autowired private com.ruoyi.service.bank.impl.BankPayoutService bankPayoutService;
 
     @Autowired
     private FundTransferApplyMapper fundTransferApplyMapper;
@@ -39,11 +35,7 @@ public class FundTransferApplyServiceImpl implements IFundTransferApplyService
     @Autowired
     private FundTransferMapper fundTransferMapper;
 
-    @Autowired
-    private IAccountInfoService accountInfoService;
 
-    @Autowired
-    private ISupervisionAccountLogService supervisionAccountLogService;
 
     /**
      * 查询资金划拨申请
@@ -114,6 +106,9 @@ public class FundTransferApplyServiceImpl implements IFundTransferApplyService
     @Override
     public int insertFundTransferApply(FundTransferApply fundTransferApply)
     {
+        bankPayoutService.checkScope(fundTransferApply.getInstitutionId());
+        fundTransferApply.setApplyStatus("draft");
+        clearApproval(fundTransferApply);
         fundTransferApply.setCreateTime(DateUtils.getNowDate());
         return fundTransferApplyMapper.insertFundTransferApply(fundTransferApply);
     }
@@ -129,6 +124,11 @@ public class FundTransferApplyServiceImpl implements IFundTransferApplyService
     @Transactional
     public int createFundTransferApply(FundTransferApply fundTransferApply, List<Long> transferIds)
     {
+        bankPayoutService.checkScope(fundTransferApply.getInstitutionId());
+        clearApproval(fundTransferApply);
+        if (transferIds == null || transferIds.isEmpty()
+                || new java.util.HashSet<>(transferIds).size() != transferIds.size())
+        { throw new com.ruoyi.common.exception.ServiceException("必须选择不重复的拨付明细"); }
         // 1. 生成申请单号
         String applyNo = fundTransferApplyMapper.generateApplyNo();
         if (applyNo == null || applyNo.isEmpty()) {
@@ -143,7 +143,12 @@ public class FundTransferApplyServiceImpl implements IFundTransferApplyService
         List<FundTransferApplyDetail> details = new java.util.ArrayList<>();
 
         for (Long transferId : transferIds) {
-            FundTransfer transfer = fundTransferMapper.selectFundTransferByTransferId(transferId);
+            FundTransfer transfer = settlementMapper.lockTransfer(transferId);
+            if (transfer == null || !java.util.Objects.equals(transfer.getInstitutionId(), fundTransferApply.getInstitutionId())
+                    || !java.util.Objects.equals(transfer.getElderId(), fundTransferApply.getElderId())
+                    || !Integer.valueOf(1).equals(transfer.getBankEligible()) || transfer.getBankTransactionId() != null
+                    || transfer.getApplyId() != null || !"0".equals(transfer.getIsPaid()) || !"pending".equals(transfer.getStatus()))
+            { throw new com.ruoyi.common.exception.ServiceException("选择了其他机构、老人、历史或已处理的拨付明细"); }
             if (transfer != null && "0".equals(transfer.getIsPaid()) && "pending".equals(transfer.getStatus())) {
                 totalAmount = totalAmount.add(transfer.getTransferAmount());
 
@@ -182,8 +187,16 @@ public class FundTransferApplyServiceImpl implements IFundTransferApplyService
      * @return 结果
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int updateFundTransferApply(FundTransferApply fundTransferApply)
     {
+        FundTransferApply existing = editable(fundTransferApply.getApplyId());
+        if (fundTransferApply.getApplyStatus() != null && !"draft".equals(fundTransferApply.getApplyStatus())
+                && !"pending_family".equals(fundTransferApply.getApplyStatus()))
+        { throw new com.ruoyi.common.exception.ServiceException("不能通过通用编辑修改审批结果"); }
+        fundTransferApply.setInstitutionId(existing.getInstitutionId());
+        fundTransferApply.setElderId(existing.getElderId());
+        clearApproval(fundTransferApply);
         fundTransferApply.setUpdateTime(DateUtils.getNowDate());
         return fundTransferApplyMapper.updateFundTransferApply(fundTransferApply);
     }
@@ -195,8 +208,10 @@ public class FundTransferApplyServiceImpl implements IFundTransferApplyService
      * @return 结果
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int deleteFundTransferApplyByApplyIds(Long[] applyIds)
     {
+        for (Long id : applyIds) { editable(id); }
         return fundTransferApplyMapper.deleteFundTransferApplyByApplyIds(applyIds);
     }
 
@@ -207,9 +222,29 @@ public class FundTransferApplyServiceImpl implements IFundTransferApplyService
      * @return 结果
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int deleteFundTransferApplyByApplyId(Long applyId)
     {
+        editable(applyId);
         return fundTransferApplyMapper.deleteFundTransferApplyByApplyId(applyId);
+    }
+
+    private FundTransferApply editable(Long id)
+    {
+        FundTransferApply apply = settlementMapper.lockApply(id);
+        if (apply == null) { throw new com.ruoyi.common.exception.ServiceException("拨付申请不存在"); }
+        bankPayoutService.checkScope(apply.getInstitutionId());
+        if (!("draft".equals(apply.getApplyStatus()) || "withdrawn".equals(apply.getApplyStatus()))
+                || settlementMapper.linkedApplication(id, "SERVICE") > 0)
+        { throw new com.ruoyi.common.exception.ServiceException("已提交或银行关联申请禁止编辑删除"); }
+        return apply;
+    }
+
+    private void clearApproval(FundTransferApply apply)
+    {
+        apply.setApprover(null); apply.setApproveTime(null); apply.setApproveRemark(null);
+        apply.setFamilyApproveTime(null); apply.setFamilyApproveOpinion(null); apply.setFamilyConfirmName(null);
+        apply.setActualAmount(null); apply.setUseTime(null);
     }
 
     /**
@@ -224,10 +259,11 @@ public class FundTransferApplyServiceImpl implements IFundTransferApplyService
      * @return 结果
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int familyApprove(Long applyId, boolean approved, String opinion, String approverName, String relation, String phone)
     {
         // 1. 查询申请信息
-        FundTransferApply apply = fundTransferApplyMapper.selectFundTransferApplyByApplyId(applyId);
+        FundTransferApply apply = settlementMapper.lockApply(applyId);
         if (apply == null) {
             throw new RuntimeException("资金划拨申请不存在");
         }
@@ -264,33 +300,41 @@ public class FundTransferApplyServiceImpl implements IFundTransferApplyService
     @Transactional
     public int supervisionApprove(Long applyId, boolean approved, String remark, String approver)
     {
-        // 1. 查询申请信息
-        FundTransferApply apply = fundTransferApplyMapper.selectFundTransferApplyByApplyId(applyId);
-        if (apply == null) {
-            throw new RuntimeException("资金划拨申请不存在");
+        FundTransferApply apply = settlementMapper.lockApply(applyId);
+        if (apply == null) { throw new com.ruoyi.common.exception.ServiceException("拨付申请不存在"); }
+        bankPayoutService.checkScope(apply.getInstitutionId());
+        if (!"pending_supervision".equals(apply.getApplyStatus()))
+        { throw new com.ruoyi.common.exception.ServiceException("当前申请状态不允许审批"); }
+        if (approved)
+        {
+            List<FundTransferApplyDetail> details = fundTransferApplyDetailMapper.selectFundTransferApplyDetailByApplyId(applyId);
+            if (details == null || details.isEmpty()) { throw new com.ruoyi.common.exception.ServiceException("缺少拨付明细"); }
+            BigDecimal total = BigDecimal.ZERO;
+            java.util.Set<Long> seen = new java.util.HashSet<>();
+            for (FundTransferApplyDetail detail : details)
+            {
+                FundTransfer transfer = settlementMapper.lockTransfer(detail.getTransferId());
+                if (transfer == null || !seen.add(transfer.getTransferId())
+                        || !java.util.Objects.equals(transfer.getInstitutionId(), apply.getInstitutionId())
+                        || !java.util.Objects.equals(transfer.getElderId(), detail.getElderId())
+                        || !"SERVICE".equals(transfer.getBalanceType())
+                        || detail.getTransferAmount() == null
+                        || detail.getTransferAmount().compareTo(transfer.getTransferAmount()) != 0
+                        || settlementMapper.linkApply(transfer.getTransferId(), applyId, approver) != 1)
+                { throw new com.ruoyi.common.exception.ServiceException("拨付明细不一致、已占用或属于历史资金"); }
+                total = total.add(detail.getTransferAmount());
+            }
+            if (apply.getApplyAmount() == null || total.compareTo(apply.getApplyAmount()) != 0)
+            { throw new com.ruoyi.common.exception.ServiceException("申请金额与拨付明细合计不一致"); }
         }
-
-        // 2. 验证状态
-        if (!"pending_supervision".equals(apply.getApplyStatus())) {
-            throw new RuntimeException("当前状态不允许监管部门审批");
-        }
-
-        // 3. 如果审批通过，执行划拨
-        if (approved) {
-            executeTransferInternal(apply);
-        }
-
-        // 4. 更新审批信息
-        FundTransferApply updateApply = new FundTransferApply();
-        updateApply.setApplyId(applyId);
-        updateApply.setApprover(approver);
-        updateApply.setApproveTime(DateUtils.getNowDate());
-        updateApply.setApproveRemark(remark);
-        updateApply.setApplyStatus(approved ? "approved" : "rejected");
-        updateApply.setUpdateTime(DateUtils.getNowDate());
-        updateApply.setActualAmount(apply.getApplyAmount());
-
-        return fundTransferApplyMapper.updateFundTransferApply(updateApply);
+        FundTransferApply update = new FundTransferApply();
+        update.setApplyId(applyId);
+        update.setApplyStatus(approved ? "approved" : "rejected");
+        update.setApprover(approver);
+        update.setApproveTime(DateUtils.getNowDate());
+        update.setApproveRemark(remark);
+        update.setActualAmount(BigDecimal.ZERO);
+        return fundTransferApplyMapper.updateFundTransferApply(update);
     }
 
     /**
@@ -303,25 +347,13 @@ public class FundTransferApplyServiceImpl implements IFundTransferApplyService
     @Transactional
     public int executeTransfer(Long applyId)
     {
-        FundTransferApply apply = fundTransferApplyMapper.selectFundTransferApplyByApplyId(applyId);
-        if (apply == null) {
-            throw new RuntimeException("资金划拨申请不存在");
-        }
-
-        if (!"approved".equals(apply.getApplyStatus())) {
-            throw new RuntimeException("申请状态不正确，无法执行划拨");
-        }
-
-        executeTransferInternal(apply);
-
-        // 更新申请状态为已完成
-        FundTransferApply updateApply = new FundTransferApply();
-        updateApply.setApplyId(applyId);
-        updateApply.setApplyStatus("completed");
-        updateApply.setUseTime(DateUtils.getNowDate());
-        updateApply.setUpdateTime(DateUtils.getNowDate());
-
-        return fundTransferApplyMapper.updateFundTransferApply(updateApply);
+        FundTransferApply apply = settlementMapper.lockApply(applyId);
+        if (apply == null || !"approved".equals(apply.getApplyStatus()))
+        { throw new com.ruoyi.common.exception.ServiceException("申请未批准"); }
+        bankPayoutService.checkScope(apply.getInstitutionId());
+        for (FundTransferApplyDetail detail : fundTransferApplyDetailMapper.selectFundTransferApplyDetailByApplyId(applyId))
+        { bankPayoutService.queue(detail.getTransferId(), com.ruoyi.common.utils.SecurityUtils.getUsername()); }
+        return 1;
     }
 
     /**
@@ -329,75 +361,5 @@ public class FundTransferApplyServiceImpl implements IFundTransferApplyService
      *
      * @param apply 划拨申请
      */
-    private void executeTransferInternal(FundTransferApply apply)
-    {
-        // 获取申请明细
-        List<FundTransferApplyDetail> details = fundTransferApplyDetailMapper.selectFundTransferApplyDetailByApplyId(apply.getApplyId());
 
-        BigDecimal totalAmount = BigDecimal.ZERO;
-
-        for (FundTransferApplyDetail detail : details) {
-            // 查询划拨单
-            FundTransfer transfer = fundTransferMapper.selectFundTransferByTransferId(detail.getTransferId());
-            if (transfer == null) {
-                log.warn("划拨单不存在，跳过：{}", detail.getTransferId());
-                continue;
-            }
-
-            // 检查是否已划拨
-            if ("1".equals(transfer.getIsPaid())) {
-                log.warn("划拨单已划拨，跳过：{}", detail.getTransferId());
-                continue;
-            }
-
-            // 查询老人账户
-            AccountInfo account = accountInfoService.selectAccountInfoByElderId(detail.getElderId());
-            if (account == null) {
-                throw new RuntimeException("老人账户不存在，elderId：" + detail.getElderId());
-            }
-
-            // 检查余额是否足够
-            BigDecimal serviceBalance = account.getServiceBalance() != null ? account.getServiceBalance() : BigDecimal.ZERO;
-            BigDecimal transferAmount = detail.getTransferAmount();
-
-            if (serviceBalance.compareTo(transferAmount) < 0) {
-                throw new RuntimeException("老人账户余额不足，当前余额：" + serviceBalance + "，需要划拨：" + transferAmount);
-            }
-
-            // 扣除服务余额
-            BigDecimal newServiceBalance = serviceBalance.subtract(transferAmount);
-            BigDecimal newTotalBalance = account.getTotalBalance().subtract(transferAmount);
-
-            account.setServiceBalance(newServiceBalance);
-            account.setTotalBalance(newTotalBalance);
-            account.setUpdateTime(DateUtils.getNowDate());
-
-            accountInfoService.updateAccountInfo(account);
-
-            // 记录监管账户流水
-            supervisionAccountLogService.recordTransferOut(
-                apply.getInstitutionId(),
-                apply.getApplyId(),
-                transferAmount,
-                "月度服务费划拨-" + detail.getBillingMonth() + "-" + transfer.getTransferNo(),
-                "基本账户"
-            );
-
-            // 更新划拨单状态
-            FundTransfer updateTransfer = new FundTransfer();
-            updateTransfer.setTransferId(detail.getTransferId());
-            updateTransfer.setIsPaid("1");
-            updateTransfer.setPaidTime(DateUtils.getNowDate());
-            updateTransfer.setPaidMethod("manual");
-            updateTransfer.setApplyId(apply.getApplyId());
-            updateTransfer.setStatus("completed");
-            updateTransfer.setUpdateTime(DateUtils.getNowDate());
-
-            fundTransferMapper.updateFundTransfer(updateTransfer);
-
-            totalAmount = totalAmount.add(transferAmount);
-        }
-
-        log.info("执行划拨申请 {} 完成，总划拨金额：{}", apply.getApplyNo(), totalAmount);
-    }
 }

@@ -34,6 +34,8 @@ class BankMerchantConfigServiceImplTest
     @Mock
     private BankGateway bankGateway;
 
+    @Mock private com.ruoyi.mapper.bank.BankSettlementMapper settlementMapper;
+
     @InjectMocks
     private BankMerchantConfigServiceImpl service;
 
@@ -60,6 +62,7 @@ class BankMerchantConfigServiceImplTest
     @Test
     void insertShouldDeriveInstitutionAccountsAndRemainDisabled()
     {
+        config.setSettlementAccountName(" 银行登记的精确户名 ");
         when(merchantConfigMapper.selectByMerId("ZZBANK", "MER001")).thenReturn(null);
         when(institutionMapper.selectPensionInstitutionByInstitutionId(36L)).thenReturn(institution);
         when(merchantConfigMapper.insert(config)).thenReturn(1);
@@ -71,10 +74,23 @@ class BankMerchantConfigServiceImplTest
         assertEquals("郑州银行", config.getBankName());
         assertEquals("测试养老院", config.getMerchantName());
         assertEquals("619900001111", config.getSettlementAccountNo());
+        assertEquals("银行登记的精确户名", config.getSettlementAccountName());
         assertEquals("618800002222", config.getBasicAccountNo());
         assertEquals("0", config.getVerifyStatus());
         assertEquals("0", config.getStatus());
         verify(merchantConfigMapper).insert(config);
+    }
+
+    @Test
+    void updateCannotMoveConfigurationToAnotherInstitution()
+    {
+        config.setConfigId(1L);
+        BankMerchantConfig existing=new BankMerchantConfig();
+        existing.setInstitutionId(37L);
+        when(merchantConfigMapper.selectById(1L)).thenReturn(existing);
+        assertThrows(ServiceException.class,()->service.update(config,"admin"));
+        org.mockito.Mockito.verify(merchantConfigMapper,org.mockito.Mockito.never()).update(org.mockito.ArgumentMatchers.any());
+        org.mockito.Mockito.verifyNoInteractions(institutionMapper,settlementMapper);
     }
 
     @Test

@@ -11,6 +11,17 @@ public class BankResult
     private String responseCode;
     private String responseMessage;
     private BigDecimal paidAmount;
+    private String bankTransactionTime;
+    private String payerAccountNo;
+    private String payeeAccountNo;
+    private BigDecimal availableBalance;
+
+    public static BankResult unknown(String code, String message)
+    {
+        BankResult result = failed(code, message);
+        result.setStatus("UNKNOWN");
+        return result;
+    }
 
     public static BankResult success(String bankSerialNo)
     {
@@ -56,4 +67,12 @@ public class BankResult
     public void setResponseMessage(String responseMessage) { this.responseMessage = responseMessage; }
     public BigDecimal getPaidAmount() { return paidAmount; }
     public void setPaidAmount(BigDecimal paidAmount) { this.paidAmount = paidAmount; }
+    public String getBankTransactionTime() { return bankTransactionTime; }
+    public void setBankTransactionTime(String bankTransactionTime) { this.bankTransactionTime = bankTransactionTime; }
+    public String getPayerAccountNo() { return payerAccountNo; }
+    public void setPayerAccountNo(String payerAccountNo) { this.payerAccountNo = payerAccountNo; }
+    public String getPayeeAccountNo() { return payeeAccountNo; }
+    public void setPayeeAccountNo(String payeeAccountNo) { this.payeeAccountNo = payeeAccountNo; }
+    public BigDecimal getAvailableBalance() { return availableBalance; }
+    public void setAvailableBalance(BigDecimal availableBalance) { this.availableBalance = availableBalance; }
 }

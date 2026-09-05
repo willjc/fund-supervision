@@ -67,3 +67,15 @@ export function getUserInstitutions() {
     method: 'get'
   })
 }
+
+export function queryPayout(transferId) {
+  return request({ url: '/pension/bank/payout/' + transferId + '/query', method: 'post' })
+}
+
+export function retryPayout(transferId) {
+  return request({ url: '/pension/bank/payout/' + transferId + '/retry', method: 'post' })
+}
+
+export function getBankAvailableBalance(institutionId) {
+  return request({ url: '/pension/bank/payout/balance/' + institutionId, method: 'get' })
+}

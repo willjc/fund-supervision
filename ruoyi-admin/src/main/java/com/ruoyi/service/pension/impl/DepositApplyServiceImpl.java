@@ -11,8 +11,6 @@ import com.ruoyi.domain.pension.AccountInfo;
 import com.ruoyi.domain.pension.FundTransfer;
 import com.ruoyi.service.pension.IDepositApplyService;
 import com.ruoyi.service.pension.IAccountInfoService;
-import com.ruoyi.service.pension.IExpenseRecordService;
-import com.ruoyi.service.pension.ISupervisionAccountLogService;
 import com.ruoyi.service.pension.IFundTransferService;
 
 /**
@@ -30,14 +28,12 @@ public class DepositApplyServiceImpl implements IDepositApplyService
     @Autowired
     private IAccountInfoService accountInfoService;
 
-    @Autowired
-    private IExpenseRecordService expenseRecordService;
 
-    @Autowired
-    private ISupervisionAccountLogService supervisionAccountLogService;
 
     @Autowired
     private IFundTransferService fundTransferService;
+    @Autowired private com.ruoyi.mapper.bank.BankSettlementMapper settlementMapper;
+    @Autowired private com.ruoyi.service.bank.impl.BankPayoutService bankPayoutService;
 
     /**
      * 查询押金使用申请
@@ -96,6 +92,11 @@ public class DepositApplyServiceImpl implements IDepositApplyService
     @Override
     public int insertDepositApply(DepositApply depositApply)
     {
+        bankPayoutService.checkScope(depositApply.getInstitutionId());
+        if (depositApply.getApplyStatus() == null) { depositApply.setApplyStatus("draft"); }
+        if (!"draft".equals(depositApply.getApplyStatus()) && !"pending_family".equals(depositApply.getApplyStatus()))
+        { throw new com.ruoyi.common.exception.ServiceException("新申请仅允许草稿或待家属审批，不能指定审批结果"); }
+        clearApproval(depositApply);
         depositApply.setCreateTime(DateUtils.getNowDate());
         return depositApplyMapper.insertDepositApply(depositApply);
     }
@@ -107,8 +108,17 @@ public class DepositApplyServiceImpl implements IDepositApplyService
      * @return 结果
      */
     @Override
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     public int updateDepositApply(DepositApply depositApply)
     {
+        DepositApply existing = editable(depositApply.getApplyId());
+        if (depositApply.getApplyStatus() != null && !"draft".equals(depositApply.getApplyStatus())
+                && !"pending_family".equals(depositApply.getApplyStatus()))
+        { throw new com.ruoyi.common.exception.ServiceException("不能通过通用编辑修改审批结果"); }
+        depositApply.setInstitutionId(existing.getInstitutionId());
+        depositApply.setElderId(existing.getElderId());
+        depositApply.setAccountId(existing.getAccountId());
+        clearApproval(depositApply);
         depositApply.setUpdateTime(DateUtils.getNowDate());
         return depositApplyMapper.updateDepositApply(depositApply);
     }
@@ -120,8 +130,10 @@ public class DepositApplyServiceImpl implements IDepositApplyService
      * @return 结果
      */
     @Override
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     public int deleteDepositApplyByApplyIds(Long[] applyIds)
     {
+        for (Long id : applyIds) { editable(id); }
         return depositApplyMapper.deleteDepositApplyByApplyIds(applyIds);
     }
 
@@ -132,9 +144,29 @@ public class DepositApplyServiceImpl implements IDepositApplyService
      * @return 结果
      */
     @Override
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     public int deleteDepositApplyByApplyId(Long applyId)
     {
+        editable(applyId);
         return depositApplyMapper.deleteDepositApplyByApplyId(applyId);
+    }
+
+    private DepositApply editable(Long id)
+    {
+        DepositApply apply = settlementMapper.lockDeposit(id);
+        if (apply == null) { throw new com.ruoyi.common.exception.ServiceException("押金申请不存在"); }
+        bankPayoutService.checkScope(apply.getInstitutionId());
+        if (!("draft".equals(apply.getApplyStatus()) || "withdrawn".equals(apply.getApplyStatus()))
+                || settlementMapper.linkedApplication(id, "DEPOSIT") > 0)
+        { throw new com.ruoyi.common.exception.ServiceException("已提交或银行关联申请禁止编辑删除"); }
+        return apply;
+    }
+
+    private void clearApproval(DepositApply apply)
+    {
+        apply.setApprover(null); apply.setApproveTime(null); apply.setApproveRemark(null);
+        apply.setFamilyApproveTime(null); apply.setFamilyApproveOpinion(null); apply.setFamilyConfirmName(null);
+        apply.setActualAmount(null); apply.setUseTime(null);
     }
 
     /**
@@ -147,10 +179,11 @@ public class DepositApplyServiceImpl implements IDepositApplyService
      * @return 结果
      */
     @Override
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     public int familyApprove(Long applyId, String opinion, String approver, String rejectReason)
     {
         // 1. 查询申请信息
-        DepositApply apply = depositApplyMapper.selectDepositApplyByApplyId(applyId);
+        DepositApply apply = settlementMapper.lockDeposit(applyId);
         if (apply == null) {
             throw new RuntimeException("押金使用申请不存在");
         }
@@ -193,147 +226,54 @@ public class DepositApplyServiceImpl implements IDepositApplyService
      * @return 结果
      */
     @Override
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     public int supervisionApprove(Long applyId, boolean approved, String remark, String approver)
     {
-        // 1. 查询申请信息
-        DepositApply apply = depositApplyMapper.selectDepositApplyByApplyId(applyId);
-        if (apply == null) {
-            throw new RuntimeException("押金使用申请不存在");
+        DepositApply apply = settlementMapper.lockDeposit(applyId);
+        if (apply == null) { throw new com.ruoyi.common.exception.ServiceException("押金申请不存在"); }
+        bankPayoutService.checkScope(apply.getInstitutionId());
+        if (!"family_approved".equals(apply.getApplyStatus()) && !"pending_supervision".equals(apply.getApplyStatus()))
+        { throw new com.ruoyi.common.exception.ServiceException("当前申请状态不允许审批"); }
+        if (approved)
+        {
+            AccountInfo account = accountInfoService.selectAccountInfoByAccountId(apply.getAccountId());
+            if (account == null || !java.util.Objects.equals(account.getInstitutionId(), apply.getInstitutionId())
+                    || !java.util.Objects.equals(account.getElderId(), apply.getElderId())
+                    || apply.getApplyAmount() == null || apply.getApplyAmount().signum() <= 0)
+            { throw new com.ruoyi.common.exception.ServiceException("押金申请账户或金额不合法"); }
+            if (account.getBankDepositBalance().subtract(account.getDepositReserved()).compareTo(apply.getApplyAmount()) < 0)
+            { throw new com.ruoyi.common.exception.ServiceException("新银行押金来源不足，历史资金需人工核查"); }
+            FundTransfer transfer = new FundTransfer();
+            transfer.setTransferNo("TRF-DEP-" + applyId);
+            transfer.setSourceKey("DEPOSIT:" + applyId);
+            transfer.setBalanceType("DEPOSIT");
+            transfer.setBankEligible(1);
+            transfer.setTransferType("3");
+            transfer.setTransferAmount(apply.getApplyAmount());
+            transfer.setTransferDate(DateUtils.getNowDate());
+            transfer.setTransferStatus("0");
+            transfer.setIsPaid("0");
+            transfer.setStatus("pending");
+            transfer.setPaidMethod("deposit");
+            transfer.setApplyId(applyId);
+            transfer.setElderId(apply.getElderId());
+            transfer.setInstitutionId(apply.getInstitutionId());
+            transfer.setElderCount(1);
+            transfer.setCreateBy(approver);
+            transfer.setApproveUser(approver);
+            transfer.setApproveTime(DateUtils.getNowDate());
+            transfer.setRemark("押金使用审批通过，待银行拨付");
+            if (fundTransferService.insertFundTransfer(transfer) != 1)
+            { throw new com.ruoyi.common.exception.ServiceException("生成待拨付单失败"); }
         }
-
-        // 2. 验证状态(只有家属已审批或待监管审批状态才能审批)
-        if (!"family_approved".equals(apply.getApplyStatus()) &&
-            !"pending_supervision".equals(apply.getApplyStatus())) {
-            throw new RuntimeException("当前状态不允许监管部门审批");
-        }
-
-        // 3. 如果审批通过，扣除押金余额
-        if (approved) {
-            Long accountId = apply.getAccountId();
-            if (accountId == null) {
-                throw new RuntimeException("申请中未关联账户信息");
-            }
-
-            AccountInfo account = accountInfoService.selectAccountInfoByAccountId(accountId);
-            if (account == null) {
-                throw new RuntimeException("账户不存在");
-            }
-
-            // 获取申请金额
-            BigDecimal applyAmount = apply.getApplyAmount();
-            if (applyAmount == null || applyAmount.compareTo(BigDecimal.ZERO) <= 0) {
-                throw new RuntimeException("申请金额无效");
-            }
-
-            // 获取当前押金余额
-            BigDecimal currentDepositBalance = account.getDepositBalance() != null ?
-                account.getDepositBalance() : BigDecimal.ZERO;
-            BigDecimal currentTotalBalance = account.getTotalBalance() != null ?
-                account.getTotalBalance() : BigDecimal.ZERO;
-
-            // 验证押金余额是否足够
-            if (currentDepositBalance.compareTo(applyAmount) < 0) {
-                throw new RuntimeException("押金余额不足，当前押金余额：" + currentDepositBalance + "元，申请金额：" + applyAmount + "元");
-            }
-
-            // 扣除押金余额（只扣押金，不影响服务费余额和会员余额）
-            BigDecimal newDepositBalance = currentDepositBalance.subtract(applyAmount);
-            BigDecimal newTotalBalance = currentTotalBalance.subtract(applyAmount);
-
-            account.setDepositBalance(newDepositBalance);
-            account.setTotalBalance(newTotalBalance);
-            account.setUpdateTime(DateUtils.getNowDate());
-
-            // 更新账户余额
-            int accountUpdateResult = accountInfoService.updateAccountInfo(account);
-            if (accountUpdateResult <= 0) {
-                throw new RuntimeException("更新账户余额失败");
-            }
-
-            // 生成押金使用费用记录
-            try {
-                int recordResult = expenseRecordService.createDepositExpenseRecord(
-                    apply.getElderId(),
-                    accountId,
-                    applyId,
-                    applyAmount,
-                    currentTotalBalance, // 扣除前余额
-                    newTotalBalance    // 扣除后余额
-                );
-                if (recordResult <= 0) {
-                    // 费用记录创建失败不影响主流程，只记录日志
-                    System.err.println("创建费用记录失败，但审批流程继续执行");
-                }
-            } catch (Exception e) {
-                // 费用记录创建失败不影响主流程，只记录日志
-                System.err.println("创建费用记录异常：" + e.getMessage());
-            }
-
-            // 记录实际使用金额
-            apply.setActualAmount(applyAmount);
-
-            // 创建fund_transfer记录（统一管理所有划拨）
-            Long transferId = null;
-            try {
-                String transferNo = "TRF" + System.currentTimeMillis() + String.format("%03d", (int)(Math.random() * 1000));
-                String billingMonth = new java.text.SimpleDateFormat("yyyy-MM").format(apply.getCreateTime());
-
-                FundTransfer fundTransfer = new FundTransfer();
-                fundTransfer.setTransferNo(transferNo);
-                fundTransfer.setTransferType("3"); // 3-特殊划拨（押金使用）
-                fundTransfer.setTransferAmount(applyAmount);
-                fundTransfer.setTransferDate(DateUtils.getNowDate());
-                fundTransfer.setBillingMonth(billingMonth); // 使用申请日期作为账单月份
-                fundTransfer.setElderCount(1);
-                fundTransfer.setTransferStatus("1"); // 1-成功
-                fundTransfer.setIsPaid("1"); // 已划拨
-                fundTransfer.setPaidTime(DateUtils.getNowDate());
-                fundTransfer.setPaidMethod("deposit"); // 标识来源为押金使用
-                fundTransfer.setApplyId(applyId); // 关联押金申请ID
-                fundTransfer.setElderId(apply.getElderId());
-                fundTransfer.setInstitutionId(apply.getInstitutionId());
-                fundTransfer.setStatus("completed"); // 已完成
-                fundTransfer.setCreateBy(approver);
-                fundTransfer.setCreateTime(DateUtils.getNowDate());
-                fundTransfer.setRemark("押金使用-" + apply.getPurpose());
-
-                fundTransferService.insertFundTransfer(fundTransfer);
-                transferId = fundTransfer.getTransferId();
-            } catch (Exception e) {
-                // 创建fund_transfer失败不影响主流程，只记录日志
-                System.err.println("创建划拨记录异常：" + e.getMessage());
-            }
-
-            // 记录监管账户流水（划拨到基本账户，关联transfer_id）
-            try {
-                supervisionAccountLogService.recordTransferOut(
-                    apply.getInstitutionId(),
-                    transferId,
-                    applyAmount,
-                    "押金使用划拨-" + apply.getPurpose(),
-                    "基本账户"
-                );
-            } catch (Exception e) {
-                // 流水记录创建失败不影响主流程，只记录日志
-                System.err.println("记录监管账户流水异常：" + e.getMessage());
-            }
-        }
-
-        // 4. 更新审批信息
-        DepositApply updateApply = new DepositApply();
-        updateApply.setApplyId(applyId);
-        updateApply.setApprover(approver);
-        updateApply.setApproveTime(DateUtils.getNowDate());
-        updateApply.setApproveRemark(remark);
-        updateApply.setApplyStatus(approved ? "approved" : "rejected");
-        updateApply.setUpdateTime(DateUtils.getNowDate());
-
-        // 如果审批通过，记录实际使用金额
-        if (approved) {
-            updateApply.setActualAmount(apply.getApplyAmount());
-        }
-
-        return depositApplyMapper.updateDepositApply(updateApply);
+        DepositApply update = new DepositApply();
+        update.setApplyId(applyId);
+        update.setApplyStatus(approved ? "approved" : "rejected");
+        update.setApprover(approver);
+        update.setApproveTime(DateUtils.getNowDate());
+        update.setApproveRemark(remark);
+        update.setActualAmount(BigDecimal.ZERO);
+        return depositApplyMapper.updateDepositApply(update);
     }
 
     /**
@@ -343,15 +283,19 @@ public class DepositApplyServiceImpl implements IDepositApplyService
      * @return 结果
      */
     @Override
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     public int withdrawApply(Long applyId)
     {
         // 1. 查询申请信息
-        DepositApply apply = depositApplyMapper.selectDepositApplyByApplyId(applyId);
+        DepositApply apply = settlementMapper.lockDeposit(applyId);
         if (apply == null) {
             throw new RuntimeException("押金使用申请不存在");
         }
 
         // 2. 验证状态(已通过、已驳回、已撤回状态不能撤回)
+        bankPayoutService.checkScope(apply.getInstitutionId());
+        if (settlementMapper.linkedApplication(applyId, "DEPOSIT") > 0)
+        { throw new com.ruoyi.common.exception.ServiceException("银行关联申请不能撤回"); }
         String status = apply.getApplyStatus();
         if ("approved".equals(status) || "rejected".equals(status) || "withdrawn".equals(status)) {
             throw new RuntimeException("当前状态不允许撤回");

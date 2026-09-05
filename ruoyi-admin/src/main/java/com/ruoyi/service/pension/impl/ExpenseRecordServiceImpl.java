@@ -240,8 +240,7 @@ public class ExpenseRecordServiceImpl implements IExpenseRecordService
                                         java.math.BigDecimal memberAmount, java.math.BigDecimal otherAmount,
                                         java.math.BigDecimal balanceBefore, java.math.BigDecimal balanceAfter)
     {
-        BigDecimal firstMonthServiceFee = "1".equals(orderType)
-                ? calculateFirstMonthServiceFee(orderId) : BigDecimal.ZERO;
+        BigDecimal firstMonthServiceFee = BigDecimal.ZERO;
         return createOrderExpenseRecords(elderId, accountId, orderId, orderType,
                 depositAmount, serviceAmount, memberAmount, otherAmount,
                 balanceBefore, balanceAfter, firstMonthServiceFee);
