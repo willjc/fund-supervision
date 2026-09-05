@@ -82,6 +82,16 @@ class BankMerchantConfigServiceImplTest
     }
 
     @Test
+    void paymentOnlyConfigurationMustNotWriteNullAccountName()
+    {
+        when(institutionMapper.selectPensionInstitutionByInstitutionId(36L)).thenReturn(institution);
+        when(merchantConfigMapper.insert(config)).thenReturn(1);
+        assertEquals(1,service.insert(config,"admin"));
+        assertEquals("",config.getSettlementAccountName(),"兼容户名 NOT NULL，未核实时不伪造名称");
+        assertEquals(0,config.getPayoutEnabled());
+    }
+
+    @Test
     void updateCannotMoveConfigurationToAnotherInstitution()
     {
         config.setConfigId(1L);

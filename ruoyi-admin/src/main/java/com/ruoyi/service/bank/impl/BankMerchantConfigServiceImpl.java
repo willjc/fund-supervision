@@ -248,7 +248,7 @@ public class BankMerchantConfigServiceImpl implements IBankMerchantConfigService
                 ? institution.getInstitutionName() : config.getMerchantName().trim());
         config.setSettlementAccountNo(institution.getSuperviseAccount());
         config.setSettlementAccountName(StringUtils.isEmpty(config.getSettlementAccountName())
-                ? null : config.getSettlementAccountName().trim());
+                ? "" : config.getSettlementAccountName().trim());
         config.setBasicAccountNo(institution.getBankAccount());
         config.setChannelType(StringUtils.isEmpty(config.getChannelType()) ? "H5" : config.getChannelType());
         config.setEnvironment("prod".equals(config.getEnvironment()) ? "prod" : "sandbox");
