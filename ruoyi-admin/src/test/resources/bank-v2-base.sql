@@ -16,3 +16,10 @@ CREATE TABLE sys_job(job_id bigint AUTO_INCREMENT PRIMARY KEY,job_name varchar(6
   status char(1),create_by varchar(64),create_time datetime,remark varchar(500));
 CREATE TABLE pension_institution (institution_id BIGINT PRIMARY KEY, institution_name VARCHAR(200));
 CREATE TABLE elder_info (elder_id BIGINT PRIMARY KEY, elder_name VARCHAR(100));
+CREATE TABLE order_info(order_id bigint PRIMARY KEY,order_no varchar(64),order_type char(1),
+  elder_id bigint,creator_user_id bigint,institution_id bigint,check_in_id bigint,bed_id bigint,
+  order_amount decimal(15,2),paid_amount decimal(15,2),order_status char(1),payment_method varchar(20),
+  channel varchar(20),payment_time datetime,payment_proof varchar(500),payment_proof_remark varchar(500),
+  order_date datetime,service_start_date date,service_end_date date,billing_cycle varchar(20),
+  month_count int,original_amount decimal(15,2),discount_amount decimal(15,2),due_date datetime,
+  create_by varchar(64),create_time datetime,update_by varchar(64),update_time datetime,remark varchar(500));

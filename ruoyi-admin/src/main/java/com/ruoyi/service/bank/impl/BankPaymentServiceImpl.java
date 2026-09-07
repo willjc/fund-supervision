@@ -13,9 +13,11 @@ import com.ruoyi.bank.gateway.BankQueryRequest;
 import com.ruoyi.bank.gateway.BankResult;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.common.utils.uuid.IdUtils;
+import com.ruoyi.domain.OrderInfo;
 import com.ruoyi.domain.bank.BankMerchantConfig;
 import com.ruoyi.domain.bank.BankTransaction;
 import com.ruoyi.mapper.bank.BankTransactionMapper;
+import com.ruoyi.mapper.OrderInfoMapper;
 import com.ruoyi.service.bank.IBankMerchantConfigService;
 import com.ruoyi.service.bank.IBankPaymentService;
 
@@ -31,6 +33,9 @@ public class BankPaymentServiceImpl implements IBankPaymentService
     @Autowired
     private BankTransactionMapper transactionMapper;
 
+    @Autowired
+    private OrderInfoMapper orderInfoMapper;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public BankResult createPayment(Long orderId, Long institutionId, BigDecimal amount,
@@ -41,8 +46,22 @@ public class BankPaymentServiceImpl implements IBankPaymentService
             throw new ServiceException("银行支付参数不完整");
         }
 
+        // 同一订单的首次支付和失败重试串行执行，等待锁后重新读取订单和最新尝试。
+        OrderInfo order = orderInfoMapper.selectOrderInfoByOrderIdForUpdate(orderId);
+        if (order == null || (!"0".equals(order.getOrderStatus()) && !"5".equals(order.getOrderStatus()))
+                || (order.getPaidAmount() != null && order.getPaidAmount().signum() > 0))
+        {
+            throw new ServiceException("订单不是未支付状态，不能发起银行支付");
+        }
+        if (!institutionId.equals(order.getInstitutionId()) || order.getOrderAmount() == null
+                || amount.compareTo(order.getOrderAmount()) != 0)
+        {
+            throw new ServiceException("订单机构或金额已变更，请刷新后重试");
+        }
+
         BankTransaction existing = transactionMapper.selectByBusiness("PAY", orderId);
-        if (existing != null)
+        // 未决交易继续使用原请求；只有明确失败才能新建，旧流水保留供审计。
+        if (existing != null && !"FAILED".equals(existing.getStatus()))
         {
             return toResult(existing);
         }
@@ -59,6 +78,7 @@ public class BankPaymentServiceImpl implements IBankPaymentService
         transaction.setRequestNo(requestNo);
         transaction.setBusinessType("PAY");
         transaction.setBusinessId(orderId);
+        transaction.setAttemptNo(existing == null ? 1 : existing.getAttemptNo() + 1);
         transaction.setInstitutionId(institutionId);
         transaction.setMerId(merchant.getMerId());
         transaction.setBankCode(merchant.getBankCode());

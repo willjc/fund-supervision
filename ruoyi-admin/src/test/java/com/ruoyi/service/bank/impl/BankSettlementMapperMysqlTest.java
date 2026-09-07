@@ -18,6 +18,14 @@ import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import com.ruoyi.domain.bank.BankTransaction;
 import com.ruoyi.mapper.bank.BankTransactionMapper;
 import com.ruoyi.mapper.bank.BankSettlementMapper;
+import com.ruoyi.mapper.OrderInfoMapper;
+import com.ruoyi.bank.gateway.BankGateway;
+import com.ruoyi.bank.gateway.BankResult;
+import com.ruoyi.domain.bank.BankMerchantConfig;
+import com.ruoyi.service.bank.IBankMerchantConfigService;
+import org.springframework.test.util.ReflectionTestUtils;
+import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
 
 @EnabledIfEnvironmentVariable(named="BANK_PAYOUT_TEST_PORT",matches="[0-9]{4,5}")
 class BankSettlementMapperMysqlTest
@@ -34,8 +42,10 @@ class BankSettlementMapperMysqlTest
         Configuration config=new Configuration(new Environment("isolated-test",new JdbcTransactionFactory(),
                 new UnpooledDataSource("com.mysql.cj.jdbc.Driver",url,"root","")));
         config.getTypeAliasRegistry().registerAliases("com.ruoyi.domain.pension");
+        config.getTypeAliasRegistry().registerAlias("OrderInfo", com.ruoyi.domain.OrderInfo.class);
         for(String resource:new String[]{"mapper/bank/BankTransactionMapper.xml","mapper/pension/FundTransferMapper.xml",
-                "mapper/pension/DepositApplyMapper.xml","mapper/pension/FundTransferApplyMapper.xml","mapper/pension/AccountInfoMapper.xml"})
+                "mapper/pension/DepositApplyMapper.xml","mapper/pension/FundTransferApplyMapper.xml","mapper/pension/AccountInfoMapper.xml",
+                "mapper/OrderInfoMapper.xml"})
         {
             try(InputStream stream=getClass().getClassLoader().getResourceAsStream(resource))
             { new XMLMapperBuilder(stream,config,resource,config.getSqlFragments()).parse(); }
@@ -93,5 +103,57 @@ class BankSettlementMapperMysqlTest
             assertEquals(1,mapper.dueTransactions().size(),"退汇即使原单进入人工核查仍可恢复");
             assertEquals(1,mapper.schedule(saved.getTransactionId(),new Date(),0));
         }
+        verifyConcurrentPaymentRetry(factory);
+    }
+
+    private void verifyConcurrentPaymentRetry(SqlSessionFactory factory) throws Exception
+    {
+        try(SqlSession session=factory.openSession(true); Statement s=session.getConnection().createStatement())
+        {
+            s.executeUpdate("INSERT INTO order_info(order_id,institution_id,order_amount,paid_amount,order_status) VALUES(114,1,7500,0,'5')");
+            BankTransaction failed=new BankTransaction();
+            failed.setRequestNo("PAY-FAILED");failed.setBusinessType("PAY");failed.setBusinessId(114L);
+            failed.setInstitutionId(1L);failed.setMerId("TEST");failed.setBankCode("ZZBANK");
+            failed.setAmount(new BigDecimal("7500.00"));failed.setStatus("FAILED");
+            failed.setCreateTime(new Date());failed.setUpdateTime(new Date());
+            session.getMapper(BankTransactionMapper.class).insert(failed);
+        }
+        BankGateway gateway=mock(BankGateway.class);
+        when(gateway.createPayment(any())).thenReturn(BankResult.pending(null,"https://bank.example/retry"));
+        IBankMerchantConfigService merchants=mock(IBankMerchantConfigService.class);
+        BankMerchantConfig merchant=new BankMerchantConfig();merchant.setMerId("TEST");merchant.setBankCode("ZZBANK");
+        when(merchants.selectEnabledByInstitutionId(1L)).thenReturn(merchant);
+        ExecutorService workers=Executors.newFixedThreadPool(2);
+        try
+        {
+            CountDownLatch start=new CountDownLatch(1);
+            Callable<String> retry=() -> {
+                start.await();
+                try(SqlSession session=factory.openSession(false))
+                {
+                    BankPaymentServiceImpl service=new BankPaymentServiceImpl();
+                    ReflectionTestUtils.setField(service,"orderInfoMapper",session.getMapper(OrderInfoMapper.class));
+                    ReflectionTestUtils.setField(service,"transactionMapper",session.getMapper(BankTransactionMapper.class));
+                    ReflectionTestUtils.setField(service,"merchantConfigService",merchants);
+                    ReflectionTestUtils.setField(service,"bankGateway",gateway);
+                    BankResult result=service.createPayment(114L,1L,new BigDecimal("7500.00"),"wechat","测试订单");
+                    session.commit();
+                    return result.getRequestNo();
+                }
+            };
+            Future<String> a=workers.submit(retry),b=workers.submit(retry);start.countDown();
+            String requestNo=a.get(10,TimeUnit.SECONDS);
+            assertEquals(requestNo,b.get(10,TimeUnit.SECONDS),"并发重试必须复用同一个新请求");
+            verify(gateway,times(1)).createPayment(any());
+            try(SqlSession session=factory.openSession(true))
+            {
+                BankTransactionMapper mapper=session.getMapper(BankTransactionMapper.class);
+                BankTransaction latest=mapper.selectByBusiness("PAY",114L);
+                assertEquals(2,latest.getAttemptNo());assertEquals(requestNo,latest.getRequestNo());
+                assertEquals("PENDING",latest.getStatus());
+                assertEquals("FAILED",mapper.selectByRequestNo("PAY-FAILED").getStatus(),"旧失败流水必须保留");
+            }
+        }
+        finally { workers.shutdownNow(); }
     }
 }
