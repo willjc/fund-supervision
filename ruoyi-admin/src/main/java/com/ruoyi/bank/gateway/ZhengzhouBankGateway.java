@@ -98,7 +98,7 @@ public class ZhengzhouBankGateway implements BankGateway
         query.put("payChl", "OBK");
         query.put("obkAppId", isBlank(obkAppId) ? appId : obkAppId);
         query.put("istest", "1");
-        query.put("dev", "uata");
+        query.put("dev", "uatb");
         if (!isBlank(callbackUrl))
         {
             query.put("backEndUrl", callbackUrl);

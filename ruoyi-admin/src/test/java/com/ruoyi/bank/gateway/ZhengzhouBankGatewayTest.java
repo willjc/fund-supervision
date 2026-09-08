@@ -68,6 +68,7 @@ class ZhengzhouBankGatewayTest
     {
         ZhengzhouBankGateway gateway = new ZhengzhouBankGateway();
         ReflectionTestUtils.setField(gateway, "appId", "APP001");
+        ReflectionTestUtils.setField(gateway, "callbackUrl", "https://mz.dayushaiwang.com/api/bank/zzbank/notify/payment");
         BankPaymentRequest request = new BankPaymentRequest();
         request.setRequestNo("BP123456789012345678901234567890");
         request.setMerId("8202106040000001");
@@ -86,6 +87,9 @@ class ZhengzhouBankGatewayTest
         assertTrue(query.contains("&merId=8202106040000001&"));
         assertTrue(query.contains("&txnAmt=1&"));
         assertTrue(query.contains("&obkAppId=APP001&"));
+        assertTrue(query.contains("&istest=1&"));
+        assertTrue(query.contains("&dev=uatb&"));
+        assertTrue(query.contains("&backEndUrl=https://mz.dayushaiwang.com/api/bank/zzbank/notify/payment&"));
     }
 
     @Test
