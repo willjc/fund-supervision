@@ -35,6 +35,29 @@ import com.sun.net.httpserver.HttpServer;
 class ZhengzhouBankGatewayTest
 {
     @Test
+    void shouldSignMiniProgramRawValuesAndExcludeUnsignedFields()
+    {
+        JSONObject query = new JSONObject();
+        query.put("txnType", "1007");
+        query.put("merId", "M001");
+        query.put("txnOrderBody", "养老服务");
+        query.put("dev", "uatb");
+        query.put("backEndUrl", "https://example.com/callback");
+        query.put("aesWay", "01");
+        query.put("businessCode", "");
+        query.put("openId", null);
+        query.put("istest", "1");
+        query.put("reqData", "{\"fivem\":\"old\"}");
+        // Independently calculated with Node crypto, not a bank-supplied acceptance vector.
+        assertEquals("0bd38c688957155d995d90746155a7d7", ZhengzhouBankGateway.signMiniProgram(query, "fixture-key"));
+        query.put("istest", "0");
+        query.put("reqData", "ignored");
+        assertEquals("0bd38c688957155d995d90746155a7d7", ZhengzhouBankGateway.signMiniProgram(query, "fixture-key"));
+        query.put("backEndUrl", "https://example.com/changed");
+        assertFalse("0bd38c688957155d995d90746155a7d7".equals(ZhengzhouBankGateway.signMiniProgram(query, "fixture-key")));
+    }
+
+    @Test
     @EnabledIfEnvironmentVariable(named = "ZZBANK_LIVE_TEST", matches = "true")
     void shouldReachLiveSandboxWithJavaGateway()
     {
@@ -68,6 +91,7 @@ class ZhengzhouBankGatewayTest
     {
         ZhengzhouBankGateway gateway = new ZhengzhouBankGateway();
         ReflectionTestUtils.setField(gateway, "appId", "APP001");
+        ReflectionTestUtils.setField(gateway, "miniProgramMd5Key", "fixture-key");
         ReflectionTestUtils.setField(gateway, "callbackUrl", "https://mz.dayushaiwang.com/api/bank/zzbank/notify/payment");
         BankPaymentRequest request = new BankPaymentRequest();
         request.setRequestNo("BP123456789012345678901234567890");
@@ -89,6 +113,7 @@ class ZhengzhouBankGatewayTest
         assertTrue(query.contains("&obkAppId=APP001&"));
         assertTrue(query.contains("&istest=1&"));
         assertTrue(query.contains("&dev=uatb&"));
+        assertTrue(query.contains("&reqData={\"fivem\":\""));
         assertTrue(query.contains("&backEndUrl=https://mz.dayushaiwang.com/api/bank/zzbank/notify/payment&"));
     }
 
@@ -97,6 +122,7 @@ class ZhengzhouBankGatewayTest
     {
         ZhengzhouBankGateway gateway = new ZhengzhouBankGateway();
         ReflectionTestUtils.setField(gateway, "appId", "APP001");
+        ReflectionTestUtils.setField(gateway, "miniProgramMd5Key", "fixture-key");
         ReflectionTestUtils.setField(gateway, "obkAppId", "obk1298393");
         BankPaymentRequest request = new BankPaymentRequest();
         request.setRequestNo("BP123456789012345678901234567890");

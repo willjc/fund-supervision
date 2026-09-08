@@ -63,6 +63,9 @@ public class ZhengzhouBankGateway implements BankGateway
     @Value("${bank.integration.callback-url:}")
     private String callbackUrl;
 
+    @Value("${bank.integration.mini-program-md5-key:}")
+    private String miniProgramMd5Key;
+
     @Value("${bank.integration.connect-timeout-ms:8000}")
     private int connectTimeoutMs;
 
@@ -103,6 +106,10 @@ public class ZhengzhouBankGateway implements BankGateway
         {
             query.put("backEndUrl", callbackUrl);
         }
+        require(miniProgramMd5Key, "银行小程序 MD5 密钥未配置");
+        JSONObject reqData = new JSONObject();
+        reqData.put("fivem", signMiniProgram(query, miniProgramMd5Key));
+        query.put("reqData", JSON.toJSONString(reqData));
 
         JSONObject launch = new JSONObject();
         launch.put("appId", ALIPAY_MINI_APP_ID);
@@ -114,6 +121,19 @@ public class ZhengzhouBankGateway implements BankGateway
         String encoded = Base64.getUrlEncoder().withoutPadding()
                 .encodeToString(JSON.toJSONString(launch).getBytes(StandardCharsets.UTF_8));
         return BankResult.pending(null, "zzbank-alipay://" + encoded);
+    }
+
+    // V0.5：排除空值、reqData、istest；原值排序后追加完整商户密钥。
+    // UTF-8、小写摘要及 dev 参与签名待银行联调验证。
+    static String signMiniProgram(JSONObject query, String key)
+    {
+        String plain = query.entrySet().stream()
+                .filter(entry -> !"reqData".equals(entry.getKey()) && !"istest".equals(entry.getKey()))
+                .filter(entry -> entry.getValue() != null && !entry.getValue().toString().isEmpty())
+                .map(entry -> entry.getKey() + "=" + entry.getValue())
+                .sorted()
+                .collect(Collectors.joining("&"));
+        return org.springframework.util.DigestUtils.md5DigestAsHex((plain + key).getBytes(StandardCharsets.UTF_8));
     }
 
     @Override
