@@ -63,10 +63,10 @@
 
       <!-- 费用明细 -->
       <van-cell-group inset title="费用明细">
-        <van-cell title="床位费" :value="`${bedFee}元/月`" />
-        <van-cell title="护理费" :value="`${careFee}元/月`" />
-        <van-cell title="餐费" :value="`${mealFee}元/月`" />
-        <van-cell title="服务费合计" :value="`${monthlyPrice}元/月`" class="bold-text" />
+        <van-cell title="床位费" :value="`${formatMoney(bedFee)}元/月`" />
+        <van-cell title="护理费" :value="`${formatMoney(careFee)}元/月`" />
+        <van-cell title="餐费" :value="`${formatMoney(mealFee)}元/月`" />
+        <van-cell title="服务费合计" :value="`${formatMoney(monthlyPrice)}元/月`" class="bold-text" />
         <van-cell title="缴纳月数">
           <template #right-icon>
             <div class="month-control">
@@ -85,11 +85,11 @@
             </div>
           </template>
         </van-cell>
-        <van-cell title="押金（一次性）" :value="`${depositAmount}元`" />
-        <van-cell title="会员费（一次性）" :value="`${memberFee}元`" />
+        <van-cell title="押金（一次性）" :value="`${formatMoney(depositAmount)}元`" />
+        <van-cell title="会员费（一次性）" :value="`${formatMoney(memberFee)}元`" />
         <van-cell title="总金额" class="total-cell">
           <template #right-icon>
-            <span class="total-price">{{ totalAmount }}元</span>
+            <span class="total-price">{{ formatMoney(totalAmount) }}元</span>
           </template>
         </van-cell>
       </van-cell-group>
@@ -157,6 +157,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { showToast, showLoadingToast } from 'vant'
 import dayjs from 'dayjs'
+import { formatMoney } from '@/utils/format'
 import { getInstitutionDetail } from '@/api/institution'
 import { submitOrder as submitOrderApi, getBedPrice as getBedPriceApi, getElderList, getAvailableMeals } from '@/api/order'
 
@@ -288,12 +289,12 @@ const memberFee = computed(() => {
 
 // 计算月服务费（床位费 + 护理费 + 餐费）
 const monthlyPrice = computed(() => {
-  return bedFee.value + careFee.value + mealFee.value
+  return (Math.round(bedFee.value * 100) + Math.round(careFee.value * 100) + Math.round(mealFee.value * 100)) / 100
 })
 
 // 计算总金额
 const totalAmount = computed(() => {
-  return depositAmount.value + memberFee.value + monthlyPrice.value * formData.value.months
+  return (Math.round(depositAmount.value * 100) + Math.round(memberFee.value * 100) + Math.round(monthlyPrice.value * 100) * formData.value.months) / 100
 })
 
 // 获取老人列表
