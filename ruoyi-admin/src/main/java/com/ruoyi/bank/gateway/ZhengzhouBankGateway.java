@@ -109,7 +109,8 @@ public class ZhengzhouBankGateway implements BankGateway
         require(miniProgramMd5Key, "银行小程序 MD5 密钥未配置");
         JSONObject reqData = new JSONObject();
         reqData.put("fivem", signMiniProgram(query, miniProgramMd5Key));
-        query.put("reqData", JSON.toJSONString(reqData));
+        query.put("reqData", Base64.getEncoder().encodeToString(
+                JSON.toJSONString(reqData).getBytes(StandardCharsets.UTF_8)));
 
         JSONObject launch = new JSONObject();
         launch.put("appId", ALIPAY_MINI_APP_ID);

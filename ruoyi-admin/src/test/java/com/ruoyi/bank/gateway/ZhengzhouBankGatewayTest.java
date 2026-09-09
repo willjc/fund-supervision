@@ -113,7 +113,14 @@ class ZhengzhouBankGatewayTest
         assertTrue(query.contains("&obkAppId=APP001&"));
         assertTrue(query.contains("&istest=1&"));
         assertTrue(query.contains("&dev=uatb&"));
-        assertTrue(query.contains("&reqData={\"fivem\":\""));
+        String reqData = java.util.Arrays.stream(launch.getString("query").split("&"))
+                .filter(value -> value.startsWith("reqData="))
+                .findFirst().orElseThrow(AssertionError::new).substring("reqData=".length());
+        String decoded = new String(Base64.getDecoder().decode(reqData), StandardCharsets.UTF_8);
+        JSONObject signature = JSON.parseObject(decoded);
+        assertEquals(1, signature.size());
+        assertTrue(signature.getString("fivem").matches("[0-9a-f]{32}"));
+        assertEquals(reqData, Base64.getEncoder().encodeToString(decoded.getBytes(StandardCharsets.UTF_8)));
         assertTrue(query.contains("&backEndUrl=https://mz.dayushaiwang.com/api/bank/zzbank/notify/payment&"));
     }
 
