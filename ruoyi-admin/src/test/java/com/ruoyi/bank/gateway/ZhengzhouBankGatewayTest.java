@@ -49,12 +49,15 @@ class ZhengzhouBankGatewayTest
         query.put("istest", "1");
         query.put("reqData", "{\"fivem\":\"old\"}");
         // Independently calculated with Node crypto, not a bank-supplied acceptance vector.
-        assertEquals("0bd38c688957155d995d90746155a7d7", ZhengzhouBankGateway.signMiniProgram(query, "fixture-key"));
+        assertEquals("0851fa4ba90e22e560c68474259cc431", ZhengzhouBankGateway.signMiniProgram(query, "fixture-key"));
         query.put("istest", "0");
         query.put("reqData", "ignored");
-        assertEquals("0bd38c688957155d995d90746155a7d7", ZhengzhouBankGateway.signMiniProgram(query, "fixture-key"));
+        query.put("dev", "uata");
+        query.put("isTest", "ignored");
+        query.put("reqdata", "ignored");
+        assertEquals("0851fa4ba90e22e560c68474259cc431", ZhengzhouBankGateway.signMiniProgram(query, "fixture-key"));
         query.put("backEndUrl", "https://example.com/changed");
-        assertFalse("0bd38c688957155d995d90746155a7d7".equals(ZhengzhouBankGateway.signMiniProgram(query, "fixture-key")));
+        assertFalse("0851fa4ba90e22e560c68474259cc431".equals(ZhengzhouBankGateway.signMiniProgram(query, "fixture-key")));
     }
 
     @Test

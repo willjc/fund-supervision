@@ -124,12 +124,13 @@ public class ZhengzhouBankGateway implements BankGateway
         return BankResult.pending(null, "zzbank-alipay://" + encoded);
     }
 
-    // V0.5：排除空值、reqData、istest；原值排序后追加完整商户密钥。
-    // UTF-8、小写摘要及 dev 参与签名待银行联调验证。
+    // 银行补充确认：排除空值、reqData、istest、dev；原值排序后追加完整商户密钥。
+    // UTF-8、小写摘要待银行联调验证。
     static String signMiniProgram(JSONObject query, String key)
     {
         String plain = query.entrySet().stream()
-                .filter(entry -> !"reqData".equals(entry.getKey()) && !"istest".equals(entry.getKey()))
+                .filter(entry -> !"reqData".equalsIgnoreCase(entry.getKey())
+                        && !"istest".equalsIgnoreCase(entry.getKey()) && !"dev".equalsIgnoreCase(entry.getKey()))
                 .filter(entry -> entry.getValue() != null && !entry.getValue().toString().isEmpty())
                 .map(entry -> entry.getKey() + "=" + entry.getValue())
                 .sorted()
