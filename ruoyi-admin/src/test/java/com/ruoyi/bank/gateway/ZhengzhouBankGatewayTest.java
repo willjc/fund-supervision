@@ -55,6 +55,8 @@ class ZhengzhouBankGatewayTest
         query.put("dev", "uata");
         query.put("isTest", "ignored");
         query.put("reqdata", "ignored");
+        query.put("businessCode", " \t\r\n\u2003");
+        query.put(" ", "ignored");
         assertEquals("0851fa4ba90e22e560c68474259cc431", ZhengzhouBankGateway.signMiniProgram(query, "fixture-key"));
         query.put("backEndUrl", "https://example.com/changed");
         assertFalse("0851fa4ba90e22e560c68474259cc431".equals(ZhengzhouBankGateway.signMiniProgram(query, "fixture-key")));
@@ -90,7 +92,7 @@ class ZhengzhouBankGatewayTest
     }
 
     @Test
-    void shouldBuildTrustedAlipayMiniProgramPayload()
+    void shouldBuildTrustedAlipayMiniProgramPayload() throws Exception
     {
         ZhengzhouBankGateway gateway = new ZhengzhouBankGateway();
         ReflectionTestUtils.setField(gateway, "appId", "APP001");
@@ -102,7 +104,7 @@ class ZhengzhouBankGatewayTest
         request.setAmount(new BigDecimal("0.01"));
         request.setChannelType("支付宝");
         request.setSubject("测试订单");
-        request.setRequestTime(new Date());
+        request.setRequestTime(new java.text.SimpleDateFormat("yyyyMMddHHmmss").parse("20260909160000"));
 
         BankResult result = gateway.createPayment(request);
 
@@ -122,7 +124,9 @@ class ZhengzhouBankGatewayTest
         String decoded = new String(Base64.getDecoder().decode(reqData), StandardCharsets.UTF_8);
         JSONObject signature = JSON.parseObject(decoded);
         assertEquals(1, signature.size());
-        assertTrue(signature.getString("fivem").matches("[0-9a-f]{32}"));
+        // V0.5 sorting/key suffix + bank-confirmed exclusions; independently calculated with Node crypto.
+        // Uses a fixture key, not a bank acceptance vector or a real merchant signing key.
+        assertEquals("00ff4e9028234aa690d6a5d19070008c", signature.getString("fivem"));
         assertEquals(reqData, Base64.getEncoder().encodeToString(decoded.getBytes(StandardCharsets.UTF_8)));
         assertTrue(query.contains("&backEndUrl=https://mz.dayushaiwang.com/api/bank/zzbank/notify/payment&"));
     }

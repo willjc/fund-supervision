@@ -125,13 +125,15 @@ public class ZhengzhouBankGateway implements BankGateway
     }
 
     // 银行补充确认：排除空值、reqData、istest、dev；原值排序后追加完整商户密钥。
-    // UTF-8、小写摘要待银行联调验证。
+    // V0.6 示例使用小写摘要，空白键和值不参与签名。
     static String signMiniProgram(JSONObject query, String key)
     {
         String plain = query.entrySet().stream()
                 .filter(entry -> !"reqData".equalsIgnoreCase(entry.getKey())
                         && !"istest".equalsIgnoreCase(entry.getKey()) && !"dev".equalsIgnoreCase(entry.getKey()))
-                .filter(entry -> entry.getValue() != null && !entry.getValue().toString().isEmpty())
+                .filter(entry -> org.apache.commons.lang3.StringUtils.isNotBlank(entry.getKey())
+                        && entry.getValue() != null
+                        && org.apache.commons.lang3.StringUtils.isNotBlank(entry.getValue().toString()))
                 .map(entry -> entry.getKey() + "=" + entry.getValue())
                 .sorted()
                 .collect(Collectors.joining("&"));
