@@ -95,6 +95,7 @@ const selectedPaymentMethod = ref('alipay')
 const bankPaymentPending = ref(false)
 const checkingPayment = ref(false)
 let lastQueryAt = 0
+let paymentQueryTimer = null
 
 // 支付方式列表
 const paymentMethods = [
@@ -119,7 +120,7 @@ const formatAmount = (amount) => {
 
 // 倒计时结束
 const onCountdownFinish = () => {
-  showToast('支付超时,订单已取消')
+  showToast(bankPaymentPending.value ? '支付结果确认中，可在订单中查看' : '页面停留超时，请在订单中查看状态')
   setTimeout(() => {
     router.push({ name: 'Order' })
   }, 1500)
@@ -165,13 +166,13 @@ const confirmMockPayment = async (requestNo) => {
 }
 
 const checkPaymentStatus = async (showPendingMessage = false) => {
-  if (!bankPaymentPending.value || checkingPayment.value || Date.now() - lastQueryAt < 2000) return
+  if (!bankPaymentPending.value || checkingPayment.value || Date.now() - lastQueryAt < 15000) return
   checkingPayment.value = true
   lastQueryAt = Date.now()
-  showLoadingToast({ message: '正在查询支付结果...', forbidClick: true, duration: 0 })
+  if (showPendingMessage) showLoadingToast({ message: '正在查询支付结果...', forbidClick: true, duration: 0 })
   try {
     const response = await queryPaymentStatus(route.params.orderId)
-    closeToast()
+    if (showPendingMessage) closeToast()
     if (response.code === 200 && response.data?.success) {
       sessionStorage.removeItem('zzbankPendingOrderId')
       bankPaymentPending.value = false
@@ -180,8 +181,8 @@ const checkPaymentStatus = async (showPendingMessage = false) => {
       showToast(response.data?.message || response.msg || '暂未查询到支付成功，请稍后再试')
     }
   } catch (error) {
-    closeToast()
     if (showPendingMessage) {
+      closeToast()
       showToast(error.response?.data?.msg || '查询支付结果失败，请稍后重试')
     }
   } finally {
@@ -248,6 +249,8 @@ onMounted(() => {
   document.addEventListener('visibilitychange', queryWhenVisible)
   window.addEventListener('pageshow', queryWhenVisible)
   window.addEventListener('focus', queryWhenVisible)
+  document.addEventListener('resume', queryWhenVisible)
+  paymentQueryTimer = window.setInterval(queryWhenVisible, 15000)
   queryWhenVisible()
 })
 
@@ -255,6 +258,8 @@ onBeforeUnmount(() => {
   document.removeEventListener('visibilitychange', queryWhenVisible)
   window.removeEventListener('pageshow', queryWhenVisible)
   window.removeEventListener('focus', queryWhenVisible)
+  document.removeEventListener('resume', queryWhenVisible)
+  window.clearInterval(paymentQueryTimer)
 })
 </script>
 

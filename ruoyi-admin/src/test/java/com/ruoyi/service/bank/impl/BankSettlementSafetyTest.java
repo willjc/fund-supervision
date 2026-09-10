@@ -26,6 +26,27 @@ import com.ruoyi.task.BankSettlementTask;
 class BankSettlementSafetyTest
 {
     @Test
+    void pagePollingRespectsBackoffAndManualReviewWithoutCallingBank()
+    {
+        BankPaymentReconciler service = new BankPaymentReconciler();
+        BankTransactionMapper transactions = mock(BankTransactionMapper.class);
+        BankSettlementMapper mapper = mock(BankSettlementMapper.class);
+        IBankPaymentService payments = mock(IBankPaymentService.class);
+        ReflectionTestUtils.setField(service, "transactions", transactions);
+        ReflectionTestUtils.setField(service, "settlement", mapper);
+        ReflectionTestUtils.setField(service, "payments", payments);
+        BankTransaction tx = transaction();
+        tx.setQueryCount(1);
+        tx.setNextQueryTime(new Date(System.currentTimeMillis() + 300000L));
+        when(transactions.selectByBusiness("PAY", 10L)).thenReturn(tx);
+        assertEquals("PENDING", service.queryAndComplete(10L).getStatus());
+        tx.setManualReview(1);
+        tx.setNextQueryTime(null);
+        assertEquals("MANUAL_REVIEW", service.queryAndComplete(10L).getResponseCode());
+        verifyNoInteractions(payments, mapper);
+    }
+
+    @Test
     void institutionEditCannotBypassBankAccountChangeGuard()
     {
         com.ruoyi.service.impl.PensionInstitutionServiceImpl service=new com.ruoyi.service.impl.PensionInstitutionServiceImpl();

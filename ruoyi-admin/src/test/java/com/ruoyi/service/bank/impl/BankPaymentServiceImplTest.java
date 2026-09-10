@@ -179,6 +179,37 @@ class BankPaymentServiceImplTest
     }
 
     @Test
+    void queryUsesOriginalLaunchSecondInsteadOfRoundedDatabaseTime() throws Exception
+    {
+        BankTransaction tx = pendingTransaction();
+        java.text.SimpleDateFormat format = new java.text.SimpleDateFormat("yyyyMMddHHmmss");
+        tx.setCreateTime(format.parse("20260910171843"));
+        com.alibaba.fastjson2.JSONObject launch = new com.alibaba.fastjson2.JSONObject();
+        launch.put("query", "txnOrderId=REQ001&merId=8202106040000001&txnOrderTime=20260910171842&istest=1&dev=uatb");
+        tx.setPayUrl("zzbank-alipay://" + java.util.Base64.getUrlEncoder().encodeToString(
+                launch.toJSONString().getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        when(transactionMapper.selectByBusiness("PAY", 1L)).thenReturn(tx);
+        when(bankGateway.queryPayment(any())).thenReturn(BankResult.pending(null, null));
+        service.queryPayment(1L);
+        ArgumentCaptor<BankQueryRequest> request = ArgumentCaptor.forClass(BankQueryRequest.class);
+        verify(bankGateway).queryPayment(request.capture());
+        assertEquals("20260910171842", format.format(request.getValue().getOriginalRequestTime()));
+    }
+
+    @Test
+    void oldEnvironmentCannotBeQueriedAgainstCurrentBank()
+    {
+        BankTransaction tx = pendingTransaction();
+        com.alibaba.fastjson2.JSONObject launch = new com.alibaba.fastjson2.JSONObject();
+        launch.put("query", "txnOrderId=REQ001&merId=8202106040000001&txnOrderTime=20260910171842&istest=1&dev=uata");
+        tx.setPayUrl("zzbank-alipay://" + java.util.Base64.getUrlEncoder().encodeToString(
+                launch.toJSONString().getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        when(transactionMapper.selectByBusiness("PAY", 1L)).thenReturn(tx);
+        assertThrows(ServiceException.class, () -> service.queryPayment(1L));
+        verify(bankGateway, never()).queryPayment(any());
+    }
+
+    @Test
     void queryPaymentShouldRejectMismatchedBankAmount()
     {
         BankTransaction transaction = pendingTransaction();

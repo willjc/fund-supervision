@@ -84,7 +84,7 @@ class ZhengzhouBankGatewayTest
 
         BankResult result = gateway.queryPayment(request);
 
-        assertEquals("FAILED", result.getStatus());
+        assertEquals("UNKNOWN", result.getStatus());
         assertEquals("1025", result.getResponseCode());
 
         BankResult verification = gateway.verifyMerchant("8202106040000001", "TEST_ACCOUNT");

@@ -94,9 +94,16 @@ class BankPaymentCompletionServiceImplTest
         order.setServiceStartDate(new Date());
     }
 
-    @Test
-    void completePaymentShouldSettleFirstPendingPaymentExactlyOnce()
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
+    void completePaymentShouldSettleFirstPendingPaymentExactlyOnce(boolean bankConfirmed)
     {
+        if (bankConfirmed)
+        {
+            org.springframework.test.util.ReflectionTestUtils.setField(service, "integrationMode", "zzbank");
+            transaction.setBankStatus("SUCCESS");
+            transaction.setBankTime("20260910171644");
+        }
         when(transactionMapper.selectByRequestNoForUpdate("BP001")).thenReturn(transaction);
         when(orderInfoMapper.selectOrderInfoByOrderIdForUpdate(10L)).thenReturn(order);
         when(institutionMapper.selectPensionInstitutionForUpdate(20L)).thenReturn(new PensionInstitution());
@@ -152,6 +159,11 @@ class BankPaymentCompletionServiceImplTest
         assertEquals("PAY" + DigestUtils.md5DigestAsHex("BP001".getBytes(StandardCharsets.UTF_8)),
                 paymentCaptor.getValue().getPaymentNo());
         assertEquals("BANK001", paymentCaptor.getValue().getTransactionId());
+        if (bankConfirmed)
+        {
+            assertEquals("20260910171644", new java.text.SimpleDateFormat("yyyyMMddHHmmss")
+                    .format(paymentCaptor.getValue().getPaymentTime()));
+        }
 
         verify(accountInfoMapper).updateAccountBalance(40L,
                 new BigDecimal("110.00"), new BigDecimal("70.00"),

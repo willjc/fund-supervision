@@ -100,7 +100,7 @@ class BankSettlementMapperMysqlTest
             BankTransaction returned=transactions.selectByRequestNo("TEST1");
             assertEquals(0,returned.getManualReview());
             assertEquals("RETURN_PENDING",returned.getBookingStatus());
-            assertEquals(1,mapper.dueTransactions().size(),"退汇即使原单进入人工核查仍可恢复");
+            assertEquals(1,mapper.dueTransactions(Long.MAX_VALUE).size(),"退汇即使原单进入人工核查仍可恢复");
             assertEquals(1,mapper.schedule(saved.getTransactionId(),new Date(),0));
         }
         verifyConcurrentPaymentRetry(factory);

@@ -170,6 +170,10 @@ public class ZhengzhouBankGateway implements BankGateway
             return BankResult.unknown(queryCode, response.getString("respMsg"));
         }
         String originalCode = normalizeCode(response.getString("origRespCode"));
+        if ("1025".equals(originalCode))
+        {
+            return BankResult.unknown(originalCode, "银行暂未查到原交易，请稍后查询或人工核查");
+        }
         boolean success = "0000".equals(originalCode);
         String originalOrder = response.getString("origTxnOrderId");
         if ((success && isBlank(originalOrder))

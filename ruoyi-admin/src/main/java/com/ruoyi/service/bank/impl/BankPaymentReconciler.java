@@ -26,6 +26,20 @@ public class BankPaymentReconciler
         if (tx == null) { throw new ServiceException("支付交易不存在"); }
         if ("SUCCESS".equals(tx.getStatus())) { return payments.queryPayment(orderId); }
         if ("FAILED".equals(tx.getStatus())) { return payments.queryPayment(orderId); }
+        if (Integer.valueOf(1).equals(tx.getManualReview()) && !"SUCCESS".equals(tx.getBankStatus()))
+        {
+            BankResult review = BankResult.unknown("MANUAL_REVIEW", "支付结果待人工核查，请勿重复支付");
+            review.setRequestNo(tx.getRequestNo());
+            return review;
+        }
+        if (!"SUCCESS".equals(tx.getBankStatus()) && tx.getQueryCount() != null && tx.getQueryCount() > 0
+                && tx.getNextQueryTime() != null && tx.getNextQueryTime().after(new Date()))
+        {
+            BankResult pending = BankResult.pending(tx.getBankSerialNo(), null);
+            pending.setRequestNo(tx.getRequestNo());
+            pending.setResponseMessage("支付结果确认中，请稍后查看");
+            return pending;
+        }
         if (settlement.claim(tx.getTransactionId()) != 1)
         {
             BankResult busy = BankResult.pending(tx.getBankSerialNo(), null);
@@ -44,9 +58,11 @@ public class BankPaymentReconciler
                 tx.setResponseMessage(bounded(result.getResponseMessage(), 500));
                 if ("SUCCESS".equals(result.getStatus()) && (result.getBankSerialNo() == null
                         || result.getBankSerialNo().trim().isEmpty() || result.getPaidAmount() == null
-                        || result.getPaidAmount().compareTo(tx.getAmount()) != 0))
+                        || result.getPaidAmount().compareTo(tx.getAmount()) != 0
+                        || result.getBankTransactionTime() == null
+                        || !result.getBankTransactionTime().matches("[0-9]{14}")))
                 {
-                    throw new ServiceException("银行确认缺少流水或金额不匹配，禁止入账");
+                    throw new ServiceException("银行确认缺少流水、交易时间或金额不匹配，禁止入账");
                 }
                 settlement.observe(tx);
                 tx = transactions.selectByRequestNo(tx.getRequestNo());
@@ -62,7 +78,7 @@ public class BankPaymentReconciler
                 tx.setBookingStatus("DONE");
                 settlement.finish(tx);
             }
-            return resultOf(tx);
+            return resultOf(transactions.selectByRequestNo(tx.getRequestNo()));
         }
         finally
         {

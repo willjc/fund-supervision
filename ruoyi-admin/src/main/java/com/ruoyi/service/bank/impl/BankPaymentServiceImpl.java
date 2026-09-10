@@ -73,7 +73,8 @@ public class BankPaymentServiceImpl implements IBankPaymentService
         }
 
         String requestNo = "BP" + IdUtils.fastSimpleUUID().substring(0, 30).toUpperCase();
-        Date now = new Date();
+        // MySQL DATETIME 无毫秒；发给银行和落库使用同一秒，避免四舍五入造成查单时间偏移。
+        Date now = new Date(System.currentTimeMillis() / 1000L * 1000L);
         BankTransaction transaction = new BankTransaction();
         transaction.setRequestNo(requestNo);
         transaction.setBusinessType("PAY");
@@ -160,7 +161,7 @@ public class BankPaymentServiceImpl implements IBankPaymentService
         BankQueryRequest request = new BankQueryRequest();
         request.setMerId(transaction.getMerId());
         request.setOriginalRequestNo(transaction.getRequestNo());
-        request.setOriginalRequestTime(transaction.getCreateTime());
+        request.setOriginalRequestTime(originalRequestTime(transaction));
         request.setBankSerialNo(transaction.getBankSerialNo());
         BankResult result = bankGateway.queryPayment(request);
         if (result == null || result.getStatus() == null)
@@ -174,6 +175,48 @@ public class BankPaymentServiceImpl implements IBankPaymentService
         }
         result.setRequestNo(transaction.getRequestNo());
         return result;
+    }
+
+    private Date originalRequestTime(BankTransaction transaction)
+    {
+        String url = transaction.getPayUrl();
+        if (url == null || !url.startsWith("zzbank-alipay://"))
+        {
+            return transaction.getCreateTime();
+        }
+        try
+        {
+            String json = new String(java.util.Base64.getUrlDecoder().decode(
+                    url.substring("zzbank-alipay://".length())), java.nio.charset.StandardCharsets.UTF_8);
+            String query = com.alibaba.fastjson2.JSON.parseObject(json).getString("query");
+            java.util.Map<String, String> fields = new java.util.HashMap<>();
+            for (String part : query.split("&"))
+            {
+                String[] pair = part.split("=", 2);
+                if (pair.length == 2 && fields.put(pair[0], pair[1]) != null)
+                {
+                    throw new IllegalArgumentException("duplicate field");
+                }
+            }
+            if (!transaction.getRequestNo().equals(fields.get("txnOrderId"))
+                    || !transaction.getMerId().equals(fields.get("merId"))
+                    || !"uatb".equals(fields.get("dev")) || !"1".equals(fields.get("istest")))
+            {
+                throw new IllegalArgumentException("identity or environment mismatch");
+            }
+            String time = fields.get("txnOrderTime");
+            if (time == null || !time.matches("[0-9]{14}"))
+            {
+                throw new IllegalArgumentException("invalid time");
+            }
+            java.text.SimpleDateFormat format = new java.text.SimpleDateFormat("yyyyMMddHHmmss");
+            format.setLenient(false);
+            return format.parse(time);
+        }
+        catch (Exception e)
+        {
+            throw new ServiceException("原支付参数或测试环境不匹配，请人工核查，禁止重新支付");
+        }
     }
 
     private BankResult toResult(BankTransaction transaction)

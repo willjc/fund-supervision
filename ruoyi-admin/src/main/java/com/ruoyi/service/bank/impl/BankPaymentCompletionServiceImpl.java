@@ -108,6 +108,24 @@ public class BankPaymentCompletionServiceImpl implements IBankPaymentCompletionS
         String actualOperator = StringUtils.hasText(operator) ? operator : "system";
         String paymentMethod = toPaymentMethod(transaction.getChannelType());
         Date paymentTime = new Date();
+        if ("zzbank".equals(integrationMode))
+        {
+            if (!"SUCCESS".equals(transaction.getBankStatus())
+                    || transaction.getBankTime() == null || !transaction.getBankTime().matches("[0-9]{14}"))
+            {
+                throw new ServiceException("银行成功事实或交易时间不完整，等待补查入账");
+            }
+            try
+            {
+                SimpleDateFormat format = new SimpleDateFormat("yyyyMMddHHmmss");
+                format.setLenient(false);
+                paymentTime = format.parse(transaction.getBankTime());
+            }
+            catch (java.text.ParseException e)
+            {
+                throw new ServiceException("银行交易时间无效，等待人工核查");
+            }
+        }
 
         // 锁定机构以串行化同一监管账户的余额流水；锁定老人以串行化账户创建。
         if (institutionMapper.selectPensionInstitutionForUpdate(order.getInstitutionId()) == null)

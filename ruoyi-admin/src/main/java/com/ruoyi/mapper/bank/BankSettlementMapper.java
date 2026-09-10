@@ -27,10 +27,11 @@ public interface BankSettlementMapper
           + "AND bank_transaction_id IS NULL AND (apply_id IS NULL OR apply_id=#{apply})")
     int linkApply(@Param("id") Long id,@Param("apply") Long apply,@Param("operator") String operator);
     @Select("SELECT * FROM bank_transaction WHERE next_query_time <= NOW() AND manual_review=0 "
+          + "AND (business_type<>'PAY' OR transaction_id>=#{paymentMinId}) "
           + "AND (status IN ('PENDING','UNKNOWN') OR booking_status='RETURN_PENDING') "
           + "AND (lease_until IS NULL OR lease_until<NOW()) ORDER BY next_query_time LIMIT 100")
     @ResultMap("com.ruoyi.mapper.bank.BankTransactionMapper.BankTransactionResult")
-    List<BankTransaction> dueTransactions();
+    List<BankTransaction> dueTransactions(@Param("paymentMinId") long paymentMinId);
 
     @Update("UPDATE bank_transaction SET lease_until=DATE_ADD(NOW(), INTERVAL 10 MINUTE) "
           + "WHERE transaction_id=#{id} AND (lease_until IS NULL OR lease_until<NOW())")

@@ -26,11 +26,12 @@ public class BankSettlementTask
     @Autowired private BankPayoutService payouts;
     @Autowired private ITransferRuleConfigService rules;
     @Value("${bank.integration.reconciliation-enabled:false}") private boolean reconciliationEnabled;
+    @Value("${bank.integration.payment-query-min-id:9223372036854775807}") private long paymentQueryMinId;
 
     public void reconcile()
     {
         if (!reconciliationEnabled) { return; }
-        for (BankTransaction tx : mapper.dueTransactions())
+        for (BankTransaction tx : mapper.dueTransactions(paymentQueryMinId))
         {
             try
             {
