@@ -1683,6 +1683,30 @@ public class H5OrderController extends BaseController
                         allRecords.add(record);
                     }
                 }
+
+                // 退款支出（原路退款入账时写入 expense_record，related_type='refund'，与划拨渲染无重叠）
+                if ("all".equals(type) || "service".equals(type) || "deposit".equals(type) || "member".equals(type)) {
+                    ExpenseRecord refundQuery = new ExpenseRecord();
+                    refundQuery.setElderId(elderId);
+                    refundQuery.setTransactionType("expense");
+                    refundQuery.setRelatedType("refund");
+                    if (!"all".equals(type)) {
+                        refundQuery.setExpenseType(type);
+                    }
+                    List<ExpenseRecord> refundRecords = expenseRecordService.selectExpenseRecordList(refundQuery);
+                    for (ExpenseRecord er : refundRecords) {
+                        Map<String, Object> record = new java.util.HashMap<>();
+                        record.put("recordId", er.getRecordId());
+                        record.put("expenseType", er.getExpenseType());
+                        record.put("amount", er.getAmount());
+                        record.put("createTime", er.getCreateTime());
+                        record.put("transactionType", "expense");
+                        record.put("description", er.getDescription());
+                        record.put("balanceBefore", er.getBalanceBefore());
+                        record.put("balanceAfter", er.getBalanceAfter());
+                        allRecords.add(record);
+                    }
+                }
             }
 
             // 按时间正序排序（最早的在前）
