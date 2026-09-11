@@ -148,6 +148,9 @@ bank:
     gateway-url: ${ZZBANK_GATEWAY_URL:https://obk.lovingfox.cn:7000/openapi/zfbz/v1}
     # 仅测试联调放行私有网关地址；生产必须保持 false。
     allow-private-gateway: ${ZZBANK_ALLOW_PRIVATE_GATEWAY:false}
+    # 收单对账日终任务开关与默认商户号；账单生产环境工作日 10 点左右生成。
+    acq-recon-enabled: ${ZZBANK_ACQ_RECON_ENABLED:false}
+    mer-id: ${ZZBANK_MER_ID:8202106040000001}
     app-id: ${ZZBANK_APP_ID:}
     obk-app-id: ${ZZBANK_OBK_APP_ID:}
     app-secret: ${ZZBANK_APP_SECRET:}

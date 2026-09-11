@@ -342,22 +342,10 @@ public class ZhengzhouBankGateway implements BankGateway
     {
         try
         {
-            String plainText = JSON.toJSONString(body);
             PrivateKey privateKey = loadPrivateKey();
             PublicKey publicKey = loadBankPublicKey();
 
-            JSONObject request = new JSONObject();
-            request.put("tranDate", format(now, "yyyyMMdd"));
-            request.put("tranTime", format(now, "HHmmss"));
-            request.put("tranSeq", body.getString("txnOrderId"));
-            request.put("tranCode", tranCode);
-            request.put("sign", sign(plainText, privateKey));
-            request.put("securityType", "rsa");
-            request.put("appId", appId);
-            request.put("appSecret", appSecret);
-            request.put("bizContent", encrypt(plainText, publicKey));
-
-            byte[] payload = JSON.toJSONString(request).getBytes(StandardCharsets.UTF_8);
+            byte[] payload = JSON.toJSONString(buildEnvelope(tranCode, body, now)).getBytes(StandardCharsets.UTF_8);
             HttpURLConnection connection = (HttpURLConnection) new URL(gatewayUrl).openConnection();
             connection.setConnectTimeout(connectTimeoutMs);
             connection.setReadTimeout(readTimeoutMs);
@@ -397,6 +385,122 @@ public class ZhengzhouBankGateway implements BankGateway
         catch (Exception e)
         {
             throw new ServiceException("郑州银行查单失败：" + e.getMessage());
+        }
+    }
+
+    /** 开放银行信封：仅 bizContent 参与签名与加密；tranSeq 优先取业务订单号，对账类无单号报文按规则生成。 */
+    JSONObject buildEnvelope(String tranCode, JSONObject body, Date now) throws Exception
+    {
+        String plainText = JSON.toJSONString(body);
+        PrivateKey privateKey = loadPrivateKey();
+        PublicKey publicKey = loadBankPublicKey();
+
+        JSONObject request = new JSONObject();
+        request.put("tranDate", format(now, "yyyyMMdd"));
+        request.put("tranTime", format(now, "HHmmss"));
+        String tranSeq = body.getString("txnOrderId");
+        request.put("tranSeq", isBlank(tranSeq)
+                ? "BC" + IdUtils.fastSimpleUUID().substring(0, 30).toUpperCase() : tranSeq);
+        request.put("tranCode", tranCode);
+        request.put("sign", sign(plainText, privateKey));
+        request.put("securityType", "rsa");
+        request.put("appId", appId);
+        request.put("appSecret", appSecret);
+        request.put("bizContent", encrypt(plainText, publicKey));
+        return request;
+    }
+
+    /** uMtBillApply：申请生成指定清算日期的对账单。respCode 0000 成功；1073 无交易；1081 跑批未完成；1082 未结算。 */
+    public JSONObject applyBill(String merId, String clearingDate)
+    {
+        requireProtocolConfig();
+        requirePublicGatewayUrl();
+        requireClearingDate(clearingDate);
+        JSONObject body = new JSONObject();
+        body.put("merId", merId);
+        body.put("dateStlm", clearingDate);
+        body.put("payChl", "OBK");
+        body.put("obkAppId", isBlank(obkAppId) ? appId : obkAppId);
+        return post("uMtBillApply", body, new Date());
+    }
+
+    /** uMtBillQuery：查询对账单生成标志（billStat 00 未生成 / 01 已生成）。 */
+    public JSONObject queryBillStatus(String merId, String clearingDate)
+    {
+        requireProtocolConfig();
+        requirePublicGatewayUrl();
+        requireClearingDate(clearingDate);
+        JSONObject body = new JSONObject();
+        body.put("merId", merId);
+        body.put("dateStlm", clearingDate);
+        body.put("payChl", "OBK");
+        body.put("obkAppId", isBlank(obkAppId) ? appId : obkAppId);
+        return post("uMtBillQuery", body, new Date());
+    }
+
+    /** sddzfiledown（新版 newsddzfiledown/v1）：按文件名下载对账文件，响应体为文件、响应头 sign 为文件 MD5。 */
+    public byte[] downloadBillFile(String fileName)
+    {
+        requireProtocolConfig();
+        requirePublicGatewayUrl();
+        if (isBlank(fileName))
+        {
+            throw new ServiceException("对账文件名为空");
+        }
+        String downloadUrl = gatewayUrl.replace("zfbz/v1", "newsddzfiledown/v1");
+        JSONObject body = new JSONObject();
+        body.put("fileName", fileName);
+        try
+        {
+            PrivateKey privateKey = loadPrivateKey();
+            byte[] payload = JSON.toJSONString(buildEnvelope("sddzfiledown", body, new Date()))
+                    .getBytes(StandardCharsets.UTF_8);
+            HttpURLConnection connection = (HttpURLConnection) new URL(downloadUrl).openConnection();
+            connection.setConnectTimeout(connectTimeoutMs);
+            connection.setReadTimeout(readTimeoutMs * 4);
+            connection.setRequestMethod("POST");
+            connection.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
+            connection.setDoOutput(true);
+            try (OutputStream output = connection.getOutputStream())
+            {
+                output.write(payload);
+            }
+            int status = connection.getResponseCode();
+            InputStream input = status >= 400 ? connection.getErrorStream() : connection.getInputStream();
+            byte[] content = input == null ? new byte[0] : readBytes(input);
+            if (status != HttpURLConnection.HTTP_OK)
+            {
+                throw new ServiceException("对账文件下载 HTTP 状态异常：" + status);
+            }
+            String errorCode = connection.getHeaderField("ErrorCode");
+            String errorMsg = connection.getHeaderField("ErrorMsg");
+            String sign = connection.getHeaderField("sign");
+            if (!"AAAAAAAAAA".equals(errorCode))
+            {
+                throw new ServiceException("对账文件下载被网关拒绝：" + errorCode + " " + errorMsg);
+            }
+            String actualMd5 = org.springframework.util.DigestUtils.md5DigestAsHex(content);
+            if (isBlank(sign) || !actualMd5.equalsIgnoreCase(sign.trim()))
+            {
+                throw new ServiceException("对账文件 MD5 校验失败，文件可能不完整");
+            }
+            return content;
+        }
+        catch (ServiceException e)
+        {
+            throw e;
+        }
+        catch (Exception e)
+        {
+            throw new ServiceException("对账文件下载失败：" + e.getMessage());
+        }
+    }
+
+    private void requireClearingDate(String clearingDate)
+    {
+        if (isBlank(clearingDate) || !clearingDate.matches("[0-9]{8}"))
+        {
+            throw new ServiceException("清算日期格式必须为 yyyyMMdd");
         }
     }
 
@@ -536,6 +640,20 @@ public class ZhengzhouBankGateway implements BankGateway
             return value;
         }
         return value.substring(0, maxLength);
+    }
+
+    private byte[] readBytes(InputStream input) throws Exception
+    {
+        try (InputStream stream = input; ByteArrayOutputStream output = new ByteArrayOutputStream())
+        {
+            byte[] buffer = new byte[8192];
+            int count;
+            while ((count = stream.read(buffer)) != -1)
+            {
+                output.write(buffer, 0, count);
+            }
+            return output.toByteArray();
+        }
     }
 
     private String read(InputStream input) throws Exception
