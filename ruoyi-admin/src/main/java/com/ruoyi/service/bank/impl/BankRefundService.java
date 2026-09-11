@@ -410,6 +410,9 @@ public class BankRefundService
             Date now = new Date();
             refund.setRefundStatus("1");
             refund.setRefundTime(parseBankTime(tx.getBankTime(), now));
+            // 覆盖重试前失败留下的审核意见，避免"已退款"配着旧失败原因展示。
+            refund.setApproveRemark(String.format("银行原路退款成功，流水%s",
+                    tx.getBankSerialNo() == null ? "" : tx.getBankSerialNo()));
             refund.setUpdateBy("system");
             refund.setUpdateTime(now);
             if (refunds.updateRefundRecord(refund) != 1)
