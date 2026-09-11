@@ -166,7 +166,7 @@
         <van-button v-if="order.orderStatus === '0' || order.orderStatus === '5'" type="primary" @click="handlePay">
           立即支付
         </van-button>
-        <van-button v-if="order.orderStatus === '1'" plain icon="refund-o" @click="handleRefundApply">
+        <van-button v-if="order.orderStatus === '1' && order.hasBankPayment" plain icon="refund-o" @click="handleRefundApply">
           申请退款
         </van-button>
         <van-button v-if="order.orderStatus === '1'" type="primary" icon="comment-o" @click="handleReview">

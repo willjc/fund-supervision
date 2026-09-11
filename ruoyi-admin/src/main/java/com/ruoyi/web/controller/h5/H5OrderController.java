@@ -105,6 +105,9 @@ public class H5OrderController extends BaseController
     private com.ruoyi.mapper.BedAllocationMapper bedAllocationMapper;
 
     @Autowired
+    private com.ruoyi.mapper.bank.BankTransactionMapper bankTransactionMapper;
+
+    @Autowired
     private IResidentService residentService;
 
     @Autowired
@@ -345,6 +348,12 @@ public class H5OrderController extends BaseController
                 }
             }
 
+            // 是否存在银行成功支付（决定能否展示"申请退款"入口）
+            com.ruoyi.domain.bank.BankTransaction payTx =
+                    bankTransactionMapper.selectByBusiness("PAY", order.getOrderId());
+            result.put("hasBankPayment", payTx != null && "SUCCESS".equals(payTx.getStatus())
+                    && "SUCCESS".equals(payTx.getBankStatus()));
+
             // 获取机构信息
             if (order.getInstitutionId() != null) {
                 PensionInstitution institution = institutionService.selectPensionInstitutionByInstitutionId(order.getInstitutionId());
@@ -569,6 +578,12 @@ public class H5OrderController extends BaseController
                     result.put("elderGender", elder.getGender());
                 }
             }
+
+            // 是否存在银行成功支付（决定能否展示"申请退款"入口）
+            com.ruoyi.domain.bank.BankTransaction payTx =
+                    bankTransactionMapper.selectByBusiness("PAY", order.getOrderId());
+            result.put("hasBankPayment", payTx != null && "SUCCESS".equals(payTx.getStatus())
+                    && "SUCCESS".equals(payTx.getBankStatus()));
 
             // 获取机构信息
             if (order.getInstitutionId() != null) {

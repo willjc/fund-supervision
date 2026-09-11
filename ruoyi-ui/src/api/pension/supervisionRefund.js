@@ -26,11 +26,12 @@ export function getRefund(refundId) {
   })
 }
 
-// 审批通过退款
+// 审批通过退款（银行提交+确认链路可达数十秒，单独放宽超时）
 export function approveRefund(refundId) {
   return request({
     url: '/pension/supervision/refund/approval/approve/' + refundId,
-    method: 'put'
+    method: 'put',
+    timeout: 60000
   })
 }
 

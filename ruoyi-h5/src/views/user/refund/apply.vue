@@ -257,8 +257,9 @@ const handleAfterRead = async (file) => {
 
 // 图片删除前的处理
 const handleBeforeDelete = (file) => {
+  // 凭证图涉及退款审计，仅从列表移除，不删服务器文件
   return new Promise((resolve) => {
-    showToast('删除图片')
+    showToast('已从列表移除')
     resolve(true)
   })
 }
