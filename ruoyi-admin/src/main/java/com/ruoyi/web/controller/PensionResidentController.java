@@ -38,6 +38,24 @@ public class PensionResidentController extends BaseController
     @Autowired
     private IResidentService residentService;
 
+    @Autowired
+    private com.ruoyi.service.IPensionCheckinService pensionCheckinService;
+
+    /**
+     * 办理退住：强校验无待支付订单且账户余额清零后，释放床位并将老人转"已退住"。
+     */
+    @PreAuthorize("@ss.hasPermi('elder:resident:checkout')")
+    @com.ruoyi.common.annotation.Log(title = "入住人退住", businessType = com.ruoyi.common.enums.BusinessType.UPDATE)
+    @PostMapping("/checkout")
+    public AjaxResult checkout(@RequestBody java.util.Map<String, Object> params)
+    {
+        Long elderId = params.get("elderId") != null ? Long.parseLong(params.get("elderId").toString()) : null;
+        Long institutionId = params.get("institutionId") != null ? Long.parseLong(params.get("institutionId").toString()) : null;
+        Long userId = SecurityUtils.getUserId();
+        Long scope = getUserId().equals(1L) ? null : userId;
+        return toAjax(pensionCheckinService.checkoutElder(elderId, institutionId, getUsername(), scope));
+    }
+
     /**
      * 查询入住人列表
      */

@@ -24,4 +24,16 @@ public interface IPensionCheckinService
      * @return 结果
      */
     public int createCheckin(PensionCheckinDTO dto, Long userId);
+
+    /**
+     * 办理退住（强校验）：无待支付订单且账户三余额清零后方可退住。
+     * 动作：床位分配转"已退住"、释放床位、老人档案转"已退住"。
+     *
+     * @param elderId 老人ID
+     * @param institutionId 机构ID
+     * @param operator 操作人
+     * @param currentUserId 当前用户（数据范围校验，admin 传 null）
+     * @return 结果
+     */
+    public int checkoutElder(Long elderId, Long institutionId, String operator, Long currentUserId);
 }

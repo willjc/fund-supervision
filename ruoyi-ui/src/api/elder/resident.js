@@ -34,6 +34,15 @@ export function delResident(residentId) {
   })
 }
 
+// 办理退住（强校验：无待支付订单且账户余额清零）
+export function checkoutResident(data) {
+  return request({
+    url: '/pension/resident/checkout',
+    method: 'post',
+    data: data
+  })
+}
+
 // 入住人退费
 export function refundResident(data) {
   return request({

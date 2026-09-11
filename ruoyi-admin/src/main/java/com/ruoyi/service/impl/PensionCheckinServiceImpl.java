@@ -14,6 +14,7 @@ import com.ruoyi.service.IPensionCheckinService;
 import com.ruoyi.domain.PensionCheckinDTO;
 import com.ruoyi.domain.ElderInfo;
 import com.ruoyi.domain.BedAllocation;
+import com.ruoyi.domain.BedInfo;
 import com.ruoyi.domain.OrderInfo;
 import com.ruoyi.domain.OrderItem;
 import com.ruoyi.domain.PaymentRecord;
@@ -35,6 +36,9 @@ import com.ruoyi.service.pension.IAccountInfoService;
 @Service
 public class PensionCheckinServiceImpl implements IPensionCheckinService
 {
+    @Autowired
+    private com.ruoyi.mapper.bank.BankSettlementMapper settlementMapper;
+
     @Autowired
     private ElderInfoMapper elderInfoMapper;
 
@@ -508,5 +512,93 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
         account.setTotalBalance(account.getServiceBalance().add(account.getDepositBalance()).add(account.getMemberBalance()));
         account.setUpdateTime(DateUtils.getNowDate());
         accountInfoService.updateAccountInfo(account);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int checkoutElder(Long elderId, Long institutionId, String operator, Long currentUserId)
+    {
+        if (elderId == null || institutionId == null)
+        {
+            throw new ServiceException("参数不完整");
+        }
+        if (currentUserId != null && settlementMapper.hasScope(currentUserId, institutionId) == 0)
+        {
+            throw new ServiceException("无权操作该机构的入住记录");
+        }
+
+        BedAllocation allocation = bedAllocationMapper.selectActiveByElderAndInstitution(elderId, institutionId);
+        if (allocation == null)
+        {
+            throw new ServiceException("该老人在当前机构没有在住记录");
+        }
+
+        // 硬校验一：无待支付订单
+        OrderInfo orderQuery = new OrderInfo();
+        orderQuery.setElderId(elderId);
+        orderQuery.setInstitutionId(institutionId);
+        for (OrderInfo order : orderInfoMapper.selectOrderInfoList(orderQuery))
+        {
+            if ("0".equals(order.getOrderStatus()) || "5".equals(order.getOrderStatus()))
+            {
+                throw new ServiceException("该老人存在待支付订单，请先完成支付或取消后再办理退住");
+            }
+        }
+
+        // 硬校验二：账户三余额必须清零（清零走退款流程，退住不代客动钱）
+        AccountInfo accountQuery = new AccountInfo();
+        accountQuery.setElderId(elderId);
+        accountQuery.setInstitutionId(institutionId);
+        java.util.List<AccountInfo> accounts = accountInfoService.selectAccountInfoList(accountQuery);
+        if (accounts != null && !accounts.isEmpty())
+        {
+            AccountInfo account = accounts.get(0);
+            BigDecimal service = amountOrZero(account.getServiceBalance());
+            BigDecimal deposit = amountOrZero(account.getDepositBalance());
+            BigDecimal member = amountOrZero(account.getMemberBalance());
+            if (service.signum() > 0 || deposit.signum() > 0 || member.signum() > 0)
+            {
+                throw new ServiceException(String.format(
+                        "账户余额未清零（服务费%s元、押金%s元、会员费%s元），请先办理退款后再退住",
+                        service, deposit, member));
+            }
+        }
+
+        Date now = DateUtils.getNowDate();
+        allocation.setAllocationStatus("2");
+        allocation.setCheckOutDate(now);
+        allocation.setUpdateBy(operator);
+        allocation.setUpdateTime(now);
+        if (bedAllocationMapper.updateBedAllocation(allocation) != 1)
+        {
+            throw new ServiceException("更新床位分配状态失败");
+        }
+
+        if (allocation.getBedId() != null)
+        {
+            BedInfo bed = bedInfoMapper.selectBedInfoByBedId(allocation.getBedId());
+            if (bed != null && "1".equals(bed.getBedStatus()))
+            {
+                bed.setBedStatus("0");
+                bed.setUpdateBy(operator);
+                bed.setUpdateTime(now);
+                bedInfoMapper.updateBedInfo(bed);
+            }
+        }
+
+        ElderInfo elder = elderInfoMapper.selectElderInfoByElderId(elderId);
+        if (elder != null && "1".equals(elder.getStatus()))
+        {
+            elder.setStatus("2");
+            elder.setUpdateBy(operator);
+            elder.setUpdateTime(now);
+            elderInfoMapper.updateElderInfo(elder);
+        }
+        return 1;
+    }
+
+    private BigDecimal amountOrZero(BigDecimal value)
+    {
+        return value == null ? BigDecimal.ZERO : value;
     }
 }

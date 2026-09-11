@@ -184,6 +184,15 @@
             @click="handleRenew(scope.row)"
             v-hasPermi="['elder:resident:renew']"
           >续费</el-button>
+          <!-- 办理退住:已入住且无未支付订单才显示 -->
+          <el-button
+            v-if="scope.row.checkInStatus === '1' && !scope.row.hasUnpaidOrder"
+            size="mini"
+            type="text"
+            icon="el-icon-switch-button"
+            @click="handleCheckout(scope.row)"
+            v-hasPermi="['elder:resident:checkout']"
+          >退住</el-button>
           <!-- 押金使用:有押金余额才显示 -->
           <el-button
             v-if="scope.row.depositBalance > 0"
@@ -1132,7 +1141,7 @@
 </template>
 
 <script>
-import { listResident, getResident, delResident, renewResident, refundResident, applyDepositUse, getCurrentPrice, getResidentTransfers } from "@/api/elder/resident";
+import { listResident, getResident, delResident, renewResident, refundResident, applyDepositUse, getCurrentPrice, getResidentTransfers, checkoutResident } from "@/api/elder/resident";
 import { updateElderInfo, setPassword } from "@/api/elder/elderInfo";
 import { listPensionInstitution } from "@/api/pension/institution";
 import { listFamily, addFamily, updateFamily, delFamily } from "@/api/elder/family";
@@ -1495,6 +1504,18 @@ export default {
         };
         this.updateOpen = true;
       });
+    },
+    /** 办理退住 */
+    handleCheckout(row) {
+      const elderId = row.elderId;
+      const institutionId = row.institutionId;
+      const elderName = row.elderName;
+      this.$modal.confirm('确认为老人"' + elderName + '"办理退住吗？要求：无待支付订单且账户余额已清零（押金/服务费请先办完退款）。').then(() => {
+        return checkoutResident({ elderId: elderId, institutionId: institutionId });
+      }).then(() => {
+        this.$modal.msgSuccess('退住办理成功');
+        this.getList();
+      }).catch(() => {});
     },
     /** 续费按钮操作 */
     handleRenew(row) {
