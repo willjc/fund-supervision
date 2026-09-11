@@ -6,6 +6,7 @@
       <van-cell-group inset title="退款信息">
         <van-cell title="退款老人" :value="elderName" />
         <van-cell title="养老机构" :value="institutionName" />
+        <van-cell v-if="orderNo" title="退款订单" :value="orderNo" />
       </van-cell-group>
 
       <!-- 退款金额 -->
@@ -141,6 +142,10 @@ const formData = ref({
 // 显示数据
 const elderName = ref('')
 const institutionName = ref('')
+const orderNo = ref('')
+
+// 原路退款锚定订单（银行模式必传，从订单详情发起）
+const orderId = ref(route.query.orderId || null)
 
 // 图片列表
 const imageList = ref([])
@@ -185,6 +190,7 @@ const loadData = async () => {
   }
 
   formData.value.elderId = queryElderId
+  orderNo.value = route.query.orderNo || ''
   elderName.value = queryElderName || '未知老人'
 
   // 获取账户信息，从中获取机构ID
@@ -305,6 +311,7 @@ const onSubmit = async () => {
     const submitData = {
       elderId: formData.value.elderId,
       institutionId: formData.value.institutionId,
+      orderId: orderId.value ? Number(orderId.value) : undefined,
       serviceRefundAmount: serviceAmount,
       depositRefundAmount: depositAmount,
       memberRefundAmount: memberAmount,

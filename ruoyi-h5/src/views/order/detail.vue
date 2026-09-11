@@ -166,6 +166,9 @@
         <van-button v-if="order.orderStatus === '0' || order.orderStatus === '5'" type="primary" @click="handlePay">
           立即支付
         </van-button>
+        <van-button v-if="order.orderStatus === '1'" plain icon="refund-o" @click="handleRefundApply">
+          申请退款
+        </van-button>
         <van-button v-if="order.orderStatus === '1'" type="primary" icon="comment-o" @click="handleReview">
           去评价
         </van-button>
@@ -307,6 +310,23 @@ const handlePay = () => {
       amount: order.value.paidAmount || order.value.orderAmount,
       elderName: order.value.elderName,
       institutionId: order.value.institutionId
+    }
+  })
+}
+
+// 申请退款（银行原路退款须从订单发起）
+const handleRefundApply = () => {
+  if (!order.value) {
+    showToast('订单信息不存在')
+    return
+  }
+  router.push({
+    path: '/user/refund/apply',
+    query: {
+      orderId: order.value.orderId,
+      orderNo: order.value.orderNo,
+      elderId: order.value.elderId,
+      elderName: order.value.elderName
     }
   })
 }

@@ -16,8 +16,10 @@
         <el-form-item label="退款状态" prop="refundStatus">
           <el-select v-model="queryParams.refundStatus" placeholder="请选择" clearable>
             <el-option label="待审核" value="0"></el-option>
-            <el-option label="已通过" value="1"></el-option>
+            <el-option label="已退款" value="1"></el-option>
             <el-option label="已拒绝" value="2"></el-option>
+            <el-option label="银行退款中" value="3"></el-option>
+            <el-option label="银行退款失败" value="4"></el-option>
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -337,8 +339,10 @@ export default {
     getStatusText(status) {
       const map = {
         '0': '待审核',
-        '1': '已通过',
-        '2': '已拒绝'
+        '1': '已退款',
+        '2': '已拒绝',
+        '3': '银行退款中',
+        '4': '银行退款失败'
       }
       return map[status] || '未知'
     },
@@ -347,7 +351,9 @@ export default {
       const map = {
         '0': 'warning',
         '1': 'success',
-        '2': 'danger'
+        '2': 'danger',
+        '3': 'primary',
+        '4': 'danger'
       }
       return map[status] || 'info'
     }

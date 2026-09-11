@@ -125,6 +125,14 @@ public interface BankSettlementMapper
     @Select("SELECT COUNT(*) FROM sys_user_institution WHERE user_id=#{user} AND institution_id=#{institution}")
     int hasScope(@Param("user") Long user,@Param("institution") Long institution);
 
+    /** 订单已占用退款额度：未决与已成功的退款合计（防止超额退款）。 */
+    @Select("SELECT COALESCE(SUM(amount),0) FROM bank_transaction WHERE business_type='REFUND' AND status IN ('PENDING','UNKNOWN','SUCCESS') AND business_id IN (SELECT refund_id FROM refund_record WHERE order_id=#{orderId})")
+    BigDecimal refundOccupied(Long orderId);
+
+    /** 订单未决+已成功退款次数（银行单笔支付最多40次部分退款）。 */
+    @Select("SELECT COUNT(*) FROM bank_transaction WHERE business_type='REFUND' AND status IN ('PENDING','UNKNOWN','SUCCESS') AND business_id IN (SELECT refund_id FROM refund_record WHERE order_id=#{orderId})")
+    int refundAttemptCount(Long orderId);
+
     @Select("SELECT COUNT(*) FROM account_info WHERE institution_id=#{institution} "
           + "AND (bank_service_balance>0 OR bank_deposit_balance>0 OR service_reserved>0 OR deposit_reserved>0)")
     int hasBankFunds(Long institution);

@@ -9,6 +9,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="refundNo"    column="refund_no"    />
         <result property="orderId"     column="order_id"     />
         <result property="paymentId"   column="payment_id"   />
+        <result property="bankTransactionId" column="bank_transaction_id" />
         <result property="elderId"     column="elder_id"     />
         <result property="institutionId" column="institution_id" />
         <result property="refundAmount" column="refund_amount" />
@@ -36,11 +37,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectRefundRecordVo">
-        select refund_id, refund_no, order_id, payment_id, elder_id, institution_id, refund_amount, refund_reason, refund_status, refund_method, refund_time, approver, approve_time, approve_remark, create_by, create_time, update_by, update_time from refund_record
+        select refund_id, refund_no, order_id, payment_id, bank_transaction_id, elder_id, institution_id, refund_amount, refund_reason, refund_status, refund_method, refund_time, approver, approve_time, approve_remark, create_by, create_time, update_by, update_time from refund_record
     </sql>
 
     <sql id="selectRefundRecordWithRelations">
-        select rr.refund_id, rr.refund_no, rr.order_id, rr.payment_id, rr.elder_id, rr.institution_id,
+        select rr.refund_id, rr.refund_no, rr.order_id, rr.payment_id, rr.bank_transaction_id, rr.elder_id, rr.institution_id,
                rr.refund_amount, rr.refund_reason, rr.refund_status, rr.refund_method, rr.refund_time,
                rr.approver, rr.approve_time, rr.approve_remark,
                rr.create_by, rr.create_time, rr.update_by, rr.update_time,
@@ -82,7 +83,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </select>
 
     <select id="selectRefundRecordForUpdate" parameterType="Long" resultMap="RefundRecordResult">
-        select refund_id, refund_no, order_id, payment_id, elder_id, institution_id,
+        select refund_id, refund_no, order_id, payment_id, bank_transaction_id, elder_id, institution_id,
                refund_amount, refund_reason, refund_status, refund_method, refund_time,
                approver, approve_time, approve_remark, create_by, create_time, update_by, update_time,
                service_refund_amount, deposit_refund_amount, member_refund_amount,
@@ -121,6 +122,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="refundNo != null">refund_no,</if>
             <if test="orderId != null">order_id,</if>
             <if test="paymentId != null">payment_id,</if>
+            <if test="bankTransactionId != null">bank_transaction_id,</if>
             <if test="elderId != null">elder_id,</if>
             <if test="institutionId != null">institution_id,</if>
             <if test="refundAmount != null">refund_amount,</if>
@@ -143,6 +145,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="refundNo != null">#{refundNo},</if>
             <if test="orderId != null">#{orderId},</if>
             <if test="paymentId != null">#{paymentId},</if>
+            <if test="bankTransactionId != null">#{bankTransactionId},</if>
             <if test="elderId != null">#{elderId},</if>
             <if test="institutionId != null">#{institutionId},</if>
             <if test="refundAmount != null">#{refundAmount},</if>
@@ -169,6 +172,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="refundNo != null">refund_no = #{refundNo},</if>
             <if test="orderId != null">order_id = #{orderId},</if>
             <if test="paymentId != null">payment_id = #{paymentId},</if>
+            <if test="bankTransactionId != null">bank_transaction_id = #{bankTransactionId},</if>
             <if test="elderId != null">elder_id = #{elderId},</if>
             <if test="institutionId != null">institution_id = #{institutionId},</if>
             <if test="refundAmount != null">refund_amount = #{refundAmount},</if>

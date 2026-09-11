@@ -56,6 +56,15 @@ public class H5RefundController extends BaseController
     @Autowired
     private ServerConfig serverConfig;
 
+    @org.springframework.beans.factory.annotation.Value("${bank.integration.mode:disabled}")
+    private String integrationMode;
+
+    @Autowired
+    private com.ruoyi.service.bank.impl.BankRefundService bankRefundService;
+
+    @Autowired
+    private com.ruoyi.mapper.PaymentRecordMapper paymentRecordMapper;
+
     /**
      * 提交退款申请
      *
@@ -159,8 +168,30 @@ public class H5RefundController extends BaseController
         RefundRecord refundRecord = new RefundRecord();
         refundRecord.setElderId(elderId);
         refundRecord.setInstitutionId(institutionId);
-        refundRecord.setOrderId(0L); // 针对老人账户的退款，order_id设为0
-        refundRecord.setPaymentId(0L);
+        Long orderId = params.get("orderId") != null ?
+                Long.parseLong(params.get("orderId").toString()) : null;
+        if ("zzbank".equals(integrationMode))
+        {
+            // 银行模式：原路退款必须锚定订单，预检通过后落真实订单与支付关联。
+            try
+            {
+                bankRefundService.assertRefundable(orderId, elderId, institutionId, totalRefundAmount);
+            }
+            catch (Exception e)
+            {
+                return AjaxResult.error(e.getMessage());
+            }
+            refundRecord.setOrderId(orderId);
+            com.ruoyi.domain.PaymentRecord payment = paymentRecordMapper.selectPaymentsByOrderId(orderId)
+                    .stream().findFirst().orElse(null);
+            refundRecord.setPaymentId(payment == null ? 0L : payment.getPaymentId());
+            refundRecord.setRefundMethod("原路退款");
+        }
+        else
+        {
+            refundRecord.setOrderId(0L); // 针对老人账户的退款，order_id设为0
+            refundRecord.setPaymentId(0L);
+        }
         refundRecord.setRefundAmount(totalRefundAmount);
         refundRecord.setServiceRefundAmount(serviceRefundAmount);
         refundRecord.setDepositRefundAmount(depositRefundAmount);
@@ -168,7 +199,10 @@ public class H5RefundController extends BaseController
         refundRecord.setRefundReason(refundReason);
         refundRecord.setRefundDesc(refundDesc);
         refundRecord.setRefundStatus("0"); // 待处理
-        refundRecord.setRefundMethod("账户退款");
+        if (!"zzbank".equals(integrationMode))
+        {
+            refundRecord.setRefundMethod("账户退款");
+        }
         refundRecord.setCreateBy(String.valueOf(userId));
         refundRecord.setCreateTime(new Date());
 

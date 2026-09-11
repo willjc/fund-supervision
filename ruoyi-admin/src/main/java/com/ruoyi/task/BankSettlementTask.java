@@ -15,6 +15,7 @@ import com.ruoyi.domain.pension.TransferRuleConfig;
 import com.ruoyi.mapper.bank.BankSettlementMapper;
 import com.ruoyi.service.bank.impl.BankPaymentReconciler;
 import com.ruoyi.service.bank.impl.BankPayoutService;
+import com.ruoyi.service.bank.impl.BankRefundService;
 import com.ruoyi.service.pension.ITransferRuleConfigService;
 
 @Component("bankSettlementTask")
@@ -24,6 +25,7 @@ public class BankSettlementTask
     @Autowired private BankSettlementMapper mapper;
     @Autowired private BankPaymentReconciler payments;
     @Autowired private BankPayoutService payouts;
+    @Autowired private BankRefundService refunds;
     @Autowired private ITransferRuleConfigService rules;
     @Value("${bank.integration.reconciliation-enabled:false}") private boolean reconciliationEnabled;
     @Value("${bank.integration.payment-query-min-id:9223372036854775807}") private long paymentQueryMinId;
@@ -37,6 +39,7 @@ public class BankSettlementTask
             {
                 if ("PAY".equals(tx.getBusinessType())) { payments.queryAndComplete(tx.getBusinessId()); }
                 else if ("TRANSFER".equals(tx.getBusinessType())) { payouts.reconcile(tx.getRequestNo()); }
+                else if ("REFUND".equals(tx.getBusinessType())) { refunds.reconcile(tx.getRequestNo()); }
             }
             catch (Exception e)
             {

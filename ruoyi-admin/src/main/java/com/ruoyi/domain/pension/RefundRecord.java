@@ -29,6 +29,12 @@ public class RefundRecord extends BaseEntity
     @Excel(name = "订单ID")
     private Long orderId;
 
+    /** 银行退款交易ID（原路退款时关联 bank_transaction） */
+    private Long bankTransactionId;
+
+    public Long getBankTransactionId() { return bankTransactionId; }
+    public void setBankTransactionId(Long bankTransactionId) { this.bankTransactionId = bankTransactionId; }
+
     /** 支付记录ID */
     @Excel(name = "支付记录ID")
     private Long paymentId;

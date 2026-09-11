@@ -14,8 +14,10 @@
       <el-form-item label="退款状态" prop="refundStatus">
         <el-select v-model="queryParams.refundStatus" placeholder="请选择退款状态" clearable size="small">
           <el-option label="待处理" value="0" />
-          <el-option label="已成功" value="1" />
-          <el-option label="已失败" value="2" />
+          <el-option label="已退款" value="1" />
+          <el-option label="已拒绝" value="2" />
+          <el-option label="银行退款中" value="3" />
+          <el-option label="银行退款失败" value="4" />
         </el-select>
       </el-form-item>
       <el-form-item>
@@ -122,8 +124,10 @@
       <el-table-column label="退款状态" align="center" prop="refundStatus" width="100">
         <template slot-scope="scope">
           <el-tag v-if="scope.row.refundStatus === '0'" type="warning">待处理</el-tag>
-          <el-tag v-else-if="scope.row.refundStatus === '1'" type="success">已成功</el-tag>
-          <el-tag v-else-if="scope.row.refundStatus === '2'" type="danger">已失败</el-tag>
+          <el-tag v-else-if="scope.row.refundStatus === '1'" type="success">已退款</el-tag>
+          <el-tag v-else-if="scope.row.refundStatus === '2'" type="danger">已拒绝</el-tag>
+          <el-tag v-else-if="scope.row.refundStatus === '3'" type="primary">银行退款中</el-tag>
+          <el-tag v-else-if="scope.row.refundStatus === '4'" type="danger">银行退款失败</el-tag>
         </template>
       </el-table-column>
       <el-table-column label="创建时间" align="center" prop="createTime" width="160">
@@ -327,7 +331,7 @@ export default {
       }).then(() => {
         this.getList();
         this.getStatistics();
-        this.$modal.msgSuccess("审批通过成功");
+        this.$modal.msgSuccess("已批准，银行退款处理中，请稍后刷新查看结果");
         this.largeAmountOpen = false;
       }).catch(() => {});
     },

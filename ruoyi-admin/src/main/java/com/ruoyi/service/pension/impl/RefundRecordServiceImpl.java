@@ -12,6 +12,7 @@ import com.ruoyi.mapper.pension.AccountInfoMapper;
 import com.ruoyi.mapper.pension.RefundRecordMapper;
 import com.ruoyi.domain.pension.AccountInfo;
 import com.ruoyi.domain.pension.RefundRecord;
+import com.ruoyi.service.bank.impl.BankRefundService;
 import com.ruoyi.service.pension.IExpenseRecordService;
 import com.ruoyi.service.pension.IRefundRecordService;
 import com.ruoyi.service.pension.ISupervisionAccountLogService;
@@ -38,6 +39,9 @@ public class RefundRecordServiceImpl implements IRefundRecordService
 
     @Autowired
     private ISupervisionAccountLogService supervisionAccountLogService;
+
+    @Autowired
+    private BankRefundService bankRefundService;
 
     /**
      * 查询退款记录
@@ -95,7 +99,8 @@ public class RefundRecordServiceImpl implements IRefundRecordService
     {
         if ("zzbank".equals(integrationMode))
         {
-            throw new ServiceException("原路退款尚未接通，不能扣账或标记已退款；申请保留待处理");
+            // 银行模式走原路退款：审批事务落单后由 BankRefundService 提交银行并按查询终态记账。
+            return bankRefundService.approveAndSubmit(refundId, approver, currentUserId);
         }
         RefundRecord refundRecord = refundRecordMapper.selectRefundRecordForUpdate(refundId, currentUserId);
         if (refundRecord == null)

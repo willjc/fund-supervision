@@ -72,6 +72,9 @@ public class ZhengzhouBankGateway implements BankGateway
     @Value("${bank.integration.read-timeout-ms:15000}")
     private int readTimeoutMs;
 
+    @Value("${bank.integration.allow-private-gateway:false}")
+    private boolean allowPrivateGateway;
+
     @Override
     public BankResult createPayment(BankPaymentRequest request)
     {
@@ -237,6 +240,85 @@ public class ZhengzhouBankGateway implements BankGateway
     }
 
     @Override
+    public BankResult refundPayment(BankRefundRequest request)
+    {
+        requireProtocolConfig();
+        requirePublicGatewayUrl();
+        request.validate();
+
+        JSONObject bizContent = new JSONObject();
+        bizContent.put("merId", request.getMerId());
+        if (!isBlank(request.getMerName()))
+        {
+            bizContent.put("merName", request.getMerName());
+        }
+        bizContent.put("txnOrderId", request.getRequestNo());
+        bizContent.put("txnOrderTime", format(request.getRequestTime(), "yyyyMMddHHmmss"));
+        bizContent.put("origRespTxnSsn", request.getOriginalBankSerialNo());
+        bizContent.put("origRespTxnTime", request.getOriginalBankTime());
+        bizContent.put("txnAmt", request.getAmount().movePointRight(2)
+                .setScale(0, RoundingMode.UNNECESSARY).toPlainString());
+        bizContent.put("aesWay", "01");
+
+        // 受理成功不代表退款完成；终态一律通过 uTxnQuery 查询退款请求确认。
+        JSONObject response = post("uTxnRefund", bizContent, request.getRequestTime());
+        String code = normalizeCode(response.getString("respCode"));
+        if ("0000".equals(code))
+        {
+            BankResult result = BankResult.pending(response.getString("respTxnSsn"), null);
+            result.setResponseCode(code);
+            result.setResponseMessage("退款已受理，等待查询确认");
+            return result;
+        }
+        if (Arrays.asList("0002", "0003", "0004", "0005", "0007", "0008", "0009",
+                "0010", "0011", "0012", "0013", "0014").contains(code))
+        {
+            BankResult result = BankResult.pending(null, null);
+            result.setResponseCode(code);
+            result.setResponseMessage(response.getString("respMsg"));
+            return result;
+        }
+        return BankResult.failed(code, response.getString("respMsg"));
+    }
+
+    /** 出网请求前校验网关地址：仅 http/https，拒绝环回、私有和保留地址（测试可用开关放行）。 */
+    private void requirePublicGatewayUrl()
+    {
+        if (allowPrivateGateway)
+        {
+            return;
+        }
+        URL url;
+        try
+        {
+            url = new URL(gatewayUrl);
+        }
+        catch (java.net.MalformedURLException e)
+        {
+            throw new ServiceException("银行网关地址无效：" + gatewayUrl);
+        }
+        String protocol = url.getProtocol();
+        if (!"http".equals(protocol) && !"https".equals(protocol))
+        {
+            throw new ServiceException("银行网关地址仅支持 http/https");
+        }
+        java.net.InetAddress address;
+        try
+        {
+            address = java.net.InetAddress.getByName(url.getHost());
+        }
+        catch (java.net.UnknownHostException e)
+        {
+            throw new ServiceException("银行网关域名无法解析，拒绝发送请求");
+        }
+        if (address.isAnyLocalAddress() || address.isLoopbackAddress() || address.isSiteLocalAddress()
+                || address.isLinkLocalAddress() || address.isMulticastAddress())
+        {
+            throw new ServiceException("银行网关地址不允许指向本机、私有或保留网络");
+        }
+    }
+
+    @Override
     public BankResult verifyMerchant(String merId, String settlementAccountNo)
     {
         require(merId, "银行商户号不能为空");
@@ -256,7 +338,7 @@ public class ZhengzhouBankGateway implements BankGateway
                 + result.getResponseMessage());
     }
 
-    private JSONObject post(String tranCode, JSONObject body, Date now)
+    JSONObject post(String tranCode, JSONObject body, Date now)
     {
         try
         {

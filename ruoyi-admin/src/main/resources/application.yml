@@ -146,6 +146,8 @@ bank:
     payment-query-min-id: ${ZZBANK_PAYMENT_QUERY_MIN_ID:9223372036854775807}
     mode: ${BANK_INTEGRATION_MODE:disabled}
     gateway-url: ${ZZBANK_GATEWAY_URL:https://obk.lovingfox.cn:7000/openapi/zfbz/v1}
+    # 仅测试联调放行私有网关地址；生产必须保持 false。
+    allow-private-gateway: ${ZZBANK_ALLOW_PRIVATE_GATEWAY:false}
     app-id: ${ZZBANK_APP_ID:}
     obk-app-id: ${ZZBANK_OBK_APP_ID:}
     app-secret: ${ZZBANK_APP_SECRET:}

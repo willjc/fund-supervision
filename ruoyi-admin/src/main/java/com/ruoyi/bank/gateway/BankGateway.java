@@ -10,6 +10,11 @@ public interface BankGateway
 
     BankResult verifyMerchant(String merId, String settlementAccountNo);
 
+    default BankResult refundPayment(BankRefundRequest request)
+    {
+        throw new ServiceException("原路退款网关未启用");
+    }
+
     default boolean supportsPayout()
     {
         return false;

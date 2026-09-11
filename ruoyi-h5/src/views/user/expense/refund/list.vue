@@ -178,6 +178,8 @@ const getStatusType = (status) => {
     '0': 'warning',
     '1': 'success',
     '2': 'danger',
+    '3': 'primary',
+    '4': 'danger',
     pending: 'warning',
     approved: 'success',
     rejected: 'danger'
@@ -189,8 +191,10 @@ const getStatusType = (status) => {
 const getStatusText = (status) => {
   const textMap = {
     '0': '待审核',
-    '1': '已通过',
+    '1': '已退款',
     '2': '已拒绝',
+    '3': '银行退款中',
+    '4': '银行退款失败',
     pending: '待审核',
     approved: '已通过',
     rejected: '已拒绝'
