@@ -81,6 +81,8 @@ class ZhengzhouBankRefundGatewayTest
         assertEquals("20026091017164457253353180271553", body.get().getString("origRespTxnSsn"));
         assertEquals("20260910171644", body.get().getString("origRespTxnTime"));
         assertEquals("5", body.get().getString("txnAmt"));
+        assertEquals("156", body.get().getString("txnCcyType"));
+        assertEquals("OBK", body.get().getString("payChl"));
         assertEquals("01", body.get().getString("aesWay"));
 
         assertEquals("PENDING", result.getStatus());

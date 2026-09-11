@@ -258,6 +258,9 @@ public class ZhengzhouBankGateway implements BankGateway
         bizContent.put("origRespTxnTime", request.getOriginalBankTime());
         bizContent.put("txnAmt", request.getAmount().movePointRight(2)
                 .setScale(0, RoundingMode.UNNECESSARY).toPlainString());
+        // uTxnRefund 文档字段 22/23 为必输：缺送时网关受理但收单侧不落单，查询将永远 1025。
+        bizContent.put("txnCcyType", "156");
+        bizContent.put("payChl", "OBK");
         bizContent.put("aesWay", "01");
 
         // 受理成功不代表退款完成；终态一律通过 uTxnQuery 查询退款请求确认。

@@ -177,6 +177,38 @@ class BankRefundServiceTest
     }
 
     @Test
+    void approveShouldPersistAcceptedSerialBeforeReconcile()
+    {
+        BankTransaction tx = refundTx();
+        when(worker.prepare(5L, "admin", null)).thenReturn(tx);
+        BankResult accepted = BankResult.pending("BANKR1", null);
+        when(gateway.refundPayment(any())).thenReturn(accepted);
+
+        BankTransaction confirmed = refundTx();
+        confirmed.setBankStatus("SUCCESS");
+        confirmed.setStatus("SUCCESS");
+        confirmed.setBookingStatus("DONE");
+        confirmed.setBankSerialNo("BANKR1");
+        when(transactions.selectByRequestNo("BR123456789012345678901234567890"))
+                .thenReturn(tx, confirmed, confirmed, confirmed);
+        when(settlement.claim(7L)).thenReturn(1);
+        BankResult queried = BankResult.success("BANKR1");
+        queried.setPaidAmount(new BigDecimal("0.05"));
+        queried.setBankTransactionTime("20260911101500");
+        when(gateway.queryPayment(any(BankQueryRequest.class))).thenAnswer(invocation -> {
+            BankQueryRequest q = invocation.getArgument(0);
+            org.junit.jupiter.api.Assertions.assertEquals("BANKR1", q.getBankSerialNo());
+            return queried;
+        });
+
+        assertEquals(1, service.approveAndSubmit(5L, "admin", null));
+
+        verify(settlement, org.mockito.Mockito.atLeastOnce()).observe(any(BankTransaction.class));
+        verify(worker).book("BR123456789012345678901234567890");
+        verify(settlement).releaseClaim(7L);
+    }
+
+    @Test
     void approveShouldReconcileAfterAcceptedSubmission()
     {
         BankTransaction tx = refundTx();

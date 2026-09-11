@@ -58,6 +58,13 @@ public class BankRefundService
                 // 银行业务明确拒绝（如头寸不足、金额超限）为终态失败；通信/网关异常走 catch 排队补查。
                 return worker.failFast(tx.getRequestNo(), accepted);
             }
+            if (accepted != null && accepted.getBankSerialNo() != null)
+            {
+                // 受理返回的 respTxnSsn 先落库，补查时可作为 origRespTxnSsn 供银行定位。
+                tx.setBankStatus("UNKNOWN");
+                tx.setBankSerialNo(accepted.getBankSerialNo());
+                settlement.observe(tx);
+            }
         }
         catch (Exception e)
         {
