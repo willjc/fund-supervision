@@ -336,6 +336,7 @@ public class H5OrderController extends BaseController
 
             // 获取老人信息
             if (order.getElderId() != null) {
+                result.put("elderId", order.getElderId());
                 ElderInfo elder = elderInfoService.selectElderInfoByElderId(order.getElderId());
                 if (elder != null) {
                     result.put("elderName", elder.getElderName());
@@ -560,6 +561,7 @@ public class H5OrderController extends BaseController
 
             // 获取老人信息
             if (order.getElderId() != null) {
+                result.put("elderId", order.getElderId());
                 ElderInfo elder = elderInfoService.selectElderInfoByElderId(order.getElderId());
                 if (elder != null) {
                     result.put("elderName", elder.getElderName());
