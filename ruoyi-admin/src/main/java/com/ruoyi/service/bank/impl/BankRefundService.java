@@ -202,9 +202,10 @@ public class BankRefundService
             {
                 throw new ServiceException("退款记录不存在或无权操作");
             }
-            if (!"0".equals(refund.getRefundStatus()))
+            // 0=待处理首退；4=银行明确失败后的授权重试（旧交易必须已 FAILED/DONE，新请求号递增）。
+            if (!"0".equals(refund.getRefundStatus()) && !"4".equals(refund.getRefundStatus()))
             {
-                throw new ServiceException("只能审批待处理状态的退款");
+                throw new ServiceException("只能审批待处理或银行退款失败状态的退款");
             }
             if (refund.getOrderId() == null || refund.getOrderId() == 0L)
             {

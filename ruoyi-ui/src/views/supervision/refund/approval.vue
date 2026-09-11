@@ -150,9 +150,9 @@
             type="text"
             icon="el-icon-check"
             @click="handleApprove(scope.row)"
-            v-if="scope.row.refundStatus === '0'"
+            v-if="['0','4'].includes(scope.row.refundStatus)"
             v-hasPermi="['pension:refund:approve']"
-          >通过</el-button>
+          >{{ scope.row.refundStatus === '4' ? '重新退款' : '通过' }}</el-button>
           <el-button
             size="mini"
             type="text"

@@ -214,6 +214,40 @@ class BankRefundTxWorkerTest
     }
 
     @Test
+    void prepareShouldAllowRetryAfterExplicitBankFailure()
+    {
+        RefundRecord refund = pendingRefund();
+        refund.setRefundStatus("4");
+        when(refunds.selectRefundRecordForUpdate(5L, null)).thenReturn(refund);
+        when(orders.selectOrderInfoByOrderIdForUpdate(145L)).thenReturn(paidOrder());
+        when(transactions.selectByBusiness("PAY", 145L)).thenReturn(successfulPayment());
+        when(settlement.refundOccupied(145L)).thenReturn(new BigDecimal("0.00"));
+        when(settlement.refundAttemptCount(145L)).thenReturn(1);
+        BankTransaction previous = new BankTransaction();
+        previous.setStatus("FAILED");
+        previous.setBookingStatus("DONE");
+        previous.setAttemptNo(1);
+        when(transactions.selectByBusiness("REFUND", 5L)).thenReturn(previous);
+        BankMerchantConfig merchant = new BankMerchantConfig();
+        merchant.setMerId("8202106040000001");
+        merchant.setMerchantName("郑州夕阳红集团金水区园区");
+        when(merchants.selectEnabledByInstitutionId(32L)).thenReturn(merchant);
+        when(accounts.selectAccountInfoForUpdate(112L, 32L)).thenReturn(normalAccount());
+        when(transactions.insert(any(BankTransaction.class))).thenAnswer(invocation -> {
+            invocation.getArgument(0, BankTransaction.class).setTransactionId(22L);
+            return 1;
+        });
+        when(refunds.updateRefundRecord(any(RefundRecord.class))).thenReturn(1);
+
+        BankTransaction retry = worker.prepare(5L, "admin", null);
+
+        assertEquals("PENDING", retry.getStatus());
+        assertEquals(2, retry.getAttemptNo());
+        verify(refunds).updateRefundRecord(org.mockito.ArgumentMatchers.argThat(
+                r -> "3".equals(r.getRefundStatus())));
+    }
+
+    @Test
     void bookShouldRejectWhenBankStatusNotSuccess()
     {
         BankTransaction tx = new BankTransaction();

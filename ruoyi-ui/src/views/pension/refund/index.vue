@@ -57,7 +57,7 @@
         <el-table-column label="操作" width="180" fixed="right">
           <template slot-scope="scope">
             <el-button type="text" size="small" @click="handleView(scope.row)">查看</el-button>
-            <el-button type="text" size="small" @click="handleApprove(scope.row)" v-if="scope.row.refundStatus === '0'">审核</el-button>
+            <el-button type="text" size="small" @click="handleApprove(scope.row)" v-if="['0','4'].includes(scope.row.refundStatus)">{{ scope.row.refundStatus === '4' ? '重新退款' : '审核' }}</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -113,7 +113,7 @@
       </el-descriptions>
       <div slot="footer" class="dialog-footer">
         <el-button @click="detailVisible = false">关闭</el-button>
-        <el-button type="primary" @click="handleApprove(detailData)" v-if="detailData.refundStatus === '0'">审核</el-button>
+        <el-button type="primary" @click="handleApprove(detailData)" v-if="['0','4'].includes(detailData.refundStatus)">{{ detailData.refundStatus === '4' ? '重新退款' : '审核' }}</el-button>
       </div>
     </el-dialog>
 
