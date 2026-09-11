@@ -194,7 +194,7 @@ public class BankRefundService
         @Autowired public IExpenseRecordService expenses;
         @Autowired public ISupervisionAccountLogService ledger;
 
-        @Transactional(rollbackFor = Exception.class)
+        @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
         public BankTransaction prepare(Long refundId, String approver, Long currentUserId)
         {
             RefundRecord refund = refunds.selectRefundRecordForUpdate(refundId, currentUserId);
@@ -317,7 +317,7 @@ public class BankRefundService
         }
 
         /** 银行受理同步明确拒绝：直接终态失败，退款单转失败（未扣账，可重新发起申请）。 */
-        @Transactional(rollbackFor = Exception.class)
+        @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
         public int failFast(String requestNo, BankResult accepted)
         {
             BankTransaction tx = transactions.selectByRequestNoForUpdate(requestNo);
@@ -342,7 +342,7 @@ public class BankRefundService
             return 1;
         }
 
-        @Transactional(rollbackFor = Exception.class)
+        @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
         public void book(String requestNo)
         {
             BankTransaction tx = transactions.selectByRequestNoForUpdate(requestNo);
@@ -421,7 +421,7 @@ public class BankRefundService
             settlement.finish(tx);
         }
 
-        @Transactional(rollbackFor = Exception.class)
+        @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
         public void fail(String requestNo)
         {
             BankTransaction tx = transactions.selectByRequestNoForUpdate(requestNo);
