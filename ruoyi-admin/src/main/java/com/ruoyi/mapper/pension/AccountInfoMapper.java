@@ -83,6 +83,15 @@ public interface AccountInfoMapper
                                   @Param("memberBalance") java.math.BigDecimal memberBalance);
 
     /**
+     * 银行原路退款扣账：账面四项余额与银行资金来源同步扣减，
+     * 守卫确保各分项（含银行来源）余额充足，退款不破坏划拨资金来源不变式。
+     */
+    public int refundBankBalance(@Param("accountId") Long accountId,
+                                 @Param("service") java.math.BigDecimal service,
+                                 @Param("deposit") java.math.BigDecimal deposit,
+                                 @Param("member") java.math.BigDecimal member);
+
+    /**
      * 删除老人账户信息
      *
      * @param accountId 老人账户信息主键

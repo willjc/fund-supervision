@@ -393,9 +393,9 @@ public class BankRefundService
             ensureSufficient("押金", depositBalance, depositAmount);
             ensureSufficient("会员费", memberBalance, memberAmount);
             ensureSufficient("账户总", totalBalance, total);
-            if (accounts.updateAccountBalance(account.getAccountId(),
-                    totalBalance.subtract(total), serviceBalance.subtract(serviceAmount),
-                    depositBalance.subtract(depositAmount), memberBalance.subtract(memberAmount)) != 1)
+            // 原路退款扣账必须连银行资金来源一起减，否则撞"余额不得低于银行入账"守卫。
+            if (accounts.refundBankBalance(account.getAccountId(), serviceAmount,
+                    depositAmount, memberAmount) != 1)
             {
                 throw new ServiceException("更新老人账户余额失败");
             }

@@ -288,7 +288,7 @@ class BankRefundTxWorkerTest
         when(institutions.selectPensionInstitutionForUpdate(32L)).thenReturn(new com.ruoyi.domain.PensionInstitution());
         when(refunds.selectRefundRecordForUpdate(eq(5L), isNull())).thenReturn(refund);
         when(accounts.selectAccountInfoForUpdate(112L, 32L)).thenReturn(normalAccount());
-        when(accounts.updateAccountBalance(eq(63L), any(), any(), any(), any())).thenReturn(1);
+        when(accounts.refundBankBalance(eq(63L), any(), any(), any())).thenReturn(1);
         when(expenses.createExpenseRecord(anyLong(), anyLong(), any(), any(), any(),
                 any(), any(), any(), any(), any())).thenReturn(1);
         when(ledger.recordTransferOut(anyLong(), anyLong(), any(), any(), any()))

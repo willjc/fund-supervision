@@ -174,6 +174,25 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
           and #{totalBalance} &gt;= bank_service_balance+bank_deposit_balance
     </update>
 
+    <update id="refundBankBalance">
+        update account_info
+        set service_balance = service_balance - #{service},
+            deposit_balance = deposit_balance - #{deposit},
+            member_balance = member_balance - #{member},
+            total_balance = total_balance - #{service} - #{deposit} - #{member},
+            bank_service_balance = bank_service_balance - #{service},
+            bank_deposit_balance = bank_deposit_balance - #{deposit},
+            update_time = NOW()
+        where account_id = #{accountId}
+          and account_status = '1'
+          and service_balance &gt;= #{service}
+          and deposit_balance &gt;= #{deposit}
+          and member_balance &gt;= #{member}
+          and total_balance &gt;= #{service} + #{deposit} + #{member}
+          and bank_service_balance &gt;= #{service}
+          and bank_deposit_balance &gt;= #{deposit}
+    </update>
+
     <delete id="deleteAccountInfoByAccountId" parameterType="Long">
         delete from account_info where account_id = #{accountId}
         and bank_service_balance=0 and bank_deposit_balance=0 and service_reserved=0 and deposit_reserved=0
