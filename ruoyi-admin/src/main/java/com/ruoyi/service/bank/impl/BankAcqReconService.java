@@ -162,14 +162,18 @@ public class BankAcqReconService
         return seen;
     }
 
-    /** 解析对账 xlsx：首行为表头，按列名取值。 */
+    /** 解析对账 xlsx：按"商户订单号"列定位表头行（真实账单首行是"交易明细"标题），合计行无订单号自然跳过。 */
     List<Map<String, String>> parseBill(byte[] content)
     {
         List<Map<String, String>> rows = new ArrayList<>();
         try (Workbook workbook = new XSSFWorkbook(new ByteArrayInputStream(content)))
         {
-            Sheet sheet = workbook.getSheetAt(0);
-            Row header = sheet.getRow(sheet.getFirstRowNum());
+            Sheet sheet = findBillSheet(workbook);
+            Row header = findHeaderRow(sheet);
+            if (header == null)
+            {
+                header = sheet.getRow(sheet.getFirstRowNum());
+            }
             Map<Integer, String> columns = new HashMap<>();
             for (Cell cell : header)
             {
@@ -179,7 +183,7 @@ public class BankAcqReconService
                     columns.put(cell.getColumnIndex(), name);
                 }
             }
-            for (int i = sheet.getFirstRowNum() + 1; i <= sheet.getLastRowNum(); i++)
+            for (int i = header.getRowNum() + 1; i <= sheet.getLastRowNum(); i++)
             {
                 Row row = sheet.getRow(i);
                 if (row == null)
@@ -208,6 +212,42 @@ public class BankAcqReconService
         {
             throw new ServiceException("对账文件解析失败：" + e.getMessage());
         }
+    }
+
+    /** 明细所在 sheet：第一个含"商户订单号"表头的 sheet，找不到时退回第一个 sheet。 */
+    private Sheet findBillSheet(Workbook workbook)
+    {
+        for (int i = 0; i < workbook.getNumberOfSheets(); i++)
+        {
+            Sheet sheet = workbook.getSheetAt(i);
+            if (findHeaderRow(sheet) != null)
+            {
+                return sheet;
+            }
+        }
+        return workbook.getSheetAt(0);
+    }
+
+    /** 表头行：前 10 行内出现"商户订单号"列的那一行。 */
+    private Row findHeaderRow(Sheet sheet)
+    {
+        int last = Math.min(sheet.getLastRowNum(), sheet.getFirstRowNum() + 10);
+        for (int i = sheet.getFirstRowNum(); i <= last; i++)
+        {
+            Row row = sheet.getRow(i);
+            if (row == null)
+            {
+                continue;
+            }
+            for (Cell cell : row)
+            {
+                if (KEY_ORDER_NO.equals(trim(cell)))
+                {
+                    return row;
+                }
+            }
+        }
+        return null;
     }
 
     private void save(Long runId, String type, String orderNo, String bankSerial, BigDecimal bankAmount,

@@ -93,6 +93,44 @@ class BankAcqReconServiceTest
         assertEquals("支付", rows.get(0).get("交易类型"));
     }
 
+    /** 银行真实账单：首行"交易明细"标题、表头在第二行，末尾有合计行。 */
+    @Test
+    void shouldParseBillWithTitleRowAndSkipTotalRow() throws Exception
+    {
+        byte[] content;
+        try (XSSFWorkbook workbook = new XSSFWorkbook(); ByteArrayOutputStream output = new ByteArrayOutputStream())
+        {
+            org.apache.poi.ss.usermodel.Sheet sheet = workbook.createSheet("20260911日对账单");
+            sheet.createRow(0).createCell(0).setCellValue("交易明细");
+            String[] header = { "清算日期", "交易时间", "主商户号", "渠道", "交易类型", "清算金额", "商户订单号", "借贷记标识", "结算状态", "交易流水号" };
+            org.apache.poi.ss.usermodel.Row headerRow = sheet.createRow(1);
+            for (int i = 0; i < header.length; i++)
+            {
+                headerRow.createCell(i).setCellValue(header[i]);
+            }
+            String[][] data = {
+                    { "20260911", "215940", "8202106040000001", "支付宝", "支付", "0.05", "BP96CA812036874DD38D96BD11CDD4E5", "借记", "已结算", "20026091121594085435415079232303" },
+                    { "合计", "", "", "", "", "0.05", "", "", "", "" }
+            };
+            for (int r = 0; r < data.length; r++)
+            {
+                org.apache.poi.ss.usermodel.Row row = sheet.createRow(r + 2);
+                for (int c = 0; c < data[r].length; c++)
+                {
+                    row.createCell(c).setCellValue(data[r][c]);
+                }
+            }
+            workbook.write(output);
+            content = output.toByteArray();
+        }
+
+        List<Map<String, String>> rows = service.parseBill(content);
+
+        assertEquals(1, rows.size());
+        assertEquals("BP96CA812036874DD38D96BD11CDD4E5", rows.get(0).get("商户订单号"));
+        assertEquals("0.05", rows.get(0).get("清算金额"));
+    }
+
     @Test
     void shouldDetectAllDiffTypesAndMatch()
     {
