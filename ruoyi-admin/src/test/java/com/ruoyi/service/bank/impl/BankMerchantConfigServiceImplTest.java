@@ -17,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.bank.gateway.BankGateway;
 import com.ruoyi.bank.gateway.BankResult;
+import com.ruoyi.bank.gateway.BankSupervisionSignRequest;
 import com.ruoyi.domain.PensionInstitution;
 import com.ruoyi.domain.bank.BankMerchantConfig;
 import com.ruoyi.mapper.PensionInstitutionMapper;
@@ -179,5 +180,138 @@ class BankMerchantConfigServiceImplTest
 
         assertEquals("FAILED", result.getStatus());
         assertEquals("银行对接尚未启用", result.getResponseMessage());
+    }
+
+    @Test
+    void signContractShouldPersistAgreementOnSuccess()
+    {
+        config.setConfigId(1L);
+        config.setSettlementAccountNo("619900001111");
+        config.setSettlementAccountName("监管账户户名");
+        config.setBasicAccountNo("618800002222");
+        config.setBasicAccountName("基本账户户名");
+        config.setCrossBank(1);
+        config.setBasicBankCode("313491000011");
+        institution.setCreditCode("91410100MA9XXXXX00");
+        when(merchantConfigMapper.selectById(1L)).thenReturn(config);
+        when(institutionMapper.selectPensionInstitutionByInstitutionId(36L)).thenReturn(institution);
+        BankResult signed = BankResult.success(null);
+        signed.setAgreementNo("JGXY0001");
+        when(bankGateway.signSupervisionContract(org.mockito.ArgumentMatchers.any(BankSupervisionSignRequest.class)))
+                .thenReturn(signed);
+        when(merchantConfigMapper.updateAgreement(1L, "JGXY0001", "admin")).thenReturn(1);
+
+        BankResult result = service.signContract(1L, "admin");
+
+        assertEquals("SUCCESS", result.getStatus());
+        assertEquals("JGXY0001", result.getAgreementNo());
+        org.mockito.ArgumentCaptor<BankSupervisionSignRequest> captor =
+                org.mockito.ArgumentCaptor.forClass(BankSupervisionSignRequest.class);
+        verify(bankGateway).signSupervisionContract(captor.capture());
+        assertEquals("619900001111", captor.getValue().getSuperviseAccountNo());
+        assertEquals("监管账户户名", captor.getValue().getSuperviseAccountName());
+        assertEquals("618800002222", captor.getValue().getPayeeAccountNo());
+        assertEquals("基本账户户名", captor.getValue().getPayeeAccountName());
+        assertEquals("91410100MA9XXXXX00", captor.getValue().getUnifiedCreditCode());
+        verify(merchantConfigMapper).updateAgreement(1L, "JGXY0001", "admin");
+    }
+
+    @Test
+    void signContractShouldNotPersistAgreementWhenBankFails()
+    {
+        config.setConfigId(1L);
+        config.setSettlementAccountNo("619900001111");
+        config.setSettlementAccountName("监管账户户名");
+        config.setBasicAccountNo("618800002222");
+        config.setBasicAccountName("基本账户户名");
+        when(merchantConfigMapper.selectById(1L)).thenReturn(config);
+        when(bankGateway.signSupervisionContract(org.mockito.ArgumentMatchers.any(BankSupervisionSignRequest.class)))
+                .thenReturn(BankResult.failed("9999", "签约失败"));
+
+        BankResult result = service.signContract(1L, "admin");
+
+        assertEquals("FAILED", result.getStatus());
+        org.mockito.Mockito.verify(merchantConfigMapper, org.mockito.Mockito.never()).updateAgreement(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void signContractShouldRejectMissingBasicAccountNameBeforeCallingBank()
+    {
+        config.setConfigId(1L);
+        config.setSettlementAccountName("监管账户户名");
+        config.setBasicAccountNo("618800002222");
+        when(merchantConfigMapper.selectById(1L)).thenReturn(config);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.signContract(1L, "admin"));
+
+        assertEquals("请先完善基本账户名称（结算账户名称）后再发起银行签约", exception.getMessage());
+        org.mockito.Mockito.verifyNoInteractions(bankGateway);
+    }
+
+    @Test
+    void signContractShouldRejectAlreadySignedBinding()
+    {
+        config.setConfigId(1L);
+        config.setSupervisionAgreementNo("JGXY-OLD");
+        when(merchantConfigMapper.selectById(1L)).thenReturn(config);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.signContract(1L, "admin"));
+
+        assertEquals("该绑定已存在监管签约协议编号（JGXY-OLD），无需重复签约", exception.getMessage());
+        org.mockito.Mockito.verifyNoInteractions(bankGateway);
+    }
+
+    @Test
+    void signContractShouldReturnFailureWhenGatewayThrows()
+    {
+        config.setConfigId(1L);
+        config.setSettlementAccountNo("619900001111");
+        config.setSettlementAccountName("监管账户户名");
+        config.setBasicAccountNo("618800002222");
+        config.setBasicAccountName("基本账户户名");
+        when(merchantConfigMapper.selectById(1L)).thenReturn(config);
+        when(bankGateway.signSupervisionContract(org.mockito.ArgumentMatchers.any(BankSupervisionSignRequest.class)))
+                .thenThrow(new ServiceException("银行对接尚未启用"));
+
+        BankResult result = service.signContract(1L, "admin");
+
+        assertEquals("FAILED", result.getStatus());
+        assertEquals("银行对接尚未启用", result.getResponseMessage());
+        org.mockito.Mockito.verify(merchantConfigMapper, org.mockito.Mockito.never()).updateAgreement(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void updateShouldPreserveAgreementWhenFormOmitsIt()
+    {
+        config.setConfigId(1L);
+        config.setMerId("MER001");
+        config.setSettlementAccountName("户名");
+        config.setBasicAccountName("基本户名");
+        BankMerchantConfig existing = new BankMerchantConfig();
+        existing.setConfigId(1L);
+        existing.setInstitutionId(36L);
+        existing.setMerId("MER001");
+        existing.setSettlementAccountNo("619900001111");
+        existing.setSettlementAccountName("户名");
+        existing.setBasicAccountNo("618800002222");
+        existing.setBasicAccountName("基本户名");
+        existing.setChannelType("H5");
+        existing.setEnvironment("sandbox");
+        existing.setIsDefault("0");
+        existing.setVerifyStatus("1");
+        existing.setSupervisionAgreementNo("JGXY0001");
+        when(merchantConfigMapper.selectById(1L)).thenReturn(existing);
+        when(institutionMapper.selectPensionInstitutionByInstitutionId(36L)).thenReturn(institution);
+        when(merchantConfigMapper.update(config)).thenReturn(1);
+
+        service.update(config, "admin");
+
+        assertEquals("JGXY0001", config.getSupervisionAgreementNo());
     }
 }

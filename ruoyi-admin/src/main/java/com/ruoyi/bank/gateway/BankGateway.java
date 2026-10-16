@@ -15,6 +15,12 @@ public interface BankGateway
         throw new ServiceException("原路退款网关未启用");
     }
 
+    /** OBK0071701（ylcntr）监管签约；成功结果的 agreementNo 为银行返回的 jgxyno。 */
+    default BankResult signSupervisionContract(BankSupervisionSignRequest request)
+    {
+        throw new ServiceException("监管签约网关未启用");
+    }
+
     default boolean supportsPayout()
     {
         return false;

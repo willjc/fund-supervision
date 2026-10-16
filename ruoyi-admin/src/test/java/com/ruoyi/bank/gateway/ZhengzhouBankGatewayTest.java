@@ -373,6 +373,32 @@ class ZhengzhouBankGatewayTest
         assertThrows(ServiceException.class, request::validate);
     }
 
+    @Test
+    void shouldBuildSupervisionSignBodyWithBankFieldMapping()
+    {
+        ZhengzhouBankGateway gateway = new ZhengzhouBankGateway();
+        BankSupervisionSignRequest request = new BankSupervisionSignRequest();
+        request.setSuperviseAccountNo("619900001111");
+        request.setSuperviseAccountName("监管账户户名");
+        request.setPayeeAccountNo("618800002222");
+        request.setPayeeAccountName("基本账户户名");
+        request.setCrossBank(1);
+        request.setPayeeBankNo("313491000011");
+        request.setUnifiedCreditCode("91410100MA9XXXXX00");
+
+        JSONObject body = gateway.supervisionBody(request);
+        assertEquals("619900001111", body.getString("jgacct"));
+        assertEquals("监管账户户名", body.getString("jgacna"));
+        assertEquals("2", body.getString("banktg"));
+        assertEquals("618800002222", body.getString("hbskno"));
+        assertEquals("基本账户户名", body.getString("hbskna"));
+        assertEquals("313491000011", body.getString("hbbank"));
+        assertEquals("91410100MA9XXXXX00", body.getString("socode"));
+
+        request.setCrossBank(0);
+        assertEquals("1", gateway.supervisionBody(request).getString("banktg"));
+    }
+
     private BankResult parseResult(ZhengzhouBankGateway gateway, String code, JSONObject body)
     {
         return ReflectionTestUtils.invokeMethod(gateway, "result", code, "测试", body);

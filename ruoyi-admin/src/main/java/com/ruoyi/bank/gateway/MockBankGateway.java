@@ -42,6 +42,16 @@ public class MockBankGateway implements BankGateway
     }
 
     @Override
+    public BankResult signSupervisionContract(BankSupervisionSignRequest request)
+    {
+        request.validate();
+        BankResult result = BankResult.success(null);
+        result.setAgreementNo("MOCK-JGXY-" + request.getSuperviseAccountNo());
+        result.setResponseMessage("模拟银行已生成监管签约协议");
+        return result;
+    }
+
+    @Override
     public boolean supportsPayout()
     {
         return true;

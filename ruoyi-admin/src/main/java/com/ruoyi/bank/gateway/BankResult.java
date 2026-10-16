@@ -15,6 +15,8 @@ public class BankResult
     private String payerAccountNo;
     private String payeeAccountNo;
     private BigDecimal availableBalance;
+    /** 监管签约协议号（OBK0071701 响应 jgxyno），仅签约结果使用。 */
+    private String agreementNo;
 
     public static BankResult unknown(String code, String message)
     {
@@ -75,4 +77,6 @@ public class BankResult
     public void setPayeeAccountNo(String payeeAccountNo) { this.payeeAccountNo = payeeAccountNo; }
     public BigDecimal getAvailableBalance() { return availableBalance; }
     public void setAvailableBalance(BigDecimal availableBalance) { this.availableBalance = availableBalance; }
+    public String getAgreementNo() { return agreementNo; }
+    public void setAgreementNo(String agreementNo) { this.agreementNo = agreementNo; }
 }

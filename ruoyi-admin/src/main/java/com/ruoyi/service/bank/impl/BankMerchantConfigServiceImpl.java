@@ -17,6 +17,7 @@ import com.ruoyi.mapper.bank.BankMerchantConfigMapper;
 import com.ruoyi.service.bank.IBankMerchantConfigService;
 import com.ruoyi.bank.gateway.BankGateway;
 import com.ruoyi.bank.gateway.BankResult;
+import com.ruoyi.bank.gateway.BankSupervisionSignRequest;
 
 @Service
 public class BankMerchantConfigServiceImpl implements IBankMerchantConfigService
@@ -128,6 +129,11 @@ public class BankMerchantConfigServiceImpl implements IBankMerchantConfigService
         }
         else
         {
+            // 协议编号由签约流程维护；编辑未回传时保留原值，避免被 update 覆盖为空。
+            if (StringUtils.isEmpty(config.getSupervisionAgreementNo()))
+            {
+                config.setSupervisionAgreementNo(existing.getSupervisionAgreementNo());
+            }
             if (Integer.valueOf(1).equals(config.getPayoutEnabled())
                     && (!"1".equals(existing.getVerifyStatus())
                     || StringUtils.isEmpty(config.getSettlementAccountName())
@@ -203,6 +209,69 @@ public class BankMerchantConfigServiceImpl implements IBankMerchantConfigService
     {
         String normalized = StringUtils.isEmpty(message) ? "银行未返回验证说明" : message;
         return normalized.length() > 500 ? normalized.substring(0, 500) : normalized;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public BankResult signContract(Long configId, String operator)
+    {
+        BankMerchantConfig config = merchantConfigMapper.selectById(configId);
+        if (config == null)
+        {
+            throw new ServiceException("商户配置不存在");
+        }
+        if (StringUtils.isNotEmpty(config.getSupervisionAgreementNo()))
+        {
+            throw new ServiceException("该绑定已存在监管签约协议编号（" + config.getSupervisionAgreementNo()
+                    + "），无需重复签约");
+        }
+        if (StringUtils.isEmpty(config.getSettlementAccountName()))
+        {
+            throw new ServiceException("请先完善监管账户名称（户名）后再发起银行签约");
+        }
+        if (StringUtils.isEmpty(config.getBasicAccountNo()))
+        {
+            throw new ServiceException("该机构尚未配置基本账户，不能发起银行签约");
+        }
+        if (StringUtils.isEmpty(config.getBasicAccountName()))
+        {
+            throw new ServiceException("请先完善基本账户名称（结算账户名称）后再发起银行签约");
+        }
+
+        PensionInstitution institution = institutionMapper.selectPensionInstitutionByInstitutionId(
+                config.getInstitutionId());
+        BankSupervisionSignRequest request = new BankSupervisionSignRequest();
+        request.setSuperviseAccountNo(config.getSettlementAccountNo());
+        request.setSuperviseAccountName(config.getSettlementAccountName());
+        request.setPayeeAccountNo(config.getBasicAccountNo());
+        request.setPayeeAccountName(config.getBasicAccountName());
+        request.setCrossBank(config.getCrossBank());
+        request.setPayeeBankNo(config.getBasicBankCode());
+        request.setUnifiedCreditCode(institution == null ? null : institution.getCreditCode());
+        request.validate();
+
+        BankResult result;
+        try
+        {
+            result = bankGateway.signSupervisionContract(request);
+        }
+        catch (Exception e)
+        {
+            result = BankResult.failed("SIGN_EXCEPTION", e.getMessage());
+        }
+        if (result == null)
+        {
+            return BankResult.failed("EMPTY_RESPONSE", "银行未返回签约结果");
+        }
+        if ("SUCCESS".equals(result.getStatus()) && StringUtils.isNotEmpty(result.getAgreementNo()))
+        {
+            int updated = merchantConfigMapper.updateAgreement(configId, result.getAgreementNo(), operator);
+            if (updated != 1)
+            {
+                throw new ServiceException("保存监管签约协议编号失败");
+            }
+        }
+        return result;
     }
 
     private void normalizeAndValidate(BankMerchantConfig config, Long currentConfigId)

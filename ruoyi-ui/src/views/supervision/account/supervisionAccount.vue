@@ -81,9 +81,10 @@
       <el-table-column label="机构拨付开关" width="115" align="center">
         <template slot-scope="scope">{{ Number(scope.row.payoutEnabled) === 1 ? '机构已开启' : '关闭' }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="175" fixed="right" align="center">
+      <el-table-column label="操作" width="215" fixed="right" align="center">
         <template slot-scope="scope">
           <el-button type="text" size="mini" icon="el-icon-connection" v-hasPermi="['supervision:account:supervision']" @click="handleVerify(scope.row)">验证</el-button>
+          <el-button v-if="!scope.row.supervisionAgreementNo" type="text" size="mini" icon="el-icon-link" v-hasPermi="['supervision:account:supervision']" @click="handleSign(scope.row)">签约</el-button>
           <el-button type="text" size="mini" icon="el-icon-edit" v-hasPermi="['supervision:account:supervision']" @click="handleEdit(scope.row)">编辑</el-button>
           <el-button type="text" size="mini" icon="el-icon-delete" v-hasPermi="['supervision:account:supervision']" @click="handleDelete(scope.row)">删除</el-button>
         </template>
@@ -171,7 +172,7 @@
 
 <script>
 import { listInstitution } from '@/api/supervision/institution'
-import { listBankMerchant, getBankMerchant, addBankMerchant, updateBankMerchant, delBankMerchant, verifyBankMerchant } from '@/api/supervision/account'
+import { listBankMerchant, getBankMerchant, addBankMerchant, updateBankMerchant, delBankMerchant, verifyBankMerchant, signBankMerchantContract } from '@/api/supervision/account'
 
 export default {
   name: 'SupervisionAccount',
@@ -250,8 +251,8 @@ export default {
           return
         }
         const request = this.form.configId ? updateBankMerchant(this.form) : addBankMerchant(this.form)
-        request.then(() => {
-          this.$modal.msgSuccess(this.form.configId ? '修改成功' : '新增成功，等待银行验证')
+        request.then(response => {
+          this.$modal.msgSuccess((response && response.msg) || (this.form.configId ? '修改成功' : '新增成功'))
           this.open = false
           this.getList()
         })
@@ -266,6 +267,12 @@ export default {
     handleVerify(row) {
       this.$modal.confirm('确认在当前银行环境验证商户号“' + row.merId + '”吗？').then(() => verifyBankMerchant(row.configId)).then(() => {
         this.$modal.msgSuccess('商户号验证通过')
+        this.getList()
+      }).catch(() => {})
+    },
+    handleSign(row) {
+      this.$modal.confirm('确认向郑州银行发起监管签约（ylcntr）吗？账户信息以当前绑定为准').then(() => signBankMerchantContract(row.configId)).then(response => {
+        this.$modal.msgSuccess((response && response.msg) || '监管签约完成')
         this.getList()
       }).catch(() => {})
     },

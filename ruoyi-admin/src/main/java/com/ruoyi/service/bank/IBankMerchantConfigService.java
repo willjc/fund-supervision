@@ -19,5 +19,7 @@ public interface IBankMerchantConfigService
 
     BankResult verify(Long configId, String operator);
 
+    BankResult signContract(Long configId, String operator);
+
     int delete(Long configId);
 }

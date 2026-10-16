@@ -43,6 +43,10 @@ public class ZhengzhouBankGateway implements BankGateway
     @Value("${bank.integration.gateway-url:https://obk.lovingfox.cn:7000/openapi/zfbz/v1}")
     private String gatewayUrl;
 
+    // 监管网关（ylzjjgin/v1，OBK00717xx 报文）；未配置时由收单地址替换路径推导。
+    @Value("${bank.integration.supervision-gateway-url:}")
+    private String supervisionGatewayUrl;
+
     @Value("${bank.integration.app-id:}")
     private String appId;
 
@@ -341,7 +345,69 @@ public class ZhengzhouBankGateway implements BankGateway
                 + result.getResponseMessage());
     }
 
+    @Override
+    public BankResult signSupervisionContract(BankSupervisionSignRequest request)
+    {
+        requireProtocolConfig();
+        requirePublicGatewayUrl();
+        JSONObject response = postTo(supervisionUrl(), "OBK0071701", supervisionBody(request), new Date());
+        String code = normalizeCode(response.getString("respcd"));
+        if (!"0000".equals(code))
+        {
+            return BankResult.failed(code, response.getString("resptx"));
+        }
+        String agreementNo = response.getString("jgxyno");
+        if (isBlank(agreementNo))
+        {
+            // 不能把无协议号当作签约成功；让人工核查银行侧签约记录后再重试。
+            return BankResult.unknown("AGREEMENT_MISSING", "银行受理签约但未返回协议编号（jgxyno），请人工核查后重试");
+        }
+        BankResult result = BankResult.success(null);
+        result.setAgreementNo(agreementNo.trim());
+        result.setResponseMessage("监管签约成功");
+        return result;
+    }
+
+    /** v1.0 OBK0071701（ylcntr）业务字段；banktg 1-行内 2-行外，由 crossBank 派生。 */
+    JSONObject supervisionBody(BankSupervisionSignRequest request)
+    {
+        request.validate();
+        JSONObject body = new JSONObject();
+        body.put("jgacct", truncate(request.getSuperviseAccountNo(), 40));
+        body.put("jgacna", truncate(request.getSuperviseAccountName(), 256));
+        body.put("banktg", Integer.valueOf(1).equals(request.getCrossBank()) ? "2" : "1");
+        body.put("hbskno", truncate(request.getPayeeAccountNo(), 40));
+        body.put("hbskna", truncate(request.getPayeeAccountName(), 256));
+        if (!isBlank(request.getPayeeBankNo()))
+        {
+            body.put("hbbank", truncate(request.getPayeeBankNo(), 20));
+        }
+        if (!isBlank(request.getUnifiedCreditCode()))
+        {
+            body.put("socode", truncate(request.getUnifiedCreditCode(), 40));
+        }
+        return body;
+    }
+
+    String supervisionUrl()
+    {
+        if (!isBlank(supervisionGatewayUrl))
+        {
+            return supervisionGatewayUrl;
+        }
+        if (!isBlank(gatewayUrl) && gatewayUrl.contains("zfbz/v1"))
+        {
+            return gatewayUrl.replace("zfbz/v1", "ylzjjgin/v1");
+        }
+        throw new ServiceException("未配置监管网关地址（bank.integration.supervision-gateway-url），且无法从收单网关地址推导");
+    }
+
     JSONObject post(String tranCode, JSONObject body, Date now)
+    {
+        return postTo(gatewayUrl, tranCode, body, now);
+    }
+
+    JSONObject postTo(String targetUrl, String tranCode, JSONObject body, Date now)
     {
         try
         {
@@ -349,7 +415,7 @@ public class ZhengzhouBankGateway implements BankGateway
             PublicKey publicKey = loadBankPublicKey();
 
             byte[] payload = JSON.toJSONString(buildEnvelope(tranCode, body, now)).getBytes(StandardCharsets.UTF_8);
-            HttpURLConnection connection = (HttpURLConnection) new URL(gatewayUrl).openConnection();
+            HttpURLConnection connection = (HttpURLConnection) new URL(targetUrl).openConnection();
             connection.setConnectTimeout(connectTimeoutMs);
             connection.setReadTimeout(readTimeoutMs);
             connection.setRequestMethod("POST");

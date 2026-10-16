@@ -18,6 +18,7 @@ import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
+import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.bank.gateway.BankResult;
 import com.ruoyi.domain.bank.BankMerchantConfig;
 import com.ruoyi.domain.PensionInstitution;
@@ -60,7 +61,11 @@ public class BankMerchantConfigController extends BaseController
         {
             return AjaxResult.error("养老机构不存在或无权配置");
         }
-        return toAjax(merchantConfigService.insert(config, getUsername()));
+        if (merchantConfigService.insert(config, getUsername()) <= 0)
+        {
+            return AjaxResult.error("保存商户配置失败");
+        }
+        return autoSign(config.getConfigId(), "绑定已保存");
     }
 
     @PreAuthorize("@ss.hasPermi('supervision:account:supervision')")
@@ -76,7 +81,11 @@ public class BankMerchantConfigController extends BaseController
         {
             return AjaxResult.error("养老机构不存在或无权配置");
         }
-        return toAjax(merchantConfigService.update(config, getUsername()));
+        if (merchantConfigService.update(config, getUsername()) <= 0)
+        {
+            return AjaxResult.error("更新商户配置失败");
+        }
+        return autoSign(config.getConfigId(), "绑定已更新");
     }
 
     @PreAuthorize("@ss.hasPermi('supervision:account:supervision')")
@@ -107,6 +116,49 @@ public class BankMerchantConfigController extends BaseController
         }
         String message = result == null ? "银行未返回验证结果" : result.getResponseMessage();
         return AjaxResult.error("商户号验证失败：" + message);
+    }
+
+    @PreAuthorize("@ss.hasPermi('supervision:account:supervision')")
+    @Log(title = "发起银行监管签约", businessType = BusinessType.UPDATE)
+    @PostMapping("/{configId}/sign-contract")
+    public AjaxResult signContract(@PathVariable Long configId)
+    {
+        if (findAccessible(configId) == null)
+        {
+            return AjaxResult.error("商户配置不存在或无权操作");
+        }
+        BankResult result = merchantConfigService.signContract(configId, getUsername());
+        if (result != null && "SUCCESS".equals(result.getStatus()) && StringUtils.isNotEmpty(result.getAgreementNo()))
+        {
+            return AjaxResult.success("监管签约成功，协议编号 " + result.getAgreementNo());
+        }
+        String message = result == null ? "银行未返回签约结果" : result.getResponseMessage();
+        return AjaxResult.error("监管签约未完成：" + message);
+    }
+
+    /** 绑定保存后自动发起监管签约；签约失败不影响绑定结果，仅在返回消息中提示，可稍后手动重试。 */
+    private AjaxResult autoSign(Long configId, String prefix)
+    {
+        BankMerchantConfig saved = merchantConfigService.selectById(configId);
+        if (saved != null && StringUtils.isNotEmpty(saved.getSupervisionAgreementNo()))
+        {
+            return AjaxResult.success(prefix + "，监管签约已存在");
+        }
+        BankResult result;
+        try
+        {
+            result = merchantConfigService.signContract(configId, getUsername());
+        }
+        catch (Exception e)
+        {
+            return AjaxResult.success(prefix + "，银行监管签约未完成：" + e.getMessage() + "，可在列表中重试签约");
+        }
+        if (result != null && "SUCCESS".equals(result.getStatus()) && StringUtils.isNotEmpty(result.getAgreementNo()))
+        {
+            return AjaxResult.success(prefix + "，银行监管签约成功，协议编号 " + result.getAgreementNo());
+        }
+        String message = result == null ? "银行未返回签约结果" : result.getResponseMessage();
+        return AjaxResult.success(prefix + "，银行监管签约未完成：" + message + "，可在列表中重试签约");
     }
 
     private BankMerchantConfig findAccessible(Long configId)

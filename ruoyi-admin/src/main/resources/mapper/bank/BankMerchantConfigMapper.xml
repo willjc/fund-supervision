@@ -134,6 +134,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where config_id = #{configId}
     </update>
 
+    <update id="updateAgreement">
+        update bank_merchant_config
+        set supervision_agreement_no = #{supervisionAgreementNo},
+            update_by = #{operator}, update_time = now()
+        where config_id = #{configId}
+    </update>
+
     <update id="invalidateByInstitutionAccountChange">
         update bank_merchant_config
         set settlement_account_no = #{settlementAccountNo}, basic_account_no = #{basicAccountNo},
