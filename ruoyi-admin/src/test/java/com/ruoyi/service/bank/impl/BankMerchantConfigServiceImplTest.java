@@ -187,9 +187,9 @@ class BankMerchantConfigServiceImplTest
     {
         config.setConfigId(1L);
         config.setSettlementAccountNo("619900001111");
-        config.setSettlementAccountName("监管账户户名");
+        config.setSettlementAccountName("统一监管户名");
         config.setBasicAccountNo("618800002222");
-        config.setBasicAccountName("基本账户户名");
+        config.setBasicAccountName("统一监管户名");
         config.setCrossBank(1);
         config.setBasicBankCode("313491000011");
         institution.setCreditCode("91410100MA9XXXXX00");
@@ -209,9 +209,9 @@ class BankMerchantConfigServiceImplTest
                 org.mockito.ArgumentCaptor.forClass(BankSupervisionSignRequest.class);
         verify(bankGateway).signSupervisionContract(captor.capture());
         assertEquals("619900001111", captor.getValue().getSuperviseAccountNo());
-        assertEquals("监管账户户名", captor.getValue().getSuperviseAccountName());
+        assertEquals("统一监管户名", captor.getValue().getSuperviseAccountName());
         assertEquals("618800002222", captor.getValue().getPayeeAccountNo());
-        assertEquals("基本账户户名", captor.getValue().getPayeeAccountName());
+        assertEquals("统一监管户名", captor.getValue().getPayeeAccountName());
         assertEquals("91410100MA9XXXXX00", captor.getValue().getUnifiedCreditCode());
         verify(merchantConfigMapper).updateAgreement(1L, "JGXY0001", "admin");
     }
@@ -221,9 +221,9 @@ class BankMerchantConfigServiceImplTest
     {
         config.setConfigId(1L);
         config.setSettlementAccountNo("619900001111");
-        config.setSettlementAccountName("监管账户户名");
+        config.setSettlementAccountName("统一监管户名");
         config.setBasicAccountNo("618800002222");
-        config.setBasicAccountName("基本账户户名");
+        config.setBasicAccountName("统一监管户名");
         when(merchantConfigMapper.selectById(1L)).thenReturn(config);
         when(bankGateway.signSupervisionContract(org.mockito.ArgumentMatchers.any(BankSupervisionSignRequest.class)))
                 .thenReturn(BankResult.failed("9999", "签约失败"));
@@ -252,6 +252,23 @@ class BankMerchantConfigServiceImplTest
     }
 
     @Test
+    void signContractShouldRejectMismatchedAccountNamesBeforeCallingBank()
+    {
+        config.setConfigId(1L);
+        config.setSettlementAccountName("监管账户户名");
+        config.setBasicAccountNo("618800002222");
+        config.setBasicAccountName("基本账户户名");
+        when(merchantConfigMapper.selectById(1L)).thenReturn(config);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.signContract(1L, "admin"));
+
+        assertEquals("监管账户名称与基本账户名称不一致，银行不允许签约；请保持两户名完全一致后再发起银行签约",
+                exception.getMessage());
+        org.mockito.Mockito.verifyNoInteractions(bankGateway);
+    }
+
+    @Test
     void signContractShouldRejectAlreadySignedBinding()
     {
         config.setConfigId(1L);
@@ -270,9 +287,9 @@ class BankMerchantConfigServiceImplTest
     {
         config.setConfigId(1L);
         config.setSettlementAccountNo("619900001111");
-        config.setSettlementAccountName("监管账户户名");
+        config.setSettlementAccountName("统一监管户名");
         config.setBasicAccountNo("618800002222");
-        config.setBasicAccountName("基本账户户名");
+        config.setBasicAccountName("统一监管户名");
         when(merchantConfigMapper.selectById(1L)).thenReturn(config);
         when(bankGateway.signSupervisionContract(org.mockito.ArgumentMatchers.any(BankSupervisionSignRequest.class)))
                 .thenThrow(new ServiceException("银行对接尚未启用"));

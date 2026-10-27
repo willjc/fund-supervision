@@ -237,6 +237,11 @@ public class BankMerchantConfigServiceImpl implements IBankMerchantConfigService
         {
             throw new ServiceException("请先完善基本账户名称（结算账户名称）后再发起银行签约");
         }
+        if (!config.getSettlementAccountName().equals(config.getBasicAccountName()))
+        {
+            // 银行规则 mzcnck007：监管户名必须与基本户名完全一致，本地先拦截，避免无效签约往返。
+            throw new ServiceException("监管账户名称与基本账户名称不一致，银行不允许签约；请保持两户名完全一致后再发起银行签约");
+        }
 
         PensionInstitution institution = institutionMapper.selectPensionInstitutionByInstitutionId(
                 config.getInstitutionId());
