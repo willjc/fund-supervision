@@ -79,6 +79,11 @@ public class ZhengzhouBankGateway implements BankGateway
     @Value("${bank.integration.allow-private-gateway:false}")
     private boolean allowPrivateGateway;
 
+    // 监管拨付报文（ylzjhb/ylhzqy/ylyeqy）已按 v2.0 实现，但银行验收前保持保护性拒绝。
+    // 验收后置 true 才放开 supportsPayout 与真实发送；ZZBANK_PAYOUT_ENABLED、商户 payout_enabled 两道闸门仍独立生效。
+    @Value("${bank.integration.payout-protocol-confirmed:false}")
+    private boolean payoutProtocolConfirmed;
+
     @Override
     public BankResult createPayment(BankPaymentRequest request)
     {
@@ -204,21 +209,190 @@ public class ZhengzhouBankGateway implements BankGateway
     }
 
     @Override
+    public boolean supportsPayout()
+    {
+        return payoutProtocolConfirmed;
+    }
+
+    @Override
     public BankResult submitPayout(BankPayoutRequest request)
     {
-        payoutBody(request);
-        // 业务字段已确认，但监管网关、信封和终态语义未确认。不能复用收单 zfbz 网关猜测发送。
-        return BankGateway.super.submitPayout(request);
+        requirePayoutWire("监管拨付协议尚未确认，禁止发送 ylzjhb；请先取得银行报文、验签及结果码确认");
+        requireProtocolConfig();
+        requirePublicGatewayUrl();
+        JSONObject response = postTo(supervisionUrl(), "OBK0071702", payoutBody(request), new Date());
+        String code = normalizeCode(response.getString("respcd"));
+        if (!"0000".equals(code))
+        {
+            return BankResult.failed(code, response.getString("resptx"));
+        }
+        // 受理不等于成功；终态一律通过 ylhzqy 按原请求号查询确认。
+        BankResult result = BankResult.pending(null, null);
+        result.setRequestNo(request.getRequestNo());
+        result.setResponseCode(code);
+        result.setResponseMessage(isBlank(response.getString("resptx"))
+                ? "划拨已受理，等待查询确认" : response.getString("resptx"));
+        return result;
     }
 
     @Override
     public BankResult queryPayout(BankPayoutRequest request)
     {
+        requirePayoutWire("监管拨付查询协议尚未确认，不能查询 ylhzqy");
+        requireProtocolConfig();
+        requirePublicGatewayUrl();
         request.validateQuery();
-        return BankGateway.super.queryPayout(request);
+        JSONObject body = new JSONObject();
+        body.put("trandt", format(request.getRequestTime(), "yyyyMMdd"));
+        body.put("paylno", request.getRequestNo());
+        JSONObject response = postTo(supervisionUrl(), "OBK0071703", body, new Date());
+        String code = normalizeCode(response.getString("respcd"));
+        if (!"0000".equals(code))
+        {
+            // 查询失败或查无此单都不等于原划拨失败，不能据此释放预占或补发。
+            return payoutUnknown(request.getRequestNo(), code, response.getString("resptx"));
+        }
+        return payoutResult(request.getRequestNo(), response);
     }
 
-    /** v1.3 的 ylzjhb 业务字段；不代表监管报文信封已经获得银行确认。 */
+    @Override
+    public BankResult queryBalance(String accountNo, String accountName)
+    {
+        requirePayoutWire("监管余额查询协议尚未确认，不能查询 ylyeqy");
+        requireProtocolConfig();
+        requirePublicGatewayUrl();
+        require(accountNo, "监管账户不能为空");
+        require(accountName, "监管户名不能为空");
+        JSONObject body = new JSONObject();
+        body.put("acctno", accountNo);
+        body.put("acctna", accountName);
+        JSONObject response = postTo(supervisionUrl(), "OBK0071709", body, new Date());
+        String code = normalizeCode(response.getString("respcd"));
+        if (!"0000".equals(code))
+        {
+            return BankResult.unknown(code, response.getString("resptx"));
+        }
+        BigDecimal available = parseAmount(response.get("acblsp"));
+        if (available == null || available.signum() < 0)
+        {
+            return BankResult.unknown("BALANCE_INVALID", "银行未返回有效的可用余额（acblsp）");
+        }
+        BankResult result = BankResult.success(null);
+        result.setPayerAccountNo(accountNo);
+        result.setAvailableBalance(available);
+        return result;
+    }
+
+    private void requirePayoutWire(String message)
+    {
+        if (!payoutProtocolConfirmed)
+        {
+            throw new ServiceException(message);
+        }
+    }
+
+    /** ylhzqy（OBK0071703）结果映射：transt 1 成功 2 失败 6 已退汇 0/5 处理中 3/4 异常/超时转人工。 */
+    private BankResult payoutResult(String requestNo, JSONObject response)
+    {
+        String message = response.getString("resptx");
+        String state = response.getString("transt");
+        String time = payoutTime(response);
+        if ("1".equals(state))
+        {
+            // 成功必须同时具备银行流水、时间、精确金额及收付款账户，缺一不得记账。
+            String serial = response.getString("transq");
+            BigDecimal amount = parseAmount(response.get("tranam"));
+            if (isBlank(serial))
+            {
+                return payoutUnknown(requestNo, "SERIAL_MISSING", "银行划拨成功但未返回记账流水（transq），禁止扣账");
+            }
+            if (amount == null || amount.signum() <= 0)
+            {
+                return payoutUnknown(requestNo, "AMOUNT_INVALID", "银行划拨成功但未返回有效金额（tranam），禁止扣账");
+            }
+            if (isBlank(time))
+            {
+                return payoutUnknown(requestNo, "TIME_MISSING", "银行划拨成功但未返回记账时间（trandt/trantm），禁止扣账");
+            }
+            if (isBlank(response.getString("jgacct")) || isBlank(response.getString("pyeeac")))
+            {
+                return payoutUnknown(requestNo, "ACCOUNT_MISSING", "银行划拨成功但未返回收付款账户（jgacct/pyeeac），禁止扣账");
+            }
+            BankResult result = BankResult.success(serial.trim());
+            result.setRequestNo(requestNo);
+            result.setPaidAmount(amount);
+            result.setPayerAccountNo(response.getString("jgacct"));
+            result.setPayeeAccountNo(response.getString("pyeeac"));
+            result.setBankTransactionTime(time);
+            result.setResponseMessage(isBlank(message) ? "银行划拨成功" : message);
+            return result;
+        }
+        if ("2".equals(state))
+        {
+            BankResult result = BankResult.failed("TRANST2", isBlank(message) ? "银行划拨失败" : message);
+            result.setRequestNo(requestNo);
+            result.setBankTransactionTime(time);
+            return result;
+        }
+        if ("6".equals(state))
+        {
+            // transt=6 已退汇：由服务层落退汇事实后走退汇冲正记账；时间缺省取查询确认时刻。
+            BankResult result = BankResult.returned(isBlank(time) ? format(new Date(), "yyyyMMddHHmmss") : time,
+                    isBlank(message) ? "银行查询确认已退汇" : message);
+            result.setRequestNo(requestNo);
+            return result;
+        }
+        if ("0".equals(state) || "5".equals(state))
+        {
+            BankResult result = BankResult.pending(null, null);
+            result.setRequestNo(requestNo);
+            result.setResponseCode("TRANST" + state);
+            result.setResponseMessage(isBlank(message) ? "银行划拨处理中" : message);
+            return result;
+        }
+        if ("3".equals(state) || "4".equals(state))
+        {
+            return payoutUnknown(requestNo, "TRANST" + state, "银行返回划拨状态异常/超时，请人工核查");
+        }
+        return payoutUnknown(requestNo, "TRANST_INVALID", "银行返回不可识别的划拨状态（transt=" + state + "）");
+    }
+
+    private BankResult payoutUnknown(String requestNo, String code, String message)
+    {
+        BankResult result = BankResult.unknown(code, message);
+        result.setRequestNo(requestNo);
+        return result;
+    }
+
+    /** 银行记账时间：trandt+trantm 拼为 yyyyMMddHHmmss，缺一取另一个原始值。 */
+    private String payoutTime(JSONObject response)
+    {
+        String date = response.getString("trandt");
+        String time = response.getString("trantm");
+        if (isBlank(date))
+        {
+            return isBlank(time) ? null : time.trim();
+        }
+        return isBlank(time) ? date.trim() : date.trim() + time.trim();
+    }
+
+    private BigDecimal parseAmount(Object value)
+    {
+        if (value == null)
+        {
+            return null;
+        }
+        try
+        {
+            return new BigDecimal(value.toString());
+        }
+        catch (NumberFormatException e)
+        {
+            return null;
+        }
+    }
+
+    /** v2.0 的 ylzjhb 业务字段；监管信封已随 OBK0071701 签约联调确认，真实发送仍受 payout-protocol-confirmed 闸门保护。 */
     JSONObject payoutBody(BankPayoutRequest request)
     {
         request.validate();

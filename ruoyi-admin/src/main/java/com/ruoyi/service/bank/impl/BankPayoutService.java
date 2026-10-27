@@ -193,7 +193,8 @@ public class BankPayoutService
         BankTransaction tx = transactions.selectByRequestNoForUpdate(requestNo);
         if (!Objects.equals(transfer.getBankTransactionId(), tx.getTransactionId()))
         { throw new ServiceException("非当前拨付交易，需人工核查"); }
-        boolean returned = tx.getReturnTime() != null;
+        // 退汇既可来自 707 退汇通知（return_time），也可来自 ylhzqy 查询确认（bank_status=RETURNED，transt=6）。
+        boolean returned = tx.getReturnTime() != null || "RETURNED".equals(tx.getBankStatus());
         if ("REVERSED".equals(tx.getBookingStatus()) || (!returned && "DONE".equals(tx.getBookingStatus()))) { return; }
         boolean success = "SUCCESS".equals(tx.getBankStatus());
         boolean failed = "FAILED".equals(tx.getBankStatus());
@@ -217,7 +218,7 @@ public class BankPayoutService
         String state = returned ? "returned" : success ? "completed" : "failed";
         require(settlement.transferResult(transfer.getTransferId(), state, success && !returned ? "1" : "0",
                 success && !returned ? "1" : "2", tx.getBankSerialNo(),
-                returned ? tx.getReturnReason() : tx.getResponseMessage()), "拨付结果保存失败");
+                returned && tx.getReturnReason() != null ? tx.getReturnReason() : tx.getResponseMessage()), "拨付结果保存失败");
         tx.setStatus(returned ? "RETURNED" : success ? "SUCCESS" : "FAILED");
         tx.setBookingStatus(returned ? "REVERSED" : "DONE");
         require(settlement.finish(tx), "银行记账状态保存失败");
@@ -268,9 +269,14 @@ public class BankPayoutService
     private void validateResult(BankTransaction tx, BankResult result)
     {
         if (result == null) { throw new ServiceException("银行拨付查单结果为空"); }
-        if (("SUCCESS".equals(result.getStatus()) || "FAILED".equals(result.getStatus()))
+        if (("SUCCESS".equals(result.getStatus()) || "FAILED".equals(result.getStatus())
+                || "RETURNED".equals(result.getStatus()))
                 && !Objects.equals(tx.getRequestNo(), result.getRequestNo()))
         { throw new ServiceException("银行拨付结果请求号不匹配，禁止记账或释放预占"); }
+        if ("RETURNED".equals(result.getStatus())
+                && (result.getBankTransactionTime() == null || result.getBankTransactionTime().trim().isEmpty()
+                || result.getResponseMessage() == null || result.getResponseMessage().trim().isEmpty()))
+        { throw new ServiceException("银行退汇结果缺少时间或说明，禁止冲正"); }
         if ("SUCCESS".equals(result.getStatus()))
         {
             BankPayoutRequest original = request(tx);

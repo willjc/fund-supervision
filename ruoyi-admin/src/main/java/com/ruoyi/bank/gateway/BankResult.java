@@ -55,6 +55,17 @@ public class BankResult
         return result;
     }
 
+    /** 划拨结果查询确认退汇（transt=6）：由服务层落退汇事实后走退汇冲正记账。 */
+    public static BankResult returned(String bankTransactionTime, String message)
+    {
+        BankResult result = new BankResult();
+        result.setStatus("RETURNED");
+        result.setResponseCode("TRANST6");
+        result.setResponseMessage(message);
+        result.setBankTransactionTime(bankTransactionTime);
+        return result;
+    }
+
     public String getRequestNo() { return requestNo; }
     public void setRequestNo(String requestNo) { this.requestNo = requestNo; }
     public String getStatus() { return status; }

@@ -137,7 +137,7 @@ class BankSettlementSafetyTest
     void wrongOrMissingRequestIdentityCannotReleaseOrDebit()
     {
         Fixture f = new Fixture();
-        for (String status : new String[]{"SUCCESS","FAILED"})
+        for (String status : new String[]{"SUCCESS","FAILED","RETURNED"})
         {
             for(String identity : new String[]{null,"ANOTHER"})
             {
@@ -249,6 +249,21 @@ class BankSettlementSafetyTest
         verify(f.mapper,never()).reverseBalance(any(),any(),any());
         verifyNoInteractions(f.gateway);
         assertEquals("RETURNED",f.tx.getStatus());
+    }
+
+    @Test
+    void queryConfirmedReturnReleasesReservationWithoutCallback()
+    {
+        Fixture f = new Fixture();
+        BankResult returned = BankResult.returned("20260905120300","银行查询确认已退汇");
+        returned.setRequestNo("BT1");
+        when(f.gateway.queryPayout(any())).thenReturn(returned);
+        f.service.reconcile("BT1");
+        verify(f.mapper).settleBalance(40L,new BigDecimal("10.00"),BigDecimal.ZERO,BigDecimal.ZERO,BigDecimal.ZERO);
+        verify(f.mapper,never()).reverseBalance(any(),any(),any());
+        verify(f.mapper,never()).recordReturn(any(),any(),any());
+        assertEquals("RETURNED",f.tx.getStatus());
+        assertEquals("REVERSED",f.tx.getBookingStatus());
     }
 
     @Test
