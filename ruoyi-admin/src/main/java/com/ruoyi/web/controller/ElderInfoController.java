@@ -22,6 +22,7 @@ import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.domain.ElderInfo;
 import com.ruoyi.service.IElderInfoService;
+import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.common.core.page.TableDataInfo;
 import org.springframework.util.DigestUtils;
@@ -47,6 +48,7 @@ public class ElderInfoController extends BaseController
     public TableDataInfo list(ElderInfo elderInfo)
     {
         startPage();
+        if (!SecurityUtils.isAdmin(getUserId())) { elderInfo.setCurrentUserId(getUserId()); }
         List<ElderInfo> list = elderInfoService.selectElderInfoList(elderInfo);
         return getDataTable(list);
     }
@@ -59,6 +61,7 @@ public class ElderInfoController extends BaseController
     @PostMapping("/export")
     public void export(HttpServletResponse response, ElderInfo elderInfo)
     {
+        if (!SecurityUtils.isAdmin(getUserId())) { elderInfo.setCurrentUserId(getUserId()); }
         List<ElderInfo> list = elderInfoService.exportElderInfo(elderInfo);
         ExcelUtil<ElderInfo> util = new ExcelUtil<ElderInfo>(ElderInfo.class);
         util.exportExcel(response, list, "老人基础信息数据");

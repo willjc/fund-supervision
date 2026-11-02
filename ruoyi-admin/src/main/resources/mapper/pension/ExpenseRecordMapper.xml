@@ -43,6 +43,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         LEFT JOIN account_info ai ON er.account_id = ai.account_id
         LEFT JOIN pension_institution pi ON ai.institution_id = pi.institution_id
         <where>
+            <if test="currentUserId != null">
+                and ai.institution_id in (
+                    select institution_id from sys_user_institution where user_id = #{currentUserId}
+                )
+            </if>
             <if test="elderId != null "> and er.elder_id = #{elderId}</if>
             <if test="accountId != null "> and er.account_id = #{accountId}</if>
             <if test="expenseType != null  and expenseType != ''"> and er.expense_type = #{expenseType}</if>

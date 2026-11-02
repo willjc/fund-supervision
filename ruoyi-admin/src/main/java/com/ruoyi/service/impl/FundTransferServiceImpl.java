@@ -108,8 +108,28 @@ public class FundTransferServiceImpl implements IFundTransferService
     public int updateFundTransfer(FundTransfer fundTransfer)
     {
         FundTransfer existing = fundTransferMapper.selectFundTransferByTransferId(fundTransfer.getTransferId());
-        if (existing != null && (Integer.valueOf(1).equals(existing.getBankEligible()) || existing.getBankTransactionId() != null))
+        if (existing == null)
+        {
+            throw new com.ruoyi.common.exception.ServiceException("拨付单不存在");
+        }
+        bankPayoutService.checkScope(existing.getInstitutionId());
+        if (Integer.valueOf(1).equals(existing.getBankEligible()) || existing.getBankTransactionId() != null)
         { throw new com.ruoyi.common.exception.ServiceException("银行拨付单禁止通用编辑，请使用审批或结果查询"); }
+        // 归属、来源和支付事实不能通过通用编辑改写。
+        fundTransfer.setInstitutionId(null);
+        fundTransfer.setElderId(null);
+        fundTransfer.setOrderId(null);
+        fundTransfer.setApplyId(null);
+        fundTransfer.setStatus(null);
+        fundTransfer.setTransferStatus(null);
+        fundTransfer.setIsPaid(null);
+        fundTransfer.setPaidTime(null);
+        fundTransfer.setPaidMethod(null);
+        fundTransfer.setBankOrderNo(null);
+        fundTransfer.setApproveUser(null);
+        fundTransfer.setApproveTime(null);
+        fundTransfer.setExecuteUser(null);
+        fundTransfer.setExecuteTime(null);
         fundTransfer.setUpdateTime(DateUtils.getNowDate());
         return fundTransferMapper.updateFundTransfer(fundTransfer);
     }
@@ -203,7 +223,9 @@ public class FundTransferServiceImpl implements IFundTransferService
     @Override
     public List<FundTransfer> selectPendingTransfers()
     {
-        return fundTransferMapper.selectPendingTransfers();
+        Long user = com.ruoyi.common.utils.SecurityUtils.getUserId();
+        return fundTransferMapper.selectPendingTransfers(
+                com.ruoyi.common.utils.SecurityUtils.isAdmin(user) ? null : user);
     }
 
     /**
@@ -257,7 +279,7 @@ public class FundTransferServiceImpl implements IFundTransferService
     @Override
     public List<AccountInfo> selectLowBalanceAccounts(Integer months)
     {
-        return accountInfoMapper.selectLowBalanceAccounts(months);
+        return accountInfoMapper.selectLowBalanceAccounts(months, null);
     }
 
     /**

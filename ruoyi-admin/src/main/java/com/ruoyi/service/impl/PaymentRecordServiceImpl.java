@@ -121,29 +121,19 @@ public class PaymentRecordServiceImpl implements IPaymentRecordService
         if (orderInfo == null) {
             return null;
         }
-
-        // 创建支付记录
-        PaymentRecord paymentRecord = new PaymentRecord();
-        paymentRecord.setPaymentNo(generatePaymentNo());
-        paymentRecord.setOrderId(orderId);
-        paymentRecord.setOrderNo(orderInfo.getOrderNo());
-        paymentRecord.setElderId(orderInfo.getElderId());
-        paymentRecord.setInstitutionId(orderInfo.getInstitutionId());
-        paymentRecord.setPaymentAmount(orderInfo.getUnpaidAmount());
-        paymentRecord.setPaymentMethod(paymentMethod);
-        paymentRecord.setPaymentStatus("1"); // 模拟直接成功
-        paymentRecord.setPaymentTime(new Date());
-        paymentRecord.setTransactionId(generateTransactionId());
-        paymentRecord.setGatewayResponse("模拟支付成功");
-        paymentRecord.setOperator("system");
-        paymentRecord.setCreateTime(DateUtils.getNowDate());
-
-        paymentRecordMapper.insertPaymentRecord(paymentRecord);
-
-        // 更新订单支付状态
-        orderInfoService.processOrderPayment(orderId, paymentMethod);
-
-        return paymentRecord;
+        // 与管理端线下支付走同一入账链路：订单、支付记录、账户余额和费用流水必须一致。
+        if (orderInfoService.offlinePayOrder(orderId, paymentMethod, null, "管理端确认支付") <= 0)
+        {
+            return null;
+        }
+        List<PaymentRecord> records = paymentRecordMapper.selectPaymentsByOrderId(orderId);
+        if (records == null || records.isEmpty())
+        {
+            return null;
+        }
+        return records.stream()
+                .max(java.util.Comparator.comparing(PaymentRecord::getPaymentId))
+                .orElse(null);
     }
 
     /**

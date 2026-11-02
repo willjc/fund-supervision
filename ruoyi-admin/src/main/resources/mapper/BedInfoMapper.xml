@@ -152,6 +152,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where bed_id = #{bedId}
     </update>
 
+    <update id="occupyBed">
+        update bed_info set bed_status = '1'
+        where bed_id = #{bedId} and bed_status = '0'
+    </update>
+
     <delete id="deleteBedInfoByBedId" parameterType="Long">
         delete from bed_info where bed_id = #{bedId}
     </delete>

@@ -98,6 +98,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where ft.transfer_status = '0'
         and (ft.is_paid = '0' or ft.is_paid is null)
         and ft.status = 'pending'
+        <if test="currentUserId != null">
+            and ft.institution_id in (
+                select institution_id from sys_user_institution where user_id = #{currentUserId}
+            )
+        </if>
         order by ft.billing_month asc
     </select>
 

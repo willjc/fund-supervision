@@ -35,6 +35,9 @@ public class DepositApplyController extends BaseController
     @Autowired
     private IDepositApplyService depositApplyService;
 
+    @Autowired
+    private com.ruoyi.service.bank.impl.BankPayoutService bankPayoutService;
+
     /**
      * 查询押金使用申请列表
      */
@@ -43,8 +46,8 @@ public class DepositApplyController extends BaseController
     public TableDataInfo list(DepositApply depositApply)
     {
         startPage();
-        // 数据权限过滤: 只查询当前用户关联的机构的押金申请
-        depositApply.setCurrentUserId(getUserId());
+        // 数据权限过滤: 监管/超管查看全部，机构用户只看关联机构
+        if (!SecurityUtils.isAdmin(getUserId())) { depositApply.setCurrentUserId(getUserId()); }
         List<DepositApply> list = depositApplyService.selectDepositApplyList(depositApply);
         return getDataTable(list);
     }
@@ -56,7 +59,7 @@ public class DepositApplyController extends BaseController
     @GetMapping("/elder/{elderId}")
     public AjaxResult listByElder(@PathVariable("elderId") Long elderId)
     {
-        List<DepositApply> list = depositApplyService.selectDepositApplyByElderId(elderId);
+        List<DepositApply> list = scoped(depositApplyService.selectDepositApplyByElderId(elderId));
         return AjaxResult.success(list);
     }
 
@@ -67,6 +70,7 @@ public class DepositApplyController extends BaseController
     @GetMapping("/institution/{institutionId}")
     public AjaxResult listByInstitution(@PathVariable("institutionId") Long institutionId)
     {
+        bankPayoutService.checkScope(institutionId);
         List<DepositApply> list = depositApplyService.selectDepositApplyByInstitutionId(institutionId);
         return AjaxResult.success(list);
     }
@@ -79,6 +83,7 @@ public class DepositApplyController extends BaseController
     @PostMapping("/export")
     public void export(HttpServletResponse response, DepositApply depositApply)
     {
+        if (!SecurityUtils.isAdmin(getUserId())) { depositApply.setCurrentUserId(getUserId()); }
         List<DepositApply> list = depositApplyService.selectDepositApplyList(depositApply);
         ExcelUtil<DepositApply> util = new ExcelUtil<DepositApply>(DepositApply.class);
         util.exportExcel(response, list, "押金使用申请数据");
@@ -91,7 +96,10 @@ public class DepositApplyController extends BaseController
     @GetMapping(value = "/{applyId}")
     public AjaxResult getInfo(@PathVariable("applyId") Long applyId)
     {
-        return AjaxResult.success(depositApplyService.selectDepositApplyByApplyId(applyId));
+        DepositApply apply = depositApplyService.selectDepositApplyByApplyId(applyId);
+        if (apply == null) { return AjaxResult.error("押金申请不存在"); }
+        bankPayoutService.checkScope(apply.getInstitutionId());
+        return AjaxResult.success(apply);
     }
 
     /**
@@ -104,7 +112,7 @@ public class DepositApplyController extends BaseController
         // 查询该老人的所有申请
         DepositApply query = new DepositApply();
         query.setElderId(elderId);
-        List<DepositApply> list = depositApplyService.selectDepositApplyList(query);
+        List<DepositApply> list = scoped(depositApplyService.selectDepositApplyList(query));
 
         // 检查是否有正在审批中的申请（pending_family、family_approved、pending_supervision）
         for (DepositApply apply : list) {
@@ -214,6 +222,9 @@ public class DepositApplyController extends BaseController
         }
 
         try {
+            DepositApply apply = depositApplyService.selectDepositApplyByApplyId(applyId);
+            if (apply == null) { return AjaxResult.error("押金申请不存在"); }
+            bankPayoutService.checkScope(apply.getInstitutionId());
             int result = depositApplyService.familyApprove(applyId, statusFlag, approver, rejectReason);
             return toAjax(result);
         } catch (RuntimeException e) {
@@ -266,5 +277,13 @@ public class DepositApplyController extends BaseController
     public AjaxResult remove(@PathVariable Long[] applyIds)
     {
         return toAjax(depositApplyService.deleteDepositApplyByApplyIds(applyIds));
+    }
+
+    private List<DepositApply> scoped(List<DepositApply> list)
+    {
+        if (SecurityUtils.isAdmin(getUserId()) || list == null) { return list; }
+        return list.stream()
+                .filter(item -> bankPayoutService.inScope(item.getInstitutionId()))
+                .collect(java.util.stream.Collectors.toList());
     }
 }

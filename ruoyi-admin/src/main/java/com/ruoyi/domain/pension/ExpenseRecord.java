@@ -18,6 +18,9 @@ public class ExpenseRecord extends BaseEntity
 {
     private static final long serialVersionUID = 1L;
 
+    /** 列表数据范围过滤用，不参与持久化 */
+    private transient Long currentUserId;
+
     /** 记录ID */
     private Long recordId;
 
@@ -66,6 +69,16 @@ public class ExpenseRecord extends BaseEntity
 
     /** 机构名称（非数据库字段，用于显示） */
     private String institutionName;
+
+    public Long getCurrentUserId()
+    {
+        return currentUserId;
+    }
+
+    public void setCurrentUserId(Long currentUserId)
+    {
+        this.currentUserId = currentUserId;
+    }
 
     public void setRecordId(Long recordId)
     {

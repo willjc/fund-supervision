@@ -120,7 +120,7 @@ public class TransactionRecordController extends BaseController
     @PostMapping
     public AjaxResult add(@RequestBody TransactionRecord transactionRecord)
     {
-        return toAjax(transactionRecordService.insertTransactionRecord(transactionRecord));
+        return AjaxResult.error("交易流水只能由支付、退款、拨付流程生成，不能手工新增");
     }
 
     /**
@@ -131,7 +131,7 @@ public class TransactionRecordController extends BaseController
     @PutMapping
     public AjaxResult edit(@RequestBody TransactionRecord transactionRecord)
     {
-        return toAjax(transactionRecordService.updateTransactionRecord(transactionRecord));
+        return AjaxResult.error("交易流水禁止修改");
     }
 
     /**
@@ -142,7 +142,7 @@ public class TransactionRecordController extends BaseController
 	@DeleteMapping("/{transactionIds}")
     public AjaxResult remove(@PathVariable Long[] transactionIds)
     {
-        return toAjax(transactionRecordService.deleteTransactionRecordByTransactionIds(transactionIds));
+        return AjaxResult.error("交易流水禁止删除");
     }
 
     /**
@@ -153,12 +153,7 @@ public class TransactionRecordController extends BaseController
     @PostMapping("/batch")
     public AjaxResult batchCreate(@RequestBody List<TransactionRecord> transactionRecords)
     {
-        try {
-            int result = transactionRecordService.batchCreateTransactionRecords(transactionRecords);
-            return success(result);
-        } catch (Exception e) {
-            return error("批量创建交易记录失败：" + e.getMessage());
-        }
+        return AjaxResult.error("交易流水只能由支付、退款、拨付流程生成，不能手工批量写入");
     }
 
     /**

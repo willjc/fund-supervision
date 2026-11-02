@@ -36,6 +36,9 @@ public class FundTransferApplyController extends BaseController
     @Autowired
     private IFundTransferApplyService fundTransferApplyService;
 
+    @Autowired
+    private com.ruoyi.service.bank.impl.BankPayoutService bankPayoutService;
+
     /**
      * 查询资金划拨申请列表
      */
@@ -68,6 +71,11 @@ public class FundTransferApplyController extends BaseController
         }
     }
 
+    private void requireReadScope(Long institutionId)
+    {
+        if (!isSupervisionUser()) { bankPayoutService.checkScope(institutionId); }
+    }
+
     /**
      * 根据老人ID查询资金划拨申请列表
      */
@@ -76,6 +84,12 @@ public class FundTransferApplyController extends BaseController
     public AjaxResult listByElder(@PathVariable("elderId") Long elderId)
     {
         List<FundTransferApply> list = fundTransferApplyService.selectFundTransferApplyByElderId(elderId);
+        if (!isSupervisionUser() && list != null)
+        {
+            list = list.stream()
+                    .filter(item -> bankPayoutService.inScope(item.getInstitutionId()))
+                    .collect(java.util.stream.Collectors.toList());
+        }
         return AjaxResult.success(list);
     }
 
@@ -86,6 +100,7 @@ public class FundTransferApplyController extends BaseController
     @GetMapping("/institution/{institutionId}")
     public AjaxResult listByInstitution(@PathVariable("institutionId") Long institutionId)
     {
+        requireReadScope(institutionId);
         List<FundTransferApply> list = fundTransferApplyService.selectFundTransferApplyByInstitutionId(institutionId);
         return AjaxResult.success(list);
     }
@@ -98,6 +113,12 @@ public class FundTransferApplyController extends BaseController
     public AjaxResult getPendingTransfer(@PathVariable("elderId") Long elderId)
     {
         List<FundTransfer> list = fundTransferApplyService.selectPendingTransferByElderId(elderId);
+        if (!isSupervisionUser() && list != null)
+        {
+            list = list.stream()
+                    .filter(item -> bankPayoutService.inScope(item.getInstitutionId()))
+                    .collect(java.util.stream.Collectors.toList());
+        }
         return AjaxResult.success(list);
     }
 
@@ -109,6 +130,7 @@ public class FundTransferApplyController extends BaseController
     @PostMapping("/export")
     public void export(HttpServletResponse response, FundTransferApply fundTransferApply)
     {
+        if (!isSupervisionUser()) { fundTransferApply.setCurrentUserId(getUserId()); }
         List<FundTransferApply> list = fundTransferApplyService.selectFundTransferApplyList(fundTransferApply);
         ExcelUtil<FundTransferApply> util = new ExcelUtil<FundTransferApply>(FundTransferApply.class);
         util.exportExcel(response, list, "资金划拨申请数据");
@@ -121,7 +143,10 @@ public class FundTransferApplyController extends BaseController
     @GetMapping(value = "/{applyId}")
     public AjaxResult getInfo(@PathVariable("applyId") Long applyId)
     {
-        return AjaxResult.success(fundTransferApplyService.selectFundTransferApplyByApplyId(applyId));
+        FundTransferApply apply = fundTransferApplyService.selectFundTransferApplyByApplyId(applyId);
+        if (apply == null) { return AjaxResult.error("拨付申请不存在"); }
+        requireReadScope(apply.getInstitutionId());
+        return AjaxResult.success(apply);
     }
 
     /**
@@ -192,6 +217,9 @@ public class FundTransferApplyController extends BaseController
             String relation = getString(params, "relation");
             String phone = getString(params, "phone");
 
+            FundTransferApply apply = fundTransferApplyService.selectFundTransferApplyByApplyId(applyId);
+            if (apply == null) { return AjaxResult.error("拨付申请不存在"); }
+            requireReadScope(apply.getInstitutionId());
             int result = fundTransferApplyService.familyApprove(applyId, approved, opinion, approverName, relation, phone);
             return toAjax(result);
         } catch (Exception e) {

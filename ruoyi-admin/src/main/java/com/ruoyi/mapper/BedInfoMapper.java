@@ -62,6 +62,9 @@ public interface BedInfoMapper
      */
     public int updateBedStatus(@Param("bedId") Long bedId, @Param("bedStatus") String bedStatus);
 
+    /** 仅空置床位可被占用，返回 0 表示并发下已被其他入住占用。 */
+    public int occupyBed(@Param("bedId") Long bedId);
+
     /**
      * 删除床位信息
      *

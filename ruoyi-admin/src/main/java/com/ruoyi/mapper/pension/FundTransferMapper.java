@@ -42,7 +42,7 @@ public interface FundTransferMapper
      *
      * @return 待处理的划拨记录集合
      */
-    public List<FundTransfer> selectPendingTransfers();
+    public List<FundTransfer> selectPendingTransfers(@Param("currentUserId") Long currentUserId);
 
     /**
      * 新增资金划拨记录

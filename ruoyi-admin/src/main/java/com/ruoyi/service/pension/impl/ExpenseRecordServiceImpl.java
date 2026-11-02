@@ -77,6 +77,7 @@ public class ExpenseRecordServiceImpl implements IExpenseRecordService
     @Override
     public int updateExpenseRecord(ExpenseRecord expenseRecord)
     {
+        requireManualRecord(expenseRecord.getRecordId());
         expenseRecord.setUpdateTime(DateUtils.getNowDate());
         return expenseRecordMapper.updateExpenseRecord(expenseRecord);
     }
@@ -90,6 +91,7 @@ public class ExpenseRecordServiceImpl implements IExpenseRecordService
     @Override
     public int deleteExpenseRecordByRecordIds(Long[] recordIds)
     {
+        for (Long recordId : recordIds) { requireManualRecord(recordId); }
         return expenseRecordMapper.deleteExpenseRecordByRecordIds(recordIds);
     }
 
@@ -102,7 +104,21 @@ public class ExpenseRecordServiceImpl implements IExpenseRecordService
     @Override
     public int deleteExpenseRecordByRecordId(Long recordId)
     {
+        requireManualRecord(recordId);
         return expenseRecordMapper.deleteExpenseRecordByRecordId(recordId);
+    }
+
+    private void requireManualRecord(Long recordId)
+    {
+        ExpenseRecord record = expenseRecordMapper.selectExpenseRecordByRecordId(recordId);
+        if (record == null)
+        {
+            throw new com.ruoyi.common.exception.ServiceException("费用记录不存在");
+        }
+        if (record.getRelatedId() != null || (record.getRelatedType() != null && !record.getRelatedType().isEmpty()))
+        {
+            throw new com.ruoyi.common.exception.ServiceException("订单/押金/拨付关联的费用记录禁止修改或删除");
+        }
     }
 
     /**

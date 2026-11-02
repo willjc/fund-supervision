@@ -59,6 +59,9 @@ public interface IAccountInfoService
      */
     public int updateAccountInfo(AccountInfo accountInfo);
 
+    /** 通用编辑只更新展示信息，不允许改余额、归属或状态。 */
+    public int updateAccountProfile(AccountInfo accountInfo);
+
     /**
      * 批量删除老人账户信息
      *
@@ -113,6 +116,8 @@ public interface IAccountInfoService
      * @return 账户列表
      */
     public List<AccountInfo> selectLowBalanceAccounts(Integer months);
+
+    public List<AccountInfo> selectLowBalanceAccounts(Integer months, Long currentUserId);
 
     /**
      * 冻结/解冻账户

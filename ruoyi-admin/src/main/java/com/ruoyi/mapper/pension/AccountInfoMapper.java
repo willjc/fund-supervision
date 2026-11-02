@@ -121,5 +121,6 @@ public interface AccountInfoMapper
      * @param months 不足月数
      * @return 账户列表
      */
-    public List<AccountInfo> selectLowBalanceAccounts(@Param("months") Integer months);
+    public List<AccountInfo> selectLowBalanceAccounts(@Param("months") Integer months,
+                                                      @Param("currentUserId") Long currentUserId);
 }

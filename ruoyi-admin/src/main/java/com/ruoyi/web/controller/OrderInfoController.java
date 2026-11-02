@@ -20,8 +20,10 @@ import com.ruoyi.domain.OrderInfo;
 import com.ruoyi.domain.BedInfo;
 import com.ruoyi.service.IOrderInfoService;
 import com.ruoyi.service.IBedInfoService;
+import com.ruoyi.service.bank.impl.BankPayoutService;
 import com.ruoyi.mapper.BedAllocationMapper;
 import com.ruoyi.mapper.BedInfoMapper;
+import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.common.core.page.TableDataInfo;
 
@@ -47,6 +49,9 @@ public class OrderInfoController extends BaseController
     @Autowired
     private BedInfoMapper bedInfoMapper;
 
+    @Autowired
+    private BankPayoutService bankPayoutService;
+
     /**
      * 查询订单主表列表
      */
@@ -56,7 +61,7 @@ public class OrderInfoController extends BaseController
     {
         startPage();
         // 数据权限过滤: admin超级管理员可以看到所有订单，其他用户只能看到关联机构的订单
-        if (!getUserId().equals(1L)) {
+        if (!SecurityUtils.isAdmin(getUserId())) {
             orderInfo.setCurrentUserId(getUserId());
         }
         List<OrderInfo> list = orderInfoService.selectOrderInfoList(orderInfo);
@@ -71,6 +76,7 @@ public class OrderInfoController extends BaseController
     @PostMapping("/export")
     public void export(HttpServletResponse response, OrderInfo orderInfo)
     {
+        if (!SecurityUtils.isAdmin(getUserId())) { orderInfo.setCurrentUserId(getUserId()); }
         List<OrderInfo> list = orderInfoService.exportOrderInfo(orderInfo);
         ExcelUtil<OrderInfo> util = new ExcelUtil<OrderInfo>(OrderInfo.class);
         util.exportExcel(response, list, "订单主表数据");
@@ -83,7 +89,7 @@ public class OrderInfoController extends BaseController
     @GetMapping(value = "/{orderId}")
     public AjaxResult getInfo(@PathVariable("orderId") Long orderId)
     {
-        return AjaxResult.success(orderInfoService.selectOrderInfoByOrderId(orderId));
+        return AjaxResult.success(scopedOrder(orderId));
     }
 
     /**
@@ -93,7 +99,10 @@ public class OrderInfoController extends BaseController
     @GetMapping(value = "/orderNo/{orderNo}")
     public AjaxResult getByOrderNo(@PathVariable("orderNo") String orderNo)
     {
-        return AjaxResult.success(orderInfoService.selectOrderInfoByOrderNo(orderNo));
+        OrderInfo order = orderInfoService.selectOrderInfoByOrderNo(orderNo);
+        if (order == null) { return AjaxResult.error("订单不存在"); }
+        bankPayoutService.checkScope(order.getInstitutionId());
+        return AjaxResult.success(order);
     }
 
     /**
@@ -104,6 +113,11 @@ public class OrderInfoController extends BaseController
     @PostMapping
     public AjaxResult add(@RequestBody OrderInfo orderInfo)
     {
+        if (orderInfo.getInstitutionId() == null || orderInfo.getElderId() == null)
+        {
+            return AjaxResult.error("机构和老人不能为空");
+        }
+        bankPayoutService.checkScope(orderInfo.getInstitutionId());
         return toAjax(orderInfoService.insertOrderInfo(orderInfo));
     }
 
@@ -115,6 +129,8 @@ public class OrderInfoController extends BaseController
     @PutMapping
     public AjaxResult edit(@RequestBody OrderInfo orderInfo)
     {
+        scopedOrder(orderInfo.getOrderId());
+        orderInfo.setUpdateBy(getUsername());
         return toAjax(orderInfoService.updateOrderInfo(orderInfo));
     }
 
@@ -126,6 +142,7 @@ public class OrderInfoController extends BaseController
     @PutMapping("/pay/{orderId}")
     public AjaxResult pay(@PathVariable("orderId") Long orderId, @RequestBody OrderInfo orderInfo)
     {
+        scopedOrder(orderId);
         return toAjax(orderInfoService.processOrderPayment(orderId, orderInfo.getPaymentMethod()));
     }
 
@@ -137,6 +154,7 @@ public class OrderInfoController extends BaseController
     @PutMapping("/cancel/{orderId}")
     public AjaxResult cancel(@PathVariable("orderId") Long orderId, @RequestBody OrderInfo orderInfo)
     {
+        scopedOrder(orderId);
         return toAjax(orderInfoService.cancelOrder(orderId, orderInfo.getRemark()));
     }
 
@@ -160,12 +178,24 @@ public class OrderInfoController extends BaseController
     @PutMapping("/approve")
     public AjaxResult approve(@RequestBody OrderInfo orderInfo)
     {
-        // 获取原订单信息
-        OrderInfo oldOrder = orderInfoService.selectOrderInfoByOrderId(orderInfo.getOrderId());
+        OrderInfo oldOrder = scopedOrder(orderInfo.getOrderId());
+        if (!"4".equals(oldOrder.getOrderStatus()))
+        {
+            return AjaxResult.error("只有待审核订单可以审核通过");
+        }
 
         // 如果更换了床位，需要更新床位状态
         Long newBedId = orderInfo.getBedId();
         if (newBedId != null && !newBedId.equals(oldOrder.getBedId())) {
+            BedInfo newBed = bedInfoMapper.selectBedInfoByBedId(newBedId);
+            if (newBed == null || !java.util.Objects.equals(newBed.getInstitutionId(), oldOrder.getInstitutionId()))
+            {
+                return AjaxResult.error("新床位不存在或不属于该机构");
+            }
+            if (!"0".equals(newBed.getBedStatus()))
+            {
+                return AjaxResult.error("新床位已被占用");
+            }
             // 原床位恢复为空置
             if (oldOrder.getBedId() != null) {
                 bedInfoService.updateBedStatus(oldOrder.getBedId(), "0");
@@ -180,12 +210,8 @@ public class OrderInfoController extends BaseController
                 oldOrder.getInstitutionId()
             );
 
-            // 获取新床位信息，用于更新订单明细描述
-            BedInfo newBed = bedInfoMapper.selectBedInfoByBedId(newBedId);
-            if (newBed != null) {
-                orderInfo.setAuditRoomNumber(newBed.getRoomNumber());
-                orderInfo.setAuditBedNumber(newBed.getBedNumber());
-            }
+            orderInfo.setAuditRoomNumber(newBed.getRoomNumber());
+            orderInfo.setAuditBedNumber(newBed.getBedNumber());
         }
 
         // 设置护理等级（用于更新订单明细描述）
@@ -222,7 +248,13 @@ public class OrderInfoController extends BaseController
     @PutMapping("/reject")
     public AjaxResult reject(@RequestBody OrderInfo orderInfo)
     {
+        OrderInfo oldOrder = scopedOrder(orderInfo.getOrderId());
+        if (!"4".equals(oldOrder.getOrderStatus()))
+        {
+            return AjaxResult.error("只有待审核订单可以审核拒绝");
+        }
         orderInfo.setOrderStatus("2"); // 2-已取消（审核拒绝）
+        orderInfo.setUpdateBy(getUsername());
         return toAjax(orderInfoService.updateOrderInfo(orderInfo));
     }
 
@@ -234,6 +266,7 @@ public class OrderInfoController extends BaseController
     @PutMapping("/offlinePay/{orderId}")
     public AjaxResult offlinePay(@PathVariable("orderId") Long orderId, @RequestBody OrderInfo orderInfo)
     {
+        scopedOrder(orderId);
         return toAjax(orderInfoService.offlinePayOrder(orderId, orderInfo.getPaymentMethod(),
             orderInfo.getPaymentProof(), orderInfo.getPaymentProofRemark()));
     }
@@ -246,6 +279,15 @@ public class OrderInfoController extends BaseController
 	@DeleteMapping("/{orderIds}")
     public AjaxResult remove(@PathVariable Long[] orderIds)
     {
+        for (Long orderId : orderIds) { scopedOrder(orderId); }
         return toAjax(orderInfoService.deleteOrderInfoByOrderIds(orderIds));
+    }
+
+    private OrderInfo scopedOrder(Long orderId)
+    {
+        OrderInfo order = orderInfoService.selectOrderInfoByOrderId(orderId);
+        if (order == null) { throw new com.ruoyi.common.exception.ServiceException("订单不存在"); }
+        bankPayoutService.checkScope(order.getInstitutionId());
+        return order;
     }
 }

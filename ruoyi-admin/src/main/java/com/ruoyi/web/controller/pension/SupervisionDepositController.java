@@ -33,6 +33,9 @@ public class SupervisionDepositController extends BaseController
     @Autowired
     private IDepositApplyService depositApplyService;
 
+    @Autowired
+    private com.ruoyi.service.bank.impl.BankPayoutService bankPayoutService;
+
     /**
      * 查询押金使用审批列表
      */
@@ -41,6 +44,7 @@ public class SupervisionDepositController extends BaseController
     public TableDataInfo list(DepositApply depositApply)
     {
         startPage();
+        applyDataScope(depositApply);
         // 查询所有状态的押金申请，由前端传入的applyStatus参数控制筛选
         List<DepositApply> list = depositApplyService.selectDepositApplyList(depositApply);
         return getDataTable(list);
@@ -54,6 +58,7 @@ public class SupervisionDepositController extends BaseController
     public TableDataInfo listAll(DepositApply depositApply)
     {
         startPage();
+        applyDataScope(depositApply);
         List<DepositApply> list = depositApplyService.selectDepositApplyList(depositApply);
         return getDataTable(list);
     }
@@ -66,6 +71,7 @@ public class SupervisionDepositController extends BaseController
     @PostMapping("/approval/export")
     public void export(HttpServletResponse response, DepositApply depositApply)
     {
+        applyDataScope(depositApply);
         List<DepositApply> list = depositApplyService.selectDepositApplyList(depositApply);
         ExcelUtil<DepositApply> util = new ExcelUtil<DepositApply>(DepositApply.class);
         util.exportExcel(response, list, "押金使用审批数据");
@@ -78,7 +84,10 @@ public class SupervisionDepositController extends BaseController
     @GetMapping(value = "/approval/{applyId}")
     public AjaxResult getInfo(@PathVariable("applyId") Long applyId)
     {
-        return AjaxResult.success(depositApplyService.selectDepositApplyByApplyId(applyId));
+        DepositApply apply = depositApplyService.selectDepositApplyByApplyId(applyId);
+        if (apply == null) { return AjaxResult.error("押金申请不存在"); }
+        bankPayoutService.checkScope(apply.getInstitutionId());
+        return AjaxResult.success(apply);
     }
 
     /**
@@ -136,6 +145,7 @@ public class SupervisionDepositController extends BaseController
     public AjaxResult getApprovalStatistics()
     {
         DepositApply query = new DepositApply();
+        applyDataScope(query);
 
         // 待监管审批数量（家属已审批，等待监管审批）
         query.setApplyStatus("family_approved");
@@ -199,6 +209,7 @@ public class SupervisionDepositController extends BaseController
     public AjaxResult getTodayPending()
     {
         DepositApply query = new DepositApply();
+        applyDataScope(query);
         query.setApplyStatus("family_approved");
         List<DepositApply> allPending = depositApplyService.selectDepositApplyList(query);
 
@@ -227,6 +238,7 @@ public class SupervisionDepositController extends BaseController
     public AjaxResult getUrgentApplies()
     {
         DepositApply query = new DepositApply();
+        applyDataScope(query);
         query.setApplyStatus("family_approved");
         query.setUrgencyLevel("1"); // 紧急
         List<DepositApply> urgentList = depositApplyService.selectDepositApplyList(query);
@@ -242,6 +254,7 @@ public class SupervisionDepositController extends BaseController
     public AjaxResult getLargeAmountApplies()
     {
         DepositApply query = new DepositApply();
+        applyDataScope(query);
         query.setApplyStatus("family_approved");
         List<DepositApply> allPending = depositApplyService.selectDepositApplyList(query);
 
@@ -266,6 +279,7 @@ public class SupervisionDepositController extends BaseController
     public AjaxResult getStatisticsByType()
     {
         DepositApply query = new DepositApply();
+        applyDataScope(query);
         query.setApplyStatus("family_approved");
         List<DepositApply> allPending = depositApplyService.selectDepositApplyList(query);
 
@@ -277,5 +291,13 @@ public class SupervisionDepositController extends BaseController
             ));
 
         return AjaxResult.success(typeStatistics);
+    }
+
+    private void applyDataScope(DepositApply query)
+    {
+        if (!com.ruoyi.common.utils.SecurityUtils.isAdmin(getUserId()))
+        {
+            query.setCurrentUserId(getUserId());
+        }
     }
 }

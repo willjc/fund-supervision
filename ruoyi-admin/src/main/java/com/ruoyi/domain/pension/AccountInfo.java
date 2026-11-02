@@ -34,6 +34,9 @@ public class AccountInfo extends BaseEntity
     public void setBankDepositBalance(BigDecimal value) { bankDepositBalance = value; }
     private static final long serialVersionUID = 1L;
 
+    /** 列表数据范围过滤用，不参与持久化 */
+    private transient Long currentUserId;
+
     /** 账户ID */
     private Long accountId;
 
@@ -82,6 +85,16 @@ public class AccountInfo extends BaseEntity
 
     @Excel(name = "机构名称")
     private String institutionName;
+
+    public Long getCurrentUserId()
+    {
+        return currentUserId;
+    }
+
+    public void setCurrentUserId(Long currentUserId)
+    {
+        this.currentUserId = currentUserId;
+    }
 
     public void setAccountId(Long accountId)
     {

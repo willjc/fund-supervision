@@ -94,12 +94,17 @@ public class OrderInfoServiceImpl implements IOrderInfoService
     @Transactional
     public int insertOrderInfo(OrderInfo orderInfo)
     {
+        if (orderInfo.getOrderAmount() != null && orderInfo.getOrderAmount().signum() < 0)
+        {
+            throw new com.ruoyi.common.exception.ServiceException("订单金额不能为负数");
+        }
         // 生成订单号：ORD + 时间戳 + 4位随机数
         String orderNo = "ORD" + System.currentTimeMillis() + String.format("%04d", (int)(Math.random() * 10000));
         orderInfo.setOrderNo(orderNo);
         orderInfo.setCreateTime(DateUtils.getNowDate());
-        orderInfo.setOrderStatus("1"); // 默认状态为待支付
+        orderInfo.setOrderStatus("0"); // 0-未支付
         orderInfo.setPaidAmount(java.math.BigDecimal.ZERO);
+        orderInfo.setPaymentTime(null);
         return orderInfoMapper.insertOrderInfo(orderInfo);
     }
 
@@ -113,6 +118,37 @@ public class OrderInfoServiceImpl implements IOrderInfoService
     @Transactional
     public int updateOrderInfo(OrderInfo orderInfo)
     {
+        OrderInfo existing = orderInfoMapper.selectOrderInfoByOrderId(orderInfo.getOrderId());
+        if (existing == null)
+        {
+            throw new com.ruoyi.common.exception.ServiceException("订单不存在");
+        }
+        if (orderInfo.getOrderAmount() != null && orderInfo.getOrderAmount().signum() < 0)
+        {
+            throw new com.ruoyi.common.exception.ServiceException("订单金额不能为负数");
+        }
+        if ("1".equals(orderInfo.getOrderStatus()) && !"1".equals(existing.getOrderStatus()))
+        {
+            throw new com.ruoyi.common.exception.ServiceException("支付状态只能通过支付流程变更");
+        }
+        BigDecimal paid = existing.getPaidAmount() == null ? BigDecimal.ZERO : existing.getPaidAmount();
+        if (orderInfo.getOrderAmount() != null && orderInfo.getOrderAmount().compareTo(paid) < 0)
+        {
+            throw new com.ruoyi.common.exception.ServiceException("订单金额不能小于已支付金额");
+        }
+        // 订单归属、支付事实和订单号只能由各自流程写入。
+        orderInfo.setInstitutionId(existing.getInstitutionId());
+        orderInfo.setElderId(existing.getElderId());
+        orderInfo.setOrderNo(existing.getOrderNo());
+        orderInfo.setPaidAmount(existing.getPaidAmount());
+        orderInfo.setPaymentTime(existing.getPaymentTime());
+        orderInfo.setPaymentMethod(existing.getPaymentMethod());
+        if ("1".equals(existing.getOrderStatus()))
+        {
+            orderInfo.setOrderAmount(null);
+            orderInfo.setOriginalAmount(null);
+            orderInfo.setDiscountAmount(null);
+        }
         orderInfo.setUpdateTime(DateUtils.getNowDate());
 
         // 如果是审核通过操作（状态变为5），需要更新订单明细中的价格
@@ -348,6 +384,7 @@ public class OrderInfoServiceImpl implements IOrderInfoService
     @Transactional
     public int deleteOrderInfoByOrderIds(Long[] orderIds)
     {
+        for (Long orderId : orderIds) { requireDeletable(orderId); }
         return orderInfoMapper.deleteOrderInfoByOrderIds(orderIds);
     }
 
@@ -361,7 +398,22 @@ public class OrderInfoServiceImpl implements IOrderInfoService
     @Transactional
     public int deleteOrderInfoByOrderId(Long orderId)
     {
+        requireDeletable(orderId);
         return orderInfoMapper.deleteOrderInfoByOrderId(orderId);
+    }
+
+    private void requireDeletable(Long orderId)
+    {
+        OrderInfo order = orderInfoMapper.selectOrderInfoByOrderId(orderId);
+        if (order == null)
+        {
+            throw new com.ruoyi.common.exception.ServiceException("订单不存在");
+        }
+        java.math.BigDecimal paid = order.getPaidAmount() == null ? BigDecimal.ZERO : order.getPaidAmount();
+        if ("1".equals(order.getOrderStatus()) || paid.signum() > 0)
+        {
+            throw new com.ruoyi.common.exception.ServiceException("已支付订单不能删除，请通过退款流程处理");
+        }
     }
 
     /**
@@ -426,19 +478,8 @@ public class OrderInfoServiceImpl implements IOrderInfoService
     @Transactional
     public int processOrderPayment(Long orderId, String paymentMethod)
     {
-        OrderInfo orderInfo = orderInfoMapper.selectOrderInfoByOrderId(orderId);
-        if (orderInfo == null || !"0".equals(orderInfo.getOrderStatus())) {
-            return 0;
-        }
-
-        // 更新订单状态为已支付
-        orderInfo.setOrderStatus("1");
-        orderInfo.setPaidAmount(orderInfo.getOrderAmount());
-        orderInfo.setPaymentMethod(paymentMethod);
-        orderInfo.setPaymentTime(new Date());
-        orderInfo.setUpdateTime(DateUtils.getNowDate());
-
-        return orderInfoMapper.updateOrderInfo(orderInfo);
+        // 管理端确认支付也必须同步入账、流水和费用记录，不能只改订单状态。
+        return offlinePayOrder(orderId, paymentMethod, null, "管理端确认支付");
     }
 
     /**

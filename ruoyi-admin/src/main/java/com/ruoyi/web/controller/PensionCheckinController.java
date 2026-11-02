@@ -23,6 +23,12 @@ public class PensionCheckinController extends BaseController
     @Autowired
     private IPensionCheckinService pensionCheckinService;
 
+    @Autowired
+    private com.ruoyi.mapper.BedInfoMapper bedInfoMapper;
+
+    @Autowired
+    private com.ruoyi.service.bank.impl.BankPayoutService bankPayoutService;
+
     /**
      * 创建入驻申请
      * 一次性完成:
@@ -37,6 +43,10 @@ public class PensionCheckinController extends BaseController
     @PostMapping("/create")
     public AjaxResult create(@RequestBody PensionCheckinDTO dto)
     {
+        com.ruoyi.domain.BedInfo bed = dto.getBedId() == null ? null
+                : bedInfoMapper.selectBedInfoByBedId(dto.getBedId());
+        if (bed == null) { return AjaxResult.error("床位不存在"); }
+        bankPayoutService.checkScope(bed.getInstitutionId());
         return toAjax(pensionCheckinService.createCheckin(dto, getUserId()));
     }
 }

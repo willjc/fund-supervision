@@ -61,6 +61,9 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
     private IAccountInfoService accountInfoService;
 
     @Autowired
+    private com.ruoyi.mapper.pension.AccountInfoMapper accountInfoMapper;
+
+    @Autowired
     private com.ruoyi.service.pension.IFundTransferService fundTransferService;
 
     /**
@@ -95,6 +98,23 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
         }
         if (!"0".equals(bedInfo.getBedStatus())) {
             throw new ServiceException("床位已被占用或不可用");
+        }
+        if (dto.getMonthlyFee() == null || dto.getMonthlyFee().signum() < 0
+                || (dto.getDepositAmount() != null && dto.getDepositAmount().signum() < 0)
+                || (dto.getMemberFee() != null && dto.getMemberFee().signum() < 0)
+                || (dto.getBedFee() != null && dto.getBedFee().signum() < 0)
+                || (dto.getCareFee() != null && dto.getCareFee().signum() < 0)
+                || (dto.getMealFee() != null && dto.getMealFee().signum() < 0))
+        {
+            throw new ServiceException("入住费用不能为负数");
+        }
+        if (dto.getMonthCount() == null || dto.getMonthCount() <= 0)
+        {
+            throw new ServiceException("入住月数必须大于 0");
+        }
+        if (bedInfoMapper.occupyBed(bedId) != 1)
+        {
+            throw new ServiceException("床位已被占用，请重新选择");
         }
         Long institutionId = bedInfo.getInstitutionId();
 
@@ -212,10 +232,14 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
                 .add(dto.getDepositAmount() != null ? dto.getDepositAmount() : BigDecimal.ZERO)
                 .add(dto.getMemberFee() != null ? dto.getMemberFee() : BigDecimal.ZERO);
 
-        // 使用前端传来的实收总计(已包含优惠调整)
+        // 实收金额允许优惠，但不能为负或高于应收，避免客户端篡改价格。
         BigDecimal finalAmount = dto.getFinalAmount();
         if (finalAmount == null) {
             finalAmount = originalAmount;
+        }
+        if (finalAmount.signum() < 0 || finalAmount.compareTo(originalAmount) > 0)
+        {
+            throw new ServiceException("实收金额不能为负或超过应收金额");
         }
 
         // 计算优惠金额 = 应收总计 - 实收总计
@@ -395,9 +419,6 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
             updateAccountBalance(elderId, institutionId, dto, firstMonthServiceFee, monthCount);
         }
 
-        // ========== 7. 更新床位状态为占用 ==========
-        bedInfoMapper.updateBedStatus(bedId, "1"); // 1-占用
-
         return 1;
     }
 
@@ -489,7 +510,7 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
      */
     private void updateAccountBalance(Long elderId, Long institutionId, PensionCheckinDTO dto,
                                       BigDecimal firstMonthServiceFee, Integer monthCount) {
-        AccountInfo account = accountInfoService.selectAccountInfoByElderId(elderId);
+        AccountInfo account = accountInfoMapper.selectAccountInfoForUpdate(elderId, institutionId);
         if (account == null) {
             account = accountInfoService.createAccountInfo(elderId, institutionId, BigDecimal.ZERO);
         }

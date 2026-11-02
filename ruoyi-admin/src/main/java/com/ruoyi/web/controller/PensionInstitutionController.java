@@ -22,6 +22,7 @@ import com.ruoyi.domain.PensionInstitution;
 import com.ruoyi.domain.ReleaseSupervision;
 import com.ruoyi.service.IPensionInstitutionService;
 import com.ruoyi.service.IReleaseSupervisionService;
+import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.common.core.page.TableDataInfo;
 
@@ -80,6 +81,7 @@ public class PensionInstitutionController extends BaseController
     @PostMapping("/export")
     public void export(HttpServletResponse response, PensionInstitution pensionInstitution)
     {
+        pensionInstitution.setCurrentUserId(getUserId());
         List<PensionInstitution> list = pensionInstitutionService.selectPensionInstitutionList(pensionInstitution);
         ExcelUtil<PensionInstitution> util = new ExcelUtil<PensionInstitution>(PensionInstitution.class);
         util.exportExcel(response, list, "养老机构信息数据");
@@ -143,6 +145,10 @@ public class PensionInstitutionController extends BaseController
 
         // 如果传入 institutionId，说明是编辑现有记录（草稿、已驳回等状态）
         if (pensionInstitution.getInstitutionId() != null) {
+            if (!hasInstitutionRelation(pensionInstitution.getInstitutionId()))
+            {
+                return AjaxResult.error("无权操作此机构");
+            }
             System.out.println("编辑模式：直接更新现有记录,ID: " + pensionInstitution.getInstitutionId());
             pensionInstitution.setStatus("0"); // 设置为待审批
             pensionInstitution.setApplyTime(new java.util.Date());
@@ -214,6 +220,10 @@ public class PensionInstitutionController extends BaseController
 
         // 如果传入 institutionId，说明是编辑模式，直接执行更新
         if (pensionInstitution.getInstitutionId() != null) {
+            if (!hasInstitutionRelation(pensionInstitution.getInstitutionId()))
+            {
+                return AjaxResult.error("无权操作此机构");
+            }
             System.out.println("编辑模式：直接更新已有记录,ID: " + pensionInstitution.getInstitutionId());
             pensionInstitution.setStatus("4"); // 设置为草稿状态
             // 清除审批相关字段,确保草稿状态的纯净性
@@ -269,6 +279,10 @@ public class PensionInstitutionController extends BaseController
     @PutMapping("/maintain/submit")
     public AjaxResult submitMaintain(@RequestBody PensionInstitution pensionInstitution)
     {
+        if (!hasInstitutionRelation(pensionInstitution.getInstitutionId()))
+        {
+            return AjaxResult.error("无权操作此机构");
+        }
         // 设置为维护待审批状态
         pensionInstitution.setStatus("6");
         pensionInstitution.setApplyTime(new java.util.Date());
@@ -282,6 +296,10 @@ public class PensionInstitutionController extends BaseController
     @PutMapping("/maintain/draft")
     public AjaxResult saveMaintainDraft(@RequestBody PensionInstitution pensionInstitution)
     {
+        if (!hasInstitutionRelation(pensionInstitution.getInstitutionId()))
+        {
+            return AjaxResult.error("无权操作此机构");
+        }
         // 设置为维护中状态
         pensionInstitution.setStatus("5");
         return toAjax(pensionInstitutionService.updatePensionInstitution(pensionInstitution));
@@ -303,6 +321,15 @@ public class PensionInstitutionController extends BaseController
      * @param institutionId 机构ID
      * @param userId 用户ID
      */
+    private boolean hasInstitutionRelation(Long institutionId)
+    {
+        if (institutionId == null) { return false; }
+        if (SecurityUtils.isAdmin(getUserId())) { return true; }
+        String checkSql = "SELECT COUNT(*) FROM sys_user_institution WHERE user_id = ? AND institution_id = ?";
+        Integer count = jdbcTemplate.queryForObject(checkSql, Integer.class, getUserId(), institutionId);
+        return count != null && count > 0;
+    }
+
     private void createUserInstitutionRelation(Long institutionId, Long userId)
     {
         // 检查是否已存在关联
@@ -404,6 +431,10 @@ public class PensionInstitutionController extends BaseController
     @GetMapping("/release/status/{institutionId}")
     public AjaxResult getReleaseApplyStatus(@PathVariable Long institutionId)
     {
+        if (!hasInstitutionRelation(institutionId))
+        {
+            return AjaxResult.error("无权查看此机构");
+        }
         ReleaseSupervision query = new ReleaseSupervision();
         query.setInstitutionId(institutionId);
         List<ReleaseSupervision> list = releaseSupervisionService.selectReleaseSupervisionList(query);

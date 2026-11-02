@@ -26,6 +26,7 @@ import com.ruoyi.domain.BedAllocation;
 import com.ruoyi.domain.BedInfo;
 import com.ruoyi.domain.ElderInfo;
 import com.ruoyi.domain.OrderInfo;
+import com.ruoyi.domain.PensionCheckinDTO;
 import com.ruoyi.domain.pension.AccountInfo;
 import com.ruoyi.mapper.BedAllocationMapper;
 import com.ruoyi.mapper.BedInfoMapper;
@@ -118,6 +119,80 @@ class PensionCheckinCheckoutTest
                 () -> service.checkoutElder(108L, 32L, "jg", 130L));
         assertTrue(error.getMessage().contains("余额未清零"));
         verify(bedAllocationMapper, never()).updateBedAllocation(any());
+    }
+
+    @Test
+    void checkinShouldRejectNegativeFeeBeforeOccupyingBed()
+    {
+        BedInfo bed = new BedInfo();
+        bed.setBedId(167L);
+        bed.setInstitutionId(32L);
+        bed.setBedStatus("0");
+        when(bedInfoMapper.selectBedInfoByBedId(167L)).thenReturn(bed);
+        PensionCheckinDTO dto = new PensionCheckinDTO();
+        dto.setBedId(167L);
+        dto.setMonthlyFee(new BigDecimal("-1"));
+        dto.setMonthCount(1);
+
+        ServiceException error = assertThrows(ServiceException.class,
+                () -> service.createCheckin(dto, 130L));
+        assertTrue(error.getMessage().contains("不能为负数"));
+        verify(bedInfoMapper, never()).occupyBed(anyLong());
+    }
+
+    @Test
+    void checkinShouldRejectBedLostToConcurrentOccupancy()
+    {
+        BedInfo bed = new BedInfo();
+        bed.setBedId(167L);
+        bed.setInstitutionId(32L);
+        bed.setBedStatus("0");
+        when(bedInfoMapper.selectBedInfoByBedId(167L)).thenReturn(bed);
+        when(bedInfoMapper.occupyBed(167L)).thenReturn(0);
+        PensionCheckinDTO dto = new PensionCheckinDTO();
+        dto.setBedId(167L);
+        dto.setMonthlyFee(new BigDecimal("100"));
+        dto.setMonthCount(1);
+
+        ServiceException error = assertThrows(ServiceException.class,
+                () -> service.createCheckin(dto, 130L));
+        assertTrue(error.getMessage().contains("床位已被占用"));
+        verify(elderInfoMapper, never()).insertElderInfo(any());
+    }
+
+    @Test
+    void checkinShouldRejectPaymentAboveReceivable()
+    {
+        BedInfo bed = new BedInfo();
+        bed.setBedId(167L);
+        bed.setInstitutionId(32L);
+        bed.setBedStatus("0");
+        bed.setRoomNumber("101");
+        bed.setBedNumber("1");
+        bed.setPrice(new BigDecimal("100"));
+        when(bedInfoMapper.selectBedInfoByBedId(167L)).thenReturn(bed);
+        when(bedInfoMapper.occupyBed(167L)).thenReturn(1);
+        ElderInfo elder = new ElderInfo();
+        elder.setElderId(108L);
+        when(elderInfoMapper.selectElderInfoByIdCard("ID1")).thenReturn(elder);
+        when(bedAllocationMapper.selectActiveByElderAndInstitution(108L, 32L)).thenReturn(null);
+        AccountInfo account = new AccountInfo();
+        account.setAccountId(1L);
+        account.setServiceBalance(BigDecimal.ZERO);
+        account.setDepositBalance(BigDecimal.ZERO);
+        account.setMemberBalance(BigDecimal.ZERO);
+        when(accountInfoService.selectAccountInfoByElderId(108L)).thenReturn(account);
+        PensionCheckinDTO dto = new PensionCheckinDTO();
+        dto.setBedId(167L);
+        dto.setIdCard("ID1");
+        dto.setMonthlyFee(new BigDecimal("100"));
+        dto.setMonthCount(1);
+        dto.setFinalAmount(new BigDecimal("101"));
+
+        ServiceException error = assertThrows(ServiceException.class,
+                () -> service.createCheckin(dto, 130L));
+        assertTrue(error.getMessage().contains("实收金额"));
+        verify(orderInfoMapper, never()).insertOrderInfo(any());
     }
 
     @Test

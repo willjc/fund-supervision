@@ -44,6 +44,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <select id="selectAccountInfoList" parameterType="AccountInfo" resultMap="AccountInfoResult">
         <include refid="selectAccountInfoVo"/>
         <where>
+            <if test="currentUserId != null">
+                and a.institution_id in (
+                    select institution_id from sys_user_institution where user_id = #{currentUserId}
+                )
+            </if>
             <if test="elderId != null "> and a.elder_id = #{elderId}</if>
             <if test="institutionId != null "> and a.institution_id = #{institutionId}</if>
             <if test="accountNo != null  and accountNo != ''"> and a.account_no like concat('%', #{accountNo}, '%')</if>
@@ -94,9 +99,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         WHERE institution_id = #{institutionId} AND account_status = '1'
     </select>
 
-    <select id="selectLowBalanceAccounts" parameterType="Integer" resultMap="AccountInfoResult">
+    <select id="selectLowBalanceAccounts" resultMap="AccountInfoResult">
         <include refid="selectAccountInfoVo"/>
         where a.account_status = '1'
+        <if test="currentUserId != null">
+            and a.institution_id in (
+                select institution_id from sys_user_institution where user_id = #{currentUserId}
+            )
+        </if>
         and a.service_balance &lt; (
             SELECT AVG(monthly_fee)
             FROM elder_check_in ec
@@ -195,6 +205,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <delete id="deleteAccountInfoByAccountId" parameterType="Long">
         delete from account_info where account_id = #{accountId}
+        and total_balance=0 and service_balance=0 and deposit_balance=0 and member_balance=0
         and bank_service_balance=0 and bank_deposit_balance=0 and service_reserved=0 and deposit_reserved=0
     </delete>
 
@@ -203,6 +214,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <foreach item="accountId" collection="array" open="(" separator="," close=")">
             #{accountId}
         </foreach>
+        and total_balance=0 and service_balance=0 and deposit_balance=0 and member_balance=0
         and bank_service_balance=0 and bank_deposit_balance=0 and service_reserved=0 and deposit_reserved=0
     </delete>
 </mapper>

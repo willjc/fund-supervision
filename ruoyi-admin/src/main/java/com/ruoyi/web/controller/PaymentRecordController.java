@@ -35,6 +35,12 @@ public class PaymentRecordController extends BaseController
     @Autowired
     private IPaymentRecordService paymentRecordService;
 
+    @Autowired
+    private com.ruoyi.service.bank.impl.BankPayoutService bankPayoutService;
+
+    @Autowired
+    private com.ruoyi.service.IOrderInfoService orderInfoService;
+
     /**
      * 查询支付记录列表
      */
@@ -67,7 +73,10 @@ public class PaymentRecordController extends BaseController
     @GetMapping(value = "/{paymentId}")
     public AjaxResult getInfo(@PathVariable("paymentId") Long paymentId)
     {
-        return AjaxResult.success(paymentRecordService.selectPaymentRecordByPaymentId(paymentId));
+        com.ruoyi.domain.PaymentRecord record = paymentRecordService.selectPaymentRecordByPaymentId(paymentId);
+        if (record == null) { return AjaxResult.error("支付记录不存在"); }
+        bankPayoutService.checkScope(record.getInstitutionId());
+        return AjaxResult.success(record);
     }
 
     /**
@@ -77,7 +86,10 @@ public class PaymentRecordController extends BaseController
     @GetMapping(value = "/paymentNo/{paymentNo}")
     public AjaxResult getByPaymentNo(@PathVariable("paymentNo") String paymentNo)
     {
-        return AjaxResult.success(paymentRecordService.selectPaymentRecordByPaymentNo(paymentNo));
+        com.ruoyi.domain.PaymentRecord record = paymentRecordService.selectPaymentRecordByPaymentNo(paymentNo);
+        if (record == null) { return AjaxResult.error("支付记录不存在"); }
+        bankPayoutService.checkScope(record.getInstitutionId());
+        return AjaxResult.success(record);
     }
 
     /**
@@ -88,7 +100,7 @@ public class PaymentRecordController extends BaseController
     @PostMapping
     public AjaxResult add(@RequestBody PaymentRecord paymentRecord)
     {
-        return toAjax(paymentRecordService.insertPaymentRecord(paymentRecord));
+        return AjaxResult.error("支付记录只能由支付、退款或拨付流程生成，不能手工新增");
     }
 
     /**
@@ -99,7 +111,7 @@ public class PaymentRecordController extends BaseController
     @PutMapping
     public AjaxResult edit(@RequestBody PaymentRecord paymentRecord)
     {
-        return toAjax(paymentRecordService.updatePaymentRecord(paymentRecord));
+        return AjaxResult.error("支付记录禁止修改，请通过退款或重新支付处理");
     }
 
     /**
@@ -110,7 +122,7 @@ public class PaymentRecordController extends BaseController
     @PutMapping("/status/{paymentId}")
     public AjaxResult updateStatus(@PathVariable("paymentId") Long paymentId, @RequestBody PaymentRecord paymentRecord)
     {
-        return toAjax(paymentRecordService.updatePaymentStatus(paymentId, paymentRecord.getPaymentStatus()));
+        return AjaxResult.error("支付状态由银行结果或退款流程回写，不能手工修改");
     }
 
     /**
@@ -121,6 +133,9 @@ public class PaymentRecordController extends BaseController
     @PostMapping("/simulate/{orderId}")
     public AjaxResult simulatePayment(@PathVariable("orderId") Long orderId, @RequestBody PaymentRecord paymentRecord)
     {
+        com.ruoyi.domain.OrderInfo order = orderInfoService.selectOrderInfoByOrderId(orderId);
+        if (order == null) { return AjaxResult.error("订单不存在"); }
+        bankPayoutService.checkScope(order.getInstitutionId());
         PaymentRecord result = paymentRecordService.simulatePayment(orderId, paymentRecord.getPaymentMethod());
         if (result != null) {
             return AjaxResult.success("支付成功", result);

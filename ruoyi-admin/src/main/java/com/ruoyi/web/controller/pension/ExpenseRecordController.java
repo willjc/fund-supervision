@@ -18,6 +18,7 @@ import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.domain.pension.ExpenseRecord;
 import com.ruoyi.service.pension.IExpenseRecordService;
+import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.common.core.page.TableDataInfo;
 
@@ -34,6 +35,12 @@ public class ExpenseRecordController extends BaseController
     @Autowired
     private IExpenseRecordService expenseRecordService;
 
+    @Autowired
+    private com.ruoyi.service.pension.IAccountInfoService accountInfoService;
+
+    @Autowired
+    private com.ruoyi.service.bank.impl.BankPayoutService bankPayoutService;
+
     /**
      * 查询费用记录列表
      */
@@ -42,6 +49,7 @@ public class ExpenseRecordController extends BaseController
     public TableDataInfo list(ExpenseRecord expenseRecord)
     {
         startPage();
+        if (!SecurityUtils.isAdmin(getUserId())) { expenseRecord.setCurrentUserId(getUserId()); }
         List<ExpenseRecord> list = expenseRecordService.selectExpenseRecordList(expenseRecord);
         return getDataTable(list);
     }
@@ -53,6 +61,9 @@ public class ExpenseRecordController extends BaseController
     @GetMapping("/elder/{elderId}")
     public AjaxResult getExpenseByElderId(@PathVariable("elderId") Long elderId)
     {
+        com.ruoyi.domain.pension.AccountInfo account = accountInfoService.selectAccountInfoByElderId(elderId);
+        if (account == null) { return AjaxResult.error("账户不存在"); }
+        bankPayoutService.checkScope(account.getInstitutionId());
         List<ExpenseRecord> list = expenseRecordService.selectExpenseRecordByElderId(elderId);
         return AjaxResult.success(list);
     }
@@ -64,6 +75,9 @@ public class ExpenseRecordController extends BaseController
     @GetMapping("/account/{accountId}")
     public AjaxResult getExpenseByAccountId(@PathVariable("accountId") Long accountId)
     {
+        com.ruoyi.domain.pension.AccountInfo account = accountInfoService.selectAccountInfoByAccountId(accountId);
+        if (account == null) { return AjaxResult.error("账户不存在"); }
+        bankPayoutService.checkScope(account.getInstitutionId());
         List<ExpenseRecord> list = expenseRecordService.selectExpenseRecordByAccountId(accountId);
         return AjaxResult.success(list);
     }
@@ -76,6 +90,7 @@ public class ExpenseRecordController extends BaseController
     @PostMapping("/export")
     public void export(HttpServletResponse response, ExpenseRecord expenseRecord)
     {
+        if (!SecurityUtils.isAdmin(getUserId())) { expenseRecord.setCurrentUserId(getUserId()); }
         List<ExpenseRecord> list = expenseRecordService.selectExpenseRecordList(expenseRecord);
         ExcelUtil<ExpenseRecord> util = new ExcelUtil<ExpenseRecord>(ExpenseRecord.class);
         util.exportExcel(response, list, "费用记录数据");
@@ -88,7 +103,12 @@ public class ExpenseRecordController extends BaseController
     @GetMapping(value = "/{recordId}")
     public AjaxResult getInfo(@PathVariable("recordId") Long recordId)
     {
-        return AjaxResult.success(expenseRecordService.selectExpenseRecordByRecordId(recordId));
+        ExpenseRecord record = expenseRecordService.selectExpenseRecordByRecordId(recordId);
+        if (record == null) { return AjaxResult.error("费用记录不存在"); }
+        com.ruoyi.domain.pension.AccountInfo account = accountInfoService.selectAccountInfoByAccountId(record.getAccountId());
+        if (account == null) { return AjaxResult.error("账户不存在"); }
+        bankPayoutService.checkScope(account.getInstitutionId());
+        return AjaxResult.success(record);
     }
 
     /**
@@ -99,6 +119,10 @@ public class ExpenseRecordController extends BaseController
     @PostMapping
     public AjaxResult add(@RequestBody ExpenseRecord expenseRecord)
     {
+        if (expenseRecord.getAccountId() == null) { return AjaxResult.error("账户不能为空"); }
+        com.ruoyi.domain.pension.AccountInfo account = accountInfoService.selectAccountInfoByAccountId(expenseRecord.getAccountId());
+        if (account == null) { return AjaxResult.error("账户不存在"); }
+        bankPayoutService.checkScope(account.getInstitutionId());
         return toAjax(expenseRecordService.insertExpenseRecord(expenseRecord));
     }
 
@@ -110,6 +134,11 @@ public class ExpenseRecordController extends BaseController
     @PutMapping
     public AjaxResult edit(@RequestBody ExpenseRecord expenseRecord)
     {
+        ExpenseRecord existing = expenseRecordService.selectExpenseRecordByRecordId(expenseRecord.getRecordId());
+        if (existing == null) { return AjaxResult.error("费用记录不存在"); }
+        com.ruoyi.domain.pension.AccountInfo account = accountInfoService.selectAccountInfoByAccountId(existing.getAccountId());
+        if (account == null) { return AjaxResult.error("账户不存在"); }
+        bankPayoutService.checkScope(account.getInstitutionId());
         return toAjax(expenseRecordService.updateExpenseRecord(expenseRecord));
     }
 
@@ -121,6 +150,14 @@ public class ExpenseRecordController extends BaseController
     @DeleteMapping("/{recordIds}")
     public AjaxResult remove(@PathVariable Long[] recordIds)
     {
+        for (Long recordId : recordIds)
+        {
+            ExpenseRecord record = expenseRecordService.selectExpenseRecordByRecordId(recordId);
+            if (record == null) { return AjaxResult.error("费用记录不存在"); }
+            com.ruoyi.domain.pension.AccountInfo account = accountInfoService.selectAccountInfoByAccountId(record.getAccountId());
+            if (account == null) { return AjaxResult.error("账户不存在"); }
+            bankPayoutService.checkScope(account.getInstitutionId());
+        }
         return toAjax(expenseRecordService.deleteExpenseRecordByRecordIds(recordIds));
     }
 
@@ -131,10 +168,9 @@ public class ExpenseRecordController extends BaseController
     @GetMapping("/statistics")
     public AjaxResult getStatistics()
     {
-        // 这里可以添加统计逻辑，比如按费用类型统计等
         ExpenseRecord query = new ExpenseRecord();
+        if (!SecurityUtils.isAdmin(getUserId())) { query.setCurrentUserId(getUserId()); }
 
-        // 查询所有记录进行统计
         List<ExpenseRecord> allRecords = expenseRecordService.selectExpenseRecordList(query);
 
         // 按费用类型统计

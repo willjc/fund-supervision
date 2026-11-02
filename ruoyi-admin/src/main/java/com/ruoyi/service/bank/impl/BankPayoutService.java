@@ -44,11 +44,17 @@ public class BankPayoutService
 
     public boolean isProtocolConfirmed() { return gateway.supportsPayout(); }
 
+    public boolean inScope(Long institutionId)
+    {
+        if (institutionId == null) { return false; }
+        Long user = com.ruoyi.common.utils.SecurityUtils.getUserId();
+        return com.ruoyi.common.utils.SecurityUtils.isAdmin(user)
+                || settlement.hasScope(user, institutionId) > 0;
+    }
+
     public void checkScope(Long institutionId)
     {
-        Long user = com.ruoyi.common.utils.SecurityUtils.getUserId();
-        if (!com.ruoyi.common.utils.SecurityUtils.isAdmin(user)
-                && settlement.hasScope(user, institutionId) == 0)
+        if (!inScope(institutionId))
         { throw new ServiceException("无权操作该机构银行资金"); }
     }
 

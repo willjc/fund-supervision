@@ -44,10 +44,18 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <where>
             <!-- 数据权限过滤: ��果传入了currentUserId,则只查询该用户关联机构的老人 -->
             <if test="currentUserId != null">
-                and create_by COLLATE utf8mb4_general_ci in (
-                    select u.user_name COLLATE utf8mb4_general_ci from sys_user_institution sui
-                    inner join sys_user u on sui.user_id = u.user_id
-                    where sui.user_id = #{currentUserId}
+                and (
+                    create_by COLLATE utf8mb4_general_ci in (
+                        select u.user_name COLLATE utf8mb4_general_ci from sys_user_institution sui
+                        inner join sys_user u on sui.user_id = u.user_id
+                        where sui.user_id = #{currentUserId}
+                    )
+                    or elder_id in (
+                        select elder_id from bed_allocation
+                        where institution_id in (
+                            select institution_id from sys_user_institution where user_id = #{currentUserId}
+                        )
+                    )
                 )
             </if>
             <if test="elderName != null  and elderName != ''"> and elder_name like concat('%', #{elderName}, '%')</if>

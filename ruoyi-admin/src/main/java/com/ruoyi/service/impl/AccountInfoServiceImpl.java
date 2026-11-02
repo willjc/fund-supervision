@@ -58,6 +58,16 @@ public class AccountInfoServiceImpl implements IAccountInfoService
     @Override
     public int insertAccountInfo(AccountInfo accountInfo)
     {
+        // 通用新增入口不允许带入资金；余额只能由支付、退款、拨付等记账流程产生。
+        accountInfo.setTotalBalance(BigDecimal.ZERO);
+        accountInfo.setServiceBalance(BigDecimal.ZERO);
+        accountInfo.setDepositBalance(BigDecimal.ZERO);
+        accountInfo.setMemberBalance(BigDecimal.ZERO);
+        accountInfo.setBankServiceBalance(BigDecimal.ZERO);
+        accountInfo.setBankDepositBalance(BigDecimal.ZERO);
+        accountInfo.setServiceReserved(BigDecimal.ZERO);
+        accountInfo.setDepositReserved(BigDecimal.ZERO);
+        accountInfo.setAccountStatus("1");
         accountInfo.setCreateTime(DateUtils.getNowDate());
         return accountInfoMapper.insertAccountInfo(accountInfo);
     }
@@ -76,6 +86,30 @@ public class AccountInfoServiceImpl implements IAccountInfoService
     }
 
     /**
+     * 通用编辑仅允许修改展示信息；余额、账户归属和状态必须走各自记账/状态流程。
+     */
+    @Override
+    public int updateAccountProfile(AccountInfo accountInfo)
+    {
+        if (accountInfo == null || accountInfo.getAccountId() == null)
+        {
+            throw new com.ruoyi.common.exception.ServiceException("账户ID不能为空");
+        }
+        AccountInfo existing = accountInfoMapper.selectAccountInfoByAccountId(accountInfo.getAccountId());
+        if (existing == null)
+        {
+            throw new com.ruoyi.common.exception.ServiceException("账户不存在");
+        }
+        AccountInfo update = new AccountInfo();
+        update.setAccountId(existing.getAccountId());
+        update.setAccountName(accountInfo.getAccountName());
+        update.setRemark(accountInfo.getRemark());
+        update.setUpdateBy(accountInfo.getUpdateBy());
+        update.setUpdateTime(DateUtils.getNowDate());
+        return accountInfoMapper.updateAccountInfo(update);
+    }
+
+    /**
      * 批量删除老人账户信息
      *
      * @param accountIds 需要删除的老人账户信息主键
@@ -84,6 +118,7 @@ public class AccountInfoServiceImpl implements IAccountInfoService
     @Override
     public int deleteAccountInfoByAccountIds(Long[] accountIds)
     {
+        for (Long accountId : accountIds) { requireEmptyAccount(accountId); }
         return accountInfoMapper.deleteAccountInfoByAccountIds(accountIds);
     }
 
@@ -96,7 +131,33 @@ public class AccountInfoServiceImpl implements IAccountInfoService
     @Override
     public int deleteAccountInfoByAccountId(Long accountId)
     {
+        requireEmptyAccount(accountId);
         return accountInfoMapper.deleteAccountInfoByAccountId(accountId);
+    }
+
+    private void requireEmptyAccount(Long accountId)
+    {
+        AccountInfo account = accountInfoMapper.selectAccountInfoByAccountId(accountId);
+        if (account == null)
+        {
+            throw new com.ruoyi.common.exception.ServiceException("账户不存在");
+        }
+        if (value(account.getTotalBalance()).signum() != 0
+                || value(account.getServiceBalance()).signum() != 0
+                || value(account.getDepositBalance()).signum() != 0
+                || value(account.getMemberBalance()).signum() != 0
+                || value(account.getBankServiceBalance()).signum() != 0
+                || value(account.getBankDepositBalance()).signum() != 0
+                || value(account.getServiceReserved()).signum() != 0
+                || value(account.getDepositReserved()).signum() != 0)
+        {
+            throw new com.ruoyi.common.exception.ServiceException("账户仍有余额、银行资金或预占，不能删除或销户");
+        }
+    }
+
+    private BigDecimal value(BigDecimal amount)
+    {
+        return amount == null ? BigDecimal.ZERO : amount;
     }
 
     /**
@@ -259,7 +320,12 @@ public class AccountInfoServiceImpl implements IAccountInfoService
      */
     @Override
     public List<AccountInfo> selectLowBalanceAccounts(Integer months) {
-        return accountInfoMapper.selectLowBalanceAccounts(months);
+        return accountInfoMapper.selectLowBalanceAccounts(months, null);
+    }
+
+    @Override
+    public List<AccountInfo> selectLowBalanceAccounts(Integer months, Long currentUserId) {
+        return accountInfoMapper.selectLowBalanceAccounts(months, currentUserId);
     }
 
     /**
@@ -272,6 +338,19 @@ public class AccountInfoServiceImpl implements IAccountInfoService
     @Override
     @Transactional
     public int changeAccountStatus(Long accountId, String accountStatus) {
+        if (!"0".equals(accountStatus) && !"1".equals(accountStatus))
+        {
+            throw new com.ruoyi.common.exception.ServiceException("账户状态仅支持冻结或恢复");
+        }
+        AccountInfo existing = accountInfoMapper.selectAccountInfoByAccountId(accountId);
+        if (existing == null)
+        {
+            throw new com.ruoyi.common.exception.ServiceException("账户不存在");
+        }
+        if ("2".equals(existing.getAccountStatus()))
+        {
+            throw new com.ruoyi.common.exception.ServiceException("已销户账户不能变更状态");
+        }
         AccountInfo accountInfo = new AccountInfo();
         accountInfo.setAccountId(accountId);
         accountInfo.setAccountStatus(accountStatus);
@@ -289,6 +368,7 @@ public class AccountInfoServiceImpl implements IAccountInfoService
     @Override
     @Transactional
     public int closeAccount(Long accountId) {
+        requireEmptyAccount(accountId);
         AccountInfo accountInfo = new AccountInfo();
         accountInfo.setAccountId(accountId);
         accountInfo.setAccountStatus("2"); // 销户状态

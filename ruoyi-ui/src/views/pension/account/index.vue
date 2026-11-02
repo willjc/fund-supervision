@@ -173,11 +173,9 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="账户状态">
-              <el-select v-model="form.accountStatus" placeholder="请选择账户状态" :disabled="!isEdit">
-                <el-option label="正常" value="1" />
-                <el-option label="冻结" value="0" />
-                <el-option label="销户" value="2" />
-              </el-select>
+              <el-input :value="form.accountStatus === '1' ? '正常' : form.accountStatus === '0' ? '冻结' : '销户'" disabled>
+                <template slot="prepend">状态请使用冻结/解冻/销户操作</template>
+              </el-input>
             </el-form-item>
           </el-col>
         </el-row>

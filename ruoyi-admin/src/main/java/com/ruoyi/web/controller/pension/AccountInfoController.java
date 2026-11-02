@@ -20,6 +20,8 @@ import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.domain.pension.AccountInfo;
 import com.ruoyi.service.pension.IAccountInfoService;
+import com.ruoyi.service.bank.impl.BankPayoutService;
+import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.common.core.page.TableDataInfo;
 
@@ -36,6 +38,9 @@ public class AccountInfoController extends BaseController
     @Autowired
     private IAccountInfoService accountInfoService;
 
+    @Autowired
+    private BankPayoutService bankPayoutService;
+
     /**
      * 查询老人账户信息列表
      */
@@ -44,6 +49,7 @@ public class AccountInfoController extends BaseController
     public TableDataInfo list(AccountInfo accountInfo)
     {
         startPage();
+        if (!SecurityUtils.isAdmin(getUserId())) { accountInfo.setCurrentUserId(getUserId()); }
         List<AccountInfo> list = accountInfoService.selectAccountInfoList(accountInfo);
         return getDataTable(list);
     }
@@ -56,6 +62,7 @@ public class AccountInfoController extends BaseController
     @PostMapping("/export")
     public void export(HttpServletResponse response, AccountInfo accountInfo)
     {
+        if (!SecurityUtils.isAdmin(getUserId())) { accountInfo.setCurrentUserId(getUserId()); }
         List<AccountInfo> list = accountInfoService.selectAccountInfoList(accountInfo);
         ExcelUtil<AccountInfo> util = new ExcelUtil<AccountInfo>(AccountInfo.class);
         util.exportExcel(response, list, "老人账户信息数��");
@@ -68,7 +75,10 @@ public class AccountInfoController extends BaseController
     @GetMapping(value = "/{accountId}")
     public AjaxResult getInfo(@PathVariable("accountId") Long accountId)
     {
-        return success(accountInfoService.selectAccountInfoByAccountId(accountId));
+        AccountInfo account = accountInfoService.selectAccountInfoByAccountId(accountId);
+        if (account == null) { return error("账户不存在"); }
+        bankPayoutService.checkScope(account.getInstitutionId());
+        return success(account);
     }
 
     /**
@@ -78,7 +88,10 @@ public class AccountInfoController extends BaseController
     @GetMapping(value = "/elder/{elderId}")
     public AjaxResult getAccountByElderId(@PathVariable("elderId") Long elderId)
     {
-        return success(accountInfoService.selectAccountInfoByElderId(elderId));
+        AccountInfo account = accountInfoService.selectAccountInfoByElderId(elderId);
+        if (account == null) { return error("账户不存在"); }
+        bankPayoutService.checkScope(account.getInstitutionId());
+        return success(account);
     }
 
     /**
@@ -88,6 +101,7 @@ public class AccountInfoController extends BaseController
     @GetMapping(value = "/institution/{institutionId}")
     public AjaxResult getAccountByInstitutionId(@PathVariable("institutionId") Long institutionId)
     {
+        bankPayoutService.checkScope(institutionId);
         List<AccountInfo> list = accountInfoService.selectAccountInfoByInstitutionId(institutionId);
         return success(list);
     }
@@ -100,6 +114,11 @@ public class AccountInfoController extends BaseController
     @PostMapping
     public AjaxResult add(@RequestBody AccountInfo accountInfo)
     {
+        if (accountInfo.getInstitutionId() == null || accountInfo.getElderId() == null)
+        {
+            return error("机构和老人不能为空");
+        }
+        bankPayoutService.checkScope(accountInfo.getInstitutionId());
         return toAjax(accountInfoService.insertAccountInfo(accountInfo));
     }
 
@@ -111,7 +130,11 @@ public class AccountInfoController extends BaseController
     @PutMapping
     public AjaxResult edit(@RequestBody AccountInfo accountInfo)
     {
-        return toAjax(accountInfoService.updateAccountInfo(accountInfo));
+        AccountInfo existing = accountInfoService.selectAccountInfoByAccountId(accountInfo.getAccountId());
+        if (existing == null) { return error("账户不存在"); }
+        bankPayoutService.checkScope(existing.getInstitutionId());
+        accountInfo.setUpdateBy(getUsername());
+        return toAjax(accountInfoService.updateAccountProfile(accountInfo));
     }
 
     /**
@@ -122,6 +145,12 @@ public class AccountInfoController extends BaseController
     @DeleteMapping("/{accountIds}")
     public AjaxResult remove(@PathVariable Long[] accountIds)
     {
+        for (Long accountId : accountIds)
+        {
+            AccountInfo account = accountInfoService.selectAccountInfoByAccountId(accountId);
+            if (account == null) { return error("账户不存在"); }
+            bankPayoutService.checkScope(account.getInstitutionId());
+        }
         return toAjax(accountInfoService.deleteAccountInfoByAccountIds(accountIds));
     }
 
@@ -132,6 +161,11 @@ public class AccountInfoController extends BaseController
     @GetMapping("/balance/summary")
     public AjaxResult getBalanceSummary(@RequestParam(required = false) Long institutionId)
     {
+        if (institutionId == null && !SecurityUtils.isAdmin(getUserId()))
+        {
+            return error("请选择养老机构");
+        }
+        if (institutionId != null) { bankPayoutService.checkScope(institutionId); }
         Map<String, Object> summary = accountInfoService.selectAccountBalanceSummary(institutionId);
         return success(summary);
     }
@@ -143,7 +177,8 @@ public class AccountInfoController extends BaseController
     @GetMapping("/balance/low/{months}")
     public AjaxResult getLowBalanceAccounts(@PathVariable("months") Integer months)
     {
-        List<AccountInfo> list = accountInfoService.selectLowBalanceAccounts(months);
+        Long currentUserId = SecurityUtils.isAdmin(getUserId()) ? null : getUserId();
+        List<AccountInfo> list = accountInfoService.selectLowBalanceAccounts(months, currentUserId);
         return success(list);
     }
 
@@ -156,6 +191,9 @@ public class AccountInfoController extends BaseController
     public AjaxResult changeAccountStatus(@PathVariable("accountId") Long accountId,
                                        @PathVariable("accountStatus") String accountStatus)
     {
+        AccountInfo account = accountInfoService.selectAccountInfoByAccountId(accountId);
+        if (account == null) { return error("账户不存在"); }
+        bankPayoutService.checkScope(account.getInstitutionId());
         return toAjax(accountInfoService.changeAccountStatus(accountId, accountStatus));
     }
 
@@ -167,6 +205,9 @@ public class AccountInfoController extends BaseController
     @PutMapping("/close/{accountId}")
     public AjaxResult closeAccount(@PathVariable("accountId") Long accountId)
     {
+        AccountInfo account = accountInfoService.selectAccountInfoByAccountId(accountId);
+        if (account == null) { return error("账户不存在"); }
+        bankPayoutService.checkScope(account.getInstitutionId());
         return toAjax(accountInfoService.closeAccount(accountId));
     }
 }
