@@ -112,32 +112,36 @@ export default {
 
 <style lang="scss" scoped>
 .navbar {
-  height: 50px;
+  height: 56px;
   overflow: hidden;
   position: relative;
   background: #fff;
-  box-shadow: 0 1px 4px rgba(0,21,41,.08);
+  border-bottom: 1px solid var(--app-border, #e4eaf1);
 
   .hamburger-container {
-    line-height: 46px;
+    width: 56px;
     height: 100%;
+    line-height: 56px;
     float: left;
     cursor: pointer;
-    transition: background .3s;
-    -webkit-tap-highlight-color:transparent;
+    color: #536273;
+    transition: background 0.16s ease;
+    -webkit-tap-highlight-color: transparent;
 
     &:hover {
-      background: rgba(0, 0, 0, .025)
+      background: #f4f7fb;
     }
   }
 
   .breadcrumb-container {
     float: left;
+    line-height: 56px;
   }
 
   .topmenu-container {
     position: absolute;
-    left: 50px;
+    left: 56px;
+    line-height: 56px;
   }
 
   .errLog-container {
@@ -147,60 +151,68 @@ export default {
 
   .right-menu {
     float: right;
+    display: flex;
+    align-items: center;
     height: 100%;
-    line-height: 50px;
+    padding-right: 12px;
+    line-height: 56px;
 
     &:focus {
       outline: none;
     }
 
     .right-menu-item {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 34px;
+      margin-left: 4px;
       padding: 0 8px;
-      height: 100%;
-      font-size: 18px;
-      color: #5a5e66;
-      vertical-align: text-bottom;
+      border-radius: 8px;
+      font-size: 17px;
+      color: #5b6b7f;
+      vertical-align: middle;
 
       &.hover-effect {
         cursor: pointer;
-        transition: background .3s;
+        transition: background 0.16s ease, color 0.16s ease;
 
         &:hover {
-          background: rgba(0, 0, 0, .025)
+          color: var(--app-primary, #1f65bd);
+          background: #f4f7fb;
         }
       }
     }
 
     .avatar-container {
-      margin-right: 0px;
-      padding-right: 0px;
+      margin-left: 6px;
+      padding: 0 4px 0 10px;
 
       .avatar-wrapper {
-        margin-top: 10px;
-        right: 8px;
-        position: relative;
+        display: flex;
+        align-items: center;
+        height: 56px;
+        cursor: pointer;
 
         .user-avatar {
-          cursor: pointer;
           width: 30px;
           height: 30px;
           border-radius: 50%;
+          border: 2px solid #eef6ff;
+          object-fit: cover;
         }
 
-        .user-nickname{
-          position: relative;
-          bottom: 10px;
-          left: 2px;
-          font-size: 14px;
-          font-weight: bold;
+        .user-nickname {
+          margin-left: 8px;
+          color: #1b2735;
+          font-size: 13px;
+          font-weight: 500;
+          line-height: 1;
         }
 
         .el-icon-caret-bottom {
-          cursor: pointer;
-          position: absolute;
-          right: -20px;
-          top: 25px;
+          margin-left: 4px;
+          color: #7b8998;
           font-size: 12px;
         }
       }

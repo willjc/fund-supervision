@@ -4,20 +4,29 @@
 **/
 
 /* theme color */
-$--color-primary: #1890ff;
-$--color-success: #13ce66;
-$--color-warning: #ffba00;
-$--color-danger: #ff4949;
-// $--color-info: #1E1E1E;
+$--color-primary: #1f65bd;
+$--color-success: #18815d;
+$--color-warning: #b86c08;
+$--color-danger: #c53d46;
+$--color-info: #536273;
 
-$--button-font-weight: 400;
+$--color-text-primary: #1b2735;
+$--color-text-regular: #536273;
+$--color-text-secondary: #667085;
+$--color-text-placeholder: #9aa6b2;
+$--background-color-base: #f4f7fb;
 
-// $--color-text-regular: #1f2d3d;
+$--button-font-weight: 500;
 
-$--border-color-light: #dfe4ed;
-$--border-color-lighter: #e6ebf5;
+$--border-color-base: #cfd8e3;
+$--border-color-light: #e4eaf1;
+$--border-color-lighter: #edf1f5;
+$--border-color-extra-light: #f4f7fb;
 
-$--table-border: 1px solid #dfe6ec;
+$--border-radius-base: 8px;
+$--border-radius-small: 6px;
+
+$--table-border: 1px solid #edf1f5;
 
 /* icon font path, required */
 $--font-path: '~element-ui/lib/theme-chalk/fonts';

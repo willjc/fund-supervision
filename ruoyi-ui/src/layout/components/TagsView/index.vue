@@ -9,7 +9,6 @@
         :to="{ path: tag.path, query: tag.query, fullPath: tag.fullPath }"
         tag="span"
         class="tags-view-item"
-        :style="activeStyle(tag)"
         @click.middle.native="!isAffix(tag)?closeSelectedTag(tag):''"
         @contextmenu.prevent.native="openMenu(tag,$event)"
       >
@@ -51,9 +50,6 @@ export default {
     routes() {
       return this.$store.state.permission.routes
     },
-    theme() {
-      return this.$store.state.settings.theme
-    },
     tagsIcon() {
       return this.$store.state.settings.tagsIcon
     }
@@ -78,13 +74,6 @@ export default {
   methods: {
     isActive(route) {
       return route.path === this.$route.path
-    },
-    activeStyle(tag) {
-      if (!this.isActive(tag)) return {}
-      return {
-        "background-color": this.theme,
-        "border-color": this.theme
-      }
     },
     isAffix(tag) {
       return tag.meta && tag.meta.affix
@@ -239,44 +228,51 @@ export default {
 
 <style lang="scss" scoped>
 .tags-view-container {
-  height: 34px;
+  height: 38px;
   width: 100%;
   background: #fff;
-  border-bottom: 1px solid #d8dce5;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, .12), 0 0 3px 0 rgba(0, 0, 0, .04);
+  border-bottom: 1px solid var(--app-divider, #edf1f5);
   .tags-view-wrapper {
     .tags-view-item {
       display: inline-block;
       position: relative;
       cursor: pointer;
-      height: 26px;
-      line-height: 26px;
-      border: 1px solid #d8dce5;
-      color: #495060;
-      background: #fff;
-      padding: 0 8px;
+      height: 28px;
+      line-height: 28px;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      color: #667085;
+      background: transparent;
+      padding: 0 10px;
       font-size: 12px;
-      margin-left: 5px;
-      margin-top: 4px;
+      margin-left: 6px;
+      margin-top: 5px;
+      transition: background 0.16s ease, color 0.16s ease;
       &:first-of-type {
-        margin-left: 15px;
+        margin-left: 16px;
       }
       &:last-of-type {
-        margin-right: 15px;
+        margin-right: 16px;
+      }
+      &:hover {
+        color: #1b2735;
+        background: #f4f7fb;
       }
       &.active {
-        background-color: #42b983;
-        color: #fff;
-        border-color: #42b983;
+        color: var(--app-primary, #1f65bd);
+        background: var(--app-primary-soft, #eef6ff);
+        border-color: transparent;
+        font-weight: 500;
         &::before {
           content: '';
-          background: #fff;
+          background: var(--app-primary, #1f65bd);
           display: inline-block;
-          width: 8px;
-          height: 8px;
+          width: 6px;
+          height: 6px;
           border-radius: 50%;
           position: relative;
-          margin-right: 2px;
+          margin-right: 4px;
+          vertical-align: 1px;
         }
       }
     }
@@ -292,18 +288,21 @@ export default {
     z-index: 3000;
     position: absolute;
     list-style-type: none;
-    padding: 5px 0;
-    border-radius: 4px;
+    padding: 6px;
+    border: 1px solid var(--app-border, #e4eaf1);
+    border-radius: 10px;
     font-size: 12px;
     font-weight: 400;
-    color: #333;
-    box-shadow: 2px 2px 3px 0 rgba(0, 0, 0, .3);
+    color: #536273;
+    box-shadow: var(--app-shadow-md, 0 8px 24px rgba(31, 55, 82, 0.1));
     li {
       margin: 0;
-      padding: 7px 16px;
+      padding: 7px 14px;
+      border-radius: 6px;
       cursor: pointer;
       &:hover {
-        background: #eee;
+        color: var(--app-primary, #1f65bd);
+        background: var(--app-primary-soft, #eef6ff);
       }
     }
   }
@@ -328,8 +327,8 @@ export default {
         vertical-align: -3px;
       }
       &:hover {
-        background-color: #b4bccc;
-        color: #fff;
+        background-color: rgba(31, 101, 189, 0.12);
+        color: var(--app-primary, #1f65bd);
       }
     }
   }

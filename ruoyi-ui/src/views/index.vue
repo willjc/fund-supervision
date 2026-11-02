@@ -1,5 +1,15 @@
 <template>
   <div class="app-container dashboard">
+    <header class="workspace-head">
+      <div class="workspace-title-group">
+        <p class="workspace-eyebrow">监管工作台</p>
+        <h1 class="workspace-title">{{ isInstitutionManager ? '机构运营概览' : '全市资金监管概览' }}</h1>
+      </div>
+      <p class="workspace-meta">
+        <span class="meta-dot"></span>{{ todayLabel }} · 数据实时汇总
+      </p>
+    </header>
+
     <!-- 机构管理员专属首页 -->
     <div v-if="isInstitutionManager" class="institution-dashboard">
 
@@ -48,8 +58,12 @@
 
       <!-- 账户余额区域 -->
       <div class="balance-section">
-        <div class="section-title">
-          <i class="el-icon-wallet"></i> 账户余额
+        <div class="section-head">
+          <div>
+            <p class="section-eyebrow">资金看板</p>
+            <h2 class="section-title">账户余额</h2>
+          </div>
+          <span class="section-note">监管专户与平台账户实时汇总</span>
         </div>
         <div class="balance-grid">
           <div class="balance-item">
@@ -73,8 +87,12 @@
 
       <!-- 入住人结构分析 -->
       <div class="structure-section">
-        <div class="section-title">
-          <i class="el-icon-user"></i> 入住人结构分析
+        <div class="section-head">
+          <div>
+            <p class="section-eyebrow">入住画像</p>
+            <h2 class="section-title">入住人结构分析</h2>
+          </div>
+          <span class="section-note">按在住老人统计</span>
         </div>
         <div class="structure-grid">
           <!-- 性别分布 -->
@@ -167,8 +185,12 @@
 
       <!-- 账户余额区域 -->
       <div class="balance-section">
-        <div class="section-title">
-          <i class="el-icon-wallet"></i> 账户余额汇总
+        <div class="section-head">
+          <div>
+            <p class="section-eyebrow">资金看板</p>
+            <h2 class="section-title">账户余额汇总</h2>
+          </div>
+          <span class="section-note">全市机构账户合计</span>
         </div>
         <div class="balance-grid">
           <div class="balance-item">
@@ -192,8 +214,12 @@
 
       <!-- 入住人结构分析 -->
       <div class="structure-section">
-        <div class="section-title">
-          <i class="el-icon-user"></i> 入住人结构分析
+        <div class="section-head">
+          <div>
+            <p class="section-eyebrow">入住画像</p>
+            <h2 class="section-title">入住人结构分析</h2>
+          </div>
+          <span class="section-note">按在住老人统计</span>
         </div>
         <div class="structure-grid">
           <!-- 性别分布 -->
@@ -262,6 +288,7 @@ export default {
     return {
       // 是否为机构管理员
       isInstitutionManager: false,
+      todayLabel: '',
 
       // 机构管理员首页数据
       institutionData: {
@@ -315,6 +342,14 @@ export default {
         }
       }
     }
+  },
+  created() {
+    this.todayLabel = new Intl.DateTimeFormat('zh-CN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      weekday: 'long'
+    }).format(new Date())
   },
   mounted() {
     this.detectRoleAndLoad()
@@ -451,24 +486,24 @@ export default {
      * 获取性别颜色
      */
     getGenderColor(index) {
-      const colors = ['#409EFF', '#67C23A', '#E6A23C']
-      return colors[index] || '#909399'
+      const colors = ['#1f65bd', '#18815d', '#b86c08']
+      return colors[index] || '#8b98a8'
     },
 
     /**
      * 获取年龄颜色
      */
     getAgeColor(index) {
-      const colors = ['#409EFF', '#67C23A', '#E6A23C', '#F56C6C']
-      return colors[index] || '#909399'
+      const colors = ['#1f65bd', '#18815d', '#b86c08', '#a93b2f']
+      return colors[index] || '#8b98a8'
     },
 
     /**
      * 获取护理等级颜色
      */
     getCareColor(index) {
-      const colors = ['#67C23A', '#E6A23C', '#F56C6C']
-      return colors[index] || '#909399'
+      const colors = ['#18815d', '#b86c08', '#a93b2f']
+      return colors[index] || '#8b98a8'
     },
 
     formatNumber(num) {
@@ -482,534 +517,150 @@ export default {
 
 <style scoped lang="scss">
 .dashboard {
-  padding: 20px;
-  background-color: #f5f5f5;
+  background: transparent;
 }
 
-.statistics-cards {
-  margin-bottom: 20px;
-}
-
-.stat-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 10px;
-  padding: 20px;
-  color: white;
+/* 工作台页头 */
+.workspace-head {
   display: flex;
-  align-items: center;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  transition: transform 0.3s ease;
-
-  &:hover {
-    transform: translateY(-2px);
-  }
-
-  &.institution {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  }
-
-  &.elderly {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  }
-
-  &.funds {
-    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-  }
-
-  &.beds {
-    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-  }
-
-  &.warnings {
-    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-  }
-
-  &.applications {
-    background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
-  }
-
-  // 机构首页新增卡片样式
-  &.order {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  }
-
-  &.amount {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  }
-
-  &.transfer {
-    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-  }
-
-  &.transfer-count {
-    background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
-  }
-
-  &.service {
-    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-  }
-
-  &.deposit {
-    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-  }
-
-  &.member {
-    background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
-  }
-
-  &.basic {
-    background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
-  }
-
-  &.pending-apply {
-    background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
-  }
-
-  &.approved-apply {
-    background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
-  }
-}
-
-.stat-icon {
-  font-size: 32px;
-  margin-right: 15px;
-}
-
-.stat-content {
-  flex: 1;
-}
-
-.stat-number {
-  font-size: 24px;
-  font-weight: bold;
-  margin-bottom: 5px;
-}
-
-.stat-label {
-  font-size: 14px;
-  opacity: 0.9;
-}
-
-.stat-sub {
-  font-size: 12px;
-  opacity: 0.8;
-  margin-top: 4px;
-}
-
-.main-content {
-  margin-bottom: 20px;
-}
-
-.card-header {
-  display: flex;
+  align-items: flex-end;
   justify-content: space-between;
-  align-items: center;
-  font-weight: bold;
-  color: #303133;
-
-  i {
-    margin-right: 5px;
-    color: #409EFF;
-  }
-}
-
-.chart-container {
-  height: 200px;
+  gap: 16px;
+  padding-bottom: 20px;
   margin-bottom: 20px;
+  border-bottom: 1px solid #e4eaf1;
 }
 
-.institution-funds {
-  h4 {
-    margin-bottom: 10px;
-    color: #303133;
-  }
+.workspace-eyebrow {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  color: #1f65bd;
 }
 
-.fund-item {
+.workspace-title {
+  margin: 0;
+  font-family: "Songti SC", "Noto Serif SC", STSong, SimSun, serif;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+  color: #14273f;
+}
+
+.workspace-meta {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid #f0f0f0;
-
-  &:last-child {
-    border-bottom: none;
-  }
-}
-
-.fund-info {
-  flex: 1;
-}
-
-.fund-name {
-  font-size: 14px;
-  color: #303133;
-  display: block;
-}
-
-.fund-amount {
+  gap: 8px;
+  margin: 0 0 2px;
   font-size: 12px;
-  color: #909399;
-  font-weight: bold;
-}
+  color: #667085;
+  font-variant-numeric: tabular-nums;
 
-.fund-change {
-  font-size: 12px;
-  font-weight: bold;
-
-  &.positive {
-    color: #67C23A;
-  }
-
-  &.negative {
-    color: #F56C6C;
+  .meta-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #18815d;
+    box-shadow: 0 0 0 3px rgba(24, 129, 93, 0.14);
   }
 }
 
-.approval-progress {
-  margin-bottom: 20px;
-
-  h4 {
-    margin-bottom: 10px;
-    color: #303133;
-  }
-}
-
-.progress-item {
-  text-align: center;
-  padding: 15px;
-  border-radius: 8px;
-  color: white;
-
-  &.pending {
-    background: linear-gradient(135deg, #E6A23C 0%, #F56C6C 100%);
-  }
-
-  &.approved {
-    background: linear-gradient(135deg, #67C23A 0%, #409EFF 100%);
-  }
-
-  &.rejected {
-    background: linear-gradient(135deg, #F56C6C 0%, #E6A23C 100%);
-  }
-}
-
-.progress-number {
-  font-size: 20px;
-  font-weight: bold;
-  margin-bottom: 5px;
-}
-
-.progress-label {
-  font-size: 12px;
-}
-
-.bed-usage {
-  h4 {
-    margin-bottom: 10px;
-    color: #303133;
-  }
-}
-
-.bed-item {
-  margin-bottom: 15px;
-
-  .bed-info {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 5px;
-  }
-
-  .bed-name {
-    font-size: 14px;
-    color: #303133;
-  }
-
-  .bed-rate {
-    font-size: 14px;
-    font-weight: bold;
-    color: #409EFF;
-  }
-
-  .bed-detail {
-    font-size: 12px;
-    color: #909399;
-    margin-top: 5px;
-  }
-}
-
-.warning-levels {
-  margin-bottom: 20px;
-
-  h4 {
-    margin-bottom: 10px;
-    color: #303133;
-  }
-}
-
-.warning-level {
-  text-align: center;
-  padding: 15px;
-  border-radius: 8px;
-  color: white;
-
-  &.high {
-    background: linear-gradient(135deg, #F56C6C 0%, #E6A23C 100%);
-  }
-
-  &.medium {
-    background: linear-gradient(135deg, #E6A23C 0%, #F7BA2A 100%);
-  }
-
-  &.low {
-    background: linear-gradient(135deg, #409EFF 0%, #67C23A 100%);
-  }
-}
-
-.level-number {
-  font-size: 20px;
-  font-weight: bold;
-  margin-bottom: 5px;
-}
-
-.level-label {
-  font-size: 12px;
-}
-
-.pending-warnings {
-  h4 {
-    margin-bottom: 10px;
-    color: #303133;
-  }
-}
-
-.warning-item {
-  background: #fef5e7;
-  border: 1px solid #f39c12;
-  border-radius: 6px;
-  padding: 12px;
-  margin-bottom: 10px;
-
-  .warning-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 5px;
-  }
-
-  .warning-institution {
-    font-weight: bold;
-    color: #303133;
-  }
-
-  .warning-content {
-    font-size: 14px;
-    color: #E6A23C;
-    margin-bottom: 8px;
-  }
-
-  .warning-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .warning-time {
-    font-size: 12px;
-    color: #909399;
-  }
-}
-
-.quick-actions {
-  .el-card__body {
-    padding: 20px;
-  }
-}
-
-.action-item {
-  text-align: center;
-  padding: 20px;
-  background: linear-gradient(135deg, #409EFF 0%, #36D1DC 100%);
-  border-radius: 8px;
-  color: white;
-  cursor: pointer;
-  transition: all 0.3s ease;
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
-  }
-
-  i {
-    font-size: 24px;
-    display: block;
-    margin-bottom: 8px;
-  }
-
-  span {
-    font-size: 14px;
-  }
-}
-
-.large-transactions {
-  .transaction-item {
-    border-left: 4px solid #409EFF;
-    padding: 12px;
-    margin-bottom: 10px;
-    background: #f8f9fa;
-    border-radius: 0 6px 6px 0;
-
-    .transaction-info {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 5px;
-    }
-
-    .transaction-institution {
-      font-weight: bold;
-      color: #303133;
-    }
-
-    .transaction-amount {
-      font-weight: bold;
-
-      &.income {
-        color: #67C23A;
-      }
-
-      &.expense {
-        color: #F56C6C;
-      }
-    }
-
-    .transaction-footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .transaction-time {
-      font-size: 12px;
-      color: #909399;
-    }
-  }
-}
-
-.el-card {
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
-
-  .el-card__header {
-    background: #fafafa;
-    border-bottom: 1px solid #ebeef5;
-  }
-}
-
-// 机构首页结构分析��域样式
-.structure-section {
-  margin-top: 20px;
-}
-
-.structure-row {
-  margin-bottom: 0;
-}
-
-.structure-card {
-  .el-card__header {
-    background: #fafafa;
-    border-bottom: 1px solid #ebeef5;
-  }
-
-  .chart-container {
-    height: 250px;
-  }
-}
-
-// 小尺寸结构分析卡片
-.structure-card-small {
-  height: 200px;
-
-  .el-card__header {
-    background: #fafafa;
-    border-bottom: 1px solid #ebeef5;
-    padding: 10px 15px;
-  }
-
-  .el-card__body {
-    padding: 10px;
-    height: calc(100% - 45px);
-  }
-
-  .chart-container-sm {
-    height: 150px;
-  }
-}
-
-.card-header-sm {
-  font-size: 13px;
-  font-weight: bold;
-  color: #303133;
-
-  i {
-    margin-right: 4px;
-    color: #409EFF;
-  }
-}
-
-// ==================== 机构首页简化布局样式 ====================
-
-// 信息卡片区域
+/* 指标卡 */
 .info-cards {
-  display: flex;
-  gap: 15px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
   margin-bottom: 20px;
 }
 
 .info-card {
-  flex: 1;
+  position: relative;
   display: flex;
-  align-items: center;
-  padding: 18px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px 20px;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid #e4eaf1;
+  border-radius: 12px;
+  box-shadow: 0 3px 12px rgba(31, 55, 82, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 20px;
+    bottom: 20px;
+    left: 0;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: #1f65bd;
+  }
+
+  &:nth-child(2)::before {
+    background: #18815d;
+  }
+
+  &:nth-child(3)::before {
+    background: #b86c08;
+  }
+
+  &:nth-child(4)::before {
+    background: #a93b2f;
+  }
 
   &:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    border-color: #d7e0ea;
+    box-shadow: 0 8px 24px rgba(31, 55, 82, 0.1);
+    transform: translateY(-2px);
   }
 }
 
 .card-icon {
-  width: 50px;
-  height: 50px;
-  border-radius: 12px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: 15px;
-  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
 
   i {
-    font-size: 22px;
-    color: white;
+    font-size: 20px;
   }
 
   &.blue {
-    background: linear-gradient(135deg, #409EFF 0%, #5DADE2 100%);
+    background: #eef6ff;
+
+    i {
+      color: #1f65bd;
+    }
   }
 
   &.green {
-    background: linear-gradient(135deg, #67C23A 0%, #85E060 100%);
+    background: #eaf7f1;
+
+    i {
+      color: #18815d;
+    }
   }
 
   &.orange {
-    background: linear-gradient(135deg, #E6A23C 0%, #F5B041 100%);
+    background: #fff6e6;
+
+    i {
+      color: #b86c08;
+    }
   }
 
   &.cyan {
-    background: linear-gradient(135deg, #36D1DC 0%, #5B9BD5 100%);
+    background: #eef1f5;
+
+    i {
+      color: #3f5a78;
+    }
   }
 }
 
@@ -1019,153 +670,319 @@ export default {
 }
 
 .card-title {
-  font-size: 13px;
-  color: #909399;
   margin-bottom: 6px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: #667085;
 }
 
 .card-value {
-  font-size: 22px;
-  font-weight: bold;
-  color: #303133;
   margin-bottom: 4px;
+  font-family: var(--app-font-data, "SF Mono", "Roboto Mono", Menlo, Consolas, monospace);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #14273f;
+  font-variant-numeric: tabular-nums;
 }
 
 .card-sub {
   font-size: 12px;
-  color: #C0C4CC;
+  color: #8b98a8;
+  font-variant-numeric: tabular-nums;
 }
 
-// 余额区域
+/* 余额看板：账册封面 */
 .balance-section {
-  background: white;
-  border-radius: 8px;
-  padding: 20px;
+  position: relative;
+  padding: 24px 26px;
   margin-bottom: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  color: #eef3f8;
+  background:
+    radial-gradient(520px 320px at 82% 0%, rgba(48, 82, 118, 0.5) 0%, rgba(48, 82, 118, 0) 65%),
+    linear-gradient(140deg, #16293f 0%, #0e1d2f 70%, #0b1725 100%);
+  border-radius: 14px;
 
-  .section-title {
-    font-size: 15px;
-    font-weight: bold;
-    color: #303133;
-    margin-bottom: 15px;
-
-    i {
-      margin-right: 6px;
-      color: #409EFF;
-    }
+  &::after {
+    content: "";
+    position: absolute;
+    top: -140px;
+    right: -60px;
+    width: 320px;
+    height: 320px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 50%;
+    box-shadow: 0 0 0 42px rgba(255, 255, 255, 0.02);
+    pointer-events: none;
   }
+}
+
+.section-head {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.section-eyebrow {
+  margin: 0 0 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  color: rgba(224, 232, 240, 0.5);
+}
+
+.section-title {
+  margin: 0;
+  font-family: "Songti SC", "Noto Serif SC", STSong, SimSun, serif;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.04em;
+  color: #f2f6fa;
+}
+
+.section-note {
+  font-size: 11px;
+  color: rgba(224, 232, 240, 0.45);
 }
 
 .balance-grid {
+  position: relative;
+  z-index: 1;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 15px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .balance-item {
-  .balance-label {
-    font-size: 13px;
-    color: #909399;
-    margin-bottom: 8px;
+  padding: 4px 24px;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+
+  &:first-child {
+    padding-left: 0;
+    border-left: none;
   }
 
-  .balance-amount {
-    font-size: 20px;
-    font-weight: bold;
+  &:nth-child(2) .balance-label::before {
+    background: #e8b46a;
+  }
 
-    &.primary {
-      color: #409EFF;
-    }
+  &:nth-child(3) .balance-label::before {
+    background: #cbd6e2;
+  }
 
-    &.warning {
-      color: #E6A23C;
-    }
-
-    &.success {
-      color: #67C23A;
-    }
-
-    &.info {
-      color: #909399;
-    }
+  &:nth-child(4) .balance-label::before {
+    background: #7fd6b6;
   }
 }
 
-// 结构分析区域
+.balance-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: rgba(224, 232, 240, 0.55);
+
+  &::before {
+    content: "";
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #9ec8f6;
+  }
+}
+
+.balance-amount {
+  font-family: var(--app-font-data, "SF Mono", "Roboto Mono", Menlo, Consolas, monospace);
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+  color: #f2f6fa;
+  font-variant-numeric: tabular-nums;
+
+  &.primary {
+    color: #9ec8f6;
+  }
+
+  &.warning {
+    color: #e8b46a;
+  }
+
+  &.info {
+    color: #cbd6e2;
+  }
+
+  &.success {
+    color: #7fd6b6;
+  }
+}
+
+/* 结构分析 */
 .structure-section {
-  margin-top: 20px;
+  margin-top: 4px;
+
+  .section-head {
+    margin-bottom: 14px;
+  }
+
+  .section-eyebrow {
+    color: #1f65bd;
+  }
 
   .section-title {
-    font-size: 15px;
-    font-weight: bold;
-    color: #303133;
-    margin-bottom: 15px;
+    color: #14273f;
+  }
 
-    i {
-      margin-right: 6px;
-      color: #409EFF;
-    }
+  .section-note {
+    color: #8b98a8;
   }
 }
 
 .structure-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 15px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .structure-box {
-  background: white;
-  border-radius: 8px;
-  padding: 18px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 20px;
+  background: #ffffff;
+  border: 1px solid #e4eaf1;
+  border-radius: 12px;
+  box-shadow: 0 3px 12px rgba(31, 55, 82, 0.05);
 
   .structure-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+    padding-bottom: 12px;
     font-size: 14px;
-    font-weight: bold;
-    color: #303133;
-    margin-bottom: 15px;
+    font-weight: 600;
+    color: #1b2735;
+    border-bottom: 1px solid #edf1f5;
+
+    &::after {
+      content: "占比";
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 0.08em;
+      color: #8b98a8;
+    }
   }
 }
 
 .structure-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .progress-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .progress-label {
-  min-width: 60px;
+  min-width: 64px;
   font-size: 13px;
-  color: #606266;
+  color: #536273;
 }
 
 .progress-bar {
   flex: 1;
-  height: 8px;
-  background: #F2F6FC;
-  border-radius: 4px;
+  height: 6px;
   overflow: hidden;
+  background: #eef2f7;
+  border-radius: 999px;
 }
 
 .progress-fill {
   height: 100%;
-  border-radius: 4px;
-  transition: width 0.5s ease;
+  border-radius: 999px;
+  transition: width 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .progress-value {
-  min-width: 50px;
+  min-width: 44px;
+  font-family: var(--app-font-data, "SF Mono", "Roboto Mono", Menlo, Consolas, monospace);
+  font-size: 12px;
+  font-weight: 600;
   text-align: right;
-  font-size: 13px;
-  font-weight: bold;
-  color: #303133;
+  color: #1b2735;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 1100px) {
+  .info-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .balance-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 20px;
+  }
+
+  .balance-item {
+    &:nth-child(odd) {
+      padding-left: 0;
+      border-left: none;
+    }
+  }
+
+  .structure-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .workspace-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .info-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .balance-grid {
+    grid-template-columns: 1fr;
+    row-gap: 0;
+  }
+
+  .balance-item {
+    padding: 14px 0;
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+
+    &:first-child {
+      border-top: none;
+    }
+  }
+
+  .section-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .info-card,
+  .progress-fill {
+    transition: none;
+  }
+
+  .info-card:hover {
+    transform: none;
+  }
 }
 </style>

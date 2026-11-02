@@ -5,12 +5,74 @@
 @import './sidebar.scss';
 @import './btn.scss';
 
+:root {
+  --app-primary: #1f65bd;
+  --app-primary-hover: #1a5299;
+  --app-primary-soft: #eef6ff;
+  --app-primary-border: #d9eaff;
+  --app-seal: #a93b2f;
+  --app-seal-soft: #fbeeec;
+  --app-ink: #14273f;
+  --app-page: #f4f7fb;
+  --app-surface: #ffffff;
+  --app-surface-subtle: #f8fafc;
+  --app-border: #e4eaf1;
+  --app-border-strong: #cfd8e3;
+  --app-divider: #edf1f5;
+  --app-text: #1b2735;
+  --app-text-secondary: #536273;
+  --app-text-tertiary: #667085;
+  --app-text-placeholder: #9aa6b2;
+  --app-success: #18815d;
+  --app-success-soft: #eaf7f1;
+  --app-warning: #b86c08;
+  --app-warning-soft: #fff6e6;
+  --app-danger: #c53d46;
+  --app-danger-soft: #fff0f1;
+  --app-info: #3478c9;
+  --app-info-soft: #edf5ff;
+  --app-radius-sm: 8px;
+  --app-radius-md: 12px;
+  --app-radius-lg: 16px;
+  --app-shadow-sm: 0 3px 12px rgba(31, 55, 82, 0.07);
+  --app-shadow-md: 0 8px 24px rgba(31, 55, 82, 0.1);
+  --app-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", Arial, sans-serif;
+  --app-font-display: "Songti SC", "STSong", "Noto Serif CJK SC", "Source Han Serif SC", serif;
+  --app-font-data: "DIN Alternate", "Bahnschrift", "SF Pro Display", var(--app-font);
+}
+
 body {
   height: 100%;
   -moz-osx-font-smoothing: grayscale;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  font-family: Helvetica Neue, Helvetica, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Arial, sans-serif;
+  font-family: var(--app-font);
+  color: var(--app-text);
+  background: var(--app-page);
+  font-size: 14px;
+}
+
+#app {
+  background: var(--app-page);
+  color: var(--app-text);
+  font-family: var(--app-font);
+}
+
+::selection {
+  color: #fff;
+  background: var(--app-primary);
+}
+
+a:focus-visible,
+button:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--app-primary);
+  outline-offset: 2px;
+}
+
+.app-container {
+  padding: 20px 24px 28px;
 }
 
 label {

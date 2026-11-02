@@ -24,12 +24,12 @@ export default {
   left: 0;
   right: 0;
   height: 36px;
-  padding: 10px 20px;
+  padding: 10px 24px;
   text-align: right;
-  background-color: #f8f8f8;
-  color: #666;
-  font-size: 14px;
-  border-top: 1px solid #e7e7e7;
+  background-color: #ffffff;
+  color: #667085;
+  font-size: 12px;
+  border-top: 1px solid #edf1f5;
   z-index: 999;
 }
 </style>

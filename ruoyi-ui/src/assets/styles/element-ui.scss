@@ -90,3 +90,229 @@
   .el-submenu__icon-arrow {
   display: none;
 }
+
+/* ---------- 统一控件观感 ---------- */
+
+.el-button {
+  border-radius: var(--app-radius-sm);
+  font-weight: 500;
+  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.el-button--primary {
+  background: var(--app-primary);
+  border-color: var(--app-primary);
+
+  &:hover,
+  &:focus {
+    background: var(--app-primary-hover);
+    border-color: var(--app-primary-hover);
+  }
+}
+
+.el-button--text {
+  color: var(--app-primary);
+
+  &:hover,
+  &:focus {
+    color: var(--app-primary-hover);
+  }
+}
+
+.el-input__inner,
+.el-textarea__inner {
+  border-color: var(--app-border);
+  border-radius: var(--app-radius-sm);
+  color: var(--app-text);
+
+  &::placeholder {
+    color: var(--app-text-placeholder);
+  }
+}
+
+.el-input__inner:hover,
+.el-textarea__inner:hover {
+  border-color: var(--app-border-strong);
+}
+
+.el-input__inner:focus,
+.el-textarea__inner:focus {
+  border-color: var(--app-primary);
+  box-shadow: 0 0 0 3px rgba(31, 101, 189, 0.12);
+}
+
+.el-form-item__label {
+  color: var(--app-text-secondary);
+  font-weight: 500;
+}
+
+.el-card {
+  border-color: var(--app-border);
+  border-radius: var(--app-radius-md);
+  box-shadow: var(--app-shadow-sm);
+
+  .el-card__header {
+    padding: 16px 20px;
+    border-bottom-color: var(--app-divider);
+    color: var(--app-text);
+    font-weight: 600;
+  }
+}
+
+.el-table {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+
+  .cell {
+    word-break: normal;
+    overflow-wrap: anywhere;
+  }
+
+  th.el-table__cell {
+    background: #f7fafd;
+    color: #5b6b7f;
+    font-weight: 600;
+  }
+
+  td.el-table__cell {
+    border-bottom-color: var(--app-divider);
+  }
+
+  .el-table__body tr:hover > td.el-table__cell {
+    background: #f7fafd;
+  }
+
+  &::before,
+  .el-table__fixed::before,
+  .el-table__fixed-right::before {
+    background-color: transparent;
+  }
+}
+
+.el-table__empty-text {
+  color: var(--app-text-tertiary);
+}
+
+.el-tag {
+  padding: 0 10px;
+  border: none;
+  border-radius: 999px;
+  font-weight: 500;
+}
+
+.el-pagination {
+  color: var(--app-text-secondary);
+
+  .el-pager li,
+  .btn-prev,
+  .btn-next {
+    border-radius: 6px;
+  }
+
+  .el-pager li.active {
+    background: var(--app-primary);
+  }
+
+  .el-pager li:hover,
+  .btn-prev:hover,
+  .btn-next:hover {
+    color: var(--app-primary);
+  }
+}
+
+.el-dialog {
+  border-radius: var(--app-radius-md);
+  box-shadow: var(--app-shadow-md);
+
+  .el-dialog__header {
+    padding: 20px 24px 12px;
+  }
+
+  .el-dialog__title {
+    color: var(--app-text);
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .el-dialog__body {
+    padding: 12px 24px 20px;
+    color: var(--app-text-secondary);
+  }
+
+  .el-dialog__footer {
+    padding: 12px 24px 20px;
+  }
+}
+
+.el-message-box {
+  border-radius: var(--app-radius-md);
+}
+
+.el-message {
+  border-radius: var(--app-radius-sm);
+}
+
+.el-dropdown-menu {
+  padding: 6px;
+  border-color: var(--app-border);
+  border-radius: 10px;
+  box-shadow: var(--app-shadow-md);
+
+  .el-dropdown-menu__item {
+    border-radius: 6px;
+
+    &:hover,
+    &:focus {
+      color: var(--app-primary);
+      background: var(--app-primary-soft);
+    }
+  }
+}
+
+.el-tabs {
+  .el-tabs__item {
+    color: var(--app-text-secondary);
+    font-weight: 500;
+  }
+
+  .el-tabs__item.is-active {
+    color: var(--app-primary);
+  }
+}
+
+.el-breadcrumb__inner,
+.el-breadcrumb__inner a {
+  color: var(--app-text-tertiary);
+}
+
+.el-breadcrumb__item:last-child .el-breadcrumb__inner {
+  color: var(--app-text);
+  font-weight: 500;
+}
+
+.el-select-dropdown__item.selected {
+  color: var(--app-primary);
+}
+
+.el-loading-mask {
+  background-color: rgba(255, 255, 255, 0.72);
+}
+
+.el-drawer {
+  .el-drawer__header {
+    color: var(--app-text);
+  }
+}
+
+.el-date-editor .el-range-input {
+  color: var(--app-text);
+
+  &::placeholder {
+    color: var(--app-text-placeholder);
+  }
+}
+
+.el-divider {
+  background-color: var(--app-divider);
+}

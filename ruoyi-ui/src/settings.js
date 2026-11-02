@@ -37,7 +37,7 @@ module.exports = {
   /**
    * 是否显示logo
    */
-  sidebarLogo: false,
+  sidebarLogo: true,
 
   /**
    * 是否显示动态标题
@@ -52,5 +52,5 @@ module.exports = {
   /**
    * 底部版权文本内容
    */
-  footerContent: 'Copyright © 2018-2025 养老资金监管平台 All Rights Reserved.'
+  footerContent: 'Copyright © 2018-2026 养老资金监管平台'
 }
