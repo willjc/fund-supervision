@@ -58,7 +58,7 @@
       display: none;
     }
 
-    a {
+    a:not(.sidebar-logo-link) {
       display: inline-block;
       width: 100%;
       overflow: hidden;
