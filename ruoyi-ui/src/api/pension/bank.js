@@ -79,3 +79,8 @@ export function retryPayout(transferId) {
 export function getBankAvailableBalance(institutionId) {
   return request({ url: '/pension/bank/payout/balance/' + institutionId, method: 'get' })
 }
+
+// 查询监管账户银行交易明细（OBK0071708）
+export function getBankAccountDetail(institutionId, query) {
+  return request({ url: '/pension/bank/payout/detail/' + institutionId, method: 'get', params: query })
+}

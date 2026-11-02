@@ -18,9 +18,11 @@ import java.security.interfaces.RSAKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Date;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import javax.crypto.Cipher;
@@ -30,6 +32,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.common.utils.uuid.IdUtils;
@@ -281,6 +284,65 @@ public class ZhengzhouBankGateway implements BankGateway
         result.setPayerAccountNo(accountNo);
         result.setAvailableBalance(available);
         return result;
+    }
+
+    /** OBK0071708（ylmxqy）监管账户交易明细查询：字段名以网关 schema 为准（acctno/stardt/enddat/pagenm/rcrdnm）。 */
+    @Override
+    public List<BankAccountDetail> queryAccountDetails(String accountNo, String stardt, String enddat,
+            String pagenm, String rcrdnm)
+    {
+        requirePayoutWire("监管明细查询协议尚未确认，不能查询 ylmxqy");
+        requireProtocolConfig();
+        requirePublicGatewayUrl();
+        require(accountNo, "监管账户不能为空");
+        require(stardt, "起始日期不能为空");
+        require(enddat, "结束日期不能为空");
+        JSONObject body = new JSONObject();
+        body.put("acctno", accountNo);
+        body.put("stardt", stardt);
+        body.put("enddat", enddat);
+        if (!isBlank(pagenm))
+        {
+            body.put("pagenm", pagenm);
+        }
+        if (!isBlank(rcrdnm))
+        {
+            body.put("rcrdnm", rcrdnm);
+        }
+        JSONObject response = postTo(supervisionUrl(), "OBK0071708", body, new Date());
+        String code = normalizeCode(response.getString("respcd"));
+        if (!"0000".equals(code))
+        {
+            throw new ServiceException("监管账户明细查询失败：" + code + " " + response.getString("resptx"));
+        }
+        List<BankAccountDetail> details = new ArrayList<>();
+        JSONArray rows = response.getJSONArray("listnm");
+        if (rows == null)
+        {
+            return details;
+        }
+        for (int i = 0; i < rows.size(); i++)
+        {
+            JSONObject row = rows.getJSONObject(i);
+            BankAccountDetail detail = new BankAccountDetail();
+            detail.setTransq(row.getString("transq"));
+            detail.setTranam(parseAmount(row.get("tranam")));
+            detail.setTrandt(row.getString("trandt"));
+            detail.setTrantm(row.getString("trantm"));
+            detail.setJgacct(row.getString("jgacct"));
+            detail.setJgacna(row.getString("jgacna"));
+            detail.setToacct(row.getString("toacct"));
+            detail.setToacna(row.getString("toacna"));
+            detail.setBankno(row.getString("bankno"));
+            detail.setBanknm(row.getString("banknm"));
+            detail.setSmrytx(row.getString("smrytx"));
+            detail.setDscrtx(row.getString("dscrtx"));
+            detail.setOnlnbl(parseAmount(row.get("onlnbl")));
+            detail.setAmntcd(row.getString("amntcd"));
+            detail.setTotlno(row.getString("totlno"));
+            details.add(detail);
+        }
+        return details;
     }
 
     private void requirePayoutWire(String message)
@@ -651,6 +713,62 @@ public class ZhengzhouBankGateway implements BankGateway
         request.put("appSecret", appSecret);
         request.put("bizContent", encrypt(plainText, publicKey));
         return request;
+    }
+
+    /** 入站信封开启结果见 {@link BankGateway.InboundEnvelope}。 */
+
+    /**
+     * 开启银行入站信封（银行调我方，如 OBK0071707 退汇通知）：与出站镜像——
+     * 银行私钥签名、我方以银行公钥验签；bizContent 以我方私钥解密，仅 bizContent 参与验签解密。
+     * appId 不符或验签失败即拒，调用方不得向未通过校验的报文返回业务 ACK。
+     */
+    @Override
+    public InboundEnvelope openInboundEnvelope(String rawBody)
+    {
+        try
+        {
+            requireProtocolConfig();
+            JSONObject envelope = JSON.parseObject(rawBody);
+            if (envelope == null || isBlank(envelope.getString("bizContent")))
+            {
+                throw new ServiceException("银行通知报文缺少信封内容");
+            }
+            if (!appId.equals(envelope.getString("appId")))
+            {
+                throw new ServiceException("银行通知 appId 不匹配");
+            }
+            String plainText = decrypt(envelope.getString("bizContent"), loadPrivateKey());
+            if (!verify(plainText, envelope.getString("sign"), loadBankPublicKey()))
+            {
+                throw new ServiceException("银行通知验签失败");
+            }
+            return new InboundEnvelope(envelope.getString("tranCode"), envelope.getString("tranSeq"),
+                    JSON.parseObject(plainText));
+        }
+        catch (ServiceException e)
+        {
+            throw e;
+        }
+        catch (Exception e)
+        {
+            throw new ServiceException("银行通知解析失败：" + e.getMessage());
+        }
+    }
+
+    /** 银行通知应答信封（镜像出站）：sign/加密用我方私钥与银行公钥，bizContent 为业务应答（respcd/resptx）。 */
+    @Override
+    public JSONObject buildNotifyResponse(JSONObject biz, Date now) throws Exception
+    {
+        String plainText = JSON.toJSONString(biz);
+        JSONObject response = new JSONObject();
+        response.put("RspDate", format(now, "yyyyMMdd"));
+        response.put("RspTime", format(now, "HHmmss"));
+        response.put("RspSeq", "BC" + IdUtils.fastSimpleUUID().substring(0, 30).toUpperCase());
+        response.put("ErrorCode", "AAAAAAAAAA");
+        response.put("ErrorMsg", "success");
+        response.put("sign", sign(plainText, loadPrivateKey()));
+        response.put("bizContent", encrypt(plainText, loadBankPublicKey()));
+        return response;
     }
 
     /** uMtBillApply：申请生成指定清算日期的对账单。respCode 0000 成功；1073 无交易；1081 跑批未完成；1082 未结算。 */

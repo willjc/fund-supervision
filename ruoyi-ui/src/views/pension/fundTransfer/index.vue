@@ -44,6 +44,10 @@
         <el-descriptions-item label="失败/核查原因" :span="2">{{ detailData.failureReason || '-' }}</el-descriptions-item>
         <el-descriptions-item label="银行请求号">{{ bankResult.requestNo || '尚未查询' }}</el-descriptions-item>
         <el-descriptions-item label="本地记账状态">{{ bankResult.bookingStatus || '尚未查询' }}</el-descriptions-item>
+        <el-descriptions-item label="银行记账时间">{{ bankResult.bankTime || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="银行状态">{{ bankResult.bankStatus || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="退汇时间">{{ bankResult.returnTime || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="退汇原因">{{ bankResult.returnReason || '-' }}</el-descriptions-item>
         <el-descriptions-item label="银行可用余额（元）">{{ bankBalance.status === 'SUCCESS' && bankBalance.availableBalance != null ? bankBalance.availableBalance : '未取得银行余额' }}</el-descriptions-item>
         <el-descriptions-item label="余额查询时间">{{ bankBalance.queriedAt || '-' }}</el-descriptions-item>
       </el-descriptions>

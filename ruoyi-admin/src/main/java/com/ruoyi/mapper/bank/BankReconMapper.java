@@ -62,6 +62,10 @@ public interface BankReconMapper
     })
     List<BankReconDiff> selectDiffs(Long runId);
 
+    /** 标记差异已处理（0→1 幂等），备注留审计。 */
+    @Update("UPDATE bank_recon_diff SET handled=1, handle_remark=#{remark} WHERE diff_id=#{diffId} AND handled=0")
+    int markDiffHandled(@Param("diffId") Long diffId, @Param("remark") String remark);
+
     /** 本地已确认成功的收单交易（支付+退款），比对数据源。 */
     @Select("SELECT transaction_id, request_no, business_type, amount, bank_serial_no, bank_time, status FROM bank_transaction WHERE business_type IN ('PAY','REFUND') AND status='SUCCESS' AND mer_id=#{merId} AND bank_time IS NOT NULL AND bank_serial_no IS NOT NULL")
     @ResultMap("com.ruoyi.mapper.bank.BankTransactionMapper.BankTransactionResult")

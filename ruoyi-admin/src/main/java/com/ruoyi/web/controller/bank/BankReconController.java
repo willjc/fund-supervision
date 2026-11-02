@@ -42,6 +42,33 @@ public class BankReconController extends BaseController
         return AjaxResult.success(reconMapper.selectDiffs(runId));
     }
 
+    /** 标记差异已处理：备注必填留审计（0→1 幂等）。 */
+    @PreAuthorize("@ss.hasPermi('bank:recon:handle')")
+    @Log(title = "收单对账差异处理", businessType = BusinessType.UPDATE)
+    @PostMapping("/diffs/handle")
+    public AjaxResult handleDiff(@RequestBody Map<String, String> params)
+    {
+        String diffId = params.get("diffId");
+        String remark = params.get("remark");
+        if (diffId == null || diffId.trim().isEmpty())
+        {
+            return AjaxResult.error("差异记录必填");
+        }
+        if (remark == null || remark.trim().isEmpty())
+        {
+            return AjaxResult.error("处理说明必填");
+        }
+        try
+        {
+            int updated = reconMapper.markDiffHandled(Long.parseLong(diffId.trim()), remark.trim());
+            return updated == 1 ? AjaxResult.success() : AjaxResult.error("差异不存在或已处理");
+        }
+        catch (NumberFormatException e)
+        {
+            return AjaxResult.error("差异记录不合法");
+        }
+    }
+
     @PreAuthorize("@ss.hasPermi('bank:recon:run')")
     @Log(title = "收单对账执行", businessType = BusinessType.OTHER)
     @PostMapping("/run")

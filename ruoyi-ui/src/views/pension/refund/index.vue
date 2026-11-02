@@ -28,6 +28,12 @@
         </el-form-item>
       </el-form>
 
+      <!-- 操作栏 -->
+      <el-row class="mb8">
+        <el-button type="warning" size="mini" icon="el-icon-money" v-hasPermi="['pension:refund:add']" @click="handleOffline">代发起清退</el-button>
+        <span style="margin-left: 10px; color: #909399; font-size: 12px;">历史/现金余额无银行流水，仅可线下清退（银行入账部分必须原路退款）</span>
+      </el-row>
+
       <!-- 数据表格 -->
       <el-table v-loading="loading" :data="dataList" border>
         <el-table-column label="退款单号" prop="refundNo" width="190" />
@@ -71,6 +77,38 @@
         @pagination="getList"
       />
     </el-card>
+
+    <!-- 代发起清退对话框 -->
+    <el-dialog title="代发起线下清退" :visible.sync="offlineVisible" width="600px" append-to-body>
+      <el-form ref="offlineForm" :model="offlineForm" label-width="120px">
+        <el-form-item label="老人ID" prop="elderId" :rules="[{ required: true, message: '请输入老人ID', trigger: 'blur' }]">
+          <el-input v-model.number="offlineForm.elderId" placeholder="可在入住人列表查询" />
+        </el-form-item>
+        <el-form-item label="机构ID" prop="institutionId" :rules="[{ required: true, message: '请输入机构ID', trigger: 'blur' }]">
+          <el-input v-model.number="offlineForm.institutionId" placeholder="老人所属机构ID" />
+        </el-form-item>
+        <el-form-item label="服务费退款">
+          <el-input-number v-model="offlineForm.serviceRefundAmount" :min="0" :precision="2" :step="10" />
+        </el-form-item>
+        <el-form-item label="押金退款">
+          <el-input-number v-model="offlineForm.depositRefundAmount" :min="0" :precision="2" :step="10" />
+        </el-form-item>
+        <el-form-item label="会员费退款">
+          <el-input-number v-model="offlineForm.memberRefundAmount" :min="0" :precision="2" :step="10" />
+        </el-form-item>
+        <el-form-item label="退款总额">
+          <span class="amount-text">¥{{ formatAmount(offlineTotal) }}</span>
+          <span style="margin-left: 10px; color: #909399; font-size: 12px;">总额自动=三项之和，审批时校验不超过非银行入账部分</span>
+        </el-form-item>
+        <el-form-item label="退款原因" prop="refundReason" :rules="[{ required: true, message: '请输入退款原因', trigger: 'blur' }]">
+          <el-input v-model="offlineForm.refundReason" type="textarea" maxlength="200" placeholder="如：现金缴款余额线下退还，凭证号xxx" />
+        </el-form-item>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button type="primary" :loading="offlineLoading" @click="submitOffline">创建并送审</el-button>
+        <el-button @click="offlineVisible = false">取消</el-button>
+      </div>
+    </el-dialog>
 
     <!-- 详情对话框 -->
     <el-dialog title="退款详情" :visible.sync="detailVisible" width="800px" append-to-body>
@@ -196,7 +234,7 @@
 </template>
 
 <script>
-import { listApproval, getRefund, approveRefund, rejectRefund } from '@/api/pension/supervisionRefund'
+import { listApproval, getRefund, approveRefund, rejectRefund, createOfflineRefund } from '@/api/pension/supervisionRefund'
 
 export default {
   name: 'RefundManagement',
@@ -215,6 +253,16 @@ export default {
       },
       detailVisible: false,
       detailData: {},
+      offlineVisible: false,
+      offlineLoading: false,
+      offlineForm: {
+        elderId: null,
+        institutionId: null,
+        serviceRefundAmount: 0,
+        depositRefundAmount: 0,
+        memberRefundAmount: 0,
+        refundReason: ''
+      },
       approveVisible: false,
       approveForm: {
         refundId: null,
@@ -240,6 +288,12 @@ export default {
     }
     this.getList()
   },
+  computed: {
+    offlineTotal() {
+      const form = this.offlineForm
+      return (Number(form.serviceRefundAmount) || 0) + (Number(form.depositRefundAmount) || 0) + (Number(form.memberRefundAmount) || 0)
+    }
+  },
   methods: {
     // 查询列表
     getList() {
@@ -253,6 +307,22 @@ export default {
       })
     },
     // 搜索
+    handleOffline() {
+      this.offlineForm = { elderId: null, institutionId: null, serviceRefundAmount: 0, depositRefundAmount: 0, memberRefundAmount: 0, refundReason: '' }
+      this.offlineVisible = true
+    },
+    submitOffline() {
+      this.$refs.offlineForm.validate(valid => {
+        if (!valid) return
+        const form = { ...this.offlineForm, refundAmount: this.offlineTotal }
+        this.offlineLoading = true
+        createOfflineRefund(form).then(() => {
+          this.$modal.msgSuccess('已创建线下清退申请，请在列表中审核')
+          this.offlineVisible = false
+          this.getList()
+        }).finally(() => { this.offlineLoading = false })
+      })
+    },
     handleQuery() {
       this.queryParams.pageNum = 1
       this.getList()

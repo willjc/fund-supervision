@@ -336,7 +336,7 @@ class ZhengzhouBankGatewayTest
         assertThrows(ServiceException.class, () -> gateway.queryPayout(request));
         assertThrows(ServiceException.class, () -> gateway.queryBalance("PAYER", "监管户"));
         assertThrows(ServiceException.class, () -> new DisabledBankGateway().submitPayout(request));
-        assertEquals(503, new BankNotificationController().protocolNotVerified().getStatusCodeValue());
+        assertEquals(503, new BankNotificationController().paymentProtocolNotVerified().getStatusCodeValue());
     }
 
     @Test

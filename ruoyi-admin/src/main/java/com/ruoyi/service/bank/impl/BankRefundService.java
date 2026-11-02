@@ -104,6 +104,18 @@ public class BankRefundService
         }
     }
 
+    /** 订单是否有银行成功支付事实：有则必须原路退款，无则只能走线下清退（历史/现金资金）。 */
+    public boolean hasBankPayFact(Long orderId)
+    {
+        if (orderId == null || orderId == 0L)
+        {
+            return false;
+        }
+        BankTransaction payment = transactions.selectByBusiness("PAY", orderId);
+        return payment != null && "SUCCESS".equals(payment.getStatus())
+                && "SUCCESS".equals(payment.getBankStatus());
+    }
+
     /** 查询退款请求并按终态记账；与后台补查任务共用。 */
     public BankTransaction reconcile(String requestNo)
     {

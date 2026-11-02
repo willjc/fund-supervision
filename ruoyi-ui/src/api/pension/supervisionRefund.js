@@ -61,6 +61,15 @@ export function batchApprove(refundIds) {
   })
 }
 
+// 代发起线下清退（历史/现金余额，走既有审批流程）
+export function createOfflineRefund(data) {
+  return request({
+    url: '/pension/supervision/refund/offline',
+    method: 'post',
+    data: data
+  })
+}
+
 // 获取大额退款
 export function getLargeAmountRefunds() {
   return request({

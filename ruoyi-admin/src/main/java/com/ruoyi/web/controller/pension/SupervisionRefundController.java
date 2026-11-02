@@ -128,6 +128,56 @@ public class SupervisionRefundController extends BaseController
     }
 
     /**
+     * 代发起线下清退：历史/现金余额（无银行流水部分）创建退款申请，再走既有审批流程。
+     */
+    @PreAuthorize("@ss.hasPermi('pension:refund:add')")
+    @Log(title = "退款审批", businessType = BusinessType.INSERT)
+    @PostMapping("/offline")
+    public AjaxResult createOfflineRefund(@RequestBody RefundRecord refundRecord)
+    {
+        if (refundRecord.getElderId() == null || refundRecord.getInstitutionId() == null)
+        {
+            return AjaxResult.error("老人与机构必填");
+        }
+        java.math.BigDecimal service = nz(refundRecord.getServiceRefundAmount());
+        java.math.BigDecimal deposit = nz(refundRecord.getDepositRefundAmount());
+        java.math.BigDecimal member = nz(refundRecord.getMemberRefundAmount());
+        java.math.BigDecimal total = nz(refundRecord.getRefundAmount());
+        if (service.signum() < 0 || deposit.signum() < 0 || member.signum() < 0 || total.signum() <= 0)
+        {
+            return AjaxResult.error("退款金额不合法");
+        }
+        if (total.compareTo(service.add(deposit).add(member)) != 0)
+        {
+            return AjaxResult.error("退款总金额与分类金额不一致");
+        }
+        if (refundRecord.getRefundReason() == null || refundRecord.getRefundReason().trim().isEmpty())
+        {
+            return AjaxResult.error("退款原因必填");
+        }
+        refundRecord.setOrderId(0L);
+        refundRecord.setPaymentId(0L);
+        refundRecord.setRefundMethod("账户退款（线下清退）");
+        refundRecord.setRefundStatus("0");
+        refundRecord.setRefundNo("REF" + new java.text.SimpleDateFormat("yyyyMMddHHmmss").format(new java.util.Date())
+                + com.ruoyi.common.utils.uuid.IdUtils.fastSimpleUUID().substring(0, 8).toUpperCase());
+        refundRecord.setCreateBy(getUsername());
+        try
+        {
+            return toAjax(refundRecordService.insertRefundRecord(refundRecord));
+        }
+        catch (Exception e)
+        {
+            return AjaxResult.error("创建失败：" + e.getMessage());
+        }
+    }
+
+    private java.math.BigDecimal nz(java.math.BigDecimal amount)
+    {
+        return amount == null ? java.math.BigDecimal.ZERO : amount;
+    }
+
+    /**
      * 获取审批统计信息
      */
     @PreAuthorize("@ss.hasPermi('pension:refund:query')")

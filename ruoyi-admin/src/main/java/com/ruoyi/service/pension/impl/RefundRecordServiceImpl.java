@@ -99,8 +99,13 @@ public class RefundRecordServiceImpl implements IRefundRecordService
     {
         if ("zzbank".equals(integrationMode))
         {
-            // 银行模式走原路退款：审批事务落单后由 BankRefundService 提交银行并按查询终态记账。
-            return bankRefundService.approveAndSubmit(refundId, approver, currentUserId);
+            RefundRecord peek = refundRecordMapper.selectRefundRecordByRefundId(refundId);
+            if (peek != null && bankRefundService.hasBankPayFact(peek.getOrderId()))
+            {
+                // 有银行成功支付事实必须原路退款：审批事务落单后由 BankRefundService 提交银行并按查询终态记账。
+                return bankRefundService.approveAndSubmit(refundId, approver, currentUserId);
+            }
+            // 无银行支付事实（历史/现金资金）走线下清退：本地扣账，只动非银行部分。
         }
         RefundRecord refundRecord = refundRecordMapper.selectRefundRecordForUpdate(refundId, currentUserId);
         if (refundRecord == null)
@@ -147,6 +152,17 @@ public class RefundRecordServiceImpl implements IRefundRecordService
         ensureSufficientBalance("押金", depositBalance, depositAmount);
         ensureSufficientBalance("会员费", memberBalance, memberAmount);
         ensureSufficientBalance("账户总", totalBalance, totalAmount);
+
+        if ("zzbank".equals(integrationMode))
+        {
+            // 线下清退只允许动非银行入账部分（银行入账资金必须原路退）；SQL 守卫（新余额≥bank_*）继续兜底。
+            BigDecimal nonBankService = serviceBalance.subtract(amountOrZero(account.getBankServiceBalance()));
+            BigDecimal nonBankDeposit = depositBalance.subtract(amountOrZero(account.getBankDepositBalance()));
+            if (nonBankService.compareTo(serviceAmount) < 0 || nonBankDeposit.compareTo(depositAmount) < 0)
+            {
+                throw new ServiceException("退款金额超过可线下清退部分（银行入账资金须走原路退款）");
+            }
+        }
 
         BigDecimal newServiceBalance = serviceBalance.subtract(serviceAmount);
         BigDecimal newDepositBalance = depositBalance.subtract(depositAmount);

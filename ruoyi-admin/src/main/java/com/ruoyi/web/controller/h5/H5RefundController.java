@@ -170,7 +170,8 @@ public class H5RefundController extends BaseController
         refundRecord.setInstitutionId(institutionId);
         Long orderId = params.get("orderId") != null ?
                 Long.parseLong(params.get("orderId").toString()) : null;
-        if ("zzbank".equals(integrationMode))
+        boolean originalRoute = "zzbank".equals(integrationMode) && bankRefundService.hasBankPayFact(orderId);
+        if (originalRoute)
         {
             // 银行模式：原路退款必须锚定订单，预检通过后落真实订单与支付关联。
             try
@@ -189,8 +190,22 @@ public class H5RefundController extends BaseController
         }
         else
         {
-            refundRecord.setOrderId(0L); // 针对老人账户的退款，order_id设为0
+            // 账户退款/线下清退：历史与现金资金无银行流水，只能本地清退；银行入账部分必须原路退。
+            if ("zzbank".equals(integrationMode))
+            {
+                BigDecimal nonBankService = balance(account.getServiceBalance())
+                        .subtract(balance(account.getBankServiceBalance()));
+                BigDecimal nonBankDeposit = balance(account.getDepositBalance())
+                        .subtract(balance(account.getBankDepositBalance()));
+                if (nonBankService.compareTo(serviceRefundAmount) < 0
+                        || nonBankDeposit.compareTo(depositRefundAmount) < 0)
+                {
+                    return AjaxResult.error("退款金额超过可线下清退部分（银行入账资金请走原路退款）");
+                }
+            }
+            refundRecord.setOrderId("zzbank".equals(integrationMode) && orderId != null ? orderId : 0L);
             refundRecord.setPaymentId(0L);
+            refundRecord.setRefundMethod("zzbank".equals(integrationMode) ? "账户退款（线下清退）" : "账户退款");
         }
         refundRecord.setRefundAmount(totalRefundAmount);
         refundRecord.setServiceRefundAmount(serviceRefundAmount);
@@ -199,10 +214,6 @@ public class H5RefundController extends BaseController
         refundRecord.setRefundReason(refundReason);
         refundRecord.setRefundDesc(refundDesc);
         refundRecord.setRefundStatus("0"); // 待处理
-        if (!"zzbank".equals(integrationMode))
-        {
-            refundRecord.setRefundMethod("账户退款");
-        }
         refundRecord.setCreateBy(String.valueOf(userId));
         refundRecord.setCreateTime(new Date());
 

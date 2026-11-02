@@ -257,5 +257,77 @@ class ZhengzhouBankGatewayPayoutTest
                 assertThrows(ServiceException.class, () -> gateway.queryPayout(request)).getMessage());
         assertEquals("监管余额查询协议尚未确认，不能查询 ylyeqy",
                 assertThrows(ServiceException.class, () -> gateway.queryBalance("PAYER", "监管户")).getMessage());
+        assertEquals("监管明细查询协议尚未确认，不能查询 ylmxqy",
+                assertThrows(ServiceException.class,
+                        () -> gateway.queryAccountDetails("PAYER", "20260914", "20260914", null, null)).getMessage());
+    }
+
+    @Test
+    void shouldQueryAccountDetailsFromYlmxqyAndMapRows()
+    {
+        StubGateway gateway = gateway();
+        JSONObject row = new JSONObject();
+        row.put("transq", "202609140000A30818476");
+        row.put("tranam", "0.01");
+        row.put("trandt", "20260914");
+        row.put("trantm", "173908");
+        row.put("jgacct", "999156009980023893");
+        row.put("jgacna", "郑州市养老机构监管账号");
+        row.put("toacct", "999156009960023894");
+        row.put("toacna", "郑州市养老机构监管账号");
+        row.put("bankno", "0000101");
+        row.put("banknm", "郑州银行股份有限公司总行运营管理部");
+        row.put("smrytx", "养老资金监管");
+        row.put("dscrtx", "监管拨付联调测试");
+        row.put("onlnbl", "9999999.92");
+        row.put("amntcd", "0");
+        row.put("totlno", "6");
+        com.alibaba.fastjson2.JSONArray rows = new com.alibaba.fastjson2.JSONArray();
+        rows.add(row);
+        JSONObject canned = new JSONObject();
+        canned.put("respcd", "0000");
+        canned.put("resptx", "业务处理成功或业务受理成功");
+        canned.put("recount", "1");
+        canned.put("listnm", rows);
+        gateway.canned = canned;
+
+        java.util.List<BankAccountDetail> details = gateway.queryAccountDetails(
+                "999156009980023893", "20260914", "20260930", "1", "10");
+
+        assertEquals("https://obk.example.cn:7000/openapi/ylzjjgin/v1", gateway.capturedUrl);
+        assertEquals("OBK0071708", gateway.capturedTranCode);
+        assertEquals("999156009980023893", gateway.capturedBody.getString("acctno"));
+        assertEquals("20260914", gateway.capturedBody.getString("stardt"));
+        assertEquals("20260930", gateway.capturedBody.getString("enddat"));
+        assertEquals("1", gateway.capturedBody.getString("pagenm"));
+        assertEquals("10", gateway.capturedBody.getString("rcrdnm"));
+        assertEquals(1, details.size());
+        BankAccountDetail detail = details.get(0);
+        assertEquals("202609140000A30818476", detail.getTransq());
+        assertEquals(new BigDecimal("0.01"), detail.getTranam());
+        assertEquals(new BigDecimal("9999999.92"), detail.getOnlnbl());
+        assertEquals("0", detail.getAmntcd());
+        assertEquals("监管拨付联调测试", detail.getDscrtx());
+    }
+
+    @Test
+    void detailQueryOmitsOptionalPagingAndRejectsBusinessFailure()
+    {
+        StubGateway gateway = gateway();
+        JSONObject canned = new JSONObject();
+        canned.put("respcd", "0000");
+        canned.put("recount", "0");
+        gateway.canned = canned;
+
+        assertTrue(gateway.queryAccountDetails("PAYER", "20260914", "20260914", null, null).isEmpty());
+        assertFalse(gateway.capturedBody.containsKey("pagenm"));
+        assertFalse(gateway.capturedBody.containsKey("rcrdnm"));
+
+        gateway.canned = new JSONObject();
+        gateway.canned.put("respcd", "9999");
+        gateway.canned.put("resptx", "查询信息有误");
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> gateway.queryAccountDetails("PAYER", "20260914", "20260914", null, null));
+        assertTrue(exception.getMessage().contains("监管账户明细查询失败"));
     }
 }

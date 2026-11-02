@@ -23,6 +23,7 @@ import com.ruoyi.domain.pension.AccountInfo;
 import com.ruoyi.domain.pension.RefundRecord;
 import com.ruoyi.mapper.pension.AccountInfoMapper;
 import com.ruoyi.mapper.pension.RefundRecordMapper;
+import com.ruoyi.service.bank.impl.BankRefundService;
 import com.ruoyi.service.pension.IExpenseRecordService;
 import com.ruoyi.service.pension.ISupervisionAccountLogService;
 
@@ -40,6 +41,9 @@ class RefundRecordServiceImplTest
 
     @Mock
     private ISupervisionAccountLogService supervisionAccountLogService;
+
+    @Mock
+    private BankRefundService bankRefundService;
 
     @InjectMocks
     private RefundRecordServiceImpl refundRecordService;
@@ -142,5 +146,64 @@ class RefundRecordServiceImplTest
         assertEquals("记录服务费退款流水失败", exception.getMessage());
         verify(refundRecordMapper, never()).updateRefundRecord(any());
         verify(supervisionAccountLogService, never()).recordTransferOut(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void zzbankOfflineRefundBooksLocallyWhenNoBankPayFact()
+    {
+        // zzbank 模式但无银行成功支付事实（历史/现金资金）→ 线下清退走本地扣账，不碰原路退款。
+        org.springframework.test.util.ReflectionTestUtils.setField(
+                refundRecordService, "integrationMode", "zzbank");
+        when(refundRecordMapper.selectRefundRecordByRefundId(1L)).thenReturn(refund);
+        when(refundRecordMapper.selectRefundRecordForUpdate(1L, 99L)).thenReturn(refund);
+        when(accountInfoMapper.selectAccountInfoForUpdate(10L, 20L)).thenReturn(account);
+        when(accountInfoMapper.updateAccountBalance(eq(100L), any(), any(), any(), any())).thenReturn(1);
+        when(expenseRecordService.createExpenseRecord(eq(10L), eq(100L), anyString(),
+                eq("expense"), any(), anyString(), eq(1L), eq("refund"), any(), any())).thenReturn(1);
+        when(refundRecordMapper.updateRefundRecord(refund)).thenReturn(1);
+
+        int result = refundRecordService.approveRefund(1L, "admin", 99L);
+
+        assertEquals(1, result);
+        assertEquals("1", refund.getRefundStatus());
+        verify(bankRefundService, never()).approveAndSubmit(any(), any(), any());
+        verify(accountInfoMapper).updateAccountBalance(eq(100L), any(), any(), any(), any());
+    }
+
+    @Test
+    void zzbankBankPayFactDelegatesToOriginalRouteRefund()
+    {
+        org.springframework.test.util.ReflectionTestUtils.setField(
+                refundRecordService, "integrationMode", "zzbank");
+        refund.setOrderId(5L);
+        when(refundRecordMapper.selectRefundRecordByRefundId(1L)).thenReturn(refund);
+        when(bankRefundService.hasBankPayFact(5L)).thenReturn(true);
+        when(bankRefundService.approveAndSubmit(1L, "admin", 99L)).thenReturn(1);
+
+        int result = refundRecordService.approveRefund(1L, "admin", 99L);
+
+        assertEquals(1, result);
+        verify(bankRefundService).approveAndSubmit(1L, "admin", 99L);
+        verify(accountInfoMapper, never()).selectAccountInfoForUpdate(any(), any());
+        verify(refundRecordMapper, never()).selectRefundRecordForUpdate(any(), any());
+    }
+
+    @Test
+    void zzbankOfflineRefundCannotTouchBankSourcedFunds()
+    {
+        // 银行入账部分必须原路退：线下清退金额超过非银行部分即拦截（SQL 守卫继续兜底）。
+        org.springframework.test.util.ReflectionTestUtils.setField(
+                refundRecordService, "integrationMode", "zzbank");
+        account.setBankServiceBalance(new BigDecimal("70.00"));
+        account.setBankDepositBalance(new BigDecimal("60.00"));
+        when(refundRecordMapper.selectRefundRecordByRefundId(1L)).thenReturn(refund);
+        when(refundRecordMapper.selectRefundRecordForUpdate(1L, 99L)).thenReturn(refund);
+        when(accountInfoMapper.selectAccountInfoForUpdate(10L, 20L)).thenReturn(account);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> refundRecordService.approveRefund(1L, "admin", 99L));
+
+        assertEquals("退款金额超过可线下清退部分（银行入账资金须走原路退款）", exception.getMessage());
+        verify(accountInfoMapper, never()).updateAccountBalance(any(), any(), any(), any(), any());
     }
 }

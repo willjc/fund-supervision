@@ -2,6 +2,7 @@ package com.ruoyi.web.controller.bank;
 
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -14,6 +15,7 @@ import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.domain.bank.BankTransaction;
 import com.ruoyi.domain.bank.BankMerchantConfig;
 import com.ruoyi.domain.pension.FundTransfer;
+import com.ruoyi.bank.gateway.BankAccountDetail;
 import com.ruoyi.bank.gateway.BankGateway;
 import com.ruoyi.bank.gateway.BankResult;
 import com.ruoyi.mapper.pension.FundTransferMapper;
@@ -47,6 +49,8 @@ public class BankPayoutController
         result.put("manualReview", tx == null ? 0 : tx.getManualReview());
         result.put("requestNo", tx == null ? null : tx.getRequestNo());
         result.put("bankTime", tx == null ? null : tx.getBankTime());
+        result.put("returnTime", tx == null ? null : tx.getReturnTime());
+        result.put("returnReason", tx == null ? null : tx.getReturnReason());
         return AjaxResult.success(result);
     }
 
@@ -71,6 +75,28 @@ public class BankPayoutController
         Map<String, Object> result = new HashMap<>();
         result.put("status", bank.getStatus());
         result.put("availableBalance", bank.getAvailableBalance());
+        result.put("queriedAt", new Date());
+        return AjaxResult.success(result);
+    }
+
+    /** 监管账户交易明细（OBK0071708）：stardt/enddat 为 yyyyMMdd，pagenm/rcrdnm 可选（银行默认 1/10）。 */
+    @GetMapping("/detail/{institutionId}")
+    @PreAuthorize("@ss.hasPermi('pension:bank:detail')")
+    public AjaxResult detail(@PathVariable Long institutionId,
+            @RequestParam String stardt, @RequestParam String enddat,
+            @RequestParam(required = false) String pagenm, @RequestParam(required = false) String rcrdnm)
+    {
+        payouts.checkScope(institutionId);
+        if (stardt == null || !stardt.matches("\\d{8}") || enddat == null || !enddat.matches("\\d{8}"))
+        {
+            throw new ServiceException("查询日期格式为 yyyyMMdd");
+        }
+        BankMerchantConfig config = merchants.selectEnabledByInstitutionId(institutionId);
+        if (config == null) { throw new ServiceException("未配置有效银行绑定"); }
+        List<BankAccountDetail> rows = gateway.queryAccountDetails(
+                config.getSettlementAccountNo(), stardt, enddat, pagenm, rcrdnm);
+        Map<String, Object> result = new HashMap<>();
+        result.put("rows", rows);
         result.put("queriedAt", new Date());
         return AjaxResult.success(result);
     }
