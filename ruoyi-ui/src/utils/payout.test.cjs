@@ -11,7 +11,7 @@ const transformed = babel.transformFileSync(filename, {
 })
 const context = { exports: {} }
 vm.runInNewContext(transformed.code, context)
-const { payoutStatus, canApprovePayout, canRetryPayout } = context.exports
+const { payoutStatus, canApprovePayout, canRetryPayout, isPayoutDue, canSendPayout } = context.exports
 
 assert.strictEqual(payoutStatus({ status: 'completed' }), '历史记录（未接入银行）')
 assert.strictEqual(payoutStatus({ bankEligible: 1, status: 'completed' }), '拨付成功')
@@ -27,6 +27,16 @@ for (const status of ['pending', 'processing', 'completed', 'returned', 'cancell
 assert.strictEqual(canRetryPayout({ bankEligible: 0, status: 'failed', bankTransactionId: 10 }), false)
 assert.strictEqual(canRetryPayout({ bankEligible: 1, status: 'failed' }), false)
 assert.strictEqual(canRetryPayout({ bankEligible: 1, status: 'failed', bankTransactionId: 10 }), true)
+const today = new Date(2026, 10, 2)
+for (const transferDate of ['2026-12-01', '2026-11-03']) {
+  assert.strictEqual(isPayoutDue({ sourceKey: 'MONTH:1:2026-12', transferDate }, today), false, transferDate + ': future monthly payout must not be due')
+  assert.strictEqual(canSendPayout({ bankEligible: 1, status: 'pending', approveTime: '2026-11-02 10:00:00', sourceKey: 'MONTH:1:2026-12', transferDate }, today), false)
+}
+assert.strictEqual(isPayoutDue({ sourceKey: 'MONTH:1:2026-11', transferDate: '2026-11-02' }, today), true)
+assert.strictEqual(isPayoutDue({ sourceKey: 'MONTH:1:2026-12', transferDate: '2026-12-01', paidMethod: 'manual' }, today), true)
+assert.strictEqual(isPayoutDue({ sourceKey: 'FIRST:1', transferDate: '2026-12-01' }, today), true)
+assert.strictEqual(canSendPayout({ bankEligible: 1, status: 'pending', sourceKey: 'MONTH:1:2026-11', transferDate: '2026-11-02' }, today), false, 'send still requires approval')
+assert.strictEqual(canSendPayout({ bankEligible: 1, status: 'pending', approveTime: '2026-11-02 10:00:00', sourceKey: 'MONTH:1:2026-11', transferDate: '2026-11-02' }, today), true)
 console.log('payout UI status and action guards passed')
 
 const fs = require('fs')

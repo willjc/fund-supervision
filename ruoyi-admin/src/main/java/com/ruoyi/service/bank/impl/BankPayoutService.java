@@ -1,6 +1,8 @@
 package com.ruoyi.service.bank.impl;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Date;
 import java.util.Objects;
 import com.alibaba.fastjson2.JSON;
@@ -38,6 +40,10 @@ public class BankPayoutService
 
     public boolean isEnabled() { return enabled && gateway.supportsPayout(); }
 
+    public boolean isSwitchEnabled() { return enabled; }
+
+    public boolean isProtocolConfirmed() { return gateway.supportsPayout(); }
+
     public void checkScope(Long institutionId)
     {
         Long user = com.ruoyi.common.utils.SecurityUtils.getUserId();
@@ -70,6 +76,7 @@ public class BankPayoutService
         if (!isEnabled()) { throw new ServiceException("真实拨付未启用或银行监管协议尚未验收"); }
         FundTransfer original = transfers.selectFundTransferByTransferId(transferId);
         if (original == null) { throw new ServiceException("拨付单不存在"); }
+        if (!retry) { validateDue(original); }
         BankMerchantConfig merchant = merchants.selectEnabledByInstitutionId(original.getInstitutionId());
         validateMerchant(merchant);
         BankResult balance = gateway.queryBalance(merchant.getSettlementAccountNo(), merchant.getSettlementAccountName());
@@ -255,6 +262,18 @@ public class BankPayoutService
         SupervisionAccountLog log = reverse ? ledger.recordIncome(transfer.getInstitutionId(), null, amount, description, "bank-return")
                 : ledger.recordTransferOut(transfer.getInstitutionId(), transfer.getTransferId(), amount, description, "基本账户");
         if (log == null || log.getLogId() == null) { throw new ServiceException("监管流水保存失败"); }
+    }
+
+    /** 服务费月度拨付不得早于划拨日期发送；手动申请和失败重试不受此限制。 */
+    private void validateDue(FundTransfer t)
+    {
+        if (t.getSourceKey() == null || !t.getSourceKey().startsWith("MONTH:")
+                || "manual".equals(t.getPaidMethod()) || t.getTransferDate() == null) { return; }
+        LocalDate due = t.getTransferDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        if (due.isAfter(LocalDate.now()))
+        {
+            throw new ServiceException("未到拨付日期（" + due + "），不能提前发送");
+        }
     }
 
     private void validateMerchant(BankMerchantConfig m)

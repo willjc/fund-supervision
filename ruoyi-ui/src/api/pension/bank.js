@@ -81,6 +81,11 @@ export function retryPayout(transferId) {
   return request({ url: '/pension/bank/payout/' + transferId + '/retry', method: 'post' })
 }
 
+// 拨付流程总览：账户、商户、签约、平台闸门与待办汇总
+export function getPayoutFlow(institutionId) {
+  return request({ url: '/pension/bank/payout/flow/' + institutionId, method: 'get' })
+}
+
 export function getBankAvailableBalance(institutionId) {
   return request({ url: '/pension/bank/payout/balance/' + institutionId, method: 'get' })
 }

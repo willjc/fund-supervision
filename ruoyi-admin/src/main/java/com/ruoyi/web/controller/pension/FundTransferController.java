@@ -19,6 +19,7 @@ import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.domain.pension.FundTransfer;
 import com.ruoyi.service.pension.IFundTransferService;
+import com.ruoyi.service.bank.impl.BankPayoutService;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.common.core.page.TableDataInfo;
 
@@ -34,6 +35,9 @@ public class FundTransferController extends BaseController
 {
     @Autowired
     private IFundTransferService fundTransferService;
+
+    @Autowired
+    private BankPayoutService bankPayoutService;
 
     /**
      * 查询资金划拨列表
@@ -67,7 +71,10 @@ public class FundTransferController extends BaseController
     @GetMapping(value = "/{transferId}")
     public AjaxResult getInfo(@PathVariable("transferId") Long transferId)
     {
-        return success(fundTransferService.selectFundTransferByTransferId(transferId));
+        FundTransfer transfer = fundTransferService.selectFundTransferByTransferId(transferId);
+        if (transfer == null) { return error("拨付单不存在"); }
+        bankPayoutService.checkScope(transfer.getInstitutionId());
+        return success(transfer);
     }
 
     /**

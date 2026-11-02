@@ -303,6 +303,29 @@ class BankSettlementSafetyTest
         verify(f.mapper).schedule(eq(1L),any(Date.class),eq(0));
     }
 
+    @Test
+    void futureMonthlyTransferCannotBeSentManuallyBeforeDueDate()
+    {
+        BankPayoutService service = new BankPayoutService();
+        BankGateway gateway = mock(BankGateway.class);
+        FundTransferMapper transfers = mock(FundTransferMapper.class);
+        ReflectionTestUtils.setField(service, "gateway", gateway);
+        ReflectionTestUtils.setField(service, "transfers", transfers);
+        ReflectionTestUtils.setField(service, "enabled", true);
+        when(gateway.supportsPayout()).thenReturn(true);
+        FundTransfer future = new FundTransfer();
+        future.setTransferId(10L);
+        future.setInstitutionId(20L);
+        future.setSourceKey("MONTH:1:2026-12");
+        future.setPaidMethod("auto");
+        future.setTransferDate(new Date(System.currentTimeMillis() + 172800000L));
+        when(transfers.selectFundTransferByTransferId(10L)).thenReturn(future);
+        ServiceException error = assertThrows(ServiceException.class, () -> service.submit(10L, "test", false));
+        assertTrue(error.getMessage().contains("未到拨付日期"));
+        verify(gateway, never()).queryBalance(any(), any());
+        verify(gateway, never()).submitPayout(any());
+    }
+
     private static BankTransaction transaction()
     {
         BankTransaction tx = new BankTransaction();

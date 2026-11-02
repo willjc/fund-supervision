@@ -3,6 +3,7 @@ package com.ruoyi.mapper.bank;
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import org.apache.ibatis.annotations.*;
 import com.ruoyi.domain.bank.BankTransaction;
 import com.ruoyi.domain.pension.FundTransfer;
@@ -139,6 +140,26 @@ public interface BankSettlementMapper
 
     @Select("SELECT COUNT(*) FROM bank_transaction WHERE institution_id=#{institution} AND status IN ('PENDING','UNKNOWN')")
     int hasUnresolved(Long institution);
+
+    @Select("SELECT "
+          + "COALESCE(SUM(CASE WHEN business_type='PAY' AND status='SUCCESS' THEN 1 ELSE 0 END),0) AS successfulPayments, "
+          + "COALESCE(SUM(CASE WHEN business_type='PAY' AND status IN ('PENDING','UNKNOWN') THEN 1 ELSE 0 END),0) AS pendingPayments, "
+          + "COALESCE(SUM(CASE WHEN business_type='TRANSFER' AND status IN ('PENDING','UNKNOWN') THEN 1 ELSE 0 END),0) AS unresolvedTransfers "
+          + "FROM bank_transaction WHERE institution_id=#{institution}")
+    Map<String, Object> transactionSummary(@Param("institution") Long institution);
+
+    @Select("SELECT "
+          + "COALESCE(SUM(CASE WHEN bank_eligible=1 THEN 1 ELSE 0 END),0) AS bankEligibleTotal, "
+          + "COALESCE(SUM(CASE WHEN bank_eligible=1 AND status='pending' AND approve_time IS NULL THEN 1 ELSE 0 END),0) AS awaitingApproval, "
+          + "COALESCE(SUM(CASE WHEN bank_eligible=1 AND status='pending' AND approve_time IS NOT NULL THEN 1 ELSE 0 END),0) AS awaitingSend, "
+          + "COALESCE(SUM(CASE WHEN bank_eligible=1 AND status='pending' AND approve_time IS NOT NULL THEN transfer_amount ELSE 0 END),0) AS awaitingSendAmount, "
+          + "COALESCE(SUM(CASE WHEN status='processing' THEN 1 ELSE 0 END),0) AS processing, "
+          + "COALESCE(SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END),0) AS completed, "
+          + "COALESCE(SUM(CASE WHEN status='completed' AND (bank_eligible IS NULL OR bank_eligible<>1) THEN 1 ELSE 0 END),0) AS legacyCompleted, "
+          + "COALESCE(SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END),0) AS failed, "
+          + "COALESCE(SUM(CASE WHEN status='returned' THEN 1 ELSE 0 END),0) AS returned "
+          + "FROM fund_transfer WHERE institution_id=#{institution}")
+    Map<String, Object> transferSummary(@Param("institution") Long institution);
 
     @Update("UPDATE fund_transfer_apply a SET a.apply_status=CASE "
           + "WHEN NOT EXISTS(SELECT 1 FROM fund_transfer_apply_detail d JOIN fund_transfer f ON f.transfer_id=d.transfer_id "
