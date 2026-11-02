@@ -208,7 +208,7 @@ export default {
           no: '05', title: '开启拨付闸门',
           desc: '平台总开关、监管协议验收、商户验证启用和机构拨付开关必须同时就绪。',
           state: gates.canSubmit ? 'done' : (gates.merchantReady && gates.agreementSigned ? 'pending' : 'blocked'),
-          detail: blockedReasons.length ? '未就绪：' + blockedReasons.join('、') : '全部闸门已就绪，可对已审批单据发起 702。',
+          detail: this.blockedReasons.length ? '未就绪：' + this.blockedReasons.join('、') : '全部闸门已就绪，可对已审批单据发起 702。',
           link: { text: '检查商户配置', path: '/supervision/account/supervisionAccount' }
         },
         {
