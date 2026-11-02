@@ -5,6 +5,11 @@
         <span>监管账户银行交易明细（OBK0071708，银行对账单口径）</span>
       </div>
 
+      <el-alert type="info" :closable="false" show-icon style="margin-bottom: 12px">
+        <div slot="title">使用说明：本页直接查询银行监管账户流水（708）及可用余额（709），用于核对拨付结果，不代表平台内部记账余额。</div>
+        <div>拨付测试顺序：先在“拨付管理”立即发送（702），再点“查询银行”（703）确认状态；本页可核对银行实际扣账明细与余额。查询受服务端银行对接开关控制，未开闸时会返回网关拒绝提示。</div>
+      </el-alert>
+
       <!-- 搜索条件 -->
       <el-form :model="queryParams" ref="queryForm" :inline="true">
         <el-form-item label="养老机构">

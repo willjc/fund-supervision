@@ -333,13 +333,13 @@ export default {
       })
     },
     handleExecute(row) {
-      this.$confirm('确认执行此划拨申请吗？', '提示', {
+      this.$confirm('确认将申请下的明细加入待拨付吗？本操作不会调用银行，需到“拨付管理”点击“立即发送”。', '提示', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
       }).then(() => {
         executeTransfer(row.applyId).then(response => {
-          this.$message.success('已提交，请查询各明细的银行最终结果')
+          this.$message.success('已加入待拨付，请到“拨付管理”立即发送并查询银行结果')
           this.getList()
         })
       })

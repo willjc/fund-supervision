@@ -7,6 +7,18 @@
       </div>
     </el-alert>
 
+    <el-collapse v-model="guideOpen" class="mb16">
+      <el-collapse-item name="guide" title="测试配置四步">
+        <ol class="guide-list">
+          <li><b>核对机构账户</b>：在“维护机构账户”确认监管账户与基本账户已由机构档案带入；银行登记的户名必须与真实账户一致，不能使用机构名称自动合成。</li>
+          <li><b>登记商户号</b>：新增商户号，填写银行分配的 merId、监管账户户名、基本账户户名；跨行拨付必须填写收款行联行号，并录入银行已办理的监管协议编号。</li>
+          <li><b>银行验证并签约</b>：点击“验证”检查商户配置；未签约的配置可点击“签约”发起 701 监管签约。验证状态为“已验证”后才能启用。</li>
+          <li><b>开启机构拨付开关</b>：编辑配置将“启用状态”和“机构拨付开关”设为开启。随后到“拨付管理”对已审批的待拨付单点击“立即发送”（702），再用“查询银行”（703）确认结果。</li>
+        </ol>
+        <div class="form-tip">联调前请确认服务端已开启拨付总开关；页面开关只控制单个机构，不能替代银行协议验收。</div>
+      </el-collapse-item>
+    </el-collapse>
+
     <el-form ref="queryForm" :model="queryParams" size="small" :inline="true" label-width="90px">
       <el-form-item label="机构名称" prop="institutionName">
         <el-input v-model="queryParams.institutionName" placeholder="请输入机构名称" clearable @keyup.enter.native="handleQuery" />
@@ -183,6 +195,7 @@ export default {
       merchantList: [],
       institutionList: [],
       selectedInstitution: {},
+      guideOpen: [],
       open: false,
       title: '',
       queryParams: { pageNum: 1, pageSize: 10, institutionName: null, merId: null, environment: null, status: null },
@@ -293,4 +306,5 @@ export default {
 .mb16 { margin-bottom: 16px; }
 .mb8 { margin-bottom: 8px; }
 .form-tip { color: #909399; font-size: 12px; margin-top: 4px; }
+.guide-list { margin: 0; padding-left: 20px; line-height: 2; color: #606266; }
 </style>

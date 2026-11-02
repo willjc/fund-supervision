@@ -46,13 +46,17 @@ public class BankReconciliationController extends BaseController
     {
         try {
             Long userId = getUserId();
-            String sql = "SELECT i.institution_id, i.institution_name " +
-                        "FROM sys_user_institution sui " +
-                        "INNER JOIN pension_institution i ON sui.institution_id = i.institution_id " +
-                        "WHERE sui.user_id = ? " +
-                        "ORDER BY i.institution_name";
+            String sql = com.ruoyi.common.utils.SecurityUtils.isAdmin(userId)
+                    ? "SELECT institution_id, institution_name FROM pension_institution ORDER BY institution_name"
+                    : "SELECT i.institution_id, i.institution_name " +
+                      "FROM sys_user_institution sui " +
+                      "INNER JOIN pension_institution i ON sui.institution_id = i.institution_id " +
+                      "WHERE sui.user_id = ? " +
+                      "ORDER BY i.institution_name";
 
-            List<Map<String, Object>> institutions = jdbcTemplate.queryForList(sql, userId);
+            List<Map<String, Object>> institutions = com.ruoyi.common.utils.SecurityUtils.isAdmin(userId)
+                    ? jdbcTemplate.queryForList(sql)
+                    : jdbcTemplate.queryForList(sql, userId);
             return success(institutions);
         } catch (Exception e) {
             logger.error("获取用户机构列表失败", e);

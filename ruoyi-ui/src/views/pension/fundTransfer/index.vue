@@ -1,6 +1,19 @@
 <template>
   <div class="app-container">
     <el-alert title="拨付以银行最终结果为准；历史记录已隔离，不会自动补发。新拨付由已确认的订单及审批明细生成，不再按固定金额批量生成。" type="info" :closable="false" show-icon class="mb8" />
+    <el-collapse v-model="guideOpen" class="mb8">
+      <el-collapse-item name="guide" title="拨付系统使用指引（银行测试按此流程操作）">
+        <ol class="guide-list">
+          <li><b>配置商户号</b>：在“监管账户管理 → 银行商户配置”登记 merId、真实监管账户户名、基本账户户名、跨行联行号和银行已办理的签约编号；银行验证通过后启用配置并开启“机构拨付开关”。</li>
+          <li><b>审批拨付单</b>：仅“可拨付（bankEligible=1）”的待拨付单可审批；审批通过不会扣款，只把单据置为可发送。</li>
+          <li><b>立即发送（702）</b>：点击“立即发送”，后端先查银行可用余额（709），再向银行发起单笔拨付（702），随后自动查单（703）并按银行结果记账。受理成功不等于拨付成功。</li>
+          <li><b>查询与退汇（703/707）</b>：点击“查询银行”获取最终状态；退汇通知进入后系统冲正预占，单据状态变为“已退汇”。</li>
+          <li><b>对账（708/709）</b>：在“银行明细查询”按日期核对监管账户流水，在拨付详情查询银行可用余额；历史已完成的旧拨付不会自动补发。</li>
+          <li><b>失败重试</b>：仅银行明确失败且本地已记账的单据允许新建请求重试；处理中或超时请先查询原请求，禁止重复发送。</li>
+        </ol>
+        <div class="guide-tip">注意：发送接口受服务端总开关与银行监管协议验收控制。若提示“真实拨付未启用或银行监管协议尚未验收”，说明闸门未开，需运维确认后重试。</div>
+      </el-collapse-item>
+    </el-collapse>
     <el-form ref="queryForm" :model="queryParams" :inline="true" v-show="showSearch" label-width="88px">
       <el-form-item label="划拨单号" prop="transferNo"><el-input v-model="queryParams.transferNo" clearable @keyup.enter.native="handleQuery" /></el-form-item>
       <el-form-item label="划拨月份" prop="billingMonth"><el-date-picker v-model="queryParams.billingMonth" type="month" value-format="yyyy-MM" clearable /></el-form-item>
@@ -26,7 +39,7 @@
         <template slot-scope="scope">
           <el-button type="text" size="mini" v-hasPermi="['pension:fundTransfer:query']" @click="handleView(scope.row)">详情</el-button>
           <el-button v-if="canApprovePayout(scope.row)" type="text" size="mini" v-hasPermi="['pension:fundTransfer:approve']" @click="handleApprove(scope.row)">审批</el-button>
-          <el-button v-if="Number(scope.row.bankEligible) === 1 && scope.row.status === 'pending' && scope.row.approveTime" type="text" size="mini" v-hasPermi="['pension:fundTransfer:execute']" @click="handleExecute(scope.row)">提交拨付</el-button>
+          <el-button v-if="Number(scope.row.bankEligible) === 1 && scope.row.status === 'pending' && scope.row.approveTime" type="text" size="mini" v-hasPermi="['pension:fundTransfer:execute']" @click="handleExecute(scope.row)">立即发送</el-button>
           <el-button v-if="scope.row.bankTransactionId" type="text" size="mini" v-hasPermi="['pension:fundTransfer:query']" @click="handleBankQuery(scope.row)">查询银行</el-button>
           <el-button v-if="canRetryPayout(scope.row)" type="text" size="mini" v-hasPermi="['pension:fundTransfer:execute']" @click="handleRetry(scope.row)">失败重试</el-button>
         </template>
@@ -69,15 +82,15 @@
 </template>
 
 <script>
-import { listFundTransfer, getFundTransfer, approveFundTransfer, executeFundTransfer } from '@/api/pension/fundTransfer'
-import { queryPayout, retryPayout, getBankAvailableBalance } from '@/api/pension/bank'
+import { listFundTransfer, getFundTransfer, approveFundTransfer } from '@/api/pension/fundTransfer'
+import { queryPayout, submitPayout, retryPayout, getBankAvailableBalance } from '@/api/pension/bank'
 import { payoutStatus, canApprovePayout, canRetryPayout } from '@/utils/payout'
 
 export default {
   name: 'FundTransfer',
   data() {
     return {
-      loading: false, showSearch: true, transferList: [], total: 0,
+      loading: false, showSearch: true, transferList: [], total: 0, guideOpen: [],
       queryParams: { pageNum: 1, pageSize: 10, transferNo: null, billingMonth: null, status: null },
       statuses: [{ value: 'pending', label: '待拨付' }, { value: 'processing', label: '银行处理中' }, { value: 'completed', label: '已完成' }, { value: 'failed', label: '拨付失败' }, { value: 'returned', label: '已退汇' }, { value: 'cancelled', label: '已取消' }],
       detailOpen: false, detailData: {}, bankResult: {}, bankBalance: {},
@@ -112,8 +125,9 @@ export default {
       })
     },
     handleExecute(row) {
-      this.$modal.confirm('确认提交拨付单“' + row.transferNo + '”？提交不代表银行拨付成功。').then(() => executeFundTransfer(row.transferId)).then(() => {
-        this.$modal.msgSuccess('已提交，请查询银行最终结果'); this.getList()
+      this.$modal.confirm('确认立即向银行发送拨付单“' + row.transferNo + '”？发送后请点击“查询银行”确认最终结果，切勿重复发送。').then(() => submitPayout(row.transferId)).then(response => {
+        this.$modal.msgSuccess(response.msg || '已向银行发起拨付请求，请查询最终结果')
+        this.getList()
       }).catch(() => {})
     },
     handleBankQuery(row) {
@@ -138,3 +152,8 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.guide-list { margin: 0; padding-left: 20px; line-height: 2; color: #606266; }
+.guide-tip { margin-top: 6px; color: #e6a23c; }
+</style>

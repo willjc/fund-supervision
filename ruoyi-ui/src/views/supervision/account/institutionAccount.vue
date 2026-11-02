@@ -1,7 +1,10 @@
 <template>
   <div class="app-container">
     <el-alert title="监管账户管理" type="info" :closable="false" show-icon class="mb20">
-      <div slot="description">维护养老机构的监管账户和基本账户；银行商户号请到“银行商户配置”页面绑定。</div>
+      <div slot="description">
+        维护养老机构的监管账户和基本账户；银行商户号请到“银行商户配置”页面绑定。
+        本页“平台记账余额”为平台内部账户余额合计，不等于银行监管账户实际余额；银行余额请到拨付详情使用“查询银行余额”（709）获取，银行流水在“银行明细查询”（708）核对。
+      </div>
     </el-alert>
 
     <!-- 统计卡片 -->
@@ -26,7 +29,7 @@
               <i class="el-icon-bank-card"></i>
             </div>
             <div class="stat-content">
-              <div class="stat-title">监管账户总余额</div>
+              <div class="stat-title">平台记账总余额</div>
               <div class="stat-value">¥{{ formatNumber(statistics.totalSupervisionBalance || 0) }}</div>
             </div>
           </div>
@@ -73,7 +76,8 @@
       </el-form-item>
       <el-form-item label="账户状态" prop="accountStatus">
         <el-select v-model="queryParams.accountStatus" placeholder="请选择账户状态" clearable style="width: 150px">
-          <el-option label="正常" value="0" />
+          <el-option label="未开户" value="0" />
+          <el-option label="已开户" value="1" />
           <el-option label="冻结" value="2" />
           <el-option label="异常" value="3" />
         </el-select>
@@ -93,7 +97,7 @@
           icon="el-icon-refresh"
           size="mini"
           @click="handleRefreshAll"
-        >刷新余额</el-button>
+        >刷新列表</el-button>
       </el-col>
       <el-col :span="1.5">
         <el-button
@@ -102,7 +106,15 @@
           icon="el-icon-download"
           size="mini"
           @click="handleExport"
-        >导出</el-button>
+        >导出当前页</el-button>
+      </el-col>
+      <el-col :span="1.5">
+        <el-button
+          plain
+          icon="el-icon-bank-card"
+          size="mini"
+          @click="$router.push('/supervision/account/supervisionAccount')"
+        >银行商户配置</el-button>
       </el-col>
     </el-row>
 
@@ -114,9 +126,11 @@
       <el-table-column label="监管开户行" align="center" prop="superviseBank" width="150" show-overflow-tooltip />
       <el-table-column label="基本账户" align="center" prop="bankAccount" width="160" />
       <el-table-column label="基本开户行" align="center" prop="basicBank" width="150" show-overflow-tooltip />
-      <el-table-column label="监管账户余额" align="center" prop="supervisionBalance" width="140">
+      <el-table-column label="平台记账余额" align="center" prop="supervisionBalance" width="140">
         <template slot-scope="scope">
-          <span style="color: #409EFF; font-weight: bold; font-size: 14px">¥{{ formatNumber(scope.row.supervisionBalance || 0) }}</span>
+          <el-tooltip content="平台内部账户余额合计，非银行监管账户余额；银行余额请用 709 查询" placement="top">
+            <span style="color: #409EFF; font-weight: bold; font-size: 14px">¥{{ formatNumber(scope.row.supervisionBalance || 0) }}</span>
+          </el-tooltip>
         </template>
       </el-table-column>
       <el-table-column label="预收费余额" align="center" prop="prepaidBalance" width="120">
@@ -131,9 +145,10 @@
       </el-table-column>
       <el-table-column label="账户状态" align="center" prop="accountStatus" width="100">
         <template slot-scope="scope">
-          <el-tag v-if="scope.row.accountStatus === '0'" type="success">正常</el-tag>
+          <el-tag v-if="scope.row.accountStatus === '1'" type="success">已开户</el-tag>
           <el-tag v-else-if="scope.row.accountStatus === '2'" type="warning">冻结</el-tag>
           <el-tag v-else-if="scope.row.accountStatus === '3'" type="danger">异常</el-tag>
+          <el-tag v-else-if="scope.row.accountStatus === '0'" type="info">未开户</el-tag>
           <el-tag v-else type="info">未知</el-tag>
         </template>
       </el-table-column>
@@ -188,13 +203,14 @@
         <el-descriptions-item label="监管开户行">{{ detailData.superviseBank || '-' }}</el-descriptions-item>
         <el-descriptions-item label="基本账户">{{ detailData.bankAccount || '-' }}</el-descriptions-item>
         <el-descriptions-item label="基本开户行">{{ detailData.basicBank || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="监管账户余额">
+        <el-descriptions-item label="平台记账余额">
           <span style="color: #409EFF; font-weight: bold; font-size: 16px">¥{{ formatNumber(detailData.supervisionBalance || 0) }}</span>
         </el-descriptions-item>
         <el-descriptions-item label="账户状态">
-          <el-tag v-if="detailData.accountStatus === '0'" type="success">正常</el-tag>
+          <el-tag v-if="detailData.accountStatus === '1'" type="success">已开户</el-tag>
           <el-tag v-else-if="detailData.accountStatus === '2'" type="warning">冻结</el-tag>
           <el-tag v-else-if="detailData.accountStatus === '3'" type="danger">异常</el-tag>
+          <el-tag v-else-if="detailData.accountStatus === '0'" type="info">未开户</el-tag>
           <el-tag v-else type="info">未知</el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="预收费余额">
@@ -224,7 +240,7 @@
               </template>
             </el-table-column>
             <el-table-column label="支付方式" prop="paymentMethod" width="100" />
-            <el-table-column label="监管账户余额" prop="supervisionBalance" width="130" align="right">
+            <el-table-column label="平台记账余额" prop="supervisionBalance" width="130" align="right">
               <template slot-scope="scope">
                 <span style="color: #409EFF; font-weight: bold">¥{{ formatNumber(scope.row.supervisionBalance) }}</span>
               </template>
@@ -247,8 +263,8 @@
           />
         </el-tab-pane>
 
-        <!-- 监管账户流水 Tab -->
-        <el-tab-pane label="监管账户流水" name="supervision">
+        <!-- 拨付流水 Tab -->
+        <el-tab-pane label="拨付流水" name="supervision">
           <el-table v-loading="supervisionLoading" :data="supervisionList" border style="margin-top: 10px">
             <el-table-column label="账单月份" prop="billingMonth" width="100" />
             <el-table-column label="划拨单号" prop="transferNo" width="180" show-overflow-tooltip />
@@ -268,7 +284,7 @@
                 {{ formatDateTime(scope.row.paidTime) }}
               </template>
             </el-table-column>
-            <el-table-column label="监管账户余额" prop="supervisionBalance" width="120" align="right">
+            <el-table-column label="平台记账余额" prop="supervisionBalance" width="120" align="right">
               <template slot-scope="scope">
                 <span>¥{{ formatNumber(scope.row.supervisionBalance) }}</span>
               </template>
@@ -406,9 +422,8 @@ export default {
       this.resetForm('queryForm')
       this.handleQuery()
     },
-    /** 刷新全部余额 */
+    /** 重新拉取列表和统计；平台内余额从账户表汇总，本页不触发银行查询 */
     handleRefreshAll() {
-      this.$modal.msgSuccess('正在刷新所有账户余额...')
       this.getStatistics()
       this.getList()
     },
@@ -524,9 +539,36 @@ export default {
       const minutes = String(date.getMinutes()).padStart(2, '0')
       return `${year}-${month}-${day} ${hours}:${minutes}`
     },
-    /** 导出按钮操作 */
+    /** 导出当前页为 CSV；银行流水导出请使用“银行明细查询”页的银行数据 */
     handleExport() {
-      this.$modal.msgSuccess('导出功能开发中')
+      if (!this.accountList.length) {
+        this.$modal.msgWarning('当前页没有可导出的数据')
+        return
+      }
+      const headers = ['机构编号', '机构名称', '监管账户', '监管开户行', '基本账户', '基本开户行', '平台记账余额', '预收费余额', '押金余额', '账户状态']
+      const lines = this.accountList.map(row => [
+        row.institutionId,
+        row.institutionName,
+        row.superviseAccount,
+        row.superviseBank,
+        row.bankAccount,
+        row.basicBank,
+        row.supervisionBalance,
+        row.prepaidBalance,
+        row.depositBalance,
+        this.accountStatusText(row.accountStatus)
+      ].map(value => '"' + String(value == null ? '' : value).replace(/"/g, '""') + '"').join(','))
+      const blob = new Blob(['\ufeff' + [headers.join(','), ...lines].join('\r\n')], { type: 'text/csv;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = '机构账户_' + Date.now() + '.csv'
+      link.click()
+      URL.revokeObjectURL(url)
+      this.$modal.msgSuccess('已导出当前页 ' + this.accountList.length + ' 条账户')
+    },
+    accountStatusText(status) {
+      return { '0': '未开户', '1': '已开户', '2': '冻结', '3': '异常' }[status] || '未知'
     },
     /** 格式化数字（添加千分位） */
     formatNumber(value) {

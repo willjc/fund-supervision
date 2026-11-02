@@ -72,6 +72,11 @@ export function queryPayout(transferId) {
   return request({ url: '/pension/bank/payout/' + transferId + '/query', method: 'post' })
 }
 
+// 立即向银行发送拨付请求（702 + 703 查单记账），仅已具备银行资格的待拨付单可用
+export function submitPayout(transferId) {
+  return request({ url: '/pension/bank/payout/' + transferId + '/submit', method: 'post', timeout: 60000 })
+}
+
 export function retryPayout(transferId) {
   return request({ url: '/pension/bank/payout/' + transferId + '/retry', method: 'post' })
 }

@@ -54,6 +54,16 @@ public class BankPayoutController
         return AjaxResult.success(result);
     }
 
+    @PostMapping("/{transferId}/submit")
+    @PreAuthorize("@ss.hasPermi('pension:fundTransfer:execute')")
+    @Log(title = "银行拨付立即发送", businessType = BusinessType.UPDATE)
+    public AjaxResult submit(@PathVariable Long transferId)
+    {
+        scoped(transferId);
+        BankTransaction tx = payouts.submit(transferId, SecurityUtils.getUsername(), false);
+        return AjaxResult.success("已向银行发起拨付请求，请查询最终结果", tx.getRequestNo());
+    }
+
     @PostMapping("/{transferId}/retry")
     @PreAuthorize("@ss.hasPermi('pension:fundTransfer:execute')")
     @Log(title = "银行拨付失败重试", businessType = BusinessType.UPDATE)
