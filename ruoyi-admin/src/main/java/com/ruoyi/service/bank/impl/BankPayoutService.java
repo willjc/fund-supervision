@@ -48,8 +48,17 @@ public class BankPayoutService
     {
         if (institutionId == null) { return false; }
         Long user = com.ruoyi.common.utils.SecurityUtils.getUserId();
-        return com.ruoyi.common.utils.SecurityUtils.isAdmin(user)
-                || settlement.hasScope(user, institutionId) > 0;
+        if (com.ruoyi.common.utils.SecurityUtils.isAdmin(user)) { return true; }
+        try
+        {
+            java.util.Set<String> permissions = com.ruoyi.common.utils.SecurityUtils.getLoginUser().getPermissions();
+            if (permissions != null && permissions.stream().anyMatch(p -> p.startsWith("supervision:")))
+            {
+                return true;
+            }
+        }
+        catch (Exception ignored) { }
+        return settlement.hasScope(user, institutionId) > 0;
     }
 
     public void checkScope(Long institutionId)
