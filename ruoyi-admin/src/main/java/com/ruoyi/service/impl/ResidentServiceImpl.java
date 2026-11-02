@@ -295,8 +295,12 @@ public class ResidentServiceImpl implements IResidentService
         BigDecimal memberFee = renewDTO.getMemberFee() != null ? renewDTO.getMemberFee() : BigDecimal.ZERO;
         BigDecimal calculatedTotal = serviceFeeTotal.add(depositAmount).add(memberFee);
 
-        // 实收总计(用户可手动调整)
+        // 实收总计(用户可手动调整)，但不能为负或高于应收
         BigDecimal finalAmount = renewDTO.getFinalAmount() != null ? renewDTO.getFinalAmount() : calculatedTotal;
+        if (finalAmount.signum() < 0 || finalAmount.compareTo(calculatedTotal) > 0)
+        {
+            throw new com.ruoyi.common.exception.ServiceException("实收金额不能为负或超过应收金额");
+        }
 
         // 优惠金额 = 应收总计 - 实收总计
         BigDecimal discountAmount = calculatedTotal.subtract(finalAmount);
@@ -502,12 +506,17 @@ public class ResidentServiceImpl implements IResidentService
 
             // 9.2 更新账户余额（如果有充值金额）
             if (finalAmount.compareTo(BigDecimal.ZERO) > 0) {
-                // 查询或创建账户
-                AccountInfo account = accountInfoMapper.selectAccountInfoByElderId(renewDTO.getElderId());
+                // 锁定或创建账户，避免与银行入账并发时丢失余额
+                AccountInfo account = accountInfoMapper.selectAccountInfoForUpdate(
+                        renewDTO.getElderId(), existingOrder.getInstitutionId());
                 if (account == null) {
-                    // 创建新账户
                     account = new AccountInfo();
                     account.setElderId(renewDTO.getElderId());
+                    account.setInstitutionId(existingOrder.getInstitutionId());
+                    account.setAccountNo("ACC" + System.currentTimeMillis()
+                            + String.format("%03d", (int)(Math.random() * 1000)));
+                    account.setAccountName("账户-" + renewDTO.getElderId());
+                    account.setAccountStatus("1");
                     account.setServiceBalance(BigDecimal.ZERO);
                     account.setDepositBalance(BigDecimal.ZERO);
                     account.setMemberBalance(BigDecimal.ZERO);
@@ -531,7 +540,8 @@ public class ResidentServiceImpl implements IResidentService
                 account.setServiceBalance(oldServiceBalance.add(serviceAmount));
                 account.setDepositBalance(oldDepositBalance.add(renewDepositAmount));
                 account.setMemberBalance(oldMemberBalance.add(memberAmount));
-                account.setTotalBalance(account.getServiceBalance().add(account.getDepositBalance()));
+                account.setTotalBalance(account.getServiceBalance()
+                        .add(account.getDepositBalance()).add(account.getMemberBalance()));
                 account.setUpdateTime(DateUtils.getNowDate());
                 account.setUpdateBy(SecurityUtils.getUsername());
                 accountInfoMapper.updateAccountInfo(account);

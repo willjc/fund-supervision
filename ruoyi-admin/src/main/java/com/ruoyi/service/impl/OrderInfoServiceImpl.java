@@ -52,6 +52,9 @@ public class OrderInfoServiceImpl implements IOrderInfoService
     private IAccountInfoService accountInfoService;
 
     @Autowired
+    private com.ruoyi.mapper.pension.AccountInfoMapper accountInfoMapper;
+
+    @Autowired
     private IExpenseRecordService expenseRecordService;
 
     @Autowired
@@ -596,8 +599,9 @@ public class OrderInfoServiceImpl implements IOrderInfoService
      */
     private void updateAccountAndCreateExpenseRecord(OrderInfo orderInfo) {
         try {
-            // 获取或创建老人账户
-            AccountInfo account = accountInfoService.selectAccountInfoByElderId(orderInfo.getElderId());
+            // 锁定老人账户，避免与银行入账、入住等流程并发更新时丢失余额
+            AccountInfo account = accountInfoMapper.selectAccountInfoForUpdate(
+                    orderInfo.getElderId(), orderInfo.getInstitutionId());
             if (account == null) {
                 account = accountInfoService.createAccountInfo(
                     orderInfo.getElderId(),
