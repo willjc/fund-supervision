@@ -172,6 +172,7 @@ class BankPaymentCompletionServiceImplTest
         verify(fundTransferService).insertFundTransfer(transferCaptor.capture());
         assertEquals("pending", transferCaptor.getValue().getStatus());
         assertEquals("0", transferCaptor.getValue().getIsPaid());
+        assertEquals("SERVICE", transferCaptor.getValue().getBalanceType());
         verify(supervisionAccountLogService, never()).recordTransferOut(any(), any(), any(), any(), any());
         verify(transactionMapper).markSuccess(eq(1L), eq("BANK001"), eq("0000"), eq("成功"),
                 any(Date.class), any(Date.class));

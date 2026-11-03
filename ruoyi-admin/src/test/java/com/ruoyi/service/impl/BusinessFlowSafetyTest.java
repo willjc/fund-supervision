@@ -245,6 +245,7 @@ class BusinessFlowSafetyTest
         assertEquals("2026-04", saved.get(2).getBillingMonth());
         assertEquals(new BigDecimal("100.00"), saved.get(0).getTransferAmount());
         assertEquals("MONTH:9:2026-02", saved.get(0).getSourceKey());
+        assertEquals("SERVICE", saved.get(0).getBalanceType());
         assertEquals("pending", saved.get(0).getStatus());
     }
 

@@ -426,6 +426,7 @@ public class BankPaymentCompletionServiceImpl implements IBankPaymentCompletionS
         transfer.setOrderId(order.getOrderId());
         transfer.setTransferNo("TRF-BANK-" + order.getOrderId() + "-FM");
         transfer.setSourceKey("FIRST:" + order.getOrderId());
+        transfer.setBalanceType("SERVICE");
         transfer.setTransferType("1");
         transfer.setTransferAmount(amount);
         transfer.setTransferDate(now);

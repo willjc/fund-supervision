@@ -351,9 +351,16 @@ public class BankPayoutService
 
     private BigDecimal serviceAmount(FundTransfer transfer)
     {
-        if (!"SERVICE".equals(transfer.getBalanceType()) && !"DEPOSIT".equals(transfer.getBalanceType()))
+        // 兼容本次修复前已生成、balance_type 为空的首月/月度服务费拨付单。
+        String type = transfer.getBalanceType();
+        if (type == null && transfer.getSourceKey() != null
+                && (transfer.getSourceKey().startsWith("FIRST:") || transfer.getSourceKey().startsWith("MONTH:")))
+        {
+            type = "SERVICE";
+        }
+        if (!"SERVICE".equals(type) && !"DEPOSIT".equals(type))
         { throw new ServiceException("不支持的拨付资金类别"); }
-        return "SERVICE".equals(transfer.getBalanceType()) ? transfer.getTransferAmount() : BigDecimal.ZERO;
+        return "SERVICE".equals(type) ? transfer.getTransferAmount() : BigDecimal.ZERO;
     }
     private BigDecimal depositAmount(FundTransfer transfer) { return "DEPOSIT".equals(transfer.getBalanceType()) ? transfer.getTransferAmount() : BigDecimal.ZERO; }
     private void require(int rows, String message) { if (rows != 1) { throw new ServiceException(message); } }

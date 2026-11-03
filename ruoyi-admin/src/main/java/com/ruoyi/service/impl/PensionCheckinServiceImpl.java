@@ -485,6 +485,7 @@ public class PensionCheckinServiceImpl implements IPensionCheckinService
         transfer.setInstitutionId(institutionId);
         transfer.setTransferNo("TRF-FIRST-" + orderInfo.getOrderId());
         transfer.setSourceKey("FIRST:" + orderInfo.getOrderId());
+        transfer.setBalanceType("SERVICE");
         transfer.setTransferType("1");
         transfer.setTransferAmount(amount);
         transfer.setTransferDate(transferDate);

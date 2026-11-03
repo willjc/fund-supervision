@@ -390,6 +390,7 @@ public class FundTransferServiceImpl implements IFundTransferService
             FundTransfer fundTransfer = new FundTransfer();
             fundTransfer.setInstitutionId(institutionId);
             fundTransfer.setSourceKey(sourceKey);
+            fundTransfer.setBalanceType("SERVICE");
             fundTransfer.setElderId(elderId);
             fundTransfer.setOrderId(orderId);
             fundTransfer.setTransferNo(transferNo);
