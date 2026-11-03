@@ -87,6 +87,10 @@ public class ZhengzhouBankGateway implements BankGateway
     @Value("${bank.integration.payout-protocol-confirmed:false}")
     private boolean payoutProtocolConfirmed;
 
+    /** 仅测试网关使用：银行账务日期与真实日期不一致时覆盖 703 查询日期；生产留空。 */
+    @Value("${bank.integration.payout-query-date:${ZZBANK_PAYOUT_QUERY_DATE:}}")
+    private String payoutQueryDate;
+
     @Override
     public BankResult createPayment(BankPaymentRequest request)
     {
@@ -246,7 +250,9 @@ public class ZhengzhouBankGateway implements BankGateway
         requirePublicGatewayUrl();
         request.validateQuery();
         JSONObject body = new JSONObject();
-        body.put("trandt", format(request.getRequestTime(), "yyyyMMdd"));
+        String queryDate = payoutQueryDate == null ? "" : payoutQueryDate.trim();
+        body.put("trandt", queryDate.isEmpty()
+                ? format(request.getRequestTime(), "yyyyMMdd") : queryDate);
         body.put("paylno", request.getRequestNo());
         JSONObject response = postTo(supervisionUrl(), "OBK0071703", body, new Date());
         String code = normalizeCode(response.getString("respcd"));

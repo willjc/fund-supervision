@@ -110,6 +110,19 @@ class ZhengzhouBankGatewayPayoutTest
     }
 
     @Test
+    void queryDateOverrideIsUsedOnlyWhenConfigured()
+    {
+        StubGateway gateway = gateway();
+        gateway.canned = state("1");
+        ReflectionTestUtils.setField(gateway, "payoutQueryDate", "20250509");
+        gateway.queryPayout(request());
+        assertEquals("20250509", gateway.capturedBody.getString("trandt"));
+        ReflectionTestUtils.setField(gateway, "payoutQueryDate", "");
+        gateway.queryPayout(request());
+        assertTrue(gateway.capturedBody.getString("trandt").matches("[0-9]{8}"));
+    }
+
+    @Test
     void shouldMapYlzjhbRefusalToFailed()
     {
         StubGateway gateway = gateway();
