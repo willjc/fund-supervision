@@ -41,6 +41,7 @@ import com.ruoyi.common.utils.uuid.IdUtils;
 @ConditionalOnProperty(prefix = "bank.integration", name = "mode", havingValue = "zzbank")
 public class ZhengzhouBankGateway implements BankGateway
 {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ZhengzhouBankGateway.class);
     private static final String ALIPAY_MINI_APP_ID = "2021002182634333";
 
     @Value("${bank.integration.gateway-url:https://obk.lovingfox.cn:7000/openapi/zfbz/v1}")
@@ -254,6 +255,8 @@ public class ZhengzhouBankGateway implements BankGateway
         body.put("trandt", queryDate.isEmpty()
                 ? format(request.getRequestTime(), "yyyyMMdd") : queryDate);
         body.put("paylno", request.getRequestNo());
+        log.info("OBK0071703 query trandt={} paylno={} configuredDate={}",
+                body.get("trandt"), body.get("paylno"), payoutQueryDate);
         JSONObject response = postTo(supervisionUrl(), "OBK0071703", body, new Date());
         String code = normalizeCode(response.getString("respcd"));
         if (!"0000".equals(code))
