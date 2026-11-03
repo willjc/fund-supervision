@@ -26,7 +26,7 @@ jobs:
 
       - name: 打包后端源码
         run: |
-          tar -czf /tmp/fund-supervision-src.tgz \
+          tar -czf fund-supervision-src.tgz \
             --exclude='*/target' \
             --exclude='.git' \
             pom.xml META-INF ruoyi-admin ruoyi-common ruoyi-framework \
@@ -39,7 +39,7 @@ jobs:
           REMOTE_HOST: ${{ secrets.SERVER_HOST }}
           REMOTE_USER: ${{ secrets.SERVER_USER }}
           REMOTE_PORT: ${{ secrets.SERVER_PORT }}
-          SOURCE: /tmp/fund-supervision-src.tgz
+          SOURCE: fund-supervision-src.tgz
           TARGET: /tmp/fund-supervision-release/
           ARGS: -rlgoDzvc --no-perms
 
