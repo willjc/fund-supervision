@@ -88,7 +88,7 @@ public class ZhengzhouBankGateway implements BankGateway
     private boolean payoutProtocolConfirmed;
 
     /** 仅测试网关使用：银行账务日期与真实日期不一致时覆盖 703 查询日期；生产留空。 */
-    @Value("${bank.integration.payout-query-date:${ZZBANK_PAYOUT_QUERY_DATE:}}")
+    @Value("${BANK_INTEGRATION_PAYOUT_QUERY_DATE:}")
     private String payoutQueryDate;
 
     @Override
