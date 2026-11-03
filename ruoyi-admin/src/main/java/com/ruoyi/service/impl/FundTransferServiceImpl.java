@@ -209,10 +209,11 @@ public class FundTransferServiceImpl implements IFundTransferService
      * @return 结果
      */
     @Override
-    @Transactional
     public int executeFundTransfer(Long transferId, String executeUser)
     {
-        return bankPayoutService.queue(transferId, executeUser);
+        // 旧“执行划拨”入口也走统一发送：审批、到期、闸门、余额和幂等均由 BankPayoutService 校验。
+        bankPayoutService.submit(transferId, executeUser, false);
+        return 1;
     }
 
     /**

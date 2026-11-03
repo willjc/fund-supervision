@@ -19,6 +19,7 @@ import com.ruoyi.mapper.pension.ExpenseRecordMapper;
 import com.ruoyi.mapper.pension.FundTransferMapper;
 import com.ruoyi.service.bank.impl.BankPayoutService;
 import com.ruoyi.service.pension.impl.ExpenseRecordServiceImpl;
+import com.ruoyi.service.pension.impl.FundTransferApplyServiceImpl;
 
 class BusinessFlowSafetyTest
 {
@@ -212,6 +213,96 @@ class BusinessFlowSafetyTest
         assertNull(saved.getIsPaid());
         assertNull(saved.getPaidTime());
         assertEquals(new BigDecimal("999.00"), saved.getTransferAmount());
+    }
+
+    @Test
+    void monthlyTransfersAreGeneratedForEachFuturePeriod()
+    {
+        FundTransferServiceImpl service = new FundTransferServiceImpl();
+        FundTransferMapper transfers = mock(FundTransferMapper.class);
+        com.ruoyi.mapper.bank.BankSettlementMapper settlement =
+                mock(com.ruoyi.mapper.bank.BankSettlementMapper.class);
+        com.ruoyi.service.pension.ITransferRuleConfigService rules =
+                mock(com.ruoyi.service.pension.ITransferRuleConfigService.class);
+        ReflectionTestUtils.setField(service, "fundTransferMapper", transfers);
+        ReflectionTestUtils.setField(service, "settlementMapper", settlement);
+        ReflectionTestUtils.setField(service, "transferRuleConfigService", rules);
+        com.ruoyi.domain.pension.TransferRuleConfig rule =
+                new com.ruoyi.domain.pension.TransferRuleConfig();
+        rule.setTransferCycle("monthly");
+        rule.setTransferDay(5);
+        when(rules.selectTransferRuleConfigList(any())).thenReturn(java.util.List.of(rule));
+        when(settlement.bySource(any())).thenReturn(null);
+        when(transfers.insertFundTransfer(any())).thenReturn(1);
+        java.util.Date start = java.sql.Timestamp.valueOf("2026-01-10 00:00:00");
+        service.generateMonthlyTransfersForOrder(9L, 10L, 20L, 3, start,
+                new BigDecimal("100.00"), false);
+        ArgumentCaptor<FundTransfer> captor = ArgumentCaptor.forClass(FundTransfer.class);
+        verify(transfers, times(3)).insertFundTransfer(captor.capture());
+        java.util.List<FundTransfer> saved = captor.getAllValues();
+        assertEquals("2026-02", saved.get(0).getBillingMonth());
+        assertEquals("2026-03", saved.get(1).getBillingMonth());
+        assertEquals("2026-04", saved.get(2).getBillingMonth());
+        assertEquals(new BigDecimal("100.00"), saved.get(0).getTransferAmount());
+        assertEquals("MONTH:9:2026-02", saved.get(0).getSourceKey());
+        assertEquals("pending", saved.get(0).getStatus());
+    }
+
+    @Test
+    void approvedApplicationExecutionSubmitsEachTransferToBank()
+    {
+        FundTransferApplyServiceImpl service = new FundTransferApplyServiceImpl();
+        com.ruoyi.mapper.pension.FundTransferApplyMapper applies =
+                mock(com.ruoyi.mapper.pension.FundTransferApplyMapper.class);
+        com.ruoyi.mapper.pension.FundTransferApplyDetailMapper details =
+                mock(com.ruoyi.mapper.pension.FundTransferApplyDetailMapper.class);
+        BankPayoutService payouts = mock(BankPayoutService.class);
+        ReflectionTestUtils.setField(service, "fundTransferApplyMapper", applies);
+        ReflectionTestUtils.setField(service, "fundTransferApplyDetailMapper", details);
+        ReflectionTestUtils.setField(service, "bankPayoutService", payouts);
+        com.ruoyi.domain.pension.FundTransferApply apply = new com.ruoyi.domain.pension.FundTransferApply();
+        apply.setApplyId(1L);
+        apply.setInstitutionId(10L);
+        apply.setApplyStatus("approved");
+        when(applies.selectFundTransferApplyByApplyId(1L)).thenReturn(apply);
+        com.ruoyi.domain.pension.FundTransferApplyDetail detail = new com.ruoyi.domain.pension.FundTransferApplyDetail();
+        detail.setTransferId(20L);
+        when(details.selectFundTransferApplyDetailByApplyId(1L)).thenReturn(java.util.List.of(detail));
+        com.ruoyi.common.core.domain.model.LoginUser login =
+                new com.ruoyi.common.core.domain.model.LoginUser();
+        com.ruoyi.common.core.domain.entity.SysUser user = new com.ruoyi.common.core.domain.entity.SysUser();
+        user.setUserName("tester");
+        login.setUser(user);
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                        login, null, java.util.Collections.emptyList()));
+        try
+        {
+            assertEquals(1, service.executeTransfer(1L));
+            verify(payouts).submit(20L, "tester", false);
+        }
+        finally
+        {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    void unapprovedApplicationExecutionCannotSend()
+    {
+        FundTransferApplyServiceImpl service = new FundTransferApplyServiceImpl();
+        com.ruoyi.mapper.pension.FundTransferApplyMapper applies =
+                mock(com.ruoyi.mapper.pension.FundTransferApplyMapper.class);
+        BankPayoutService payouts = mock(BankPayoutService.class);
+        ReflectionTestUtils.setField(service, "fundTransferApplyMapper", applies);
+        ReflectionTestUtils.setField(service, "bankPayoutService", payouts);
+        com.ruoyi.domain.pension.FundTransferApply apply = new com.ruoyi.domain.pension.FundTransferApply();
+        apply.setApplyId(1L);
+        apply.setInstitutionId(10L);
+        apply.setApplyStatus("pending_supervision");
+        when(applies.selectFundTransferApplyByApplyId(1L)).thenReturn(apply);
+        assertThrows(ServiceException.class, () -> service.executeTransfer(1L));
+        verifyNoInteractions(payouts);
     }
 
     @Test

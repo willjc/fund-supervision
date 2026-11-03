@@ -344,15 +344,15 @@ public class FundTransferApplyServiceImpl implements IFundTransferApplyService
      * @return 结果
      */
     @Override
-    @Transactional
     public int executeTransfer(Long applyId)
     {
-        FundTransferApply apply = settlementMapper.lockApply(applyId);
+        FundTransferApply apply = fundTransferApplyMapper.selectFundTransferApplyByApplyId(applyId);
         if (apply == null || !"approved".equals(apply.getApplyStatus()))
         { throw new com.ruoyi.common.exception.ServiceException("申请未批准"); }
         bankPayoutService.checkScope(apply.getInstitutionId());
+        String operator = com.ruoyi.common.utils.SecurityUtils.getUsername();
         for (FundTransferApplyDetail detail : fundTransferApplyDetailMapper.selectFundTransferApplyDetailByApplyId(applyId))
-        { bankPayoutService.queue(detail.getTransferId(), com.ruoyi.common.utils.SecurityUtils.getUsername()); }
+        { bankPayoutService.submit(detail.getTransferId(), operator, false); }
         return 1;
     }
 

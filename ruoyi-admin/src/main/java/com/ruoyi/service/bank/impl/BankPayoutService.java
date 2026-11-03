@@ -92,6 +92,8 @@ public class BankPayoutService
         FundTransfer original = transfers.selectFundTransferByTransferId(transferId);
         if (original == null) { throw new ServiceException("拨付单不存在"); }
         if (!retry) { validateDue(original); }
+        if (original.getApproveTime() == null)
+        { throw new ServiceException("拨付单尚未审批通过，不能发送"); }
         BankMerchantConfig merchant = merchants.selectEnabledByInstitutionId(original.getInstitutionId());
         validateMerchant(merchant);
         BankResult balance = gateway.queryBalance(merchant.getSettlementAccountNo(), merchant.getSettlementAccountName());
@@ -129,6 +131,7 @@ public class BankPayoutService
         FundTransfer transfer = settlement.lockTransfer(id);
         if (transfer == null || !Objects.equals(transfer.getInstitutionId(), merchant.getInstitutionId())
                 || !Integer.valueOf(1).equals(transfer.getBankEligible()) || transfer.getSourceKey() == null
+                || transfer.getApproveTime() == null
                 || transfer.getElderId() == null || transfer.getTransferAmount() == null
                 || transfer.getTransferAmount().signum() <= 0 || "1".equals(transfer.getIsPaid()))
         { throw new ServiceException("拨付单无银行执行资格或已经完成，历史资金不得补发"); }

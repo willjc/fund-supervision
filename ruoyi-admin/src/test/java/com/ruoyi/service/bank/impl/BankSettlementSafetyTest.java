@@ -97,7 +97,7 @@ class BankSettlementSafetyTest
         java.util.List<FundTransfer> first = new java.util.ArrayList<>();
         for(long id=1;id<=101;id++)
         {
-            FundTransfer f=new FundTransfer(); f.setTransferId(id); f.setSourceKey("FIRST:"+id); f.setBankEligible(1); f.setStatus("pending");
+            FundTransfer f=new FundTransfer(); f.setTransferId(id); f.setSourceKey("FIRST:"+id); f.setBankEligible(1); f.setStatus("pending"); f.setApproveTime(new Date());
             if(id<=100) {first.add(f);when(payouts.submit(eq(id),anyString(),eq(false))).thenThrow(new ServiceException("waiting"));}
             else {when(mapper.dueTransfers(100L,101L)).thenReturn(java.util.Collections.singletonList(f));}
         }
@@ -163,6 +163,8 @@ class BankSettlementSafetyTest
         assertFalse(BankSettlementTask.due(transfer, rule, LocalDateTime.of(2026,3,1,9,0)));
         transfer.setBankEligible(1);
         assertFalse(BankSettlementTask.due(transfer, rule, LocalDateTime.of(2026,2,28,0,34)));
+        assertFalse(BankSettlementTask.due(transfer, rule, LocalDateTime.of(2026,2,28,0,35)));
+        transfer.setApproveTime(new Date());
         assertTrue(BankSettlementTask.due(transfer, rule, LocalDateTime.of(2026,2,28,0,35)));
         assertTrue(BankSettlementTask.due(transfer, rule, LocalDateTime.of(2026,3,1,9,0)));
         transfer.setStatus("completed");
@@ -301,6 +303,32 @@ class BankSettlementSafetyTest
         f.tx.setBankStatus("FAILED");
         schedule.reschedule(f.tx);
         verify(f.mapper).schedule(eq(1L),any(Date.class),eq(0));
+    }
+
+    @Test
+    void unapprovedTransferCannotBeSent()
+    {
+        BankPayoutService service = new BankPayoutService();
+        BankGateway gateway = mock(BankGateway.class);
+        FundTransferMapper transfers = mock(FundTransferMapper.class);
+        ReflectionTestUtils.setField(service, "gateway", gateway);
+        ReflectionTestUtils.setField(service, "transfers", transfers);
+        ReflectionTestUtils.setField(service, "enabled", true);
+        when(gateway.supportsPayout()).thenReturn(true);
+        FundTransfer transfer = new FundTransfer();
+        transfer.setTransferId(10L);
+        transfer.setInstitutionId(20L);
+        transfer.setSourceKey("FIRST:1");
+        transfer.setBankEligible(1);
+        transfer.setStatus("pending");
+        transfer.setIsPaid("0");
+        transfer.setTransferAmount(new BigDecimal("10.00"));
+        when(transfers.selectFundTransferByTransferId(10L)).thenReturn(transfer);
+        ServiceException error = assertThrows(ServiceException.class,
+                () -> service.submit(10L, "test", false));
+        assertTrue(error.getMessage().contains("尚未审批"));
+        verify(gateway, never()).queryBalance(any(), any());
+        verify(gateway, never()).submitPayout(any());
     }
 
     @Test

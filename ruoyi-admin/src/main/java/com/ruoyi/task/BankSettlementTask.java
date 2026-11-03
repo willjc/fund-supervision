@@ -81,6 +81,7 @@ public class BankSettlementTask
     public static boolean due(FundTransfer transfer, TransferRuleConfig rule, LocalDateTime now)
     {
         if (!Integer.valueOf(1).equals(transfer.getBankEligible()) || !"pending".equals(transfer.getStatus())) { return false; }
+        if (transfer.getApproveTime() == null) { return false; }
         if (transfer.getSourceKey() == null) { return false; }
         if (!transfer.getSourceKey().startsWith("MONTH:") || "manual".equals(transfer.getPaidMethod())) { return true; }
         if (rule == null || rule.getTransferDay() == null || rule.getTransferDay() < 1 || rule.getTransferDay() > 31

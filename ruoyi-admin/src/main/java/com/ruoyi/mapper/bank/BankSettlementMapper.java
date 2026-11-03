@@ -71,7 +71,7 @@ public interface BankSettlementMapper
     FundTransfer bySource(String key);
 
     @Select("SELECT * FROM fund_transfer WHERE bank_eligible=1 AND status='pending' AND is_paid='0' "
-          + "AND bank_transaction_id IS NULL AND transfer_date<=CURDATE() "
+          + "AND approve_time IS NOT NULL AND bank_transaction_id IS NULL AND transfer_date<=CURDATE() "
           + "AND transfer_id>#{after} AND transfer_id<=#{last} ORDER BY transfer_id LIMIT 100")
     @ResultMap("com.ruoyi.mapper.pension.FundTransferMapper.FundTransferResult")
     List<FundTransfer> dueTransfers(@Param("after") Long after, @Param("last") Long last);
