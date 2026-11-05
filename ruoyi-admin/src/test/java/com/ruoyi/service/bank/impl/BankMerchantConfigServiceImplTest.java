@@ -331,4 +331,89 @@ class BankMerchantConfigServiceImplTest
 
         assertEquals("JGXY0001", config.getSupervisionAgreementNo());
     }
+
+    @Test
+    void updateShouldPreserveVerificationWhenOnlyDefaultFlagChanges()
+    {
+        config.setConfigId(1L);
+        config.setMerId("MER001");
+        config.setSettlementAccountName("户名");
+        config.setBasicAccountName("基本户名");
+        config.setIsDefault("1");
+        config.setStatus("0");
+        BankMerchantConfig existing = verifiedExistingConfig();
+        existing.setIsDefault("0");
+        when(merchantConfigMapper.selectById(1L)).thenReturn(existing);
+        when(institutionMapper.selectPensionInstitutionByInstitutionId(36L)).thenReturn(institution);
+        when(merchantConfigMapper.update(config)).thenReturn(1);
+
+        service.update(config, "admin");
+
+        assertEquals("1", config.getVerifyStatus());
+        assertEquals("JGXY0001", config.getSupervisionAgreementNo());
+        assertEquals("0", config.getStatus());
+        verify(merchantConfigMapper).clearDefault(36L, 1L);
+    }
+
+    @Test
+    void updateShouldResetVerificationWhenBankAccountChanges()
+    {
+        config.setConfigId(1L);
+        config.setMerId("MER001");
+        config.setSettlementAccountName("户名");
+        config.setBasicAccountName("基本户名");
+        institution.setSuperviseAccount("619900003333");
+        BankMerchantConfig existing = verifiedExistingConfig();
+        when(merchantConfigMapper.selectById(1L)).thenReturn(existing);
+        when(institutionMapper.selectPensionInstitutionByInstitutionId(36L)).thenReturn(institution);
+        when(merchantConfigMapper.update(config)).thenReturn(1);
+
+        service.update(config, "admin");
+
+        assertEquals("0", config.getVerifyStatus());
+        assertEquals(null, config.getSupervisionAgreementNo());
+        assertEquals("0", config.getStatus());
+        assertEquals(0, config.getPayoutEnabled());
+    }
+
+    @Test
+    void updateShouldRejectDefaultSwitchWhenBankFundsExist()
+    {
+        config.setConfigId(1L);
+        config.setMerId("MER001");
+        config.setSettlementAccountName("户名");
+        config.setBasicAccountName("基本户名");
+        config.setIsDefault("1");
+        config.setStatus("0");
+        BankMerchantConfig existing = verifiedExistingConfig();
+        when(merchantConfigMapper.selectById(1L)).thenReturn(existing);
+        when(institutionMapper.selectPensionInstitutionByInstitutionId(36L)).thenReturn(institution);
+        when(settlementMapper.hasBankFunds(36L)).thenReturn(1);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.update(config, "admin"));
+
+        assertEquals("存在银行资金或未决交易，不能切换默认银行账户", exception.getMessage());
+        org.mockito.Mockito.verify(merchantConfigMapper, org.mockito.Mockito.never()).update(
+                org.mockito.ArgumentMatchers.any());
+    }
+
+    private BankMerchantConfig verifiedExistingConfig()
+    {
+        BankMerchantConfig existing = new BankMerchantConfig();
+        existing.setConfigId(1L);
+        existing.setInstitutionId(36L);
+        existing.setMerId("MER001");
+        existing.setSettlementAccountNo("619900001111");
+        existing.setSettlementAccountName("户名");
+        existing.setBasicAccountNo("618800002222");
+        existing.setBasicAccountName("基本户名");
+        existing.setChannelType("H5");
+        existing.setEnvironment("sandbox");
+        existing.setIsDefault("0");
+        existing.setVerifyStatus("1");
+        existing.setSupervisionAgreementNo("JGXY0001");
+        existing.setStatus("0");
+        return existing;
+    }
 }

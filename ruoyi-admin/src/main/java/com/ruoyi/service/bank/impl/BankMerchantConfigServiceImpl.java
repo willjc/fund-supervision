@@ -112,8 +112,14 @@ public class BankMerchantConfigServiceImpl implements IBankMerchantConfigService
                 || !Objects.equals(existing.getSettlementAccountName(), config.getSettlementAccountName())
                 || !Objects.equals(existing.getBasicAccountName(), config.getBasicAccountName())
                 || !Objects.equals(existing.getBasicBankCode(), config.getBasicBankCode())
-                || !Objects.equals(existing.getCrossBank(), config.getCrossBank())
-                || !Objects.equals(existing.getIsDefault(), config.getIsDefault());
+                || !Objects.equals(existing.getCrossBank(), config.getCrossBank());
+        if (!Objects.equals(existing.getIsDefault(), config.getIsDefault())
+                && "1".equals(config.getIsDefault())
+                && (settlementMapper.hasBankFunds(existing.getInstitutionId()) > 0
+                || settlementMapper.hasUnresolved(existing.getInstitutionId()) > 0))
+        {
+            throw new ServiceException("存在银行资金或未决交易，不能切换默认银行账户");
+        }
         if (bindingChanged)
         {
             if (settlementMapper.hasBankFunds(existing.getInstitutionId()) > 0
