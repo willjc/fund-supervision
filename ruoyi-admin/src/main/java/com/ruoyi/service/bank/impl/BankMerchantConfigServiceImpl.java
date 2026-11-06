@@ -261,8 +261,9 @@ public class BankMerchantConfigServiceImpl implements IBankMerchantConfigService
         request.setSuperviseAccountName(config.getSettlementAccountName());
         request.setPayeeAccountNo(config.getBasicAccountNo());
         request.setPayeeAccountName(config.getBasicAccountName());
-        request.setCrossBank(config.getCrossBank());
-        request.setPayeeBankNo(config.getBasicBankCode());
+        boolean crossBank = Integer.valueOf(1).equals(config.getCrossBank());
+        request.setCrossBank(crossBank ? 1 : 0);
+        request.setPayeeBankNo(crossBank ? config.getBasicBankCode() : null);
         request.setUnifiedCreditCode(institution == null ? null : institution.getCreditCode());
         request.validate();
 

@@ -153,8 +153,10 @@ public class BankPayoutService
         request.setPayerAccountName(merchant.getSettlementAccountName());
         request.setPayeeAccountNo(merchant.getBasicAccountNo());
         request.setPayeeAccountName(merchant.getBasicAccountName());
-        request.setCrossBank(Integer.valueOf(1).equals(merchant.getCrossBank()));
-        request.setPayeeBankNo(merchant.getBasicBankCode());
+        boolean crossBank = Integer.valueOf(1).equals(merchant.getCrossBank());
+        request.setCrossBank(crossBank);
+        // pyeebk 仅跨行上送；行内上送会被银行按非支付系统联行号拒绝。
+        request.setPayeeBankNo(crossBank ? merchant.getBasicBankCode() : null);
         request.setAmount(transfer.getTransferAmount());
         request.setRemark("养老资金拨付-" + transfer.getTransferNo());
         request.validate();

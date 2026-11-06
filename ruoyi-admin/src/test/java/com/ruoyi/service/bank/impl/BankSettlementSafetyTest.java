@@ -13,6 +13,7 @@ import org.springframework.transaction.support.SimpleTransactionStatus;
 import com.alibaba.fastjson2.JSON;
 import com.ruoyi.bank.gateway.*;
 import com.ruoyi.common.exception.ServiceException;
+import com.ruoyi.domain.PensionInstitution;
 import com.ruoyi.domain.bank.*;
 import com.ruoyi.domain.pension.*;
 import com.ruoyi.mapper.bank.*;
@@ -352,6 +353,91 @@ class BankSettlementSafetyTest
         assertTrue(error.getMessage().contains("未到拨付日期"));
         verify(gateway, never()).queryBalance(any(), any());
         verify(gateway, never()).submitPayout(any());
+    }
+
+    @Test
+    void intraBankPayoutOmitsPayeeBankCodeEvenWhenConfigured()
+    {
+        BankPayoutService service = new BankPayoutService();
+        BankGateway gateway = mock(BankGateway.class);
+        BankTransactionMapper transactions = mock(BankTransactionMapper.class);
+        BankSettlementMapper settlement = mock(BankSettlementMapper.class);
+        FundTransferMapper transfers = mock(FundTransferMapper.class);
+        AccountInfoMapper accounts = mock(AccountInfoMapper.class);
+        PensionInstitutionMapper institutions = mock(PensionInstitutionMapper.class);
+        com.ruoyi.service.bank.IBankMerchantConfigService merchants =
+                mock(com.ruoyi.service.bank.IBankMerchantConfigService.class);
+        PlatformTransactionManager tm = mock(PlatformTransactionManager.class);
+        when(tm.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
+        ReflectionTestUtils.setField(service, "gateway", gateway);
+        ReflectionTestUtils.setField(service, "transactions", transactions);
+        ReflectionTestUtils.setField(service, "settlement", settlement);
+        ReflectionTestUtils.setField(service, "transfers", transfers);
+        ReflectionTestUtils.setField(service, "accounts", accounts);
+        ReflectionTestUtils.setField(service, "institutions", institutions);
+        ReflectionTestUtils.setField(service, "merchants", merchants);
+        ReflectionTestUtils.setField(service, "transactionManager", tm);
+        ReflectionTestUtils.setField(service, "enabled", true);
+        when(gateway.supportsPayout()).thenReturn(true);
+
+        FundTransfer transfer = new FundTransfer();
+        transfer.setTransferId(10L);
+        transfer.setInstitutionId(20L);
+        transfer.setElderId(30L);
+        transfer.setOrderId(99L);
+        transfer.setBankEligible(1);
+        transfer.setSourceKey("FIRST:99");
+        transfer.setApproveTime(new Date());
+        transfer.setTransferAmount(new BigDecimal("0.03"));
+        transfer.setIsPaid("0");
+        transfer.setStatus("pending");
+        transfer.setBalanceType("SERVICE");
+        when(transfers.selectFundTransferByTransferId(10L)).thenReturn(transfer);
+
+        BankMerchantConfig merchant = new BankMerchantConfig();
+        merchant.setInstitutionId(20L);
+        merchant.setMerId("M1");
+        merchant.setEnvironment("sandbox");
+        merchant.setSettlementAccountNo("999156000240015553");
+        merchant.setSettlementAccountName("账户");
+        merchant.setBasicAccountNo("999156000260015552");
+        merchant.setBasicAccountName("账户");
+        merchant.setCrossBank(0);
+        merchant.setBasicBankCode("0112301");
+        merchant.setPayoutEnabled(1);
+        merchant.setSupervisionAgreementNo("AGRE1");
+        when(merchants.selectEnabledByInstitutionId(20L)).thenReturn(merchant);
+
+        BankResult balance = BankResult.success(null);
+        balance.setAvailableBalance(new BigDecimal("1.00"));
+        when(gateway.queryBalance(any(), any())).thenReturn(balance);
+        when(institutions.selectPensionInstitutionForUpdate(20L)).thenReturn(new PensionInstitution());
+        when(settlement.lockTransfer(10L)).thenReturn(transfer);
+        when(transactions.selectByBusiness("TRANSFER", 10L)).thenReturn(null);
+
+        BankTransaction payment = new BankTransaction();
+        payment.setStatus("SUCCESS");
+        payment.setBankStatus("SUCCESS");
+        payment.setInstitutionId(20L);
+        payment.setMerId("M1");
+        payment.setEnvironment("sandbox");
+        when(transactions.selectByBusiness("PAY", 99L)).thenReturn(payment);
+        AccountInfo account = new AccountInfo();
+        account.setAccountId(40L);
+        when(accounts.selectAccountInfoForUpdate(30L, 20L)).thenReturn(account);
+        when(settlement.reserve(40L, new BigDecimal("0.03"), BigDecimal.ZERO)).thenReturn(1);
+        BankTransaction[] saved = new BankTransaction[1];
+        when(transactions.insert(any())).thenAnswer(i -> { saved[0] = i.getArgument(0); return 1; });
+        when(settlement.attach(eq(10L), any(), anyString())).thenReturn(1);
+        when(gateway.submitPayout(any())).thenThrow(new ServiceException("stop after snapshot"));
+        when(transactions.selectByRequestNo(anyString())).thenAnswer(i -> saved[0]);
+
+        service.submit(10L, "tester", false);
+
+        assertNotNull(saved[0]);
+        BankPayoutRequest request = JSON.parseObject(saved[0].getSnapshotJson(), BankPayoutRequest.class);
+        assertFalse(request.isCrossBank());
+        assertNull(request.getPayeeBankNo());
     }
 
     private static BankTransaction transaction()
