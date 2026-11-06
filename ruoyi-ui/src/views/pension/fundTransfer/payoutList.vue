@@ -1,6 +1,7 @@
 <template>
   <div class="payout-list">
     <el-alert title="拨付以银行最终结果为准：受理成功不等于拨付成功，处理中或超时只能查询原请求；历史已完成记录已隔离，不会自动补发。" type="info" :closable="false" show-icon class="mb8" />
+    <el-alert title="线下支付资金未进入监管账户，对应拨付单不可审批、发送或补发；仅银行在线支付成功可形成可拨付资金。" type="warning" :closable="false" show-icon class="mb8" />
     <el-form ref="queryForm" :model="queryParams" :inline="true" v-show="showSearch" label-width="88px">
       <el-form-item label="划拨单号" prop="transferNo"><el-input v-model="queryParams.transferNo" clearable @keyup.enter.native="handleQuery" /></el-form-item>
       <el-form-item label="拨付状态" prop="status">
