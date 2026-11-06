@@ -168,9 +168,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where institution_id = #{institutionId}
     </select>
 
+    <!-- 锁行查询必须返回完整账户字段：updatePensionInstitution 依赖这些字段判断账户是否真实变更，
+         只查 id/name 会把未变更的更新误判为账户变更并重置银行商户配置。 -->
     <select id="selectPensionInstitutionForUpdate" parameterType="Long" resultMap="PensionInstitutionResult">
-        select institution_id, institution_name
-        from pension_institution
+        <include refid="selectPensionInstitutionVo"/>
         where institution_id = #{institutionId}
         for update
     </select>

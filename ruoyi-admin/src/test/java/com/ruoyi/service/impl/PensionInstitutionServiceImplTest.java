@@ -2,6 +2,7 @@ package com.ruoyi.service.impl;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import org.junit.jupiter.api.Test;
@@ -46,6 +47,26 @@ class PensionInstitutionServiceImplTest
         assertEquals(1, service.updatePensionInstitution(update));
         verify(merchantConfigMapper).invalidateByInstitutionAccountChange(
                 36L, "NEW-SUP", "NEW-BASIC", "admin");
+    }
+
+    @Test
+    void unchangedAccountsShouldKeepMerchantBinding()
+    {
+        PensionInstitution existing = institution(36L, "SAME-SUP", "SAME-BASIC");
+        existing.setSuperviseBank("郑州银行测试支行");
+        existing.setBasicBank("郑州银行测试支行");
+
+        PensionInstitution update = institution(36L, "SAME-SUP", "SAME-BASIC");
+        update.setSuperviseBank("郑州银行测试支行");
+        update.setBasicBank("郑州银行测试支行");
+        update.setContactPhone("13800000000");
+        update.setUpdateBy("admin");
+
+        when(institutionMapper.selectPensionInstitutionForUpdate(36L)).thenReturn(existing);
+        when(institutionMapper.updatePensionInstitution(update)).thenReturn(1);
+
+        assertEquals(1, service.updatePensionInstitution(update));
+        verifyNoInteractions(merchantConfigMapper);
     }
 
     private PensionInstitution institution(Long id, String supervisionAccount, String basicAccount)
