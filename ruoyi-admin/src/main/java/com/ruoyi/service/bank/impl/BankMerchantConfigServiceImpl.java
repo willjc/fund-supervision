@@ -2,8 +2,11 @@ package com.ruoyi.service.bank.impl;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +27,7 @@ public class BankMerchantConfigServiceImpl implements IBankMerchantConfigService
 {
     private static final String BANK_CODE = "ZZBANK";
     private static final String BANK_NAME = "郑州银行";
+    private static final Logger log = LoggerFactory.getLogger(BankMerchantConfigServiceImpl.class);
 
     @Autowired
     private BankMerchantConfigMapper merchantConfigMapper;
@@ -147,7 +151,8 @@ public class BankMerchantConfigServiceImpl implements IBankMerchantConfigService
                     || StringUtils.isEmpty(config.getSupervisionAgreementNo())
                     || (Integer.valueOf(1).equals(config.getCrossBank()) && StringUtils.isEmpty(config.getBasicBankCode()))))
             {
-                throw new ServiceException("真实拨付需已验证账户、收款户名、监管签约信息及跨行联行号");
+                throw new ServiceException("启用机构拨付前须通过银行验证，并填写监管账户户名、基本账户户名、监管协议编号；"
+                        + "跨行拨付还须填写收款行联行号");
             }
             config.setVerifyStatus(existing.getVerifyStatus());
             config.setVerifyMessage(existing.getVerifyMessage());
@@ -272,7 +277,17 @@ public class BankMerchantConfigServiceImpl implements IBankMerchantConfigService
         }
         if (result == null)
         {
+            log.warn("监管签约返回为空, configId={}", configId);
             return BankResult.failed("EMPTY_RESPONSE", "银行未返回签约结果");
+        }
+        if (isAlreadySigned(result))
+        {
+            // 银行不返回原协议编号，本地无法自动补齐；只能提示核实后手工补录。
+            log.warn("银行判定监管账户已签约但未返回协议编号, configId={}, code={}, message={}",
+                    configId, result.getResponseCode(), result.getResponseMessage());
+            return BankResult.unknown("ALREADY_SIGNED",
+                    "银行反馈该监管账户已完成签约（mzcnck008），重复签约已被拒绝。请向银行核实原协议编号，"
+                            + "并在该配置中补录“监管协议编号”；补录后无需再次签约。");
         }
         if ("SUCCESS".equals(result.getStatus()) && StringUtils.isNotEmpty(result.getAgreementNo()))
         {
@@ -281,8 +296,25 @@ public class BankMerchantConfigServiceImpl implements IBankMerchantConfigService
             {
                 throw new ServiceException("保存监管签约协议编号失败");
             }
+            log.info("监管签约成功, configId={}, agreementNo={}", configId, result.getAgreementNo());
+        }
+        else
+        {
+            log.warn("监管签约未成功, configId={}, code={}, message={}",
+                    configId, result.getResponseCode(), result.getResponseMessage());
         }
         return result;
+    }
+
+    private boolean isAlreadySigned(BankResult result)
+    {
+        return containsIgnoreCase(result.getResponseCode(), "mzcnck008")
+                || containsIgnoreCase(result.getResponseMessage(), "mzcnck008");
+    }
+
+    private boolean containsIgnoreCase(String value, String keyword)
+    {
+        return value != null && value.toLowerCase(Locale.ROOT).contains(keyword);
     }
 
     private void normalizeAndValidate(BankMerchantConfig config, Long currentConfigId)

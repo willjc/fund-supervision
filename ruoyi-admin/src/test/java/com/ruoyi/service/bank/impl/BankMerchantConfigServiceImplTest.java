@@ -2,6 +2,7 @@ package com.ruoyi.service.bank.impl;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -231,6 +232,30 @@ class BankMerchantConfigServiceImplTest
         BankResult result = service.signContract(1L, "admin");
 
         assertEquals("FAILED", result.getStatus());
+        org.mockito.Mockito.verify(merchantConfigMapper, org.mockito.Mockito.never()).updateAgreement(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void signContractShouldExplainAlreadySignedBankResponse()
+    {
+        config.setConfigId(1L);
+        config.setSettlementAccountNo("619900001111");
+        config.setSettlementAccountName("统一监管户名");
+        config.setBasicAccountNo("618800002222");
+        config.setBasicAccountName("统一监管户名");
+        when(merchantConfigMapper.selectById(1L)).thenReturn(config);
+        when(bankGateway.signSupervisionContract(org.mockito.ArgumentMatchers.any(BankSupervisionSignRequest.class)))
+                .thenReturn(BankResult.failed("SEAI0000-1",
+                        "[-1][mzcnck008]监管账户已签约民政养老资金监管业务或已被其他监管账户绑定为基本户!"));
+
+        BankResult result = service.signContract(1L, "admin");
+
+        assertEquals("UNKNOWN", result.getStatus());
+        assertEquals("ALREADY_SIGNED", result.getResponseCode());
+        assertTrue(result.getResponseMessage().contains("mzcnck008"));
+        assertTrue(result.getResponseMessage().contains("补录"));
         org.mockito.Mockito.verify(merchantConfigMapper, org.mockito.Mockito.never()).updateAgreement(
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any());

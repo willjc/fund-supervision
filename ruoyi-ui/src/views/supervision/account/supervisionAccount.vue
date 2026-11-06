@@ -11,8 +11,8 @@
       <el-collapse-item name="guide" title="测试配置四步">
         <ol class="guide-list">
           <li><b>核对机构账户</b>：在“维护机构账户”确认监管账户与基本账户已由机构档案带入；银行登记的户名必须与真实账户一致，不能使用机构名称自动合成。</li>
-          <li><b>登记商户号</b>：新增商户号，填写银行分配的 merId、监管账户户名、基本账户户名；跨行拨付必须填写收款行联行号，并录入银行已办理的监管协议编号。</li>
-          <li><b>银行验证并签约</b>：点击“验证”检查商户配置；未签约的配置可点击“签约”发起 701 监管签约。验证状态为“已验证”后才能启用。</li>
+          <li><b>登记商户号</b>：新增商户号，填写银行分配的 merId、监管账户户名、基本账户户名；跨行拨付必须填写收款行联行号。银行已办理过签约的，同时补录原监管协议编号。</li>
+          <li><b>银行验证并签约</b>：点击“验证”检查商户配置；尚未取得协议编号的配置可点击“发起签约”发起 701 监管签约。若银行返回“监管账户已签约”（mzcnck008），说明银行侧协议已存在，本系统不会重复签约，请向银行核实原协议编号后补录。验证状态为“已验证”后才能启用。</li>
           <li><b>开启机构拨付开关</b>：编辑配置将“启用状态”和“机构拨付开关”设为开启。随后到“拨付管理”对已审批的待拨付单点击“立即发送”（702），再用“查询银行”（703）确认结果。</li>
         </ol>
         <div class="form-tip">联调前请确认服务端已开启拨付总开关；页面开关只控制单个机构，不能替代银行协议验收。</div>
@@ -93,10 +93,10 @@
       <el-table-column label="机构拨付开关" width="115" align="center">
         <template slot-scope="scope">{{ Number(scope.row.payoutEnabled) === 1 ? '机构已开启' : '关闭' }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="215" fixed="right" align="center">
+      <el-table-column label="操作" width="260" fixed="right" align="center">
         <template slot-scope="scope">
           <el-button type="text" size="mini" icon="el-icon-connection" v-hasPermi="['supervision:account:supervision']" @click="handleVerify(scope.row)">验证</el-button>
-          <el-button v-if="!scope.row.supervisionAgreementNo" type="text" size="mini" icon="el-icon-link" v-hasPermi="['supervision:account:supervision']" @click="handleSign(scope.row)">签约</el-button>
+          <el-button v-if="!scope.row.supervisionAgreementNo" type="text" size="mini" icon="el-icon-link" v-hasPermi="['supervision:account:supervision']" @click="handleSign(scope.row)">发起签约</el-button>
           <el-button type="text" size="mini" icon="el-icon-edit" v-hasPermi="['supervision:account:supervision']" @click="handleEdit(scope.row)">编辑</el-button>
           <el-button type="text" size="mini" icon="el-icon-delete" v-hasPermi="['supervision:account:supervision']" @click="handleDelete(scope.row)">删除</el-button>
         </template>
@@ -137,11 +137,12 @@
           <el-input v-model.trim="form.basicBankCode" maxlength="64" placeholder="跨行拨付必填，按银行资料登记" />
         </el-form-item>
         <el-form-item label="监管协议编号" prop="supervisionAgreementNo">
-          <el-input v-model.trim="form.supervisionAgreementNo" maxlength="64" placeholder="银行已办理并确认的协议编号" />
+          <el-input v-model.trim="form.supervisionAgreementNo" maxlength="64" placeholder="签约成功时由银行返回，也可补录银行已办理的原编号" />
+          <div class="form-tip">若银行提示已签约但此处为空，请向银行核实原协议编号后手工补录，不要重复发起签约。</div>
         </el-form-item>
         <el-form-item label="机构拨付开关" prop="payoutEnabled">
           <el-radio-group v-model="form.payoutEnabled"><el-radio :label="0">关闭</el-radio><el-radio :label="1" :disabled="form.verifyStatus !== '1'">开启</el-radio></el-radio-group>
-          <div class="form-tip">默认关闭。更改账户、跨行信息或协议后须重新确认；服务端银行协议未验收时仍禁止真实拨付。</div>
+          <div class="form-tip">默认关闭。开启前须银行验证通过，且监管账户户名、基本账户户名、监管协议编号齐全；更改账户或跨行信息会重置验证与签约状态。</div>
         </el-form-item>
         <el-form-item label="接入渠道" prop="channelType">
           <el-select v-model="form.channelType" style="width: 100%">
@@ -259,9 +260,16 @@ export default {
     submitForm() {
       this.$refs.form.validate(valid => {
         if (!valid) return
-        if (Number(this.form.payoutEnabled) === 1 && (!this.form.settlementAccountName || !this.form.basicAccountName || !this.form.supervisionAgreementNo || (Number(this.form.crossBank) === 1 && !this.form.basicBankCode))) {
-          this.$modal.msgError('启用拨付前请填写监管账户真实户名、基本账户户名、监管协议编号及跨行联行号')
-          return
+        if (Number(this.form.payoutEnabled) === 1) {
+          const missing = []
+          if (!this.form.settlementAccountName) missing.push('监管账户户名')
+          if (!this.form.basicAccountName) missing.push('基本账户户名')
+          if (!this.form.supervisionAgreementNo) missing.push('监管协议编号')
+          if (Number(this.form.crossBank) === 1 && !this.form.basicBankCode) missing.push('收款行联行号')
+          if (missing.length) {
+            this.$modal.msgError('启用机构拨付前请先填写：' + missing.join('、'))
+            return
+          }
         }
         const request = this.form.configId ? updateBankMerchant(this.form) : addBankMerchant(this.form)
         request.then(response => {
@@ -284,7 +292,7 @@ export default {
       }).catch(() => {})
     },
     handleSign(row) {
-      this.$modal.confirm('确认向郑州银行发起监管签约（ylcntr）吗？账户信息以当前绑定为准').then(() => signBankMerchantContract(row.configId)).then(response => {
+      this.$modal.confirm('确认向郑州银行发起监管签约（ylcntr）吗？同一监管账户银行只允许签约一次，重复发起会被拒绝；若银行此前已签约，请取消后直接补录原协议编号').then(() => signBankMerchantContract(row.configId)).then(response => {
         this.$modal.msgSuccess((response && response.msg) || '监管签约完成')
         this.getList()
       }).catch(() => {})

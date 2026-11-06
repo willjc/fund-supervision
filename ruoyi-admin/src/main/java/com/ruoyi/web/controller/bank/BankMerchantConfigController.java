@@ -132,6 +132,10 @@ public class BankMerchantConfigController extends BaseController
         {
             return AjaxResult.success("监管签约成功，协议编号 " + result.getAgreementNo());
         }
+        if (result != null && "ALREADY_SIGNED".equals(result.getResponseCode()))
+        {
+            return AjaxResult.error(result.getResponseMessage());
+        }
         String message = result == null ? "银行未返回签约结果" : result.getResponseMessage();
         return AjaxResult.error("监管签约未完成：" + message);
     }
@@ -142,7 +146,7 @@ public class BankMerchantConfigController extends BaseController
         BankMerchantConfig saved = merchantConfigService.selectById(configId);
         if (saved != null && StringUtils.isNotEmpty(saved.getSupervisionAgreementNo()))
         {
-            return AjaxResult.success(prefix + "，监管签约已存在");
+            return AjaxResult.success(prefix + "，已登记监管协议编号，无需重复签约");
         }
         BankResult result;
         try
@@ -156,6 +160,10 @@ public class BankMerchantConfigController extends BaseController
         if (result != null && "SUCCESS".equals(result.getStatus()) && StringUtils.isNotEmpty(result.getAgreementNo()))
         {
             return AjaxResult.success(prefix + "，银行监管签约成功，协议编号 " + result.getAgreementNo());
+        }
+        if (result != null && "ALREADY_SIGNED".equals(result.getResponseCode()))
+        {
+            return AjaxResult.success(prefix + "，" + result.getResponseMessage());
         }
         String message = result == null ? "银行未返回签约结果" : result.getResponseMessage();
         return AjaxResult.success(prefix + "，银行监管签约未完成：" + message + "，可在列表中重试签约");
