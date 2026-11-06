@@ -60,6 +60,8 @@ jobs:
             tar -xzf /tmp/fund-supervision-release/fund-supervision-src.tgz -C "$SRC"
             echo "$GITHUB_SHA" > "$SRC/.deployed-commit"
             cd "$SRC"
+            # 服务器内存有限，限制 Maven 堆和元空间，避免构建拖垮整机。
+            export MAVEN_OPTS="-Xmx512m -XX:MaxMetaspaceSize=256m"
             mvn -q install:install-file -Dfile=ruoyi-admin/src/main/webapp/WEB-INF/lib/szzz-open-gateway-sdk-1.0-SNAPSHOT.jar -DpomFile=META-INF/maven/com.digital.szzz/szzz-open-gateway-sdk/pom.xml
             mvn -q clean package -pl ruoyi-admin -am -DskipTests
             mkdir -p "$FIX_DIR"
