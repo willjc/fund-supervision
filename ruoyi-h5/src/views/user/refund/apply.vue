@@ -52,6 +52,11 @@
             <span class="total-amount">¥{{ formatAmount(totalAmount) }}</span>
           </template>
         </van-cell>
+        <van-cell>
+          <template #title>
+            <span class="available-tip">可退上限：服务费 {{ available.service }} 元 · 押金 {{ available.deposit }} 元 · 会员费 {{ available.member }} 元（已划拨/支用部分不可退）</span>
+          </template>
+        </van-cell>
       </van-cell-group>
 
       <!-- 退款原因 -->
@@ -119,7 +124,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { showToast, showLoadingToast, closeToast } from 'vant'
+import { showToast, showLoadingToast, closeToast, showDialog } from 'vant'
 import { applyRefund, uploadRefundImage } from '@/api/refund'
 import { getAccountInfo } from '@/api/expense'
 import { getInstitutionList } from '@/api/institution'
@@ -160,6 +165,9 @@ const submitting = ref(false)
 // 总退款金额
 const totalAmount = ref('0.00')
 
+// 当前可退上限（来自账户余额，用于提示与失败引导）
+const available = ref({ service: '0.00', deposit: '0.00', member: '0.00' })
+
 // 机构选项
 const institutionList = ref([])
 
@@ -199,6 +207,11 @@ const loadData = async () => {
     if (response.code === 200 && response.data) {
       formData.value.institutionId = response.data.institutionId
       institutionName.value = response.data.institutionName || '养老机构'
+      available.value = {
+        service: Number(response.data.serviceBalance || 0).toFixed(2),
+        deposit: Number(response.data.depositBalance || 0).toFixed(2),
+        member: Number(response.data.memberBalance || 0).toFixed(2)
+      }
     }
   } catch (error) {
     console.error('获取账户信息失败:', error)
@@ -217,6 +230,19 @@ const calculateTotal = () => {
 const formatAmount = (amount) => {
   if (!amount || amount === '0.00') return '0.00'
   return amount
+}
+
+// 失败原因 -> 操作引导
+const refundFailHint = (msg) => {
+  if (!msg) return '请稍后重试，或联系养老机构/民政处理。'
+  if (msg.includes('超过账户可用余额')) {
+    return `当前可退上限：服务费 ${available.value.service} 元、押金 ${available.value.deposit} 元、会员费 ${available.value.member} 元。已划拨/支用的部分不可退，请调整金额后重试。`
+  }
+  if (msg.includes('超过可线下清退部分')) return '银行入账的资金需原路退款，请返回订单详情发起退款。'
+  if (msg.includes('无权')) return '当前账号不是该老人的绑定家属，请联系机构确认家属关系。'
+  if (msg.includes('没有银行成功支付') || msg.includes('必须关联原支付订单')) return '该订单无银行支付记录，无法原路退款，请联系机构走线下清退。'
+  if (msg.includes('不匹配')) return '老人与机构/订单不匹配，请从正确的订单进入退款。'
+  return '请核对退款金额与原因后重试，或联系养老机构/民政处理。'
 }
 
 // 原因选择确认
@@ -336,7 +362,17 @@ const onSubmit = async () => {
     }
   } catch (error) {
     console.error('提交失败:', error)
-    showToast('提交失败，请重试')
+    const reason = error.responseData?.msg
+    closeToast()
+    if (reason) {
+      showDialog({
+        title: '提交失败',
+        message: `${reason}\n\n${refundFailHint(reason)}`,
+        confirmButtonText: '我知道了'
+      })
+    } else {
+      showToast('提交失败，请重试')
+    }
   } finally {
     submitting.value = false
     closeToast()
@@ -379,6 +415,12 @@ const onSubmit = async () => {
   font-size: 12px;
   color: #999;
   margin-top: 8px;
+}
+
+.available-tip {
+  font-size: 12px;
+  color: #999;
+  line-height: 1.5;
 }
 
 .submit-section {
