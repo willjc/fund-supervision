@@ -117,7 +117,7 @@ class ZhengzhouBankGatewayTest
         assertTrue(query.contains("&txnAmt=1&"));
         assertTrue(query.contains("&obkAppId=APP001&"));
         assertTrue(query.contains("&istest=1&"));
-        assertTrue(query.contains("&dev=uatb&"));
+        assertTrue(query.contains("&dev=uata&"));
         String reqData = java.util.Arrays.stream(launch.getString("query").split("&"))
                 .filter(value -> value.startsWith("reqData="))
                 .findFirst().orElseThrow(AssertionError::new).substring("reqData=".length());

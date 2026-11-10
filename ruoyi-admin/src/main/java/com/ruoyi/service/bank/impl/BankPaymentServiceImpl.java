@@ -200,7 +200,7 @@ public class BankPaymentServiceImpl implements IBankPaymentService
             }
             if (!transaction.getRequestNo().equals(fields.get("txnOrderId"))
                     || !transaction.getMerId().equals(fields.get("merId"))
-                    || !"uatb".equals(fields.get("dev")) || !"1".equals(fields.get("istest")))
+                    || !"uata".equals(fields.get("dev")) || !"1".equals(fields.get("istest")))
             {
                 throw new IllegalArgumentException("identity or environment mismatch");
             }
