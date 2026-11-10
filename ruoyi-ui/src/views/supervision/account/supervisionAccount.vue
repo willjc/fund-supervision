@@ -213,6 +213,11 @@ export default {
     this.getList()
     this.getInstitutionList()
   },
+  // keep-alive 缓存的标签页切回时 created 不重跑，需在此重新拉取，避免机构账户停留在打开瞬间的旧快照
+  activated() {
+    this.getList()
+    this.getInstitutionList()
+  },
   methods: {
     getList() {
       this.loading = true
@@ -222,7 +227,7 @@ export default {
       }).finally(() => { this.loading = false })
     },
     getInstitutionList() {
-      listInstitution({ pageNum: 1, pageSize: 1000 }).then(response => { this.institutionList = response.rows || [] })
+      return listInstitution({ pageNum: 1, pageSize: 1000 }).then(response => { this.institutionList = response.rows || [] })
     },
     handleQuery() {
       this.queryParams.pageNum = 1
@@ -239,12 +244,13 @@ export default {
     },
     handleAdd() {
       this.reset()
+      this.getInstitutionList()
       this.title = '新增郑州银行商户号'
       this.open = true
     },
     handleEdit(row) {
       this.reset()
-      getBankMerchant(row.configId).then(response => {
+      Promise.all([getBankMerchant(row.configId), this.getInstitutionList()]).then(([response]) => {
         this.form = { ...this.form, ...response.data }
         this.form.crossBank = Number(this.form.crossBank) === 1 ? 1 : 0
         this.form.payoutEnabled = Number(this.form.payoutEnabled) === 1 ? 1 : 0
