@@ -11,8 +11,8 @@
       <el-collapse-item name="guide" title="测试配置四步">
         <ol class="guide-list">
           <li><b>核对机构账户</b>：在“维护机构账户”确认监管账户、基本账户、开户行及银行登记户名已维护；户名必须与银行真实登记一致，不能使用机构名称自动合成。</li>
-          <li><b>登记商户号</b>：新增商户号，填写银行分配的 merId；账号、开户行、户名自动从机构档案带出，无需手填。跨行拨付必须填写收款行联行号。银行已办理过签约的，同时补录原监管协议编号。</li>
-          <li><b>银行验证并签约</b>：点击“验证”检查商户配置；尚未取得协议编号的配置可点击“发起签约”发起 701 监管签约。若银行返回“监管账户已签约”（mzcnck008），说明银行侧协议已存在，本系统不会重复签约，请向银行核实原协议编号后补录。验证状态为“已验证”后才能启用。</li>
+          <li><b>登记商户号</b>：新增商户号，填写银行分配的 merId；账号、开户行、户名自动从机构档案带出，无需手填。跨行拨付必须填写收款行联行号。银行已办理过签约的，同时补录原监管协议编号。<b>保存只登记本地配置，不会自动向银行签约</b>，签约需在列表单独点击“发起签约”。</li>
+          <li><b>银行验证并签约</b>：点击“验证”检查商户配置；尚未取得协议编号的配置可点击“发起签约”发起 701 监管签约。验证、签约都会实时请求银行，请耐心等待返回，不要重复点击。若银行返回“监管账户已签约”（mzcnck008），说明银行侧协议已存在，本系统不会重复签约，请向银行核实原协议编号后补录。验证状态为“已验证”后才能启用。</li>
           <li><b>开启机构拨付开关</b>：编辑配置将“启用状态”和“机构拨付开关”设为开启。随后到“拨付管理”对已审批的待拨付单点击“立即发送”（702），再用“查询银行”（703）确认结果。</li>
         </ol>
         <div class="form-tip">联调前请确认服务端已开启拨付总开关；页面开关只控制单个机构，不能替代银行协议验收。</div>
@@ -295,13 +295,19 @@ export default {
       }).catch(() => {})
     },
     handleVerify(row) {
-      this.$modal.confirm('确认在当前银行环境验证商户号“' + row.merId + '”吗？').then(() => verifyBankMerchant(row.configId)).then(() => {
+      this.$modal.confirm('确认在当前银行环境验证商户号“' + row.merId + '”吗？').then(() => {
+        this.$modal.loading('正在请求银行验证，请稍候…')
+        return verifyBankMerchant(row.configId).finally(() => { this.$modal.closeLoading() })
+      }).then(() => {
         this.$modal.msgSuccess('商户号验证通过')
         this.getList()
       }).catch(() => {})
     },
     handleSign(row) {
-      this.$modal.confirm('确认向郑州银行发起监管签约（ylcntr）吗？同一监管账户银行只允许签约一次，重复发起会被拒绝；若银行此前已签约，请取消后直接补录原协议编号').then(() => signBankMerchantContract(row.configId)).then(response => {
+      this.$modal.confirm('确认向郑州银行发起监管签约（ylcntr）吗？同一监管账户银行只允许签约一次，重复发起会被拒绝；若银行此前已签约，请取消后直接补录原协议编号').then(() => {
+        this.$modal.loading('正在向银行发起监管签约，请稍候…')
+        return signBankMerchantContract(row.configId).finally(() => { this.$modal.closeLoading() })
+      }).then(response => {
         this.$modal.msgSuccess((response && response.msg) || '监管签约完成')
         this.getList()
       }).catch(() => {})

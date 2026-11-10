@@ -64,7 +64,7 @@ class BankMerchantConfigServiceImplTest
     @Test
     void insertShouldDeriveInstitutionAccountsAndRemainDisabled()
     {
-        config.setSettlementAccountName(" 银行登记的精确户名 ");
+        institution.setAccountHolderName(" 银行登记的精确户名 ");
         when(merchantConfigMapper.selectByMerId("ZZBANK", "MER001")).thenReturn(null);
         when(institutionMapper.selectPensionInstitutionByInstitutionId(36L)).thenReturn(institution);
         when(merchantConfigMapper.insert(config)).thenReturn(1);
@@ -77,6 +77,7 @@ class BankMerchantConfigServiceImplTest
         assertEquals("测试养老院", config.getMerchantName());
         assertEquals("619900001111", config.getSettlementAccountNo());
         assertEquals("银行登记的精确户名", config.getSettlementAccountName());
+        assertEquals("银行登记的精确户名", config.getBasicAccountName());
         assertEquals("618800002222", config.getBasicAccountNo());
         assertEquals("0", config.getVerifyStatus());
         assertEquals("0", config.getStatus());
@@ -333,16 +334,15 @@ class BankMerchantConfigServiceImplTest
     {
         config.setConfigId(1L);
         config.setMerId("MER001");
-        config.setSettlementAccountName("户名");
-        config.setBasicAccountName("基本户名");
+        institution.setAccountHolderName("统一监管户名");
         BankMerchantConfig existing = new BankMerchantConfig();
         existing.setConfigId(1L);
         existing.setInstitutionId(36L);
         existing.setMerId("MER001");
         existing.setSettlementAccountNo("619900001111");
-        existing.setSettlementAccountName("户名");
+        existing.setSettlementAccountName("统一监管户名");
         existing.setBasicAccountNo("618800002222");
-        existing.setBasicAccountName("基本户名");
+        existing.setBasicAccountName("统一监管户名");
         existing.setChannelType("H5");
         existing.setEnvironment("sandbox");
         existing.setIsDefault("0");
@@ -362,10 +362,9 @@ class BankMerchantConfigServiceImplTest
     {
         config.setConfigId(1L);
         config.setMerId("MER001");
-        config.setSettlementAccountName("户名");
-        config.setBasicAccountName("基本户名");
         config.setIsDefault("1");
         config.setStatus("0");
+        institution.setAccountHolderName("户名");
         BankMerchantConfig existing = verifiedExistingConfig();
         existing.setIsDefault("0");
         when(merchantConfigMapper.selectById(1L)).thenReturn(existing);
@@ -432,7 +431,7 @@ class BankMerchantConfigServiceImplTest
         existing.setSettlementAccountNo("619900001111");
         existing.setSettlementAccountName("户名");
         existing.setBasicAccountNo("618800002222");
-        existing.setBasicAccountName("基本户名");
+        existing.setBasicAccountName("户名");
         existing.setChannelType("H5");
         existing.setEnvironment("sandbox");
         existing.setIsDefault("0");

@@ -65,7 +65,7 @@ public class BankMerchantConfigController extends BaseController
         {
             return AjaxResult.error("保存商户配置失败");
         }
-        return autoSign(config.getConfigId(), "绑定已保存");
+        return AjaxResult.success("绑定已保存，请在列表中点击「发起签约」办理银行监管签约");
     }
 
     @PreAuthorize("@ss.hasPermi('supervision:account:supervision')")
@@ -85,7 +85,7 @@ public class BankMerchantConfigController extends BaseController
         {
             return AjaxResult.error("更新商户配置失败");
         }
-        return autoSign(config.getConfigId(), "绑定已更新");
+        return AjaxResult.success("绑定已更新");
     }
 
     @PreAuthorize("@ss.hasPermi('supervision:account:supervision')")
@@ -138,35 +138,6 @@ public class BankMerchantConfigController extends BaseController
         }
         String message = result == null ? "银行未返回签约结果" : result.getResponseMessage();
         return AjaxResult.error("监管签约未完成：" + message);
-    }
-
-    /** 绑定保存后自动发起监管签约；签约失败不影响绑定结果，仅在返回消息中提示，可稍后手动重试。 */
-    private AjaxResult autoSign(Long configId, String prefix)
-    {
-        BankMerchantConfig saved = merchantConfigService.selectById(configId);
-        if (saved != null && StringUtils.isNotEmpty(saved.getSupervisionAgreementNo()))
-        {
-            return AjaxResult.success(prefix + "，已登记监管协议编号，无需重复签约");
-        }
-        BankResult result;
-        try
-        {
-            result = merchantConfigService.signContract(configId, getUsername());
-        }
-        catch (Exception e)
-        {
-            return AjaxResult.success(prefix + "，银行监管签约未完成：" + e.getMessage() + "，可在列表中重试签约");
-        }
-        if (result != null && "SUCCESS".equals(result.getStatus()) && StringUtils.isNotEmpty(result.getAgreementNo()))
-        {
-            return AjaxResult.success(prefix + "，银行监管签约成功，协议编号 " + result.getAgreementNo());
-        }
-        if (result != null && "ALREADY_SIGNED".equals(result.getResponseCode()))
-        {
-            return AjaxResult.success(prefix + "，" + result.getResponseMessage());
-        }
-        String message = result == null ? "银行未返回签约结果" : result.getResponseMessage();
-        return AjaxResult.success(prefix + "，银行监管签约未完成：" + message + "，可在列表中重试签约");
     }
 
     private BankMerchantConfig findAccessible(Long configId)
