@@ -21,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import com.ruoyi.bank.gateway.BankResult;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.domain.entity.SysUser;
 import com.ruoyi.common.core.domain.model.LoginUser;
@@ -93,5 +94,24 @@ class BankMerchantConfigControllerTest
         verify(merchantConfigService).update(config, "admin");
         verify(merchantConfigService, never()).signContract(any(), anyString());
         verify(merchantConfigService, never()).selectById(any());
+    }
+
+    @Test
+    void maintainContractShouldReturnSuccessWithUnchangedAgreement()
+    {
+        BankMerchantConfig config = new BankMerchantConfig();
+        config.setConfigId(1L);
+        config.setInstitutionId(36L);
+        when(merchantConfigService.selectList(any(BankMerchantConfig.class)))
+                .thenReturn(Collections.singletonList(config));
+        BankResult maintained = BankResult.success(null);
+        maintained.setAgreementNo("JGXY0001");
+        when(merchantConfigService.maintainContract(1L, "admin")).thenReturn(maintained);
+
+        AjaxResult result = controller.maintainContract(1L);
+
+        assertTrue(result.isSuccess());
+        assertEquals("监管签约维护成功，协议编号 JGXY0001", result.get(AjaxResult.MSG_TAG));
+        verify(merchantConfigService).maintainContract(1L, "admin");
     }
 }

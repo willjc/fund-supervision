@@ -12,7 +12,7 @@
         <ol class="guide-list">
           <li><b>核对机构账户</b>：在“维护机构账户”确认监管账户、基本账户、开户行及银行登记户名已维护；户名必须与银行真实登记一致，不能使用机构名称自动合成。</li>
           <li><b>登记商户号</b>：新增商户号，填写银行分配的 merId；账号、开户行、户名自动从机构档案带出，无需手填。跨行拨付必须填写收款行联行号。银行已办理过签约的，同时补录原监管协议编号。<b>保存只登记本地配置，不会自动向银行签约</b>，签约需在列表单独点击“发起签约”。</li>
-          <li><b>银行验证并签约</b>：点击“验证”检查商户配置；尚未取得协议编号的配置可点击“发起签约”发起 701 监管签约。验证、签约都会实时请求银行，请耐心等待返回，不要重复点击。若银行返回“监管账户已签约”（mzcnck008），说明银行侧协议已存在，本系统不会重复签约，请向银行核实原协议编号后补录。验证状态为“已验证”后才能启用。</li>
+          <li><b>验证、签约与维护</b>：点击“验证”检查商户配置。首次办理点“发起签约”（701）取得监管协议编号；之后修改基本账户、户名等资料的，保存后点“维护”（704）把最新资料同步到银行，协议编号不变、无需重新签约。验证、签约、维护都会实时请求银行，请耐心等待返回，不要重复点击。若签约时银行返回“监管账户已签约”（mzcnck008），说明银行侧协议已存在，请向银行核实原协议编号后补录，再改用“维护”。验证状态为“已验证”后才能启用。</li>
           <li><b>开启机构拨付开关</b>：编辑配置将“启用状态”和“机构拨付开关”设为开启。随后到“拨付管理”对已审批的待拨付单点击“立即发送”（702），再用“查询银行”（703）确认结果。</li>
         </ol>
         <div class="form-tip">联调前请确认服务端已开启拨付总开关；页面开关只控制单个机构，不能替代银行协议验收。</div>
@@ -97,6 +97,7 @@
         <template slot-scope="scope">
           <el-button type="text" size="mini" icon="el-icon-connection" v-hasPermi="['supervision:account:supervision']" @click="handleVerify(scope.row)">验证</el-button>
           <el-button v-if="!scope.row.supervisionAgreementNo" type="text" size="mini" icon="el-icon-link" v-hasPermi="['supervision:account:supervision']" @click="handleSign(scope.row)">发起签约</el-button>
+          <el-button v-if="scope.row.supervisionAgreementNo" type="text" size="mini" icon="el-icon-refresh" v-hasPermi="['supervision:account:supervision']" @click="handleMaintain(scope.row)">维护</el-button>
           <el-button type="text" size="mini" icon="el-icon-edit" v-hasPermi="['supervision:account:supervision']" @click="handleEdit(scope.row)">编辑</el-button>
           <el-button type="text" size="mini" icon="el-icon-delete" v-hasPermi="['supervision:account:supervision']" @click="handleDelete(scope.row)">删除</el-button>
         </template>
@@ -141,12 +142,12 @@
           <el-input v-model.trim="form.basicBankCode" maxlength="64" placeholder="跨行拨付必填，按银行资料登记" />
         </el-form-item>
         <el-form-item label="监管协议编号" prop="supervisionAgreementNo">
-          <el-input v-model.trim="form.supervisionAgreementNo" maxlength="64" placeholder="签约成功时由银行返回，也可补录银行已办理的原编号" />
+          <el-input v-model.trim="form.supervisionAgreementNo" maxlength="20" placeholder="签约成功时由银行返回，也可补录银行已办理的原编号" />
           <div class="form-tip">若银行提示已签约但此处为空，请向银行核实原协议编号后手工补录，不要重复发起签约。</div>
         </el-form-item>
         <el-form-item label="机构拨付开关" prop="payoutEnabled">
           <el-radio-group v-model="form.payoutEnabled"><el-radio :label="0">关闭</el-radio><el-radio :label="1" :disabled="form.verifyStatus !== '1'">开启</el-radio></el-radio-group>
-          <div class="form-tip">默认关闭。开启前须银行验证通过，且银行登记户名、监管协议编号齐全；更改账户、户名或跨行信息会重置验证与签约状态。</div>
+          <div class="form-tip">默认关闭。开启前须银行验证通过，且银行登记户名、监管协议编号齐全；更改账户、户名或跨行信息会重置验证、启用和拨付状态，保留协议号并需执行“维护”同步银行；仅切换银行环境需重新签约。</div>
         </el-form-item>
         <el-form-item label="接入渠道" prop="channelType">
           <el-select v-model="form.channelType" style="width: 100%">
@@ -189,7 +190,7 @@
 
 <script>
 import { listInstitution } from '@/api/supervision/institution'
-import { listBankMerchant, getBankMerchant, addBankMerchant, updateBankMerchant, delBankMerchant, verifyBankMerchant, signBankMerchantContract } from '@/api/supervision/account'
+import { listBankMerchant, getBankMerchant, addBankMerchant, updateBankMerchant, delBankMerchant, verifyBankMerchant, signBankMerchantContract, maintainBankMerchantContract } from '@/api/supervision/account'
 
 export default {
   name: 'SupervisionAccount',
@@ -309,6 +310,15 @@ export default {
         return signBankMerchantContract(row.configId).finally(() => { this.$modal.closeLoading() })
       }).then(response => {
         this.$modal.msgSuccess((response && response.msg) || '监管签约完成')
+        this.getList()
+      }).catch(() => {})
+    },
+    handleMaintain(row) {
+      this.$modal.confirm('确认向郑州银行发起签约维护（ylqywh）吗？将用协议编号 ' + row.supervisionAgreementNo + ' 把当前最新账户资料同步到银行，协议编号不变。适用于修改基本账户、户名等资料后更新银行侧信息').then(() => {
+        this.$modal.loading('正在向银行发起签约维护，请稍候…')
+        return maintainBankMerchantContract(row.configId).finally(() => { this.$modal.closeLoading() })
+      }).then(response => {
+        this.$modal.msgSuccess((response && response.msg) || '监管签约维护完成')
         this.getList()
       }).catch(() => {})
     },

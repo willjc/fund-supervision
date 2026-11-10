@@ -32,4 +32,10 @@ public class DisabledBankGateway implements BankGateway
     {
         throw new ServiceException("银行对接尚未启用，不能发起监管签约");
     }
+
+    @Override
+    public BankResult maintainSupervisionContract(String agreementNo, BankSupervisionSignRequest request)
+    {
+        throw new ServiceException("银行对接尚未启用，不能发起监管签约维护");
+    }
 }

@@ -132,10 +132,19 @@ public class BankMerchantConfigServiceImpl implements IBankMerchantConfigService
                 throw new ServiceException("存在银行资金或未决交易，账户/环境变更须先核对处理");
             }
             config.setPayoutEnabled(0);
-            config.setSupervisionAgreementNo(null);
             config.setVerifyStatus("0");
             config.setVerifyMessage(null);
             config.setStatus("0");
+            if (!Objects.equals(existing.getEnvironment(), config.getEnvironment()))
+            {
+                // 切换银行环境后原协议号在新环境无效，需重新签约。
+                config.setSupervisionAgreementNo(null);
+            }
+            else
+            {
+                // 账户/户名等资料变更：原协议号仍有效，保留并走"维护"(704)同步银行，无需重新签约。
+                config.setSupervisionAgreementNo(existing.getSupervisionAgreementNo());
+            }
         }
         else
         {
@@ -302,6 +311,77 @@ public class BankMerchantConfigServiceImpl implements IBankMerchantConfigService
         else
         {
             log.warn("监管签约未成功, configId={}, code={}, message={}",
+                    configId, result.getResponseCode(), result.getResponseMessage());
+        }
+        return result;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public BankResult maintainContract(Long configId, String operator)
+    {
+        BankMerchantConfig config = merchantConfigMapper.selectById(configId);
+        if (config == null)
+        {
+            throw new ServiceException("商户配置不存在");
+        }
+        if (StringUtils.isEmpty(config.getSupervisionAgreementNo()))
+        {
+            throw new ServiceException("该绑定尚未取得监管协议编号，请先发起监管签约");
+        }
+        if (StringUtils.isEmpty(config.getSettlementAccountName()))
+        {
+            throw new ServiceException("请先完善监管账户名称（户名）后再发起签约维护");
+        }
+        if (StringUtils.isEmpty(config.getBasicAccountNo()))
+        {
+            throw new ServiceException("该机构尚未配置基本账户，不能发起签约维护");
+        }
+        if (StringUtils.isEmpty(config.getBasicAccountName()))
+        {
+            throw new ServiceException("请先完善基本账户名称（结算账户名称）后再发起签约维护");
+        }
+        if (!config.getSettlementAccountName().equals(config.getBasicAccountName()))
+        {
+            // 与签约一致的银行规则 mzcnck007：监管户名必须与基本户名完全一致。
+            throw new ServiceException("监管账户名称与基本账户名称不一致，银行不允许维护；请保持两户名完全一致后再发起签约维护");
+        }
+
+        PensionInstitution institution = institutionMapper.selectPensionInstitutionByInstitutionId(
+                config.getInstitutionId());
+        BankSupervisionSignRequest request = new BankSupervisionSignRequest();
+        request.setSuperviseAccountNo(config.getSettlementAccountNo());
+        request.setSuperviseAccountName(config.getSettlementAccountName());
+        request.setPayeeAccountNo(config.getBasicAccountNo());
+        request.setPayeeAccountName(config.getBasicAccountName());
+        boolean crossBank = Integer.valueOf(1).equals(config.getCrossBank());
+        request.setCrossBank(crossBank ? 1 : 0);
+        request.setPayeeBankNo(crossBank ? config.getBasicBankCode() : null);
+        request.setUnifiedCreditCode(institution == null ? null : institution.getCreditCode());
+        request.validate();
+
+        BankResult result;
+        try
+        {
+            result = bankGateway.maintainSupervisionContract(config.getSupervisionAgreementNo(), request);
+        }
+        catch (Exception e)
+        {
+            result = BankResult.failed("MAINTAIN_EXCEPTION", e.getMessage());
+        }
+        if (result == null)
+        {
+            log.warn("监管签约维护返回为空, configId={}", configId);
+            return BankResult.failed("EMPTY_RESPONSE", "银行未返回维护结果");
+        }
+        if ("SUCCESS".equals(result.getStatus()))
+        {
+            // 维护只更新银行侧资料，协议号不变，无需回写协议编号。
+            log.info("监管签约维护成功, configId={}, agreementNo={}", configId, config.getSupervisionAgreementNo());
+        }
+        else
+        {
+            log.warn("监管签约维护未成功, configId={}, code={}, message={}",
                     configId, result.getResponseCode(), result.getResponseMessage());
         }
         return result;

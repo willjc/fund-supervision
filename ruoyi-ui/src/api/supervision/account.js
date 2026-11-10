@@ -123,6 +123,10 @@ export function signBankMerchantContract(configId) {
   return request({ url: '/supervision/account/bank-merchant/' + configId + '/sign-contract', method: 'post', timeout: 30000 })
 }
 
+export function maintainBankMerchantContract(configId) {
+  return request({ url: '/supervision/account/bank-merchant/' + configId + '/maintain-contract', method: 'post', timeout: 30000 })
+}
+
 // 查询订单管理列表
 export function listOrder(query) {
   return request({

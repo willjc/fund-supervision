@@ -1,6 +1,7 @@
 package com.ruoyi.service.bank.impl;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verify;
@@ -330,6 +331,58 @@ class BankMerchantConfigServiceImplTest
     }
 
     @Test
+    void maintainContractShouldSendCurrentAccountsWithoutRewritingAgreement()
+    {
+        config.setConfigId(1L);
+        config.setSupervisionAgreementNo("JGXY0001");
+        config.setSettlementAccountNo("619900003333");
+        config.setSettlementAccountName("统一监管户名");
+        config.setBasicAccountNo("618800004444");
+        config.setBasicAccountName("统一监管户名");
+        config.setCrossBank(1);
+        config.setBasicBankCode("313491000011");
+        institution.setCreditCode("91410100MA9XXXXX00");
+        when(merchantConfigMapper.selectById(1L)).thenReturn(config);
+        when(institutionMapper.selectPensionInstitutionByInstitutionId(36L)).thenReturn(institution);
+        BankResult maintained = BankResult.success(null);
+        maintained.setAgreementNo("JGXY0001");
+        when(bankGateway.maintainSupervisionContract(org.mockito.ArgumentMatchers.eq("JGXY0001"),
+                org.mockito.ArgumentMatchers.any(BankSupervisionSignRequest.class))).thenReturn(maintained);
+
+        BankResult result = service.maintainContract(1L, "admin");
+
+        assertEquals("SUCCESS", result.getStatus());
+        assertEquals("JGXY0001", result.getAgreementNo());
+        org.mockito.ArgumentCaptor<BankSupervisionSignRequest> captor =
+                org.mockito.ArgumentCaptor.forClass(BankSupervisionSignRequest.class);
+        verify(bankGateway).maintainSupervisionContract(org.mockito.ArgumentMatchers.eq("JGXY0001"),
+                captor.capture());
+        assertEquals("619900003333", captor.getValue().getSuperviseAccountNo());
+        assertEquals("统一监管户名", captor.getValue().getSuperviseAccountName());
+        assertEquals("618800004444", captor.getValue().getPayeeAccountNo());
+        assertEquals("统一监管户名", captor.getValue().getPayeeAccountName());
+        assertEquals(1, captor.getValue().getCrossBank());
+        assertEquals("313491000011", captor.getValue().getPayeeBankNo());
+        assertEquals("91410100MA9XXXXX00", captor.getValue().getUnifiedCreditCode());
+        org.mockito.Mockito.verify(merchantConfigMapper, org.mockito.Mockito.never()).updateAgreement(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void maintainContractShouldRejectMissingAgreementBeforeCallingBank()
+    {
+        config.setConfigId(1L);
+        when(merchantConfigMapper.selectById(1L)).thenReturn(config);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.maintainContract(1L, "admin"));
+
+        assertEquals("该绑定尚未取得监管协议编号，请先发起监管签约", exception.getMessage());
+        org.mockito.Mockito.verifyNoInteractions(bankGateway);
+    }
+
+    @Test
     void updateShouldPreserveAgreementWhenFormOmitsIt()
     {
         config.setConfigId(1L);
@@ -395,7 +448,28 @@ class BankMerchantConfigServiceImplTest
         service.update(config, "admin");
 
         assertEquals("0", config.getVerifyStatus());
-        assertEquals(null, config.getSupervisionAgreementNo());
+        // 监管账户变更属于资料变更，协议号仍有效，保留并走"维护"(704)同步，不再清空重签。
+        assertEquals("JGXY0001", config.getSupervisionAgreementNo());
+        assertEquals("0", config.getStatus());
+        assertEquals(0, config.getPayoutEnabled());
+    }
+
+    @Test
+    void updateShouldClearAgreementWhenEnvironmentChanges()
+    {
+        config.setConfigId(1L);
+        config.setMerId("MER001");
+        config.setEnvironment("prod");
+        institution.setAccountHolderName("户名");
+        BankMerchantConfig existing = verifiedExistingConfig();
+        when(merchantConfigMapper.selectById(1L)).thenReturn(existing);
+        when(institutionMapper.selectPensionInstitutionByInstitutionId(36L)).thenReturn(institution);
+        when(merchantConfigMapper.update(config)).thenReturn(1);
+
+        service.update(config, "admin");
+
+        assertNull(config.getSupervisionAgreementNo());
+        assertEquals("0", config.getVerifyStatus());
         assertEquals("0", config.getStatus());
         assertEquals(0, config.getPayoutEnabled());
     }

@@ -634,6 +634,54 @@ public class ZhengzhouBankGateway implements BankGateway
         return body;
     }
 
+    @Override
+    public BankResult maintainSupervisionContract(String agreementNo, BankSupervisionSignRequest request)
+    {
+        String normalizedAgreementNo = agreementNo == null ? null : agreementNo.trim();
+        if (isBlank(normalizedAgreementNo))
+        {
+            throw new ServiceException("监管协议编号不能为空，请先完成监管签约");
+        }
+        if (normalizedAgreementNo.length() > 20)
+        {
+            throw new ServiceException("监管协议编号长度不能超过20位");
+        }
+        requireProtocolConfig();
+        requirePublicGatewayUrl();
+        JSONObject response = postTo(supervisionUrl(), "OBK0071704",
+                maintenanceBody(normalizedAgreementNo, request), new Date());
+        String code = normalizeCode(response.getString("respcd"));
+        if (!"0000".equals(code))
+        {
+            return BankResult.failed(code, response.getString("resptx"));
+        }
+        BankResult result = BankResult.success(null);
+        result.setAgreementNo(normalizedAgreementNo);
+        result.setResponseMessage("监管签约维护成功");
+        return result;
+    }
+
+    /** v1.3 OBK0071704（ylqywh 签约维护）业务字段：账户资料同签约，另含必输原协议号 jgxyno，无 banktg。 */
+    JSONObject maintenanceBody(String agreementNo, BankSupervisionSignRequest request)
+    {
+        request.validate();
+        JSONObject body = new JSONObject();
+        body.put("jgxyno", agreementNo);
+        body.put("jgacct", truncate(request.getSuperviseAccountNo(), 40));
+        body.put("jgacna", truncate(request.getSuperviseAccountName(), 256));
+        body.put("hbskno", truncate(request.getPayeeAccountNo(), 40));
+        body.put("hbskna", truncate(request.getPayeeAccountName(), 256));
+        if (!isBlank(request.getPayeeBankNo()))
+        {
+            body.put("hbbank", truncate(request.getPayeeBankNo(), 20));
+        }
+        if (!isBlank(request.getUnifiedCreditCode()))
+        {
+            body.put("socode", truncate(request.getUnifiedCreditCode(), 40));
+        }
+        return body;
+    }
+
     String supervisionUrl()
     {
         if (!isBlank(supervisionGatewayUrl))

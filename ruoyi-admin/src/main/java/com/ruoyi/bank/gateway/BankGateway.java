@@ -24,6 +24,12 @@ public interface BankGateway
         throw new ServiceException("监管签约网关未启用");
     }
 
+    /** OBK0071704（ylqywh）签约维护：携带原协议号更新账户资料，协议号不变，仅返回成功/失败。 */
+    default BankResult maintainSupervisionContract(String agreementNo, BankSupervisionSignRequest request)
+    {
+        throw new ServiceException("监管签约维护网关未启用");
+    }
+
     default boolean supportsPayout()
     {
         return false;

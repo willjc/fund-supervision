@@ -140,6 +140,24 @@ public class BankMerchantConfigController extends BaseController
         return AjaxResult.error("监管签约未完成：" + message);
     }
 
+    @PreAuthorize("@ss.hasPermi('supervision:account:supervision')")
+    @Log(title = "维护银行监管签约", businessType = BusinessType.UPDATE)
+    @PostMapping("/{configId}/maintain-contract")
+    public AjaxResult maintainContract(@PathVariable Long configId)
+    {
+        if (findAccessible(configId) == null)
+        {
+            return AjaxResult.error("商户配置不存在或无权操作");
+        }
+        BankResult result = merchantConfigService.maintainContract(configId, getUsername());
+        if (result != null && "SUCCESS".equals(result.getStatus()))
+        {
+            return AjaxResult.success("监管签约维护成功，协议编号 " + result.getAgreementNo());
+        }
+        String message = result == null ? "银行未返回维护结果" : result.getResponseMessage();
+        return AjaxResult.error("监管签约维护未完成：" + message);
+    }
+
     private BankMerchantConfig findAccessible(Long configId)
     {
         BankMerchantConfig query = new BankMerchantConfig();
