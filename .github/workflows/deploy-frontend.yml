@@ -22,14 +22,14 @@ jobs:
         with:
           node-version: '16'
           cache: npm
-          cache-dependency-path: ruoyi-ui/package.json
+          cache-dependency-path: ruoyi-ui/package-lock.json
 
       - name: 构建管理端
         working-directory: ruoyi-ui
         env:
           VUE_APP_BASE_API: /prod-api
         run: |
-          npm install --registry=https://registry.npmmirror.com --no-audit --no-fund
+          npm ci --registry=https://registry.npmmirror.com --no-audit --no-fund
           npm run build:prod
 
       - name: 部署管理端
