@@ -387,6 +387,59 @@ public class BankMerchantConfigServiceImpl implements IBankMerchantConfigService
         return result;
     }
 
+    @Override
+    public BankResult cancelContract(Long configId, String operator)
+    {
+        BankMerchantConfig config = merchantConfigMapper.selectById(configId);
+        if (config == null)
+        {
+            throw new ServiceException("商户配置不存在");
+        }
+        if (!"sandbox".equalsIgnoreCase(config.getEnvironment()))
+        {
+            throw new ServiceException("解约测试仅允许 sandbox 环境");
+        }
+        if (StringUtils.isEmpty(config.getSupervisionAgreementNo()))
+        {
+            throw new ServiceException("监管协议编号不能为空，无法发起解约");
+        }
+        if (StringUtils.isEmpty(config.getSettlementAccountNo()))
+        {
+            throw new ServiceException("监管账号不能为空，无法发起解约");
+        }
+        if (StringUtils.isEmpty(config.getSettlementAccountName()))
+        {
+            throw new ServiceException("监管账户名称不能为空，无法发起解约");
+        }
+
+        BankResult result;
+        try
+        {
+            result = bankGateway.cancelSupervisionContract(config.getSupervisionAgreementNo(),
+                    config.getSettlementAccountNo(), config.getSettlementAccountName());
+        }
+        catch (Exception e)
+        {
+            result = BankResult.failed("CANCEL_EXCEPTION", e.getMessage());
+        }
+        if (result == null)
+        {
+            log.warn("监管解约返回为空, configId={}", configId);
+            return BankResult.failed("EMPTY_RESPONSE", "银行未返回解约结果");
+        }
+        if ("SUCCESS".equals(result.getStatus()))
+        {
+            log.info("监管解约成功, configId={}, agreementNo={}, operator={}",
+                    configId, config.getSupervisionAgreementNo(), operator);
+        }
+        else
+        {
+            log.warn("监管解约未成功, configId={}, code={}, message={}, operator={}",
+                    configId, result.getResponseCode(), result.getResponseMessage(), operator);
+        }
+        return result;
+    }
+
     private boolean isAlreadySigned(BankResult result)
     {
         return containsIgnoreCase(result.getResponseCode(), "mzcnck008")

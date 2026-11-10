@@ -127,6 +127,10 @@ export function maintainBankMerchantContract(configId) {
   return request({ url: '/supervision/account/bank-merchant/' + configId + '/maintain-contract', method: 'post', timeout: 30000 })
 }
 
+export function cancelBankMerchantContract(configId) {
+  return request({ url: '/supervision/account/bank-merchant/' + configId + '/cancel-contract', method: 'post', timeout: 30000 })
+}
+
 // 查询订单管理列表
 export function listOrder(query) {
   return request({

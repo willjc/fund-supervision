@@ -1,6 +1,8 @@
 package com.ruoyi.web.controller.bank;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -156,6 +158,27 @@ public class BankMerchantConfigController extends BaseController
         }
         String message = result == null ? "银行未返回维护结果" : result.getResponseMessage();
         return AjaxResult.error("监管签约维护未完成：" + message);
+    }
+
+    @PreAuthorize("@ss.hasPermi('supervision:account:supervision')")
+    @Log(title = "解约银行监管签约", businessType = BusinessType.UPDATE)
+    @PostMapping("/{configId}/cancel-contract")
+    public AjaxResult cancelContract(@PathVariable Long configId)
+    {
+        if (findAccessible(configId) == null)
+        {
+            return AjaxResult.error("商户配置不存在或无权操作");
+        }
+        BankResult result = merchantConfigService.cancelContract(configId, getUsername());
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("success", result != null && "SUCCESS".equals(result.getStatus()));
+        data.put("status", result == null ? "FAILED" : result.getStatus());
+        data.put("code", result == null || StringUtils.isEmpty(result.getResponseCode())
+                ? "无" : result.getResponseCode());
+        data.put("message", result == null || StringUtils.isEmpty(result.getResponseMessage())
+                ? "银行未返回解约结果" : result.getResponseMessage());
+        data.put("agreementNo", result == null ? null : result.getAgreementNo());
+        return AjaxResult.success("银行解约接口已返回", data);
     }
 
     private BankMerchantConfig findAccessible(Long configId)

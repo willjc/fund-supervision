@@ -705,6 +705,40 @@ public class ZhengzhouBankGateway implements BankGateway
         return body;
     }
 
+    @Override
+    public BankResult cancelSupervisionContract(String agreementNo, String superviseAccountNo,
+            String superviseAccountName)
+    {
+        String normalizedAgreementNo = agreementNo == null ? null : agreementNo.trim();
+        if (isBlank(normalizedAgreementNo))
+        {
+            throw new ServiceException("监管协议编号不能为空，无法发起解约");
+        }
+        if (normalizedAgreementNo.length() > 20)
+        {
+            throw new ServiceException("监管协议编号长度不能超过20位");
+        }
+        require(superviseAccountNo, "监管账号不能为空，无法发起解约");
+        require(superviseAccountName, "监管账户名称不能为空，无法发起解约");
+        requireProtocolConfig();
+        requirePublicGatewayUrl();
+        JSONObject body = new JSONObject();
+        body.put("jgxyno", normalizedAgreementNo);
+        body.put("jgacct", truncate(superviseAccountNo, 40));
+        body.put("jgacna", truncate(superviseAccountName, 256));
+        JSONObject response = postTo(supervisionUrl(), "OBK0071705", body, new Date());
+        String code = normalizeCode(response.getString("respcd"));
+        if (!"0000".equals(code))
+        {
+            return BankResult.failed(code, response.getString("resptx"));
+        }
+        BankResult result = BankResult.success(null);
+        result.setAgreementNo(normalizedAgreementNo);
+        result.setResponseMessage(isBlank(response.getString("resptx"))
+                ? "监管解约成功" : response.getString("resptx"));
+        return result;
+    }
+
     String supervisionUrl()
     {
         if (!isBlank(supervisionGatewayUrl))

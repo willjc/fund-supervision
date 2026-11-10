@@ -97,6 +97,50 @@ class BankMerchantConfigControllerTest
     }
 
     @Test
+    void cancelContractShouldExposeBankResponse()
+    {
+        BankMerchantConfig config = new BankMerchantConfig();
+        config.setConfigId(1L);
+        config.setInstitutionId(36L);
+        when(merchantConfigService.selectList(any(BankMerchantConfig.class)))
+                .thenReturn(Collections.singletonList(config));
+        BankResult cancelled = BankResult.success(null);
+        cancelled.setResponseCode("0000");
+        cancelled.setResponseMessage("解约成功");
+        when(merchantConfigService.cancelContract(1L, "admin")).thenReturn(cancelled);
+
+        AjaxResult result = controller.cancelContract(1L);
+
+        assertTrue(result.isSuccess());
+        assertEquals("银行解约接口已返回", result.get(AjaxResult.MSG_TAG));
+        java.util.Map<?, ?> data = (java.util.Map<?, ?>) result.get(AjaxResult.DATA_TAG);
+        assertEquals(Boolean.TRUE, data.get("success"));
+        assertEquals("0000", data.get("code"));
+        assertEquals("解约成功", data.get("message"));
+        verify(merchantConfigService).cancelContract(1L, "admin");
+    }
+
+    @Test
+    void cancelContractShouldExposeBankFailure()
+    {
+        BankMerchantConfig config = new BankMerchantConfig();
+        config.setConfigId(1L);
+        config.setInstitutionId(36L);
+        when(merchantConfigService.selectList(any(BankMerchantConfig.class)))
+                .thenReturn(Collections.singletonList(config));
+        when(merchantConfigService.cancelContract(1L, "admin"))
+                .thenReturn(BankResult.failed("9999", "解约失败"));
+
+        AjaxResult result = controller.cancelContract(1L);
+
+        assertTrue(result.isSuccess());
+        java.util.Map<?, ?> data = (java.util.Map<?, ?>) result.get(AjaxResult.DATA_TAG);
+        assertEquals(Boolean.FALSE, data.get("success"));
+        assertEquals("9999", data.get("code"));
+        assertEquals("解约失败", data.get("message"));
+    }
+
+    @Test
     void maintainContractShouldReturnSuccessWithUnchangedAgreement()
     {
         BankMerchantConfig config = new BankMerchantConfig();

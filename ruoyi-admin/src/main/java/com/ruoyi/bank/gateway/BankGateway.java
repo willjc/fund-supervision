@@ -30,6 +30,13 @@ public interface BankGateway
         throw new ServiceException("监管签约维护网关未启用");
     }
 
+    /** OBK0071705（ylptjy）解约：按原协议号和监管账户解除银行签约。 */
+    default BankResult cancelSupervisionContract(String agreementNo, String superviseAccountNo,
+            String superviseAccountName)
+    {
+        throw new ServiceException("监管解约网关未启用");
+    }
+
     default boolean supportsPayout()
     {
         return false;

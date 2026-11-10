@@ -12,7 +12,7 @@
         <ol class="guide-list">
           <li><b>核对机构账户</b>：在“维护机构账户”确认监管账户、基本账户、开户行及银行登记户名已维护；户名必须与银行真实登记一致，不能使用机构名称自动合成。</li>
           <li><b>登记商户号</b>：新增商户号，填写银行分配的 merId；账号、开户行、户名自动从机构档案带出，无需手填。跨行拨付必须填写收款行联行号。银行已办理过签约的，同时补录原监管协议编号。<b>保存只登记本地配置，不会自动向银行签约</b>，签约需在列表单独点击“发起签约”。</li>
-          <li><b>验证、签约与维护</b>：点击“验证”检查商户配置。首次办理点“发起签约”（701）取得监管协议编号；之后修改基本账户、户名等资料的，保存后点“维护”（704）把最新资料同步到银行，协议编号不变、无需重新签约。验证、签约、维护都会实时请求银行，请耐心等待返回，不要重复点击。若签约时银行返回“监管账户已签约”（mzcnck008），说明银行侧协议已存在，请向银行核实原协议编号后补录，再改用“维护”。验证状态为“已验证”后才能启用。</li>
+          <li><b>验证、签约与维护</b>：点击“验证”检查商户配置。首次办理点“发起签约”（701）取得监管协议编号；之后修改基本账户、户名等资料的，保存后点“维护”（704）把最新资料同步到银行，协议编号不变、无需重新签约。测试环境可点“解约”直接验证 705 通道；解约会真实解除银行侧协议，不校验在途业务，也不会自动清除本地协议号。验证、签约、维护、解约都会实时请求银行，请耐心等待返回，不要重复点击。若签约时银行返回“监管账户已签约”（mzcnck008），说明银行侧协议已存在，请向银行核实原协议编号后补录，再改用“维护”。验证状态为“已验证”后才能启用。</li>
           <li><b>开启机构拨付开关</b>：编辑配置将“启用状态”和“机构拨付开关”设为开启。随后到“拨付管理”对已审批的待拨付单点击“立即发送”（702），再用“查询银行”（703）确认结果。</li>
         </ol>
         <div class="form-tip">联调前请确认服务端已开启拨付总开关；页面开关只控制单个机构，不能替代银行协议验收。</div>
@@ -93,11 +93,12 @@
       <el-table-column label="机构拨付开关" width="115" align="center">
         <template slot-scope="scope">{{ Number(scope.row.payoutEnabled) === 1 ? '机构已开启' : '关闭' }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="260" fixed="right" align="center">
+      <el-table-column label="操作" width="330" fixed="right" align="center">
         <template slot-scope="scope">
           <el-button type="text" size="mini" icon="el-icon-connection" v-hasPermi="['supervision:account:supervision']" @click="handleVerify(scope.row)">验证</el-button>
           <el-button v-if="!scope.row.supervisionAgreementNo" type="text" size="mini" icon="el-icon-link" v-hasPermi="['supervision:account:supervision']" @click="handleSign(scope.row)">发起签约</el-button>
           <el-button v-if="scope.row.supervisionAgreementNo" type="text" size="mini" icon="el-icon-refresh" v-hasPermi="['supervision:account:supervision']" @click="handleMaintain(scope.row)">维护</el-button>
+          <el-button v-if="scope.row.supervisionAgreementNo && scope.row.environment === 'sandbox'" type="text" size="mini" icon="el-icon-remove-outline" v-hasPermi="['supervision:account:supervision']" @click="handleCancel(scope.row)">解约</el-button>
           <el-button type="text" size="mini" icon="el-icon-edit" v-hasPermi="['supervision:account:supervision']" @click="handleEdit(scope.row)">编辑</el-button>
           <el-button type="text" size="mini" icon="el-icon-delete" v-hasPermi="['supervision:account:supervision']" @click="handleDelete(scope.row)">删除</el-button>
         </template>
@@ -190,7 +191,7 @@
 
 <script>
 import { listInstitution } from '@/api/supervision/institution'
-import { listBankMerchant, getBankMerchant, addBankMerchant, updateBankMerchant, delBankMerchant, verifyBankMerchant, signBankMerchantContract, maintainBankMerchantContract } from '@/api/supervision/account'
+import { listBankMerchant, getBankMerchant, addBankMerchant, updateBankMerchant, delBankMerchant, verifyBankMerchant, signBankMerchantContract, maintainBankMerchantContract, cancelBankMerchantContract } from '@/api/supervision/account'
 
 export default {
   name: 'SupervisionAccount',
@@ -320,6 +321,20 @@ export default {
       }).then(response => {
         this.$modal.msgSuccess((response && response.msg) || '监管签约维护完成')
         this.getList()
+      }).catch(() => {})
+    },
+    handleCancel(row) {
+      this.$modal.confirm('确认向郑州银行发起真实解约（OBK0071705）吗？银行侧监管签约将立即解除；该测试入口不校验资金和在途业务，也不会自动清除本地协议号。').then(() => {
+        this.$modal.loading('正在向银行发起解约，请稍候…')
+        return cancelBankMerchantContract(row.configId).finally(() => { this.$modal.closeLoading() })
+      }).then(response => {
+        const result = (response && response.data) || {}
+        const bankResponse = '银行返回：respcd=' + (result.code || '无') + '，resptx=' + (result.message || '无')
+        if (result.success) {
+          this.$modal.alertSuccess(bankResponse)
+        } else {
+          this.$modal.alertError(bankResponse)
+        }
       }).catch(() => {})
     },
     cancel() {

@@ -23,5 +23,7 @@ public interface IBankMerchantConfigService
 
     BankResult maintainContract(Long configId, String operator);
 
+    BankResult cancelContract(Long configId, String operator);
+
     int delete(Long configId);
 }

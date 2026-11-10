@@ -496,6 +496,67 @@ class BankMerchantConfigServiceImplTest
                 org.mockito.ArgumentMatchers.any());
     }
 
+    @Test
+    void cancelContractShouldSendSandboxBindingWithoutLocalMutation()
+    {
+        config.setConfigId(7L);
+        config.setSupervisionAgreementNo("AGRE0001");
+        config.setSettlementAccountNo("619900001111");
+        config.setSettlementAccountName("统一监管户名");
+        config.setVerifyStatus("2");
+        config.setStatus("0");
+        config.setPayoutEnabled(0);
+        when(merchantConfigMapper.selectById(7L)).thenReturn(config);
+        BankResult cancelled = BankResult.success(null);
+        cancelled.setResponseMessage("解约成功");
+        when(bankGateway.cancelSupervisionContract("AGRE0001", "619900001111", "统一监管户名"))
+                .thenReturn(cancelled);
+
+        BankResult result = service.cancelContract(7L, "admin");
+
+        assertEquals("SUCCESS", result.getStatus());
+        assertEquals("解约成功", result.getResponseMessage());
+        verify(bankGateway).cancelSupervisionContract("AGRE0001", "619900001111", "统一监管户名");
+        org.mockito.Mockito.verify(merchantConfigMapper, org.mockito.Mockito.never()).update(
+                org.mockito.ArgumentMatchers.any());
+        org.mockito.Mockito.verify(merchantConfigMapper, org.mockito.Mockito.never()).updateAgreement(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any());
+        org.mockito.Mockito.verifyNoInteractions(settlementMapper);
+    }
+
+    @Test
+    void cancelContractShouldRejectNonSandboxBeforeCallingBank()
+    {
+        config.setConfigId(7L);
+        config.setEnvironment("prod");
+        config.setSupervisionAgreementNo("AGRE0001");
+        config.setSettlementAccountNo("619900001111");
+        config.setSettlementAccountName("统一监管户名");
+        when(merchantConfigMapper.selectById(7L)).thenReturn(config);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.cancelContract(7L, "admin"));
+
+        assertEquals("解约测试仅允许 sandbox 环境", exception.getMessage());
+        org.mockito.Mockito.verifyNoInteractions(bankGateway);
+    }
+
+    @Test
+    void cancelContractShouldRequireAgreementBeforeCallingBank()
+    {
+        config.setConfigId(7L);
+        config.setSettlementAccountNo("619900001111");
+        config.setSettlementAccountName("统一监管户名");
+        when(merchantConfigMapper.selectById(7L)).thenReturn(config);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.cancelContract(7L, "admin"));
+
+        assertEquals("监管协议编号不能为空，无法发起解约", exception.getMessage());
+        org.mockito.Mockito.verifyNoInteractions(bankGateway);
+    }
+
     private BankMerchantConfig verifiedExistingConfig()
     {
         BankMerchantConfig existing = new BankMerchantConfig();

@@ -66,6 +66,20 @@ public class MockBankGateway implements BankGateway
     }
 
     @Override
+    public BankResult cancelSupervisionContract(String agreementNo, String superviseAccountNo,
+            String superviseAccountName)
+    {
+        if (agreementNo == null || agreementNo.trim().isEmpty())
+        {
+            return BankResult.failed("MOCK_AGREEMENT_MISSING", "监管协议编号为空，无法发起模拟解约");
+        }
+        BankResult result = BankResult.success(null);
+        result.setAgreementNo(agreementNo);
+        result.setResponseMessage("模拟银行已解除监管签约");
+        return result;
+    }
+
+    @Override
     public boolean supportsPayout()
     {
         return true;
