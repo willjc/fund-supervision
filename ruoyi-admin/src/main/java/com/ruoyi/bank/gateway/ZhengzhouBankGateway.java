@@ -579,15 +579,38 @@ public class ZhengzhouBankGateway implements BankGateway
         request.setMerId(merId);
         request.setOriginalRequestNo("BV" + IdUtils.fastSimpleUUID().substring(0, 30).toUpperCase());
         request.setOriginalRequestTime(new Date());
-        BankResult result = queryPayment(request);
+        BankResult result;
+        try
+        {
+            result = queryPayment(request);
+        }
+        catch (ServiceException e)
+        {
+            // 验证使用不存在的随机单号，银行会以 UERS001025 表示查无此交易。
+            if (isVerificationNotFound(e.getMessage()))
+            {
+                return merchantVerified();
+            }
+            throw e;
+        }
         if ("1025".equals(result.getResponseCode()))
         {
-            BankResult verified = BankResult.success(null);
-            verified.setResponseMessage("测试网关已接受该商户号；监管账户绑定以银行配置为准");
-            return verified;
+            return merchantVerified();
         }
         return BankResult.failed(result.getResponseCode(), "测试网关未确认该商户号："
                 + result.getResponseMessage());
+    }
+
+    private boolean isVerificationNotFound(String message)
+    {
+        return message != null && message.contains("UERS001025");
+    }
+
+    private BankResult merchantVerified()
+    {
+        BankResult verified = BankResult.success(null);
+        verified.setResponseMessage("测试网关已接受该商户号；监管账户绑定以银行配置为准");
+        return verified;
     }
 
     @Override
