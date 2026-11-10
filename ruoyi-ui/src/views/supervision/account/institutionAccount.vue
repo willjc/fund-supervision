@@ -126,6 +126,7 @@
       <el-table-column label="监管开户行" align="center" prop="superviseBank" width="150" show-overflow-tooltip />
       <el-table-column label="基本账户" align="center" prop="bankAccount" width="160" />
       <el-table-column label="基本开户行" align="center" prop="basicBank" width="150" show-overflow-tooltip />
+      <el-table-column label="银行登记户名" align="center" prop="accountHolderName" width="180" show-overflow-tooltip />
       <el-table-column label="平台记账余额" align="center" prop="supervisionBalance" width="140">
         <template slot-scope="scope">
           <el-tooltip content="平台内部账户余额合计，非银行监管账户余额；银行余额请用 709 查询" placement="top">
@@ -186,7 +187,11 @@
         <el-form-item label="基本开户行" prop="basicBank">
           <el-input v-model.trim="accountForm.basicBank" maxlength="100" />
         </el-form-item>
-        <el-alert title="账户变更后，已绑定的银行商户号会自动停用并等待重新验证。" type="warning" :closable="false" show-icon />
+        <el-form-item label="银行登记户名" prop="accountHolderName">
+          <el-input v-model.trim="accountForm.accountHolderName" maxlength="200" placeholder="监管账户与基本账户共用的银行登记户名" />
+          <div class="form-tip">按银行真实登记户名填写，不要用机构名称自动合成；启用机构拨付前必填，拨付收付款户名取此处。</div>
+        </el-form-item>
+        <el-alert title="账户或户名变更后，已绑定的银行商户号会自动停用并等待重新验证。" type="warning" :closable="false" show-icon />
       </el-form>
       <div slot="footer" class="dialog-footer">
         <el-button type="primary" @click="submitAccount">确 定</el-button>
@@ -203,6 +208,7 @@
         <el-descriptions-item label="监管开户行">{{ detailData.superviseBank || '-' }}</el-descriptions-item>
         <el-descriptions-item label="基本账户">{{ detailData.bankAccount || '-' }}</el-descriptions-item>
         <el-descriptions-item label="基本开户行">{{ detailData.basicBank || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="银行登记户名">{{ detailData.accountHolderName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="平台记账余额">
           <span style="color: #409EFF; font-weight: bold; font-size: 16px">¥{{ formatNumber(detailData.supervisionBalance || 0) }}</span>
         </el-descriptions-item>
@@ -439,7 +445,8 @@ export default {
         superviseAccount: row.superviseAccount || '',
         superviseBank: row.superviseBank || '',
         bankAccount: row.bankAccount || '',
-        basicBank: row.basicBank || ''
+        basicBank: row.basicBank || '',
+        accountHolderName: row.accountHolderName || ''
       }
       this.editOpen = true
       this.$nextTick(() => this.$refs.accountForm && this.$refs.accountForm.clearValidate())
@@ -545,7 +552,7 @@ export default {
         this.$modal.msgWarning('当前页没有可导出的数据')
         return
       }
-      const headers = ['机构编号', '机构名称', '监管账户', '监管开户行', '基本账户', '基本开户行', '平台记账余额', '预收费余额', '押金余额', '账户状态']
+      const headers = ['机构编号', '机构名称', '监管账户', '监管开户行', '基本账户', '基本开户行', '银行登记户名', '平台记账余额', '预收费余额', '押金余额', '账户状态']
       const lines = this.accountList.map(row => [
         row.institutionId,
         row.institutionName,
@@ -553,6 +560,7 @@ export default {
         row.superviseBank,
         row.bankAccount,
         row.basicBank,
+        row.accountHolderName,
         row.supervisionBalance,
         row.prepaidBalance,
         row.depositBalance,
@@ -589,6 +597,12 @@ export default {
 
 .mb8 {
   margin-bottom: 8px;
+}
+
+.form-tip {
+  color: #909399;
+  font-size: 12px;
+  margin-top: 4px;
 }
 
 .stat-card {

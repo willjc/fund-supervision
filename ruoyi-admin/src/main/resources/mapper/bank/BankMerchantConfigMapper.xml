@@ -144,6 +144,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <update id="invalidateByInstitutionAccountChange">
         update bank_merchant_config
         set settlement_account_no = #{settlementAccountNo}, basic_account_no = #{basicAccountNo},
+            settlement_account_name = #{accountHolderName}, basic_account_name = #{accountHolderName},
             verify_status = '0', verify_message = '机构账户已变更，请重新验证',
             status = '0', payout_enabled=0, supervision_agreement_no=NULL,
             last_verified_time = null, update_by = #{operator}, update_time = now()

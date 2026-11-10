@@ -10,8 +10,8 @@
     <el-collapse v-model="guideOpen" class="mb16">
       <el-collapse-item name="guide" title="测试配置四步">
         <ol class="guide-list">
-          <li><b>核对机构账户</b>：在“维护机构账户”确认监管账户与基本账户已由机构档案带入；银行登记的户名必须与真实账户一致，不能使用机构名称自动合成。</li>
-          <li><b>登记商户号</b>：新增商户号，填写银行分配的 merId、监管账户户名、基本账户户名；跨行拨付必须填写收款行联行号。银行已办理过签约的，同时补录原监管协议编号。</li>
+          <li><b>核对机构账户</b>：在“维护机构账户”确认监管账户、基本账户、开户行及银行登记户名已维护；户名必须与银行真实登记一致，不能使用机构名称自动合成。</li>
+          <li><b>登记商户号</b>：新增商户号，填写银行分配的 merId；账号、开户行、户名自动从机构档案带出，无需手填。跨行拨付必须填写收款行联行号。银行已办理过签约的，同时补录原监管协议编号。</li>
           <li><b>银行验证并签约</b>：点击“验证”检查商户配置；尚未取得协议编号的配置可点击“发起签约”发起 701 监管签约。若银行返回“监管账户已签约”（mzcnck008），说明银行侧协议已存在，本系统不会重复签约，请向银行核实原协议编号后补录。验证状态为“已验证”后才能启用。</li>
           <li><b>开启机构拨付开关</b>：编辑配置将“启用状态”和“机构拨付开关”设为开启。随后到“拨付管理”对已审批的待拨付单点击“立即发送”（702），再用“查询银行”（703）确认结果。</li>
         </ol>
@@ -118,17 +118,21 @@
         <el-form-item label="银行商户名称" prop="merchantName">
           <el-input v-model.trim="form.merchantName" placeholder="默认使用机构名称" maxlength="200" />
         </el-form-item>
-        <el-form-item label="监管结算账户">
+        <el-form-item label="监管账户">
           <el-input :value="selectedInstitution.superviseAccount || '机构档案尚未配置'" disabled />
         </el-form-item>
-        <el-form-item label="监管账户户名" prop="settlementAccountName">
-          <el-input v-model.trim="form.settlementAccountName" maxlength="200" placeholder="按银行真实登记户名填写，不使用机构名称自动合成" />
+        <el-form-item label="监管开户行">
+          <el-input :value="selectedInstitution.superviseBank || '机构档案尚未配置'" disabled />
         </el-form-item>
         <el-form-item label="基本账户">
           <el-input :value="selectedInstitution.bankAccount || '机构档案尚未配置'" disabled />
         </el-form-item>
-        <el-form-item label="基本账户户名" prop="basicAccountName">
-          <el-input v-model.trim="form.basicAccountName" maxlength="200" placeholder="按银行已登记的基本账户户名填写" />
+        <el-form-item label="基本开户行">
+          <el-input :value="selectedInstitution.basicBank || '机构档案尚未配置'" disabled />
+        </el-form-item>
+        <el-form-item label="银行登记户名">
+          <el-input :value="selectedInstitution.accountHolderName || '机构档案尚未配置'" disabled />
+          <div class="form-tip">监管账户与基本账户共用，自动从机构档案带出；如需修改请到「维护机构账户」。</div>
         </el-form-item>
         <el-form-item label="跨行拨付" prop="crossBank">
           <el-radio-group v-model="form.crossBank"><el-radio :label="0">本行</el-radio><el-radio :label="1">跨行</el-radio></el-radio-group>
@@ -142,7 +146,7 @@
         </el-form-item>
         <el-form-item label="机构拨付开关" prop="payoutEnabled">
           <el-radio-group v-model="form.payoutEnabled"><el-radio :label="0">关闭</el-radio><el-radio :label="1" :disabled="form.verifyStatus !== '1'">开启</el-radio></el-radio-group>
-          <div class="form-tip">默认关闭。开启前须银行验证通过，且监管账户户名、基本账户户名、监管协议编号齐全；更改账户或跨行信息会重置验证与签约状态。</div>
+          <div class="form-tip">默认关闭。开启前须银行验证通过，且银行登记户名、监管协议编号齐全；更改账户、户名或跨行信息会重置验证与签约状态。</div>
         </el-form-item>
         <el-form-item label="接入渠道" prop="channelType">
           <el-select v-model="form.channelType" style="width: 100%">
@@ -268,8 +272,7 @@ export default {
         if (!valid) return
         if (Number(this.form.payoutEnabled) === 1) {
           const missing = []
-          if (!this.form.settlementAccountName) missing.push('监管账户户名')
-          if (!this.form.basicAccountName) missing.push('基本账户户名')
+          if (!this.selectedInstitution.accountHolderName) missing.push('银行登记户名（到维护机构账户填写）')
           if (!this.form.supervisionAgreementNo) missing.push('监管协议编号')
           if (Number(this.form.crossBank) === 1 && !this.form.basicBankCode) missing.push('收款行联行号')
           if (missing.length) {

@@ -204,6 +204,10 @@ public class PensionInstitution extends BaseEntity
     @Excel(name = "监管账户开户行")
     private String superviseBank;
 
+    /** 银行登记户名（监管账户与基本账户共用，拨付收付款户名） */
+    @Excel(name = "银行登记户名")
+    private String accountHolderName;
+
     /** 状态 */
     @Excel(name = "状态", readConverterExp = "0=待审批,1=已入驻,2=已驳回,3=解除监管,4=草稿,5=维护中,6=维护待审批")
     private String status;
@@ -752,6 +756,16 @@ public class PensionInstitution extends BaseEntity
         return basicBank;
     }
 
+    public void setAccountHolderName(String accountHolderName)
+    {
+        this.accountHolderName = accountHolderName;
+    }
+
+    public String getAccountHolderName()
+    {
+        return accountHolderName;
+    }
+
     public void setStatus(String status)
     {
         this.status = status;
@@ -861,6 +875,7 @@ public class PensionInstitution extends BaseEntity
             .append("basicBank", getBasicBank())
             .append("superviseAccount", getSuperviseAccount())
             .append("superviseBank", getSuperviseBank())
+            .append("accountHolderName", getAccountHolderName())
             .append("status", getStatus())
             .append("applyTime", getApplyTime())
             .append("approveTime", getApproveTime())

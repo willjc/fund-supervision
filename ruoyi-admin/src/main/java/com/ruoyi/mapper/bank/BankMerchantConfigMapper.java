@@ -37,6 +37,7 @@ public interface BankMerchantConfigMapper
     int invalidateByInstitutionAccountChange(@Param("institutionId") Long institutionId,
                                              @Param("settlementAccountNo") String settlementAccountNo,
                                              @Param("basicAccountNo") String basicAccountNo,
+                                             @Param("accountHolderName") String accountHolderName,
                                              @Param("operator") String operator);
 
     int deleteById(Long configId);

@@ -38,15 +38,17 @@ class PensionInstitutionServiceImplTest
         update.setSuperviseBank("郑州银行测试支行");
         update.setBasicBank("郑州银行测试支行");
         update.setUpdateBy("admin");
+        update.setAccountHolderName("郑州惠济区养老投资集团有限公司");
         existing.setSuperviseBank("郑州银行原支行");
         existing.setBasicBank("郑州银行原支行");
+        existing.setAccountHolderName("郑州惠济区养老投资集团有限公司");
 
         when(institutionMapper.selectPensionInstitutionForUpdate(36L)).thenReturn(existing);
         when(institutionMapper.updatePensionInstitution(update)).thenReturn(1);
 
         assertEquals(1, service.updatePensionInstitution(update));
         verify(merchantConfigMapper).invalidateByInstitutionAccountChange(
-                36L, "NEW-SUP", "NEW-BASIC", "admin");
+                36L, "NEW-SUP", "NEW-BASIC", "郑州惠济区养老投资集团有限公司", "admin");
     }
 
     @Test
@@ -67,6 +69,28 @@ class PensionInstitutionServiceImplTest
 
         assertEquals(1, service.updatePensionInstitution(update));
         verifyNoInteractions(merchantConfigMapper);
+    }
+
+    @Test
+    void accountHolderNameChangeShouldDisableMerchantBindingForReverification()
+    {
+        PensionInstitution existing = institution(36L, "SAME-SUP", "SAME-BASIC");
+        existing.setSuperviseBank("郑州银行测试支行");
+        existing.setBasicBank("郑州银行测试支行");
+        existing.setAccountHolderName("原登记户名");
+
+        PensionInstitution update = institution(36L, "SAME-SUP", "SAME-BASIC");
+        update.setSuperviseBank("郑州银行测试支行");
+        update.setBasicBank("郑州银行测试支行");
+        update.setAccountHolderName("新登记户名");
+        update.setUpdateBy("admin");
+
+        when(institutionMapper.selectPensionInstitutionForUpdate(36L)).thenReturn(existing);
+        when(institutionMapper.updatePensionInstitution(update)).thenReturn(1);
+
+        assertEquals(1, service.updatePensionInstitution(update));
+        verify(merchantConfigMapper).invalidateByInstitutionAccountChange(
+                36L, "SAME-SUP", "SAME-BASIC", "新登记户名", "admin");
     }
 
     private PensionInstitution institution(Long id, String supervisionAccount, String basicAccount)

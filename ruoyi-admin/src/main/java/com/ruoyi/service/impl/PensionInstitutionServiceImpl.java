@@ -95,6 +95,8 @@ public class PensionInstitutionServiceImpl implements IPensionInstitutionService
                 || changed(pensionInstitution.getSuperviseBank(), existing.getSuperviseBank())
                 || changed(pensionInstitution.getBankAccount(), existing.getBankAccount())
                 || changed(pensionInstitution.getBasicBank(), existing.getBasicBank()));
+        boolean accountNameChanged = existing != null
+                && changed(pensionInstitution.getAccountHolderName(), existing.getAccountHolderName());
         if (bankAccountChanged && (settlementMapper.hasBankFunds(pensionInstitution.getInstitutionId()) > 0
                 || settlementMapper.hasUnresolved(pensionInstitution.getInstitutionId()) > 0))
         {
@@ -102,7 +104,7 @@ public class PensionInstitutionServiceImpl implements IPensionInstitutionService
         }
         pensionInstitution.setUpdateTime(DateUtils.getNowDate());
         int result = pensionInstitutionMapper.updatePensionInstitution(pensionInstitution);
-        if (result == 1 && bankAccountChanged)
+        if (result == 1 && (bankAccountChanged || accountNameChanged))
         {
             bankMerchantConfigMapper.invalidateByInstitutionAccountChange(
                     pensionInstitution.getInstitutionId(),
@@ -110,6 +112,8 @@ public class PensionInstitutionServiceImpl implements IPensionInstitutionService
                             ? pensionInstitution.getSuperviseAccount() : existing.getSuperviseAccount(),
                     StringUtils.isNotEmpty(pensionInstitution.getBankAccount())
                             ? pensionInstitution.getBankAccount() : existing.getBankAccount(),
+                    StringUtils.isNotEmpty(pensionInstitution.getAccountHolderName())
+                            ? pensionInstitution.getAccountHolderName() : existing.getAccountHolderName(),
                     pensionInstitution.getUpdateBy());
         }
         return result;

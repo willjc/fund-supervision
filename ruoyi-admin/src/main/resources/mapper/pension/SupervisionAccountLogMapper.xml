@@ -334,6 +334,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             pi.supervise_bank as superviseBank,
             pi.bank_account as bankAccount,
             pi.basic_bank as basicBank,
+            pi.account_holder_name as accountHolderName,
             pi.supervise_account_status as accountStatus,
             pi.status as institutionStatus,
             pi.approve_time as approveTime,

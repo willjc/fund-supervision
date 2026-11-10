@@ -87,6 +87,7 @@ public class AccountManageController extends BaseController
         institution.setSuperviseBank(StringUtils.trim(institution.getSuperviseBank()));
         institution.setBankAccount(StringUtils.trim(institution.getBankAccount()));
         institution.setBasicBank(StringUtils.trim(institution.getBasicBank()));
+        institution.setAccountHolderName(StringUtils.trim(institution.getAccountHolderName()));
         if (StringUtils.isEmpty(institution.getSuperviseAccount())
                 || StringUtils.isEmpty(institution.getSuperviseBank())
                 || StringUtils.isEmpty(institution.getBankAccount())
@@ -98,6 +99,10 @@ public class AccountManageController extends BaseController
                 || institution.getBankAccount().length() > 100 || institution.getBasicBank().length() > 100)
         {
             return AjaxResult.error("账户及开户行长度不能超过100个字符");
+        }
+        if (institution.getAccountHolderName() != null && institution.getAccountHolderName().length() > 200)
+        {
+            return AjaxResult.error("银行登记户名长度不能超过200个字符");
         }
         institution.setUpdateBy(getUsername());
         return toAjax(pensionInstitutionService.updatePensionInstitution(institution));
