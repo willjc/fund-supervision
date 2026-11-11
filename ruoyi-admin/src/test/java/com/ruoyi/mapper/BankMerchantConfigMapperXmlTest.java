@@ -34,4 +34,25 @@ class BankMerchantConfigMapperXmlTest
         assertFalse(sql.contains("supervision_agreement_no"),
                 "机构账户资料变更必须保留原协议号，后续通过704同步银行");
     }
+
+    @Test
+    void cancelContractShouldClearAgreementAndResetStatuses() throws Exception
+    {
+        Configuration configuration = new Configuration();
+        String resource = "mapper/bank/BankMerchantConfigMapper.xml";
+        try (InputStream stream = getClass().getClassLoader().getResourceAsStream(resource))
+        {
+            new XMLMapperBuilder(stream, configuration, resource, configuration.getSqlFragments()).parse();
+        }
+
+        String sql = configuration.getMappedStatement(
+                "com.ruoyi.mapper.bank.BankMerchantConfigMapper.clearSupervisionContract")
+                .getBoundSql(new HashMap<>()).getSql().toLowerCase().replaceAll("\\s+", " ");
+
+        assertTrue(sql.contains("supervision_agreement_no = null"));
+        assertTrue(sql.contains("verify_status = '0'"));
+        assertTrue(sql.contains("status = '0'"));
+        assertTrue(sql.contains("payout_enabled = 0"));
+        assertTrue(sql.contains("where config_id = ?"));
+    }
 }

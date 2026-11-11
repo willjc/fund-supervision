@@ -429,6 +429,8 @@ public class BankMerchantConfigServiceImpl implements IBankMerchantConfigService
         }
         if ("SUCCESS".equals(result.getStatus()))
         {
+            // 银行侧协议已真实解除：清空本地协议号并重置状态，允许重新验证后再次发起701签约。
+            merchantConfigMapper.clearSupervisionContract(configId, operator);
             log.info("监管解约成功, configId={}, agreementNo={}, operator={}",
                     configId, config.getSupervisionAgreementNo(), operator);
         }

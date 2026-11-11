@@ -141,6 +141,15 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where config_id = #{configId}
     </update>
 
+    <update id="clearSupervisionContract">
+        update bank_merchant_config
+        set supervision_agreement_no = null,
+            verify_status = '0', verify_message = '监管协议已解约，请重新验证并签约',
+            status = '0', payout_enabled = 0,
+            last_verified_time = null, update_by = #{operator}, update_time = now()
+        where config_id = #{configId}
+    </update>
+
     <update id="invalidateByInstitutionAccountChange">
         update bank_merchant_config
         set settlement_account_no = #{settlementAccountNo}, basic_account_no = #{basicAccountNo},

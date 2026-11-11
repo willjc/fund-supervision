@@ -34,6 +34,9 @@ public interface BankMerchantConfigMapper
                         @Param("supervisionAgreementNo") String supervisionAgreementNo,
                         @Param("operator") String operator);
 
+    int clearSupervisionContract(@Param("configId") Long configId,
+                                 @Param("operator") String operator);
+
     int invalidateByInstitutionAccountChange(@Param("institutionId") Long institutionId,
                                              @Param("settlementAccountNo") String settlementAccountNo,
                                              @Param("basicAccountNo") String basicAccountNo,

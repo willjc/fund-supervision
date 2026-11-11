@@ -497,7 +497,7 @@ class BankMerchantConfigServiceImplTest
     }
 
     @Test
-    void cancelContractShouldSendSandboxBindingWithoutLocalMutation()
+    void cancelContractShouldClearLocalAgreementOnSuccess()
     {
         config.setConfigId(7L);
         config.setSupervisionAgreementNo("AGRE0001");
@@ -517,12 +517,31 @@ class BankMerchantConfigServiceImplTest
         assertEquals("SUCCESS", result.getStatus());
         assertEquals("解约成功", result.getResponseMessage());
         verify(bankGateway).cancelSupervisionContract("AGRE0001", "619900001111", "统一监管户名");
+        verify(merchantConfigMapper).clearSupervisionContract(7L, "admin");
         org.mockito.Mockito.verify(merchantConfigMapper, org.mockito.Mockito.never()).update(
                 org.mockito.ArgumentMatchers.any());
         org.mockito.Mockito.verify(merchantConfigMapper, org.mockito.Mockito.never()).updateAgreement(
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any());
         org.mockito.Mockito.verifyNoInteractions(settlementMapper);
+    }
+
+    @Test
+    void cancelContractShouldKeepLocalAgreementWhenBankFails()
+    {
+        config.setConfigId(7L);
+        config.setSupervisionAgreementNo("AGRE0001");
+        config.setSettlementAccountNo("619900001111");
+        config.setSettlementAccountName("统一监管户名");
+        when(merchantConfigMapper.selectById(7L)).thenReturn(config);
+        when(bankGateway.cancelSupervisionContract("AGRE0001", "619900001111", "统一监管户名"))
+                .thenReturn(BankResult.failed("SEAI000001", "机构编号不能为空"));
+
+        BankResult result = service.cancelContract(7L, "admin");
+
+        assertEquals("FAILED", result.getStatus());
+        org.mockito.Mockito.verify(merchantConfigMapper, org.mockito.Mockito.never())
+                .clearSupervisionContract(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
 
     @Test
