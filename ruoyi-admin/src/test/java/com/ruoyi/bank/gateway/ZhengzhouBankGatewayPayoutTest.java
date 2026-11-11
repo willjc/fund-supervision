@@ -309,7 +309,7 @@ class ZhengzhouBankGatewayPayoutTest
 
         assertEquals("https://obk.example.cn:7000/openapi/ylzjjgin/v1", gateway.capturedUrl);
         assertEquals("OBK0071708", gateway.capturedTranCode);
-        assertEquals("999156009980023893", gateway.capturedBody.getString("jgacct"));
+        assertEquals("999156009980023893", gateway.capturedBody.getString("acctno"));
         assertEquals("20260914", gateway.capturedBody.getString("stardt"));
         assertEquals("20260930", gateway.capturedBody.getString("enddat"));
         assertEquals("1", gateway.capturedBody.getString("pagenm"));

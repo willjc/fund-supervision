@@ -295,7 +295,7 @@ public class ZhengzhouBankGateway implements BankGateway
         return result;
     }
 
-    /** OBK0071708（ylmxqy）监管账户交易明细查询：字段名以网关 schema 为准（jgacct/stardt/enddat/pagenm/rcrdnm）。 */
+    /** OBK0071708（ylmxqy）监管账户交易明细查询：账号字段以银行运行期 ESB schema 为准用 acctno（文档 v1.3 写 jgacct 与线上不符）。 */
     @Override
     public List<BankAccountDetail> queryAccountDetails(String accountNo, String stardt, String enddat,
             String pagenm, String rcrdnm)
@@ -307,7 +307,7 @@ public class ZhengzhouBankGateway implements BankGateway
         require(stardt, "起始日期不能为空");
         require(enddat, "结束日期不能为空");
         JSONObject body = new JSONObject();
-        body.put("jgacct", accountNo);
+        body.put("acctno", accountNo);
         body.put("stardt", stardt);
         body.put("enddat", enddat);
         if (!isBlank(pagenm))
