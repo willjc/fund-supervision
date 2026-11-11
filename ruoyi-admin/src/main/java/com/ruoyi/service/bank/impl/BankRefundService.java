@@ -6,6 +6,7 @@ import java.util.Date;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.alibaba.fastjson2.JSON;
@@ -47,6 +48,8 @@ public class BankRefundService
     @Autowired private BankRefundTxWorker worker;
 
     /** 审批通过并发起银行退款：事务一落单转处理中，事务外提交银行并立即确认一次。 */
+    // 挂起外层审批事务：否则 claim/observe 在外层事务持 bank_transaction 行锁，与 book/fail 的 REQUIRES_NEW 自锁超时。
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public int approveAndSubmit(Long refundId, String approver, Long currentUserId)
     {
         BankTransaction tx = worker.prepare(refundId, approver, currentUserId);
