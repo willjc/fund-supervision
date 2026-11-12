@@ -42,7 +42,7 @@
           <el-table-column label="执行时间" prop="createTime" width="160" />
           <el-table-column label="操作" width="120" fixed="right">
             <template slot-scope="scope">
-              <el-button v-if="scope.row.status === 'processing' || scope.row.status === 'failed'" type="text"
+              <el-button v-if="scope.row.status === 'running' || scope.row.status === 'processing' || scope.row.status === 'failed'" type="text"
                 size="mini" v-hasPermi="['bank:recon:run']" @click="retrySupervision(scope.row)">重新获取文件</el-button>
             </template>
           </el-table-column>

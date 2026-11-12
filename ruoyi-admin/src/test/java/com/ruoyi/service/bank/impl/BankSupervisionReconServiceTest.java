@@ -145,6 +145,9 @@ class BankSupervisionReconServiceTest
         assertEquals("test.txt", run.getFileName());
         assertEquals(5L, run.getFileSize().longValue());
         assertEquals(DigestUtils.md5DigestAsHex(content), run.getFileMd5());
+        assertEquals(0, run.getTotalRows().intValue());
+        assertEquals(0, run.getMatchedRows().intValue());
+        assertEquals(0, run.getDiffRows().intValue());
         assertTrue(Files.exists(Paths.get(run.getSavedPath())));
         verify(reconMapper).updateRun(run);
     }

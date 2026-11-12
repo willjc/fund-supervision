@@ -16,10 +16,10 @@ public class BankSupervisionReconRun
     private String savedPath;
     private String respCode;
     private String respMsg;
-    private Integer totalRows;
-    private Integer matchedRows;
-    private Integer diffRows;
-    private Integer retryCount;
+    private Integer totalRows = 0;
+    private Integer matchedRows = 0;
+    private Integer diffRows = 0;
+    private Integer retryCount = 0;
     private String createBy;
     private Date createTime;
     private Date updateTime;
