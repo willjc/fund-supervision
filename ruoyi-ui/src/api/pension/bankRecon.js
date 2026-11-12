@@ -5,6 +5,11 @@ export function listReconRuns(limit) {
   return request({ url: '/bank/recon/runs', method: 'get', params: { limit: limit } })
 }
 
+// 当前用户可对账的商户
+export function listReconMerchants() {
+  return request({ url: '/bank/recon/merchants', method: 'get' })
+}
+
 // 批次差异列表
 export function listReconDiffs(runId) {
   return request({ url: '/bank/recon/diffs', method: 'get', params: { runId: runId } })

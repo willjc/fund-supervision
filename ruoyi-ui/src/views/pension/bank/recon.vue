@@ -7,14 +7,18 @@
 
       <!-- 批次表格 -->
       <el-row class="mb8">
-        <el-button type="primary" size="mini" icon="el-icon-refresh" v-hasPermi="['bank:recon:run']" @click="runOpen = true">执行对账</el-button>
+        <el-button type="primary" size="mini" icon="el-icon-refresh" v-hasPermi="['bank:recon:run']"
+          :disabled="merchants.length === 0" @click="runOpen = true">执行对账</el-button>
         <el-button size="mini" icon="el-icon-search" @click="loadRuns">刷新批次</el-button>
       </el-row>
       <el-table v-loading="runsLoading" :data="runs" border @current-change="selectRun" highlight-current-row>
         <el-table-column label="批次号" prop="runId" width="80" />
         <el-table-column label="清算日" prop="clearingDate" width="110" />
         <el-table-column label="商户号" prop="merId" min-width="160" show-overflow-tooltip />
-        <el-table-column label="状态" prop="status" width="100" />
+        <el-table-column label="状态" width="100">
+          <template slot-scope="scope">{{ statusText(scope.row.status) }}</template>
+        </el-table-column>
+        <el-table-column label="银行返回" prop="respMessage" min-width="200" show-overflow-tooltip />
         <el-table-column label="对账文件" prop="fileName" min-width="220" show-overflow-tooltip />
         <el-table-column label="总行数" prop="totalRows" width="80" />
         <el-table-column label="匹配" prop="matchedRows" width="80" />
@@ -71,8 +75,13 @@
     <!-- 执行对账弹窗 -->
     <el-dialog title="执行对账" :visible.sync="runOpen" width="500px" append-to-body>
       <el-form ref="runForm" :model="runForm" label-width="110px">
-        <el-form-item label="商户号" prop="merId" :rules="[{ required: true, message: '请输入商户号', trigger: 'blur' }]">
-          <el-input v-model="runForm.merId" placeholder="如 8202106040000001" />
+        <el-form-item label="商户号" prop="merId" :rules="[{ required: true, message: '请选择商户号', trigger: 'change' }]">
+          <el-select v-model="runForm.merId" filterable :loading="merchantsLoading" placeholder="请选择商户" style="width: 100%">
+            <el-option v-for="merchant in merchants" :key="merchant.merId"
+              :label="(merchant.institutionName ? merchant.institutionName + ' / ' : '') + merchant.merId"
+              :value="merchant.merId" />
+          </el-select>
+          <div v-if="!merchantsLoading && merchants.length === 0" class="form-tip">当前用户没有已启用、已验证的银行商户，无法执行对账</div>
         </el-form-item>
         <el-form-item label="清算日期" prop="clearingDate" :rules="[{ required: true, message: '请输入清算日期', trigger: 'blur' }]">
           <el-date-picker v-model="runForm.clearingDate" type="date" value-format="yyyy-MM-dd" placeholder="yyyy-MM-dd" style="width: 100%" />
@@ -90,7 +99,7 @@
 </template>
 
 <script>
-import { listReconRuns, listReconDiffs, handleReconDiff, runRecon } from '@/api/pension/bankRecon'
+import { listReconRuns, listReconDiffs, handleReconDiff, runRecon, listReconMerchants } from '@/api/pension/bankRecon'
 
 export default {
   name: 'BankRecon',
@@ -98,6 +107,8 @@ export default {
     return {
       runsLoading: false,
       diffsLoading: false,
+      merchantsLoading: false,
+      merchants: [],
       runs: [],
       diffs: [],
       currentRun: null,
@@ -110,9 +121,19 @@ export default {
     }
   },
   created() {
+    this.loadMerchants()
     this.loadRuns()
   },
   methods: {
+    loadMerchants() {
+      this.merchantsLoading = true
+      listReconMerchants().then(response => {
+        this.merchants = response.data || []
+        if (!this.merchants.some(merchant => merchant.merId === this.runForm.merId)) {
+          this.runForm.merId = this.merchants.length === 1 ? this.merchants[0].merId : ''
+        }
+      }).finally(() => { this.merchantsLoading = false })
+    },
     loadRuns() {
       this.runsLoading = true
       listReconRuns(20).then(response => {
@@ -147,14 +168,30 @@ export default {
         if (!valid) return
         this.runLoading = true
         runRecon(this.runForm).then(response => {
-          this.$modal.msgSuccess('对账执行完成')
+          const run = response.data || {}
+          if (run.status === 'success') {
+            this.$modal.msgSuccess('对账执行完成')
+          } else if (run.status === 'no_bill') {
+            this.$modal.msgWarning(run.respMessage || '银行尚未生成对账单')
+          } else {
+            this.$modal.msgError('对账失败：' + (run.respMessage || '未知错误'))
+          }
           this.runOpen = false
           this.loadRuns()
-          if (response.data && response.data.runId) {
-            this.selectRun(response.data)
+          if (run.runId) {
+            this.selectRun(run)
           }
         }).finally(() => { this.runLoading = false })
       })
+    },
+    statusText(status) {
+      const map = {
+        running: '执行中',
+        success: '成功',
+        failed: '失败',
+        no_bill: '无账单'
+      }
+      return map[status] || status || '-'
     },
     diffTypeText(type) {
       const map = {
@@ -179,4 +216,10 @@ export default {
 </script>
 
 <style scoped lang="scss">
+.form-tip {
+  color: #909399;
+  font-size: 12px;
+  line-height: 20px;
+  margin-top: 4px;
+}
 </style>

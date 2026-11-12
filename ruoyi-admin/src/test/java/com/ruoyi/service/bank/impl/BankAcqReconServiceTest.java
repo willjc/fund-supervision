@@ -1,6 +1,7 @@
 package com.ruoyi.service.bank.impl;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -202,5 +203,31 @@ class BankAcqReconServiceTest
         assertEquals("1081", result.getRespCode());
         org.mockito.Mockito.verify(gateway, org.mockito.Mockito.never()).queryBillStatus(anyString(), anyString());
         org.mockito.Mockito.verify(gateway, org.mockito.Mockito.never()).downloadBillFile(anyString());
+    }
+
+    @Test
+    void runReconShouldAcceptDashedClearingDate()
+    {
+        com.alibaba.fastjson2.JSONObject rejected = new com.alibaba.fastjson2.JSONObject();
+        rejected.put("respCode", "1081");
+        rejected.put("respMsg", "当前清算日期下跑批未完成");
+        when(gateway.applyBill("8202106040000001", "20260910")).thenReturn(rejected);
+        when(reconMapper.insertRun(any(BankReconRun.class))).thenAnswer(invocation -> {
+            invocation.getArgument(0, BankReconRun.class).setRunId(10L);
+            return 1;
+        });
+
+        BankReconRun result = service.runRecon("8202106040000001", "2026-09-10", null, "admin");
+
+        assertEquals("failed", result.getStatus());
+        org.mockito.Mockito.verify(gateway).applyBill("8202106040000001", "20260910");
+    }
+
+    @Test
+    void runReconShouldRejectInvalidClearingDateBeforeInsert()
+    {
+        assertThrows(com.ruoyi.common.exception.ServiceException.class,
+                () -> service.runRecon("8202106040000001", "2026-13-40", null, "admin"));
+        org.mockito.Mockito.verify(reconMapper, org.mockito.Mockito.never()).insertRun(any(BankReconRun.class));
     }
 }

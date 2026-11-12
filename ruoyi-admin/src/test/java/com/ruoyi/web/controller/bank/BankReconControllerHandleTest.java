@@ -1,12 +1,20 @@
 package com.ruoyi.web.controller.bank;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.ruoyi.common.core.domain.AjaxResult;
+import com.ruoyi.common.core.domain.entity.SysUser;
+import com.ruoyi.common.core.domain.model.LoginUser;
+import com.ruoyi.domain.bank.BankReconDiff;
 import com.ruoyi.mapper.bank.BankReconMapper;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -28,6 +36,22 @@ class BankReconControllerHandleTest
         return params;
     }
 
+    @BeforeEach
+    void setUp()
+    {
+        SysUser user = new SysUser();
+        user.setUserName("admin");
+        LoginUser loginUser = new LoginUser(1L, 1L, user, new HashSet<>());
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(loginUser, null));
+    }
+
+    @AfterEach
+    void tearDown()
+    {
+        SecurityContextHolder.clearContext();
+    }
+
     private static BankReconController controller(BankReconMapper mapper)
     {
         BankReconController controller = new BankReconController();
@@ -35,10 +59,19 @@ class BankReconControllerHandleTest
         return controller;
     }
 
+    private static BankReconDiff diff(Long diffId, Long runId)
+    {
+        BankReconDiff diff = new BankReconDiff();
+        diff.setDiffId(diffId);
+        diff.setRunId(runId);
+        return diff;
+    }
+
     @Test
     void shouldMarkHandledWithRemark()
     {
         BankReconMapper mapper = mock(BankReconMapper.class);
+        when(mapper.selectDiff(7L)).thenReturn(diff(7L, 1L));
         when(mapper.markDiffHandled(7L, "已线下核实")).thenReturn(1);
 
         AjaxResult result = controller(mapper).handleDiff(params("7", "已线下核实"));
@@ -63,6 +96,7 @@ class BankReconControllerHandleTest
     void alreadyHandledShouldReturnError()
     {
         BankReconMapper mapper = mock(BankReconMapper.class);
+        when(mapper.selectDiff(7L)).thenReturn(diff(7L, 1L));
         when(mapper.markDiffHandled(7L, "重复处理")).thenReturn(0);
 
         AjaxResult result = controller(mapper).handleDiff(params("7", "重复处理"));

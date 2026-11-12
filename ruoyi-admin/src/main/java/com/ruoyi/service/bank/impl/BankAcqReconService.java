@@ -52,9 +52,11 @@ public class BankAcqReconService
     /** 执行一次对账。fileName 为空走 apply/query 流程，否则直接下载（沙箱人工放文件场景）。 */
     public BankReconRun runRecon(String merId, String clearingDate, String fileNameOverride, String operator)
     {
+        // 页面日期选择器传 yyyy-MM-dd，银行接口只收 yyyyMMdd，统一在入口归一化。
+        String normalizedClearingDate = normalizeClearingDate(clearingDate);
         BankReconRun run = new BankReconRun();
         run.setMerId(merId);
-        run.setClearingDate(parseDate(clearingDate));
+        run.setClearingDate(parseDate(normalizedClearingDate));
         run.setStatus("running");
         run.setFileName(fileNameOverride);
         run.setTotalRows(0);
@@ -68,7 +70,7 @@ public class BankAcqReconService
             String fileName = fileNameOverride;
             if (fileName == null || fileName.trim().isEmpty())
             {
-                JSONObject apply = gateway.applyBill(merId, clearingDate);
+                JSONObject apply = gateway.applyBill(merId, normalizedClearingDate);
                 String applyCode = apply.getString("respCode");
                 run.setRespCode(applyCode);
                 run.setRespMessage(apply.getString("respMsg"));
@@ -77,7 +79,7 @@ public class BankAcqReconService
                     finish(run, "failed");
                     return run;
                 }
-                JSONObject query = gateway.queryBillStatus(merId, clearingDate);
+                JSONObject query = gateway.queryBillStatus(merId, normalizedClearingDate);
                 String billStat = query.getString("billStat");
                 run.setBillStat(billStat);
                 run.setRespCode(query.getString("respCode"));
@@ -87,7 +89,7 @@ public class BankAcqReconService
                     finish(run, "no_bill");
                     return run;
                 }
-                fileName = String.format("%s_%s_%s.xlsx", appId, merId, clearingDate);
+                fileName = String.format("%s_%s_%s.xlsx", appId, merId, normalizedClearingDate);
                 run.setFileName(fileName);
             }
 
@@ -322,17 +324,32 @@ public class BankAcqReconService
         return value == null ? "" : value.trim();
     }
 
+    private String normalizeClearingDate(String clearingDate)
+    {
+        if (clearingDate == null || clearingDate.trim().isEmpty())
+        {
+            throw new ServiceException("清算日期不能为空");
+        }
+        String normalized = clearingDate.trim().replace("-", "").replace("/", "");
+        if (!normalized.matches("[0-9]{8}"))
+        {
+            throw new ServiceException("清算日期格式必须为 yyyyMMdd 或 yyyy-MM-dd");
+        }
+        return normalized;
+    }
+
     private Date parseDate(String clearingDate)
     {
+        String normalized = normalizeClearingDate(clearingDate);
         try
         {
             SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd");
             format.setLenient(false);
-            return format.parse(clearingDate);
+            return format.parse(normalized);
         }
         catch (Exception e)
         {
-            throw new ServiceException("清算日期格式必须为 yyyyMMdd");
+            throw new ServiceException("清算日期格式必须为 yyyyMMdd 或 yyyy-MM-dd");
         }
     }
 

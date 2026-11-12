@@ -36,9 +36,21 @@ public interface BankReconMapper
     })
     BankReconRun selectRun(Long id);
 
-    @Select("SELECT * FROM bank_recon_run ORDER BY run_id DESC LIMIT #{limit}")
+    /** merIds 为 null 表示不限商户（管理员/监管员）；空列表表示无可见商户。 */
+    @Select({ "<script>",
+            "SELECT * FROM bank_recon_run",
+            "<if test='merIds != null'>",
+            "  <choose>",
+            "    <when test='merIds.size() > 0'> WHERE mer_id IN ",
+            "      <foreach collection='merIds' item='merId' open='(' separator=',' close=')'>#{merId}</foreach>",
+            "    </when>",
+            "    <otherwise> WHERE 1=0</otherwise>",
+            "  </choose>",
+            "</if>",
+            " ORDER BY run_id DESC LIMIT #{limit}",
+            "</script>" })
     @ResultMap("com.ruoyi.mapper.bank.BankReconMapper.BankReconRunResult")
-    List<BankReconRun> selectRuns(int limit);
+    List<BankReconRun> selectRuns(@Param("merIds") List<String> merIds, @Param("limit") int limit);
 
     @Insert("INSERT INTO bank_recon_diff (run_id, diff_type, request_no, bank_serial_no, bank_amount, bank_detail, local_amount, local_serial_no, local_status, handled) VALUES (#{runId}, #{diffType}, #{requestNo}, #{bankSerialNo}, #{bankAmount}, #{bankDetail}, #{localAmount}, #{localSerialNo}, #{localStatus}, 0)")
     @Options(useGeneratedKeys = true, keyProperty = "diffId")
@@ -61,6 +73,10 @@ public interface BankReconMapper
             @Result(property = "createTime", column = "create_time")
     })
     List<BankReconDiff> selectDiffs(Long runId);
+
+    @Select("SELECT * FROM bank_recon_diff WHERE diff_id=#{id}")
+    @ResultMap("com.ruoyi.mapper.bank.BankReconMapper.BankReconDiffResult")
+    BankReconDiff selectDiff(@Param("id") Long id);
 
     /** 标记差异已处理（0→1 幂等），备注留审计。 */
     @Update("UPDATE bank_recon_diff SET handled=1, handle_remark=#{remark} WHERE diff_id=#{diffId} AND handled=0")
