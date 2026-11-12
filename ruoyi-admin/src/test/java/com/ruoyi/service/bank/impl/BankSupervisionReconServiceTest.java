@@ -78,15 +78,15 @@ class BankSupervisionReconServiceTest
     void probeShouldDownloadAndSaveFile() throws Exception
     {
         useTempDir();
-        JSONObject response = response("SEAI0000", "success", "sub/20260911.txt");
+        JSONObject response = response("SEAI0000", "success", "20260911.txt");
         byte[] content = "hello".getBytes(StandardCharsets.UTF_8);
         when(gateway.applySupervisionRecon("20260911")).thenReturn(response);
-        when(gateway.downloadFile("sub/20260911.txt")).thenReturn(content);
+        when(gateway.downloadFile("MZYL/downdir/20260911/20260911.txt")).thenReturn(content);
 
         Map<String, Object> result = service.probe("2026-09-11");
 
         assertEquals("20260911", result.get("trandt"));
-        assertEquals("sub/20260911.txt", result.get("fileName"));
+        assertEquals("MZYL/downdir/20260911/20260911.txt", result.get("fileName"));
         Path saved = Paths.get(result.get("savedPath").toString());
         assertTrue(Files.exists(saved));
         assertArrayEquals(content, Files.readAllBytes(saved));
@@ -137,12 +137,12 @@ class BankSupervisionReconServiceTest
         stubInsert();
         byte[] content = "hello".getBytes(StandardCharsets.UTF_8);
         when(gateway.applySupervisionRecon("20251224")).thenReturn(response("SEAI0000", "业务受理成功", "test.txt"));
-        when(gateway.downloadFile("test.txt")).thenReturn(content);
+        when(gateway.downloadFile("MZYL/downdir/20251224/test.txt")).thenReturn(content);
 
         BankSupervisionReconRun run = service.run(account(), "2025-12-24", null, "admin");
 
         assertEquals("success", run.getStatus());
-        assertEquals("test.txt", run.getFileName());
+        assertEquals("MZYL/downdir/20251224/test.txt", run.getFileName());
         assertEquals(5L, run.getFileSize().longValue());
         assertEquals(DigestUtils.md5DigestAsHex(content), run.getFileMd5());
         assertEquals(0, run.getTotalRows().intValue());
@@ -184,14 +184,14 @@ class BankSupervisionReconServiceTest
         useTempDir();
         stubInsert();
         byte[] content = "manual".getBytes(StandardCharsets.UTF_8);
-        when(gateway.downloadFile("manual.txt")).thenReturn(content);
+        when(gateway.downloadFile("MZYL/downdir/20251224/manual.txt")).thenReturn(content);
 
         BankSupervisionReconRun run = service.run(account(), "20251224", "manual.txt", "admin");
 
         assertEquals("success", run.getStatus());
-        assertEquals("manual.txt", run.getFileName());
+        assertEquals("MZYL/downdir/20251224/manual.txt", run.getFileName());
         verify(gateway, never()).applySupervisionRecon(anyString());
-        verify(gateway).downloadFile("manual.txt");
+        verify(gateway).downloadFile("MZYL/downdir/20251224/manual.txt");
     }
 
     @Test
@@ -206,14 +206,14 @@ class BankSupervisionReconServiceTest
         run.setRetryCount(0);
         byte[] content = "retry".getBytes(StandardCharsets.UTF_8);
         when(gateway.applySupervisionRecon("20251224")).thenReturn(response("0000", "业务受理成功", "retry.txt"));
-        when(gateway.downloadFile("retry.txt")).thenReturn(content);
+        when(gateway.downloadFile("MZYL/downdir/20251224/retry.txt")).thenReturn(content);
 
         service.retry(run, null, "admin");
 
         assertEquals("success", run.getStatus());
         assertEquals(1, run.getRetryCount().intValue());
         verify(gateway).applySupervisionRecon("20251224");
-        verify(gateway).downloadFile("retry.txt");
+        verify(gateway).downloadFile("MZYL/downdir/20251224/retry.txt");
     }
 
     @Test

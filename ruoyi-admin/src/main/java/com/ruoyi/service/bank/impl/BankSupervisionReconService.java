@@ -107,7 +107,7 @@ public class BankSupervisionReconService
         {
             throw new ServiceException("银行未返回对账文件名（filena）");
         }
-        String requestedName = fileName.trim();
+        String requestedName = downloadPath(parseDate(date), fileName.trim());
         byte[] content = gateway.downloadFile(requestedName);
         Path targetDir = Paths.get(reconDir, date).normalize();
         Path target;
@@ -164,9 +164,10 @@ public class BankSupervisionReconService
                     return;
                 }
             }
-            run.setFileName(fileName);
-            byte[] content = gateway.downloadFile(fileName);
-            saveFile(run, fileName, content);
+            String requestedName = downloadPath(run.getTrandt(), fileName);
+            run.setFileName(requestedName);
+            byte[] content = gateway.downloadFile(requestedName);
+            saveFile(run, requestedName, content);
             finish(run, "success");
         }
         catch (ServiceException e)
@@ -242,6 +243,17 @@ public class BankSupervisionReconService
     private String formatDate(Date date)
     {
         return new SimpleDateFormat("yyyyMMdd").format(date);
+    }
+
+    /** 706 只返回文件名，公共下载要求带目录：MZYL/downdir/{yyyyMMdd}/{filena}。 */
+    private String downloadPath(Date trandt, String fileName)
+    {
+        String name = fileName.trim();
+        if (name.contains("/"))
+        {
+            return name;
+        }
+        return "MZYL/downdir/" + formatDate(trandt) + "/" + name;
     }
 
     private String blankToNull(String value)

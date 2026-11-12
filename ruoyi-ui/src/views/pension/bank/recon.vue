@@ -156,7 +156,7 @@
           <el-date-picker v-model="supervisionRunForm.trandt" type="date" value-format="yyyy-MM-dd" placeholder="yyyy-MM-dd" style="width: 100%" />
         </el-form-item>
         <el-form-item label="指定文件名">
-          <el-input v-model="supervisionRunForm.fileName" placeholder="沙箱可指定，留空则调 706 申请生成" />
+          <el-input v-model="supervisionRunForm.fileName" placeholder="沙箱可指定；只填文件名时自动拼 MZYL/downdir/日期/" />
         </el-form-item>
       </el-form>
       <div slot="footer">
