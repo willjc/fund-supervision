@@ -10,6 +10,26 @@ export function listReconMerchants() {
   return request({ url: '/bank/recon/merchants', method: 'get' })
 }
 
+// 监管对账：可对账的监管账户
+export function listSupervisionAccounts() {
+  return request({ url: '/bank/supervision/recon/accounts', method: 'get' })
+}
+
+// 监管对账批次
+export function listSupervisionRuns(limit) {
+  return request({ url: '/bank/supervision/recon/runs', method: 'get', params: { limit: limit } })
+}
+
+// 执行监管对账（706）
+export function runSupervisionRecon(data) {
+  return request({ url: '/bank/supervision/recon/run', method: 'post', data: data })
+}
+
+// 监管对账重新获取文件
+export function retrySupervisionRecon(runId, data) {
+  return request({ url: `/bank/supervision/recon/runs/${runId}/retry`, method: 'post', data: data })
+}
+
 // 批次差异列表
 export function listReconDiffs(runId) {
   return request({ url: '/bank/recon/diffs', method: 'get', params: { runId: runId } })

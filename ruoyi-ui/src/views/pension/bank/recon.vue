@@ -1,12 +1,61 @@
 <template>
   <div class="app-container">
     <el-card>
-      <div slot="header">
-        <span>收单对账差异处理</span>
+      <div slot="header" class="recon-header">
+        <span>银行对账差异处理</span>
+        <el-radio-group v-model="reconType" size="mini" @change="onReconTypeChange">
+          <el-radio-button label="supervision">监管对账</el-radio-button>
+          <el-radio-button label="acquiring">收单对账</el-radio-button>
+        </el-radio-group>
       </div>
 
-      <!-- 批次表格 -->
-      <el-row class="mb8">
+      <!-- 监管对账（706） -->
+      <div v-if="reconType === 'supervision'">
+        <el-row class="mb8">
+          <el-select v-model="supervisionAccountKey" filterable placeholder="请选择监管账户"
+            :loading="supervisionAccountsLoading" style="width: 360px">
+            <el-option v-for="account in supervisionAccounts" :key="accountKey(account)"
+              :label="accountLabel(account)" :value="accountKey(account)" />
+          </el-select>
+          <el-button type="primary" size="mini" icon="el-icon-refresh" v-hasPermi="['bank:recon:run']"
+            :disabled="supervisionAccounts.length === 0" @click="openSupervisionRun">执行对账</el-button>
+          <el-button size="mini" icon="el-icon-search" @click="loadSupervisionRuns">刷新批次</el-button>
+        </el-row>
+        <div v-if="!supervisionAccountsLoading && supervisionAccounts.length === 0" class="form-tip">
+          当前用户没有已启用、已验证的监管账户，无法执行对账
+        </div>
+
+        <el-table v-loading="supervisionRunsLoading" :data="supervisionRuns" border>
+          <el-table-column label="批次号" prop="runId" width="80" />
+          <el-table-column label="对账日期" width="110">
+            <template slot-scope="scope">{{ formatDay(scope.row.trandt) }}</template>
+          </el-table-column>
+          <el-table-column label="监管账号" prop="accountNo" min-width="180" show-overflow-tooltip />
+          <el-table-column label="状态" width="100">
+            <template slot-scope="scope">{{ statusText(scope.row.status) }}</template>
+          </el-table-column>
+          <el-table-column label="银行返回" prop="respMsg" min-width="180" show-overflow-tooltip />
+          <el-table-column label="文件名" prop="fileName" min-width="220" show-overflow-tooltip />
+          <el-table-column label="大小" width="90">
+            <template slot-scope="scope">{{ formatSize(scope.row.fileSize) }}</template>
+          </el-table-column>
+          <el-table-column label="执行时间" prop="createTime" width="160" />
+          <el-table-column label="操作" width="120" fixed="right">
+            <template slot-scope="scope">
+              <el-button v-if="scope.row.status === 'processing' || scope.row.status === 'failed'" type="text"
+                size="mini" v-hasPermi="['bank:recon:run']" @click="retrySupervision(scope.row)">重新获取文件</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <el-alert class="mt10" type="info" :closable="false" show-icon
+          title="监管对账文件解析规则待银行样例确认；当前只下载并保存文件，差异比对未启用。" />
+      </div>
+
+      <!-- 收单对账（原有功能） -->
+      <div v-else>
+        <!-- 批次表格 -->
+        <el-row class="mb8">
         <el-button type="primary" size="mini" icon="el-icon-refresh" v-hasPermi="['bank:recon:run']"
           :disabled="merchants.length === 0" @click="runOpen = true">执行对账</el-button>
         <el-button size="mini" icon="el-icon-search" @click="loadRuns">刷新批次</el-button>
@@ -55,6 +104,7 @@
           </template>
         </el-table-column>
       </el-table>
+      </div>
     </el-card>
 
     <!-- 处理弹窗 -->
@@ -95,16 +145,40 @@
         <el-button @click="runOpen = false">取消</el-button>
       </div>
     </el-dialog>
+
+    <!-- 监管执行对账弹窗 -->
+    <el-dialog title="监管对账" :visible.sync="supervisionRunOpen" width="520px" append-to-body>
+      <el-form ref="supervisionRunForm" :model="supervisionRunForm" label-width="110px">
+        <el-form-item label="监管账号">
+          <el-input :value="selectedSupervisionAccountLabel" disabled />
+        </el-form-item>
+        <el-form-item label="对账日期" prop="trandt" :rules="[{ required: true, message: '请选择对账日期', trigger: 'blur' }]">
+          <el-date-picker v-model="supervisionRunForm.trandt" type="date" value-format="yyyy-MM-dd" placeholder="yyyy-MM-dd" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="指定文件名">
+          <el-input v-model="supervisionRunForm.fileName" placeholder="沙箱可指定，留空则调 706 申请生成" />
+        </el-form-item>
+      </el-form>
+      <div slot="footer">
+        <el-button type="primary" :loading="supervisionRunLoading" @click="submitSupervisionRun">执行</el-button>
+        <el-button @click="supervisionRunOpen = false">取消</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script>
-import { listReconRuns, listReconDiffs, handleReconDiff, runRecon, listReconMerchants } from '@/api/pension/bankRecon'
+import {
+  listReconRuns, listReconDiffs, handleReconDiff, runRecon, listReconMerchants,
+  listSupervisionAccounts, listSupervisionRuns, runSupervisionRecon, retrySupervisionRecon
+} from '@/api/pension/bankRecon'
 
 export default {
   name: 'BankRecon',
   data() {
     return {
+      reconType: 'supervision',
+      // 收单对账
       runsLoading: false,
       diffsLoading: false,
       merchantsLoading: false,
@@ -117,14 +191,116 @@ export default {
       handleForm: {},
       runOpen: false,
       runLoading: false,
-      runForm: { merId: '', clearingDate: '', fileName: '' }
+      runForm: { merId: '', clearingDate: '', fileName: '' },
+      // 监管对账
+      supervisionAccountsLoading: false,
+      supervisionAccounts: [],
+      supervisionAccountKey: '',
+      supervisionRunsLoading: false,
+      supervisionRuns: [],
+      supervisionRunOpen: false,
+      supervisionRunLoading: false,
+      supervisionRunForm: { trandt: '', fileName: '' }
+    }
+  },
+  computed: {
+    selectedSupervisionAccount() {
+      return this.supervisionAccounts.find(account => this.accountKey(account) === this.supervisionAccountKey) || null
+    },
+    selectedSupervisionAccountLabel() {
+      const account = this.selectedSupervisionAccount
+      return account ? this.accountLabel(account) : ''
     }
   },
   created() {
-    this.loadMerchants()
-    this.loadRuns()
+    this.loadSupervisionAccounts()
+    this.loadSupervisionRuns()
   },
   methods: {
+    onReconTypeChange(type) {
+      if (type === 'supervision') {
+        this.loadSupervisionAccounts()
+        this.loadSupervisionRuns()
+      } else {
+        if (this.merchants.length === 0) {
+          this.loadMerchants()
+        }
+        this.loadRuns()
+      }
+    },
+    accountKey(account) {
+      return `${account.institutionId}_${account.accountNo}`
+    },
+    accountLabel(account) {
+      return `${account.institutionName || ''} / ${account.accountNo || ''}`
+    },
+    loadSupervisionAccounts() {
+      this.supervisionAccountsLoading = true
+      listSupervisionAccounts().then(response => {
+        this.supervisionAccounts = response.data || []
+        const keys = this.supervisionAccounts.map(account => this.accountKey(account))
+        if (!keys.includes(this.supervisionAccountKey)) {
+          this.supervisionAccountKey = this.supervisionAccounts.length > 0
+            ? this.accountKey(this.supervisionAccounts[0]) : ''
+        }
+      }).finally(() => { this.supervisionAccountsLoading = false })
+    },
+    loadSupervisionRuns() {
+      this.supervisionRunsLoading = true
+      listSupervisionRuns(20).then(response => {
+        this.supervisionRuns = response.data || []
+      }).finally(() => { this.supervisionRunsLoading = false })
+    },
+    openSupervisionRun() {
+      if (!this.selectedSupervisionAccount) {
+        this.$modal.msgWarning('请选择监管账户')
+        return
+      }
+      this.supervisionRunOpen = true
+    },
+    submitSupervisionRun() {
+      this.$refs.supervisionRunForm.validate(valid => {
+        if (!valid) return
+        const account = this.selectedSupervisionAccount
+        if (!account) {
+          this.$modal.msgWarning('请选择监管账户')
+          return
+        }
+        this.supervisionRunLoading = true
+        runSupervisionRecon({
+          institutionId: String(account.institutionId),
+          accountNo: account.accountNo,
+          trandt: this.supervisionRunForm.trandt,
+          fileName: this.supervisionRunForm.fileName
+        }).then(response => {
+          const run = response.data || {}
+          if (run.status === 'success') {
+            this.$modal.msgSuccess('对账完成，文件已下载')
+          } else if (run.status === 'processing') {
+            this.$modal.msgWarning(run.respMsg || '银行已受理，等待对账文件')
+          } else {
+            this.$modal.msgError('对账失败：' + (run.respMsg || '未知错误'))
+          }
+          this.supervisionRunOpen = false
+          this.loadSupervisionRuns()
+        }).finally(() => { this.supervisionRunLoading = false })
+      })
+    },
+    retrySupervision(row) {
+      this.supervisionRunsLoading = true
+      retrySupervisionRecon(row.runId, {}).then(response => {
+        const run = response.data || {}
+        if (run.status === 'success') {
+          this.$modal.msgSuccess('文件已获取')
+        } else if (run.status === 'processing') {
+          this.$modal.msgWarning(run.respMsg || '银行仍在对账处理中')
+        } else {
+          this.$modal.msgError('获取失败：' + (run.respMsg || '未知错误'))
+        }
+        this.loadSupervisionRuns()
+      }).finally(() => { this.supervisionRunsLoading = false })
+    },
+    // 收单对账
     loadMerchants() {
       this.merchantsLoading = true
       listReconMerchants().then(response => {
@@ -184,9 +360,20 @@ export default {
         }).finally(() => { this.runLoading = false })
       })
     },
+    formatDay(value) {
+      return value ? String(value).substring(0, 10) : '-'
+    },
+    formatSize(value) {
+      const size = Number(value)
+      if (!size) return '-'
+      if (size < 1024) return size + ' B'
+      if (size < 1024 * 1024) return (size / 1024).toFixed(1) + ' KB'
+      return (size / 1024 / 1024).toFixed(1) + ' MB'
+    },
     statusText(status) {
       const map = {
         running: '执行中',
+        processing: '待文件',
         success: '成功',
         failed: '失败',
         no_bill: '无账单'
@@ -216,10 +403,18 @@ export default {
 </script>
 
 <style scoped lang="scss">
+.recon-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
 .form-tip {
   color: #909399;
   font-size: 12px;
   line-height: 20px;
   margin-top: 4px;
+}
+.mt10 {
+  margin-top: 10px;
 }
 </style>
