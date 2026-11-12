@@ -1,5 +1,10 @@
 package com.ruoyi.web.controller.bank;
 
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -8,6 +13,12 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,6 +32,7 @@ import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.enums.BusinessType;
+import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.domain.bank.BankMerchantConfig;
 import com.ruoyi.domain.bank.BankSupervisionReconRun;
@@ -108,6 +120,42 @@ public class BankSupervisionReconController extends BaseController
         catch (Exception e)
         {
             return AjaxResult.error("监管对账执行失败：" + e.getMessage());
+        }
+    }
+
+    @PreAuthorize("@ss.hasPermi('bank:recon:list')")
+    @GetMapping("/runs/{runId}/file")
+    public ResponseEntity<Resource> downloadFile(@PathVariable Long runId)
+    {
+        BankSupervisionReconRun run = reconService.getRun(runId);
+        if (run == null)
+        {
+            throw new ServiceException("对账批次不存在");
+        }
+        if (!canAccessInstitution(run.getInstitutionId()))
+        {
+            throw new ServiceException("无权下载该批次文件");
+        }
+        Path file = reconService.locateFile(run);
+        String fileName = file.getFileName().toString();
+        String prefix = runId + "-";
+        if (fileName.startsWith(prefix))
+        {
+            fileName = fileName.substring(prefix.length());
+        }
+        try
+        {
+            String encoded = URLEncoder.encode(fileName, StandardCharsets.UTF_8.name()).replace("+", "%20");
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            headers.setContentLength(Files.size(file));
+            headers.set(HttpHeaders.CONTENT_DISPOSITION,
+                    "attachment; filename=\"" + encoded + "\"; filename*=UTF-8''" + encoded);
+            return new ResponseEntity<>(new FileSystemResource(file), headers, HttpStatus.OK);
+        }
+        catch (IOException e)
+        {
+            throw new ServiceException("对账文件读取失败：" + e.getMessage());
         }
     }
 

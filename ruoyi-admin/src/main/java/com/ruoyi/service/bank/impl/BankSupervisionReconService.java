@@ -95,6 +95,21 @@ public class BankSupervisionReconService
         return reconMapper.selectRun(runId);
     }
 
+    public Path locateFile(BankSupervisionReconRun run)
+    {
+        if (run == null || isBlank(run.getSavedPath()))
+        {
+            throw new ServiceException("该批次没有已保存的对账文件");
+        }
+        Path base = Paths.get(reconDir).toAbsolutePath().normalize();
+        Path file = Paths.get(run.getSavedPath()).toAbsolutePath().normalize();
+        if (!file.startsWith(base) || !Files.isRegularFile(file))
+        {
+            throw new ServiceException("对账文件不存在或已被清理");
+        }
+        return file;
+    }
+
     public List<BankSupervisionReconRun> listRuns(List<Long> institutionIds, int limit)
     {
         return reconMapper.selectRuns(institutionIds, limit);
@@ -117,6 +132,10 @@ public class BankSupervisionReconService
         }
         String requestedName = downloadPath(parseDate(date), fileName.trim());
         byte[] content = gateway.downloadFile(requestedName);
+        if (content.length == 0)
+        {
+            throw new ServiceException("银行该日期无对账文件");
+        }
         Path targetDir = Paths.get(reconDir, date).normalize();
         Path target;
         try
@@ -175,6 +194,12 @@ public class BankSupervisionReconService
             String requestedName = downloadPath(run.getTrandt(), fileName);
             run.setFileName(requestedName);
             byte[] content = gateway.downloadFile(requestedName);
+            if (content.length == 0)
+            {
+                run.setRespMsg("银行该日期无对账文件");
+                finish(run, "empty");
+                return;
+            }
             saveFile(run, requestedName, content);
             compareAndStore(run, content);
             finish(run, "success");

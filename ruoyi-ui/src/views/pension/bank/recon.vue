@@ -45,6 +45,8 @@
           <el-table-column label="执行时间" prop="createTime" width="160" />
           <el-table-column label="操作" width="120" fixed="right">
             <template slot-scope="scope">
+              <el-button v-if="scope.row.status === 'success'" type="text" size="mini"
+                v-hasPermi="['bank:recon:list']" @click="downloadSupervisionFile(scope.row)">下载文件</el-button>
               <el-button v-if="scope.row.status === 'running' || scope.row.status === 'processing' || scope.row.status === 'failed'" type="text"
                 size="mini" v-hasPermi="['bank:recon:run']" @click="retrySupervision(scope.row)">重新获取文件</el-button>
             </template>
@@ -173,8 +175,10 @@
 <script>
 import {
   listReconRuns, listReconDiffs, handleReconDiff, runRecon, listReconMerchants,
-  listSupervisionAccounts, listSupervisionRuns, runSupervisionRecon, retrySupervisionRecon
+  listSupervisionAccounts, listSupervisionRuns, runSupervisionRecon, retrySupervisionRecon,
+  downloadSupervisionReconFile
 } from '@/api/pension/bankRecon'
+import { blobValidate } from '@/utils/ruoyi'
 
 export default {
   name: 'BankRecon',
@@ -279,6 +283,8 @@ export default {
           const run = response.data || {}
           if (run.status === 'success') {
             this.$modal.msgSuccess('对账完成，文件已下载')
+          } else if (run.status === 'empty') {
+            this.$modal.msgWarning('该日期银行无对账文件')
           } else if (run.status === 'processing') {
             this.$modal.msgWarning(run.respMsg || '银行已受理，等待对账文件')
           } else {
@@ -295,6 +301,8 @@ export default {
         const run = response.data || {}
         if (run.status === 'success') {
           this.$modal.msgSuccess('文件已获取')
+        } else if (run.status === 'empty') {
+          this.$modal.msgWarning('该日期银行无对账文件')
         } else if (run.status === 'processing') {
           this.$modal.msgWarning(run.respMsg || '银行仍在对账处理中')
         } else {
@@ -302,6 +310,21 @@ export default {
         }
         this.loadSupervisionRuns()
       }).finally(() => { this.supervisionRunsLoading = false })
+    },
+    downloadSupervisionFile(row) {
+      downloadSupervisionReconFile(row.runId).then(data => {
+        if (!blobValidate(data)) {
+          this.$modal.msgError('对账文件不存在或已被清理')
+          return
+        }
+        const link = document.createElement('a')
+        link.href = window.URL.createObjectURL(new Blob([data]))
+        link.download = (row.fileName || ('recon-' + row.runId + '.txt')).split('/').pop()
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(link.href)
+      })
     },
     // 收单对账
     loadMerchants() {
@@ -378,6 +401,7 @@ export default {
         running: '执行中',
         processing: '待文件',
         success: '成功',
+        empty: '无文件',
         failed: '失败',
         no_bill: '无账单'
       }

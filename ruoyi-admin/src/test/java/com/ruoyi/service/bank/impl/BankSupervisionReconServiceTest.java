@@ -251,6 +251,75 @@ class BankSupervisionReconServiceTest
     }
 
     @Test
+    void runShouldMarkEmptyWhenBankHasNoFile()
+    {
+        stubInsert();
+        when(gateway.applySupervisionRecon("20251226"))
+                .thenReturn(response("0000", "业务受理成功", "313491000232YLPT0000120251226.txt"));
+        when(gateway.downloadFile("MZYL/downdir/20251226/313491000232YLPT0000120251226.txt"))
+                .thenReturn(new byte[0]);
+
+        BankSupervisionReconRun run = service.run(account(), "2025-12-26", null, "admin");
+
+        assertEquals("empty", run.getStatus());
+        assertTrue(run.getRespMsg().contains("无对账文件"));
+        assertEquals(0, run.getTotalRows().intValue());
+        verify(reconMapper).updateRun(run);
+    }
+
+    @Test
+    void probeShouldReportNoFileWhenBankReturnsEmpty()
+    {
+        when(gateway.applySupervisionRecon("20260912")).thenReturn(response("0000", "success", "empty.txt"));
+        when(gateway.downloadFile("MZYL/downdir/20260912/empty.txt")).thenReturn(new byte[0]);
+
+        ServiceException error = assertThrows(ServiceException.class, () -> service.probe("20260912"));
+        assertTrue(error.getMessage().contains("无对账文件"));
+    }
+
+    @Test
+    void locateFileShouldReturnSavedFileInsideReconDir() throws Exception
+    {
+        useTempDir();
+        Path file = tempDir.resolve("20251224").resolve("10-test.txt");
+        Files.createDirectories(file.getParent());
+        Files.write(file, "x".getBytes(StandardCharsets.UTF_8));
+        BankSupervisionReconRun run = new BankSupervisionReconRun();
+        run.setSavedPath(file.toString());
+
+        assertEquals(file.toAbsolutePath().normalize(), service.locateFile(run));
+    }
+
+    @Test
+    void locateFileShouldRejectMissingFile()
+    {
+        useTempDir();
+        BankSupervisionReconRun run = new BankSupervisionReconRun();
+        run.setSavedPath(tempDir.resolve("missing.txt").toString());
+
+        ServiceException error = assertThrows(ServiceException.class, () -> service.locateFile(run));
+        assertTrue(error.getMessage().contains("不存在"));
+    }
+
+    @Test
+    void locateFileShouldRejectPathOutsideReconDir() throws Exception
+    {
+        useTempDir();
+        Path outside = Files.createTempFile("outside-", ".txt");
+        try
+        {
+            BankSupervisionReconRun run = new BankSupervisionReconRun();
+            run.setSavedPath(outside.toString());
+
+            assertThrows(ServiceException.class, () -> service.locateFile(run));
+        }
+        finally
+        {
+            Files.deleteIfExists(outside);
+        }
+    }
+
+    @Test
     void runShouldRejectMissingAccount()
     {
         ServiceException error = assertThrows(ServiceException.class,

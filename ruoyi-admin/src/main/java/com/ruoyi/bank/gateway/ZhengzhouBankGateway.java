@@ -1001,6 +1001,11 @@ public class ZhengzhouBankGateway implements BankGateway
             String errorCode = connection.getHeaderField("ErrorCode");
             String errorMsg = connection.getHeaderField("ErrorMsg");
             String sign = connection.getHeaderField("sign");
+            // 银行对无对账数据的日期返回 200 + 空报文体，且不带 ErrorCode/sign，按"无文件"处理。
+            if (content.length == 0 && isBlank(errorCode) && isBlank(sign))
+            {
+                return new byte[0];
+            }
             if (!"AAAAAAAAAA".equals(errorCode))
             {
                 throw new ServiceException("文件下载被网关拒绝：" + errorCode + " " + errorMsg);

@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS bank_supervision_recon_run (
     account_no varchar(40) NOT NULL COMMENT '监管账号',
     account_name varchar(256) NULL COMMENT '监管账户名称',
     trandt date NOT NULL COMMENT '对账日期',
-    status varchar(20) NOT NULL DEFAULT 'running' COMMENT 'running/processing/success/failed',
+    status varchar(20) NOT NULL DEFAULT 'running' COMMENT 'running/processing/success/empty/failed',
     file_name varchar(256) NULL COMMENT '银行返回的文件名',
     file_size bigint NULL COMMENT '文件字节数',
     file_md5 varchar(64) NULL COMMENT '文件MD5',

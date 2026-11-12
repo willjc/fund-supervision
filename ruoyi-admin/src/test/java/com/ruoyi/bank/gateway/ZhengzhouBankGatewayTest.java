@@ -503,6 +503,79 @@ class ZhengzhouBankGatewayTest
         }
     }
 
+    @Test
+    void shouldTreatEmptyFileDownloadAsNoFile() throws Exception
+    {
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+        generator.initialize(2048);
+        KeyPair clientKeys = generator.generateKeyPair();
+        KeyPair bankKeys = generator.generateKeyPair();
+        Path privateKeyFile = Files.createTempFile("zzbank-client-", ".key");
+        Files.write(privateKeyFile, Base64.getEncoder().encode(clientKeys.getPrivate().getEncoded()));
+
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/openapi/ylzjjgin/v1", exchange -> {
+            try
+            {
+                JSONObject request = JSON.parseObject(new String(read(exchange.getRequestBody()), StandardCharsets.UTF_8));
+                String plain = decrypt(request.getString("bizContent"), bankKeys.getPrivate());
+                assertTrue(verify(plain, request.getString("sign"), clientKeys.getPublic()));
+                JSONObject responseBody = new JSONObject();
+                responseBody.put("respcd", "0000");
+                responseBody.put("resptx", "业务受理成功");
+                responseBody.put("filena", "empty.txt");
+                String responsePlain = JSON.toJSONString(responseBody);
+                JSONObject response = new JSONObject();
+                response.put("ErrorCode", "AAAAAAAAAA");
+                response.put("sign", sign(responsePlain, bankKeys.getPrivate()));
+                response.put("bizContent", encrypt(responsePlain, clientKeys.getPublic()));
+                byte[] bytes = JSON.toJSONString(response).getBytes(StandardCharsets.UTF_8);
+                exchange.sendResponseHeaders(200, bytes.length);
+                exchange.getResponseBody().write(bytes);
+            }
+            catch (Exception e)
+            {
+                byte[] bytes = String.valueOf(e.getMessage()).getBytes(StandardCharsets.UTF_8);
+                exchange.sendResponseHeaders(500, bytes.length);
+                exchange.getResponseBody().write(bytes);
+            }
+            finally
+            {
+                exchange.close();
+            }
+        });
+        server.createContext("/openapi/filedownload/v1", exchange -> {
+            exchange.getRequestBody().close();
+            exchange.sendResponseHeaders(200, -1);
+            exchange.close();
+        });
+        server.start();
+        try
+        {
+            String base = "http://127.0.0.1:" + server.getAddress().getPort() + "/openapi/";
+            ZhengzhouBankGateway gateway = new ZhengzhouBankGateway();
+            ReflectionTestUtils.setField(gateway, "gatewayUrl", base + "zfbz/v1");
+            ReflectionTestUtils.setField(gateway, "supervisionGatewayUrl", base + "ylzjjgin/v1");
+            ReflectionTestUtils.setField(gateway, "appId", "APP001");
+            ReflectionTestUtils.setField(gateway, "appSecret", "SECRET001");
+            ReflectionTestUtils.setField(gateway, "clientPrivateKeyPath", privateKeyFile.toString());
+            ReflectionTestUtils.setField(gateway, "bankPublicKey",
+                    Base64.getEncoder().encodeToString(bankKeys.getPublic().getEncoded()));
+            ReflectionTestUtils.setField(gateway, "allowPrivateGateway", true);
+            ReflectionTestUtils.setField(gateway, "connectTimeoutMs", 2000);
+            ReflectionTestUtils.setField(gateway, "readTimeoutMs", 2000);
+
+            byte[] content = gateway.downloadFile("empty.txt");
+
+            assertEquals(0, content.length);
+        }
+        finally
+        {
+            server.stop(0);
+            Files.deleteIfExists(privateKeyFile);
+        }
+    }
+
     private BankResult parseResult(ZhengzhouBankGateway gateway, String code, JSONObject body)
     {
         return ReflectionTestUtils.invokeMethod(gateway, "result", code, "测试", body);

@@ -30,6 +30,11 @@ export function retrySupervisionRecon(runId, data) {
   return request({ url: `/bank/supervision/recon/runs/${runId}/retry`, method: 'post', data: data })
 }
 
+// 下载监管对账文件
+export function downloadSupervisionReconFile(runId) {
+  return request({ url: `/bank/supervision/recon/runs/${runId}/file`, method: 'get', responseType: 'blob' })
+}
+
 // 批次差异列表
 export function listReconDiffs(runId) {
   return request({ url: '/bank/recon/diffs', method: 'get', params: { runId: runId } })

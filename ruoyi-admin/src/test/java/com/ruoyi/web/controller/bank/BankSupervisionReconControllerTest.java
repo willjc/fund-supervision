@@ -1,6 +1,7 @@
 package com.ruoyi.web.controller.bank;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -8,6 +9,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -18,15 +22,19 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.io.Resource;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.domain.entity.SysUser;
 import com.ruoyi.common.core.domain.model.LoginUser;
+import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.domain.bank.BankMerchantConfig;
 import com.ruoyi.domain.bank.BankSupervisionReconRun;
 import com.ruoyi.service.bank.IBankMerchantConfigService;
@@ -38,6 +46,7 @@ class BankSupervisionReconControllerTest
     @Mock private BankSupervisionReconService reconService;
     @Mock private IBankMerchantConfigService merchantConfigService;
     @InjectMocks private BankSupervisionReconController controller;
+    @TempDir Path tempDir;
 
     @BeforeEach
     void setUp()
@@ -162,5 +171,37 @@ class BankSupervisionReconControllerTest
 
         assertTrue(result.isSuccess());
         verify(reconService).retry(run, null, "jguser");
+    }
+
+    @Test
+    void downloadShouldRejectOtherInstitutionRun()
+    {
+        when(reconService.getRun(9L)).thenReturn(run(41L));
+        when(merchantConfigService.selectList(any(BankMerchantConfig.class)))
+                .thenReturn(Collections.singletonList(account()));
+
+        ServiceException error = assertThrows(ServiceException.class, () -> controller.downloadFile(9L));
+
+        assertTrue(error.getMessage().contains("无权"));
+        verify(reconService, never()).locateFile(any());
+    }
+
+    @Test
+    void downloadShouldReturnOwnRunFile() throws Exception
+    {
+        BankSupervisionReconRun run = run(33L);
+        run.setFileName("MZYL/downdir/20251224/test.txt");
+        when(reconService.getRun(9L)).thenReturn(run);
+        when(merchantConfigService.selectList(any(BankMerchantConfig.class)))
+                .thenReturn(Collections.singletonList(account()));
+        Path file = tempDir.resolve("9-test.txt");
+        Files.write(file, "hello".getBytes(StandardCharsets.UTF_8));
+        when(reconService.locateFile(run)).thenReturn(file);
+
+        ResponseEntity<Resource> response = controller.downloadFile(9L);
+
+        assertEquals(200, response.getStatusCodeValue());
+        assertEquals("test.txt", response.getHeaders().getContentDisposition().getFilename());
+        assertEquals(5, response.getHeaders().getContentLength());
     }
 }
