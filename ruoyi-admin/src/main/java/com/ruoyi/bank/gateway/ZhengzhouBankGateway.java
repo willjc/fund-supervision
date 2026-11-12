@@ -51,6 +51,10 @@ public class ZhengzhouBankGateway implements BankGateway
     @Value("${bank.integration.supervision-gateway-url:}")
     private String supervisionGatewayUrl;
 
+    // 公共文件下载地址（开放规范 §4.5.2）；未配置时由监管网关地址替换 ylzjjgin/v1 推导。
+    @Value("${bank.integration.file-download-url:}")
+    private String fileDownloadUrl;
+
     @Value("${bank.integration.app-id:}")
     private String appId;
 
@@ -613,6 +617,17 @@ public class ZhengzhouBankGateway implements BankGateway
         return verified;
     }
 
+    /** OBK0071706（yldztz）监管对账通知：按对账日期申请生成对账文件，返回 filena 供公共文件下载。 */
+    public JSONObject applySupervisionRecon(String trandt)
+    {
+        requireProtocolConfig();
+        requirePublicGatewayUrl();
+        requireClearingDate(trandt);
+        JSONObject body = new JSONObject();
+        body.put("trandt", trandt);
+        return postTo(supervisionUrl(), "OBK0071706", body, new Date());
+    }
+
     @Override
     public BankResult signSupervisionContract(BankSupervisionSignRequest request)
     {
@@ -818,8 +833,13 @@ public class ZhengzhouBankGateway implements BankGateway
         request.put("tranDate", format(now, "yyyyMMdd"));
         request.put("tranTime", format(now, "HHmmss"));
         String tranSeq = body.getString("txnOrderId");
-        request.put("tranSeq", isBlank(tranSeq)
-                ? "BC" + IdUtils.fastSimpleUUID().substring(0, 30).toUpperCase() : tranSeq);
+        if (isBlank(tranSeq))
+        {
+            String generated = "BC" + IdUtils.fastSimpleUUID().toUpperCase();
+            // 公共文件下载规范 tranSeq 最长 23，其余接口沿用 32 位。
+            tranSeq = "filedownload".equals(tranCode) ? generated.substring(0, 23) : generated.substring(0, 32);
+        }
+        request.put("tranSeq", tranSeq);
         request.put("tranCode", tranCode);
         request.put("sign", sign(plainText, privateKey));
         request.put("securityType", "rsa");
@@ -922,13 +942,44 @@ public class ZhengzhouBankGateway implements BankGateway
         {
             throw new ServiceException("对账文件名为空");
         }
-        String downloadUrl = gatewayUrl.replace("zfbz/v1", "newsddzfiledown/v1");
         JSONObject body = new JSONObject();
         body.put("fileName", fileName);
+        return download(gatewayUrl.replace("zfbz/v1", "newsddzfiledown/v1"), "sddzfiledown", body);
+    }
+
+    /** 开放规范 §4.5.2 公共文件下载：业务接口返回文件名后调用，响应头 sign 为文件 MD5。 */
+    public byte[] downloadFile(String fileName)
+    {
+        requireProtocolConfig();
+        requirePublicGatewayUrl();
+        if (isBlank(fileName))
+        {
+            throw new ServiceException("文件名为空");
+        }
+        JSONObject body = new JSONObject();
+        body.put("fileName", fileName);
+        return download(publicFileDownloadUrl(), "filedownload", body);
+    }
+
+    private String publicFileDownloadUrl()
+    {
+        if (!isBlank(fileDownloadUrl))
+        {
+            return fileDownloadUrl;
+        }
+        String supervision = supervisionUrl();
+        if (!supervision.contains("ylzjjgin/v1"))
+        {
+            throw new ServiceException("无法从监管网关地址推导文件下载地址，请配置 bank.integration.file-download-url");
+        }
+        return supervision.replace("ylzjjgin/v1", "filedownload/v1");
+    }
+
+    private byte[] download(String downloadUrl, String tranCode, JSONObject body)
+    {
         try
         {
-            PrivateKey privateKey = loadPrivateKey();
-            byte[] payload = JSON.toJSONString(buildEnvelope("sddzfiledown", body, new Date()))
+            byte[] payload = JSON.toJSONString(buildEnvelope(tranCode, body, new Date()))
                     .getBytes(StandardCharsets.UTF_8);
             HttpURLConnection connection = (HttpURLConnection) new URL(downloadUrl).openConnection();
             connection.setConnectTimeout(connectTimeoutMs);
@@ -945,19 +996,19 @@ public class ZhengzhouBankGateway implements BankGateway
             byte[] content = input == null ? new byte[0] : readBytes(input);
             if (status != HttpURLConnection.HTTP_OK)
             {
-                throw new ServiceException("对账文件下载 HTTP 状态异常：" + status);
+                throw new ServiceException("文件下载 HTTP 状态异常：" + status);
             }
             String errorCode = connection.getHeaderField("ErrorCode");
             String errorMsg = connection.getHeaderField("ErrorMsg");
             String sign = connection.getHeaderField("sign");
             if (!"AAAAAAAAAA".equals(errorCode))
             {
-                throw new ServiceException("对账文件下载被网关拒绝：" + errorCode + " " + errorMsg);
+                throw new ServiceException("文件下载被网关拒绝：" + errorCode + " " + errorMsg);
             }
             String actualMd5 = org.springframework.util.DigestUtils.md5DigestAsHex(content);
             if (isBlank(sign) || !actualMd5.equalsIgnoreCase(sign.trim()))
             {
-                throw new ServiceException("对账文件 MD5 校验失败，文件可能不完整");
+                throw new ServiceException("文件 MD5 校验失败，文件可能不完整");
             }
             return content;
         }
@@ -967,7 +1018,7 @@ public class ZhengzhouBankGateway implements BankGateway
         }
         catch (Exception e)
         {
-            throw new ServiceException("对账文件下载失败：" + e.getMessage());
+            throw new ServiceException("文件下载失败：" + e.getMessage());
         }
     }
 

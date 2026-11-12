@@ -146,6 +146,10 @@ bank:
     payment-query-min-id: ${ZZBANK_PAYMENT_QUERY_MIN_ID:9223372036854775807}
     mode: ${BANK_INTEGRATION_MODE:disabled}
     gateway-url: ${ZZBANK_GATEWAY_URL:https://obk.lovingfox.cn:7000/openapi/zfbz/v1}
+    # 监管对账 706 返回 filena 后，按开放规范 §4.5.2 走公共文件下载；留空由监管网关地址推导。
+    file-download-url: ${ZZBANK_FILE_DOWNLOAD_URL:}
+    # 监管对账探针文件落盘目录（只用于通道验证，不参与业务台账）。
+    supervision-recon-dir: ${ZZBANK_SUPERVISION_RECON_DIR:/tmp/fund-supervision-supervision-recon}
     # 仅测试联调放行私有网关地址；生产必须保持 false。
     allow-private-gateway: ${ZZBANK_ALLOW_PRIVATE_GATEWAY:false}
     # 收单对账日终任务开关与默认商户号；账单生产环境工作日 10 点左右生成。

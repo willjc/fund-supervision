@@ -1,5 +1,6 @@
 package com.ruoyi.bank.gateway;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -397,6 +398,109 @@ class ZhengzhouBankGatewayTest
 
         request.setCrossBank(0);
         assertEquals("1", gateway.supervisionBody(request).getString("banktg"));
+    }
+
+    @Test
+    void shouldApplySupervisionReconAndDownloadFile() throws Exception
+    {
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+        generator.initialize(2048);
+        KeyPair clientKeys = generator.generateKeyPair();
+        KeyPair bankKeys = generator.generateKeyPair();
+        Path privateKeyFile = Files.createTempFile("zzbank-client-", ".key");
+        Files.write(privateKeyFile, Base64.getEncoder().encode(clientKeys.getPrivate().getEncoded()));
+        byte[] fileContent = "trandt,acctno,amount\n20260911,999156000240015553,1.23\n"
+                .getBytes(StandardCharsets.UTF_8);
+        String fileMd5 = org.springframework.util.DigestUtils.md5DigestAsHex(fileContent);
+
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/openapi/ylzjjgin/v1", exchange -> {
+            try
+            {
+                JSONObject request = JSON.parseObject(new String(read(exchange.getRequestBody()), StandardCharsets.UTF_8));
+                String plain = decrypt(request.getString("bizContent"), bankKeys.getPrivate());
+                assertTrue(verify(plain, request.getString("sign"), clientKeys.getPublic()));
+                assertEquals("OBK0071706", request.getString("tranCode"));
+                assertEquals("20260911", JSON.parseObject(plain).getString("trandt"));
+
+                JSONObject responseBody = new JSONObject();
+                responseBody.put("respcd", "SEAI0000");
+                responseBody.put("resptx", "success");
+                responseBody.put("filena", "test/20260911.txt");
+                String responsePlain = JSON.toJSONString(responseBody);
+                JSONObject response = new JSONObject();
+                response.put("ErrorCode", "AAAAAAAAAA");
+                response.put("ErrorMsg", "成功");
+                response.put("sign", sign(responsePlain, bankKeys.getPrivate()));
+                response.put("bizContent", encrypt(responsePlain, clientKeys.getPublic()));
+                byte[] bytes = JSON.toJSONString(response).getBytes(StandardCharsets.UTF_8);
+                exchange.sendResponseHeaders(200, bytes.length);
+                exchange.getResponseBody().write(bytes);
+            }
+            catch (Exception e)
+            {
+                byte[] bytes = String.valueOf(e.getMessage()).getBytes(StandardCharsets.UTF_8);
+                exchange.sendResponseHeaders(500, bytes.length);
+                exchange.getResponseBody().write(bytes);
+            }
+            finally
+            {
+                exchange.close();
+            }
+        });
+        server.createContext("/openapi/filedownload/v1", exchange -> {
+            try
+            {
+                JSONObject request = JSON.parseObject(new String(read(exchange.getRequestBody()), StandardCharsets.UTF_8));
+                String plain = decrypt(request.getString("bizContent"), bankKeys.getPrivate());
+                assertTrue(verify(plain, request.getString("sign"), clientKeys.getPublic()));
+                assertEquals("filedownload", request.getString("tranCode"));
+                assertEquals(23, request.getString("tranSeq").length());
+                assertEquals("test/20260911.txt", JSON.parseObject(plain).getString("fileName"));
+                exchange.getResponseHeaders().add("ErrorCode", "AAAAAAAAAA");
+                exchange.getResponseHeaders().add("ErrorMsg", "success");
+                exchange.getResponseHeaders().add("sign", fileMd5);
+                exchange.sendResponseHeaders(200, fileContent.length);
+                exchange.getResponseBody().write(fileContent);
+            }
+            catch (Exception e)
+            {
+                byte[] bytes = String.valueOf(e.getMessage()).getBytes(StandardCharsets.UTF_8);
+                exchange.sendResponseHeaders(500, bytes.length);
+                exchange.getResponseBody().write(bytes);
+            }
+            finally
+            {
+                exchange.close();
+            }
+        });
+        server.start();
+        try
+        {
+            String base = "http://127.0.0.1:" + server.getAddress().getPort() + "/openapi/";
+            ZhengzhouBankGateway gateway = new ZhengzhouBankGateway();
+            ReflectionTestUtils.setField(gateway, "gatewayUrl", base + "zfbz/v1");
+            ReflectionTestUtils.setField(gateway, "supervisionGatewayUrl", base + "ylzjjgin/v1");
+            ReflectionTestUtils.setField(gateway, "appId", "APP001");
+            ReflectionTestUtils.setField(gateway, "appSecret", "SECRET001");
+            ReflectionTestUtils.setField(gateway, "clientPrivateKeyPath", privateKeyFile.toString());
+            ReflectionTestUtils.setField(gateway, "bankPublicKey",
+                    Base64.getEncoder().encodeToString(bankKeys.getPublic().getEncoded()));
+            ReflectionTestUtils.setField(gateway, "allowPrivateGateway", true);
+            ReflectionTestUtils.setField(gateway, "connectTimeoutMs", 2000);
+            ReflectionTestUtils.setField(gateway, "readTimeoutMs", 2000);
+
+            JSONObject response = gateway.applySupervisionRecon("20260911");
+            assertEquals("SEAI0000", response.getString("respcd"));
+            assertEquals("test/20260911.txt", response.getString("filena"));
+
+            assertArrayEquals(fileContent, gateway.downloadFile("test/20260911.txt"));
+        }
+        finally
+        {
+            server.stop(0);
+            Files.deleteIfExists(privateKeyFile);
+        }
     }
 
     private BankResult parseResult(ZhengzhouBankGateway gateway, String code, JSONObject body)
