@@ -10,10 +10,13 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.math.BigDecimal;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
@@ -30,6 +33,7 @@ import com.ruoyi.bank.gateway.ZhengzhouBankGateway;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.domain.bank.BankMerchantConfig;
 import com.ruoyi.domain.bank.BankSupervisionReconRun;
+import com.ruoyi.domain.bank.BankTransaction;
 import com.ruoyi.mapper.bank.BankSupervisionReconMapper;
 
 @ExtendWith(MockitoExtension.class)
@@ -72,6 +76,29 @@ class BankSupervisionReconServiceTest
             response.put("filena", fileName);
         }
         return response;
+    }
+
+    private byte[] bankFile(String... lines)
+    {
+        return (String.join("\n", lines) + "\n").getBytes(Charset.forName("GBK"));
+    }
+
+    private String bankLine(String requestNo, String amount, String serial, String status)
+    {
+        return "YLPT|20251224|094512|" + requestNo
+                + "|999156000240015553|313491000232|6217002000000000002|105100001036|"
+                + amount + "|156||||" + serial + "|" + status + "|交易成功|养老资金拨付";
+    }
+
+    private BankTransaction local(String requestNo, String amount, String serial)
+    {
+        BankTransaction tx = new BankTransaction();
+        tx.setRequestNo(requestNo);
+        tx.setAmount(new BigDecimal(amount));
+        tx.setBankSerialNo(serial);
+        tx.setBankTime("20251224094512");
+        tx.setStatus("SUCCESS");
+        return tx;
     }
 
     @Test
@@ -135,18 +162,20 @@ class BankSupervisionReconServiceTest
     {
         useTempDir();
         stubInsert();
-        byte[] content = "hello".getBytes(StandardCharsets.UTF_8);
+        byte[] content = bankFile(bankLine("BT1", "0.10", "202512240000A003672061", "1"));
         when(gateway.applySupervisionRecon("20251224")).thenReturn(response("SEAI0000", "业务受理成功", "test.txt"));
         when(gateway.downloadFile("MZYL/downdir/20251224/test.txt")).thenReturn(content);
+        when(reconMapper.selectSuccessTransfers(33L))
+                .thenReturn(Collections.singletonList(local("BT1", "0.10", "202512240000A003672061")));
 
         BankSupervisionReconRun run = service.run(account(), "2025-12-24", null, "admin");
 
         assertEquals("success", run.getStatus());
         assertEquals("MZYL/downdir/20251224/test.txt", run.getFileName());
-        assertEquals(5L, run.getFileSize().longValue());
+        assertEquals((long) content.length, run.getFileSize().longValue());
         assertEquals(DigestUtils.md5DigestAsHex(content), run.getFileMd5());
-        assertEquals(0, run.getTotalRows().intValue());
-        assertEquals(0, run.getMatchedRows().intValue());
+        assertEquals(1, run.getTotalRows().intValue());
+        assertEquals(1, run.getMatchedRows().intValue());
         assertEquals(0, run.getDiffRows().intValue());
         assertTrue(Files.exists(Paths.get(run.getSavedPath())));
         verify(reconMapper).updateRun(run);
@@ -183,13 +212,17 @@ class BankSupervisionReconServiceTest
     {
         useTempDir();
         stubInsert();
-        byte[] content = "manual".getBytes(StandardCharsets.UTF_8);
+        byte[] content = bankFile(bankLine("BT1", "0.10", "SERIAL1", "1"));
         when(gateway.downloadFile("MZYL/downdir/20251224/manual.txt")).thenReturn(content);
+        when(reconMapper.selectSuccessTransfers(33L)).thenReturn(Collections.emptyList());
 
         BankSupervisionReconRun run = service.run(account(), "20251224", "manual.txt", "admin");
 
         assertEquals("success", run.getStatus());
         assertEquals("MZYL/downdir/20251224/manual.txt", run.getFileName());
+        assertEquals(1, run.getTotalRows().intValue());
+        assertEquals(0, run.getMatchedRows().intValue());
+        assertEquals(1, run.getDiffRows().intValue());
         verify(gateway, never()).applySupervisionRecon(anyString());
         verify(gateway).downloadFile("MZYL/downdir/20251224/manual.txt");
     }
@@ -204,9 +237,10 @@ class BankSupervisionReconServiceTest
         run.setTrandt(java.sql.Date.valueOf("2025-12-24"));
         run.setStatus("processing");
         run.setRetryCount(0);
-        byte[] content = "retry".getBytes(StandardCharsets.UTF_8);
+        byte[] content = bankFile(bankLine("BT1", "0.10", "SERIAL1", "1"));
         when(gateway.applySupervisionRecon("20251224")).thenReturn(response("0000", "业务受理成功", "retry.txt"));
         when(gateway.downloadFile("MZYL/downdir/20251224/retry.txt")).thenReturn(content);
+        when(reconMapper.selectSuccessTransfers(33L)).thenReturn(Collections.emptyList());
 
         service.retry(run, null, "admin");
 

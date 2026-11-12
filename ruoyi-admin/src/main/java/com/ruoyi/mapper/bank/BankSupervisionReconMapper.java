@@ -12,6 +12,7 @@ import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import com.ruoyi.domain.bank.BankSupervisionReconRun;
+import com.ruoyi.domain.bank.BankTransaction;
 
 public interface BankSupervisionReconMapper
 {
@@ -62,4 +63,9 @@ public interface BankSupervisionReconMapper
     @ResultMap("com.ruoyi.mapper.bank.BankSupervisionReconMapper.BankSupervisionReconRunResult")
     List<BankSupervisionReconRun> selectRuns(@Param("institutionIds") List<Long> institutionIds,
             @Param("limit") int limit);
+
+    /** 本地成功的监管拨付交易，用于与监管对账文件比对。 */
+    @Select("SELECT transaction_id, request_no, business_type, amount, bank_serial_no, bank_time, status FROM bank_transaction WHERE business_type='TRANSFER' AND institution_id=#{institutionId} AND status='SUCCESS' AND bank_time IS NOT NULL AND bank_serial_no IS NOT NULL")
+    @ResultMap("com.ruoyi.mapper.bank.BankTransactionMapper.BankTransactionResult")
+    List<BankTransaction> selectSuccessTransfers(@Param("institutionId") Long institutionId);
 }

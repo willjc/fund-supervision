@@ -1,13 +1,20 @@
 package com.ruoyi.service.bank.impl;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,6 +26,7 @@ import com.ruoyi.bank.gateway.ZhengzhouBankGateway;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.domain.bank.BankMerchantConfig;
 import com.ruoyi.domain.bank.BankSupervisionReconRun;
+import com.ruoyi.domain.bank.BankTransaction;
 import com.ruoyi.mapper.bank.BankSupervisionReconMapper;
 
 /**
@@ -168,6 +176,7 @@ public class BankSupervisionReconService
             run.setFileName(requestedName);
             byte[] content = gateway.downloadFile(requestedName);
             saveFile(run, requestedName, content);
+            compareAndStore(run, content);
             finish(run, "success");
         }
         catch (ServiceException e)
@@ -210,6 +219,106 @@ public class BankSupervisionReconService
         run.setStatus(status);
         run.setUpdateTime(new Date());
         reconMapper.updateRun(run);
+    }
+
+    /** 解析 GBK 管道文件并做简单比对：只统计总行数/匹配/差异，不落差异明细。 */
+    private void compareAndStore(BankSupervisionReconRun run, byte[] content)
+    {
+        List<String[]> rows = parseFile(content);
+        Map<String, BankTransaction> localByRequestNo = new HashMap<>();
+        for (BankTransaction local : reconMapper.selectSuccessTransfers(run.getInstitutionId()))
+        {
+            if (local.getRequestNo() != null)
+            {
+                localByRequestNo.put(local.getRequestNo(), local);
+            }
+        }
+        Set<String> seen = new HashSet<>();
+        int matched = 0;
+        int diff = 0;
+        for (String[] row : rows)
+        {
+            String status = row[14];
+            String requestNo = row[3] == null ? null : row[3].trim();
+            if (!"1".equals(status) || requestNo == null || requestNo.isEmpty())
+            {
+                // 非成功/非交易行（如冲正）计入差异，交人工判断。
+                diff++;
+                continue;
+            }
+            BankTransaction local = localByRequestNo.get(requestNo);
+            if (local == null)
+            {
+                diff++;
+                continue;
+            }
+            BigDecimal bankAmount = parseAmount(row[8]);
+            if (bankAmount == null || local.getAmount() == null
+                    || bankAmount.compareTo(local.getAmount()) != 0)
+            {
+                diff++;
+                continue;
+            }
+            String bankSerial = row[13] == null ? null : row[13].trim();
+            if (bankSerial != null && !bankSerial.isEmpty()
+                    && !bankSerial.equals(local.getBankSerialNo()))
+            {
+                diff++;
+                continue;
+            }
+            matched++;
+            seen.add(requestNo);
+        }
+        String date = formatDate(run.getTrandt());
+        for (BankTransaction local : localByRequestNo.values())
+        {
+            if (!seen.contains(local.getRequestNo()) && local.getBankTime() != null
+                    && local.getBankTime().length() >= 8
+                    && date.equals(local.getBankTime().substring(0, 8)))
+            {
+                diff++;
+            }
+        }
+        run.setTotalRows(rows.size());
+        run.setMatchedRows(matched);
+        run.setDiffRows(diff);
+    }
+
+    private List<String[]> parseFile(byte[] content)
+    {
+        String text = new String(content, Charset.forName("GBK"));
+        List<String[]> rows = new ArrayList<>();
+        for (String line : text.split("\\r?\\n"))
+        {
+            String trimmed = line.trim();
+            if (trimmed.isEmpty())
+            {
+                continue;
+            }
+            String[] fields = trimmed.split("\\|", -1);
+            if (fields.length < 15)
+            {
+                throw new ServiceException("对账文件格式不完整");
+            }
+            rows.add(fields);
+        }
+        return rows;
+    }
+
+    private BigDecimal parseAmount(String value)
+    {
+        if (value == null || value.trim().isEmpty())
+        {
+            return null;
+        }
+        try
+        {
+            return new BigDecimal(value.trim()).setScale(2, RoundingMode.HALF_UP);
+        }
+        catch (NumberFormatException e)
+        {
+            return null;
+        }
     }
 
     private String normalizeDate(String trandt)

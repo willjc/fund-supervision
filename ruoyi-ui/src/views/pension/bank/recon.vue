@@ -39,6 +39,9 @@
           <el-table-column label="大小" width="90">
             <template slot-scope="scope">{{ formatSize(scope.row.fileSize) }}</template>
           </el-table-column>
+          <el-table-column label="总行数" prop="totalRows" width="80" />
+          <el-table-column label="匹配" prop="matchedRows" width="80" />
+          <el-table-column label="差异" prop="diffRows" width="80" />
           <el-table-column label="执行时间" prop="createTime" width="160" />
           <el-table-column label="操作" width="120" fixed="right">
             <template slot-scope="scope">
@@ -49,7 +52,7 @@
         </el-table>
 
         <el-alert class="mt10" type="info" :closable="false" show-icon
-          title="监管对账文件解析规则待银行样例确认；当前只下载并保存文件，差异比对未启用。" />
+          title="已按银行文件与本地 TRANSFER 流水比对；差异只统计数量，明细待后续按需补充。" />
       </div>
 
       <!-- 收单对账（原有功能） -->
