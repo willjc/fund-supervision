@@ -60,9 +60,15 @@ public class BankPaymentServiceImpl implements IBankPaymentService
         }
 
         BankTransaction existing = transactionMapper.selectByBusiness("PAY", orderId);
-        // 未决交易继续使用原请求；只有明确失败才能新建，旧流水保留供审计。
+        // 同渠道未决交易继续使用原请求；只有明确失败才能新建，旧流水保留供审计。
         if (existing != null && !"FAILED".equals(existing.getStatus()))
         {
+            if (("PENDING".equals(existing.getStatus()) || "UNKNOWN".equals(existing.getStatus()))
+                    && !java.util.Objects.equals(existing.getChannelType(), channelType))
+            {
+                throw new ServiceException("该订单已通过" + existing.getChannelType()
+                        + "发起支付，不能切换为" + channelType + "，请继续使用原支付渠道");
+            }
             return toResult(existing);
         }
 

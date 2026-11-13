@@ -56,6 +56,7 @@ class BankPaymentServiceImplTest
         unpaidOrder();
         BankTransaction existing = new BankTransaction();
         existing.setStatus("PENDING");
+        existing.setChannelType("wechat");
         existing.setBankSerialNo("BANK001");
         existing.setPayUrl("https://bank.example/pay");
         when(transactionMapper.selectByBusiness("PAY", 1L)).thenReturn(existing);
@@ -65,6 +66,24 @@ class BankPaymentServiceImplTest
         assertEquals("PENDING", result.getStatus());
         assertEquals("BANK001", result.getBankSerialNo());
         verify(bankGateway, never()).createPayment(any());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"PENDING", "UNKNOWN"})
+    void createPaymentShouldRejectDifferentChannelForUnresolvedAttempt(String status)
+    {
+        unpaidOrder();
+        BankTransaction existing = pendingTransaction();
+        existing.setStatus(status);
+        existing.setChannelType("微信");
+        existing.setPayUrl("weixin://dl/business/?appid=wxe138c83bc6c40e34");
+        when(transactionMapper.selectByBusiness("PAY", 1L)).thenReturn(existing);
+
+        assertThrows(ServiceException.class, () -> service.createPayment(1L, 36L,
+                new BigDecimal("100.00"), "支付宝", "订单"));
+
+        verify(bankGateway, never()).createPayment(any());
+        verify(transactionMapper, never()).insert(any());
     }
 
     @Test
@@ -285,6 +304,7 @@ class BankPaymentServiceImplTest
         transaction.setRequestNo("REQ001");
         transaction.setMerId("8202106040000001");
         transaction.setAmount(new BigDecimal("100.00"));
+        transaction.setChannelType("wechat");
         transaction.setStatus("PENDING");
         transaction.setCreateTime(new Date());
         return transaction;
