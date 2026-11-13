@@ -162,6 +162,8 @@ bank:
     bank-public-key: ${ZZBANK_BANK_PUBLIC_KEY:}
     callback-url: ${ZZBANK_CALLBACK_URL:}
     mini-program-md5-key: ${ZZBANK_MINI_PROGRAM_MD5_KEY:}
+    # 微信小程序版本：release 正式版；trial 体验版（测试微信号需加入体验成员）。
+    wechat-env-version: ${ZZBANK_WECHAT_ENV_VERSION:release}
 
 # 郑好办配置
 zhenghaoban:

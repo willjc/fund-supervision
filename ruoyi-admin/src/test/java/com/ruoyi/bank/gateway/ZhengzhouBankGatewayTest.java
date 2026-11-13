@@ -156,6 +156,50 @@ class ZhengzhouBankGatewayTest
     }
 
     @Test
+    void shouldBuildWechatMiniProgramLaunchUrl() throws Exception
+    {
+        ZhengzhouBankGateway gateway = new ZhengzhouBankGateway();
+        ReflectionTestUtils.setField(gateway, "appId", "APP001");
+        ReflectionTestUtils.setField(gateway, "obkAppId", "obk1298393");
+        ReflectionTestUtils.setField(gateway, "miniProgramMd5Key", "fixture-key");
+        ReflectionTestUtils.setField(gateway, "wechatEnvVersion", "release");
+        BankPaymentRequest request = new BankPaymentRequest();
+        request.setRequestNo("BP123456789012345678901234567890");
+        request.setMerId("8202106040000001");
+        request.setAmount(new BigDecimal("0.01"));
+        request.setChannelType("微信");
+        request.setSubject("测试订单");
+        request.setRequestTime(new java.text.SimpleDateFormat("yyyyMMddHHmmss").parse("20260909160000"));
+
+        BankResult result = gateway.createPayment(request);
+
+        assertEquals("PENDING", result.getStatus());
+        String prefix = "weixin://dl/business/?appid=wxe138c83bc6c40e34&path=pages/index/index&query=";
+        String suffix = "&env_version=release";
+        assertTrue(result.getPayUrl().startsWith(prefix));
+        assertTrue(result.getPayUrl().endsWith(suffix));
+        String query = java.net.URLDecoder.decode(result.getPayUrl().substring(prefix.length(),
+                result.getPayUrl().length() - suffix.length()), "UTF-8");
+        String wrapped = "&" + query + "&";
+        assertTrue(wrapped.contains("&txnType=1006&"));
+        assertTrue(wrapped.contains("&txnSubType=100603&"));
+        assertFalse(wrapped.toLowerCase().contains("openid"));
+        assertTrue(wrapped.contains("&subAppId=wxe138c83bc6c40e34&"));
+        assertTrue(wrapped.contains("&merId=8202106040000001&"));
+        assertTrue(wrapped.contains("&txnAmt=1&"));
+        assertTrue(wrapped.contains("&payChl=OBK&"));
+        assertTrue(wrapped.contains("&obkAppId=obk1298393&"));
+        String reqData = java.util.Arrays.stream(query.split("&"))
+                .filter(value -> value.startsWith("reqData="))
+                .findFirst().orElseThrow(AssertionError::new).substring("reqData=".length());
+        String decoded = new String(Base64.getDecoder().decode(reqData), StandardCharsets.UTF_8);
+        JSONObject signature = JSON.parseObject(decoded);
+        assertEquals(1, signature.size());
+        // Same bank-confirmed sorting/exclusions as Alipay; independently calculated with Node crypto.
+        assertEquals("0060e078302ea7f92acee8a2ad6d5bb1", signature.getString("fivem"));
+    }
+
+    @Test
     void shouldSignEncryptAndVerifyBankQuery() throws Exception
     {
         KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");

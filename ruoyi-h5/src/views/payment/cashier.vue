@@ -138,6 +138,14 @@ const goToPaymentSuccess = (data) => {
   })
 }
 
+// 业务错误由 axios 拦截器包装成普通 Error（msg 在 message/responseData），HTTP 错误才带 response
+const extractErrorMsg = (error, fallback) => {
+  if (error?.responseData?.msg) return error.responseData.msg
+  if (error?.response?.data?.msg) return error.response.data.msg
+  if (error?.message) return error.message
+  return fallback
+}
+
 const confirmMockPayment = async (requestNo) => {
   try {
     await showConfirmDialog({
@@ -161,7 +169,7 @@ const confirmMockPayment = async (requestNo) => {
     }
   } catch (error) {
     closeToast()
-    showToast(error.response?.data?.msg || '模拟支付失败，请重试')
+    showToast(extractErrorMsg(error, '模拟支付失败，请重试'))
   }
 }
 
@@ -183,7 +191,7 @@ const checkPaymentStatus = async (showPendingMessage = false) => {
   } catch (error) {
     if (showPendingMessage) {
       closeToast()
-      showToast(error.response?.data?.msg || '查询支付结果失败，请稍后重试')
+      showToast(extractErrorMsg(error, '查询支付结果失败，请稍后重试'))
     }
   } finally {
     checkingPayment.value = false
@@ -218,6 +226,10 @@ const confirmPayment = async () => {
         bankPaymentPending.value = true
         sessionStorage.setItem('zzbankPendingOrderId', String(orderId))
         await launchZzBankAlipayMiniProgram(response.data.payUrl)
+      } else if (response.data.payUrl.startsWith('weixin://')) {
+        bankPaymentPending.value = true
+        sessionStorage.setItem('zzbankPendingOrderId', String(orderId))
+        window.location.href = response.data.payUrl
       } else {
         window.location.href = response.data.payUrl
       }
@@ -230,11 +242,7 @@ const confirmPayment = async () => {
   } catch (error) {
     closeToast()
     console.error('支付失败:', error)
-    let errorMessage = '支付失败，请重试'
-    if (error.response && error.response.data && error.response.data.msg) {
-      errorMessage = error.response.data.msg
-    }
-    showToast(errorMessage)
+    showToast(extractErrorMsg(error, '支付失败，请重试'))
   }
 }
 

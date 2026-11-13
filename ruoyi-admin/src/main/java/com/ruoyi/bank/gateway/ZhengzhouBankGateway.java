@@ -3,10 +3,12 @@ package com.ruoyi.bank.gateway;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.math.RoundingMode;
 import java.math.BigDecimal;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -43,6 +45,7 @@ public class ZhengzhouBankGateway implements BankGateway
 {
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ZhengzhouBankGateway.class);
     private static final String ALIPAY_MINI_APP_ID = "2021002182634333";
+    private static final String WECHAT_MINI_APP_ID = "wxe138c83bc6c40e34";
 
     @Value("${bank.integration.gateway-url:https://obk.lovingfox.cn:7000/openapi/zfbz/v1}")
     private String gatewayUrl;
@@ -78,6 +81,10 @@ public class ZhengzhouBankGateway implements BankGateway
     @Value("${bank.integration.mini-program-md5-key:}")
     private String miniProgramMd5Key;
 
+    // 微信小程序版本：release 正式版；trial 体验版（测试微信号需在体验成员名单）。
+    @Value("${bank.integration.wechat-env-version:release}")
+    private String wechatEnvVersion;
+
     @Value("${bank.integration.connect-timeout-ms:8000}")
     private int connectTimeoutMs;
 
@@ -99,9 +106,10 @@ public class ZhengzhouBankGateway implements BankGateway
     @Override
     public BankResult createPayment(BankPaymentRequest request)
     {
-        if (!"支付宝".equals(request.getChannelType()))
+        boolean wechat = "微信".equals(request.getChannelType());
+        if (!wechat && !"支付宝".equals(request.getChannelType()))
         {
-            throw new ServiceException("微信小程序支付的 fivem 规则尚未明确，当前测试仅支持支付宝");
+            throw new ServiceException("不支持的银行支付渠道：" + request.getChannelType());
         }
         require(appId, "郑州银行 appId 未配置");
         if (request.getRequestTime() == null)
@@ -110,16 +118,17 @@ public class ZhengzhouBankGateway implements BankGateway
         }
 
         JSONObject query = new JSONObject();
-        query.put("txnType", "1007");
-        query.put("txnSubType", "100704");
+        query.put("txnType", wechat ? "1006" : "1007");
+        query.put("txnSubType", wechat ? "100603" : "100704");
         query.put("aesWay", "01");
         query.put("merId", request.getMerId());
         query.put("txnOrderId", request.getRequestNo());
         query.put("txnOrderTime", format(request.getRequestTime(), "yyyyMMddHHmmss"));
         query.put("txnAmt", request.getAmount().movePointRight(2)
                 .setScale(0, RoundingMode.UNNECESSARY).toPlainString());
-        query.put("subAppId", ALIPAY_MINI_APP_ID);
-        query.put("txnOrderBody", truncate(request.getSubject(), 64));
+        query.put("subAppId", wechat ? WECHAT_MINI_APP_ID : ALIPAY_MINI_APP_ID);
+        // 银行确认微信 openId 由小程序内部获取，拉起参数不传。
+        query.put("txnOrderBody", truncate(request.getSubject(), wechat ? 128 : 64));
         query.put("txnOrderDetail", truncate(request.getSubject(), 128));
         query.put("txnCcyType", "156");
         query.put("payChl", "OBK");
@@ -136,13 +145,30 @@ public class ZhengzhouBankGateway implements BankGateway
         query.put("reqData", Base64.getEncoder().encodeToString(
                 JSON.toJSONString(reqData).getBytes(StandardCharsets.UTF_8)));
 
+        String queryString = query.entrySet().stream()
+                .filter(entry -> entry.getValue() != null)
+                .map(entry -> entry.getKey() + "=" + entry.getValue())
+                .collect(Collectors.joining("&"));
+        if (wechat)
+        {
+            String encodedQuery;
+            try
+            {
+                // 对齐银行示例的 encodeURIComponent：空格编码为 %20 而非 +。
+                encodedQuery = URLEncoder.encode(queryString, "UTF-8").replace("+", "%20");
+            }
+            catch (UnsupportedEncodingException e)
+            {
+                throw new ServiceException("微信小程序启动参数编码失败");
+            }
+            return BankResult.pending(null, "weixin://dl/business/?appid=" + WECHAT_MINI_APP_ID
+                    + "&path=pages/index/index&query=" + encodedQuery + "&env_version=" + wechatEnvVersion);
+        }
+
         JSONObject launch = new JSONObject();
         launch.put("appId", ALIPAY_MINI_APP_ID);
         launch.put("page", "pages/index/index");
-        launch.put("query", query.entrySet().stream()
-                .filter(entry -> entry.getValue() != null)
-                .map(entry -> entry.getKey() + "=" + entry.getValue())
-                .collect(Collectors.joining("&")));
+        launch.put("query", queryString);
         String encoded = Base64.getUrlEncoder().withoutPadding()
                 .encodeToString(JSON.toJSONString(launch).getBytes(StandardCharsets.UTF_8));
         return BankResult.pending(null, "zzbank-alipay://" + encoded);
