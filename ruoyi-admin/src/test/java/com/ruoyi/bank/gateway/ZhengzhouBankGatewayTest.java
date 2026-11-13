@@ -180,18 +180,17 @@ class ZhengzhouBankGatewayTest
         assertTrue(result.getPayUrl().endsWith(suffix));
         String query = java.net.URLDecoder.decode(result.getPayUrl().substring(prefix.length(),
                 result.getPayUrl().length() - suffix.length()), "UTF-8");
-        String wrapped = "&" + query + "&";
-        assertTrue(wrapped.contains("&txnType=1006&"));
-        assertTrue(wrapped.contains("&txnSubType=100603&"));
-        assertFalse(wrapped.toLowerCase().contains("openid"));
-        assertTrue(wrapped.contains("&subAppId=wxe138c83bc6c40e34&"));
-        assertTrue(wrapped.contains("&merId=8202106040000001&"));
-        assertTrue(wrapped.contains("&txnAmt=1&"));
-        assertTrue(wrapped.contains("&payChl=OBK&"));
-        assertTrue(wrapped.contains("&obkAppId=obk1298393&"));
-        String reqData = java.util.Arrays.stream(query.split("&"))
-                .filter(value -> value.startsWith("reqData="))
-                .findFirst().orElseThrow(AssertionError::new).substring("reqData=".length());
+        assertTrue(query.startsWith("zyzf="));
+        JSONObject parameters = JSON.parseObject(query.substring("zyzf=".length()));
+        assertEquals("1006", parameters.getString("txnType"));
+        assertEquals("100603", parameters.getString("txnSubType"));
+        assertFalse(parameters.toJSONString().toLowerCase().contains("openid"));
+        assertEquals("wxe138c83bc6c40e34", parameters.getString("subAppId"));
+        assertEquals("8202106040000001", parameters.getString("merId"));
+        assertEquals("1", parameters.getString("txnAmt"));
+        assertEquals("OBK", parameters.getString("payChl"));
+        assertEquals("obk1298393", parameters.getString("obkAppId"));
+        String reqData = parameters.getString("reqData");
         String decoded = new String(Base64.getDecoder().decode(reqData), StandardCharsets.UTF_8);
         JSONObject signature = JSON.parseObject(decoded);
         assertEquals(1, signature.size());

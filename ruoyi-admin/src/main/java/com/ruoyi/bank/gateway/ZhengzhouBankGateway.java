@@ -155,7 +155,7 @@ public class ZhengzhouBankGateway implements BankGateway
             try
             {
                 // 对齐银行示例的 encodeURIComponent：空格编码为 %20 而非 +。
-                encodedQuery = URLEncoder.encode(queryString, "UTF-8").replace("+", "%20");
+                encodedQuery = URLEncoder.encode("zyzf=" + JSON.toJSONString(query), "UTF-8").replace("+", "%20");
             }
             catch (UnsupportedEncodingException e)
             {
