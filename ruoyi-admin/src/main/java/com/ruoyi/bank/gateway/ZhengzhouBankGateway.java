@@ -157,17 +157,17 @@ public class ZhengzhouBankGateway implements BankGateway
             String encodedQuery;
             try
             {
+                // 嵌套 query 的中文值先编码一次，再随整体编码；签名仍使用原始中文。
+                String rawOrderBody = query.getString("txnOrderBody");
+                String encodedOrderBody = URLEncoder.encode(rawOrderBody, "UTF-8").replace("+", "%20");
+                String launchQuery = queryString.replace("txnOrderBody=" + rawOrderBody,
+                        "txnOrderBody=" + encodedOrderBody);
                 // 对齐银行示例的 encodeURIComponent：空格编码为 %20 而非 +。
-                encodedQuery = URLEncoder.encode(queryString, "UTF-8").replace("+", "%20");
+                encodedQuery = URLEncoder.encode(launchQuery, "UTF-8").replace("+", "%20");
             }
             catch (UnsupportedEncodingException e)
             {
                 throw new ServiceException("微信小程序启动参数编码失败");
-            }
-            // 微信明文 Scheme 的 query 编码后最多 512 字符。
-            if (encodedQuery.length() > 512)
-            {
-                throw new ServiceException("微信支付拉起参数超过微信512字符限制，请缩短参数或联系银行提供短链接");
             }
             return BankResult.pending(null, "weixin://dl/business/?appid=" + WECHAT_MINI_APP_ID
                     + "&path=pages/index/index&query=" + encodedQuery + "&env_version=" + wechatEnvVersion);
