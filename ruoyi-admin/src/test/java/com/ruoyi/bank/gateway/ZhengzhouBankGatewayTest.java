@@ -162,6 +162,7 @@ class ZhengzhouBankGatewayTest
         ReflectionTestUtils.setField(gateway, "appId", "APP001");
         ReflectionTestUtils.setField(gateway, "obkAppId", "obk1298393");
         ReflectionTestUtils.setField(gateway, "miniProgramMd5Key", "fixture-key");
+        ReflectionTestUtils.setField(gateway, "callbackUrl", "https://mz.dayushaiwang.com/api/bank/zzbank/notify/payment");
         ReflectionTestUtils.setField(gateway, "wechatEnvVersion", "release");
         BankPaymentRequest request = new BankPaymentRequest();
         request.setRequestNo("BP123456789012345678901234567890");
@@ -178,24 +179,54 @@ class ZhengzhouBankGatewayTest
         String suffix = "&env_version=release";
         assertTrue(result.getPayUrl().startsWith(prefix));
         assertTrue(result.getPayUrl().endsWith(suffix));
-        String query = java.net.URLDecoder.decode(result.getPayUrl().substring(prefix.length(),
-                result.getPayUrl().length() - suffix.length()), "UTF-8");
-        assertTrue(query.startsWith("zyzf="));
-        JSONObject parameters = JSON.parseObject(query.substring("zyzf=".length()));
-        assertEquals("1006", parameters.getString("txnType"));
-        assertEquals("100603", parameters.getString("txnSubType"));
-        assertFalse(parameters.toJSONString().toLowerCase().contains("openid"));
-        assertEquals("wxe138c83bc6c40e34", parameters.getString("subAppId"));
-        assertEquals("8202106040000001", parameters.getString("merId"));
-        assertEquals("1", parameters.getString("txnAmt"));
-        assertEquals("OBK", parameters.getString("payChl"));
-        assertEquals("obk1298393", parameters.getString("obkAppId"));
-        String reqData = parameters.getString("reqData");
+        String encodedQuery = result.getPayUrl().substring(prefix.length(),
+                result.getPayUrl().length() - suffix.length());
+        assertTrue(encodedQuery.length() <= 512);
+        String query = java.net.URLDecoder.decode(encodedQuery, "UTF-8");
+        String wrapped = "&" + query + "&";
+        assertTrue(wrapped.contains("&txnType=1006&"));
+        assertTrue(wrapped.contains("&txnSubType=100603&"));
+        assertFalse(wrapped.toLowerCase().contains("openid"));
+        assertTrue(wrapped.contains("&subAppId=wxe138c83bc6c40e34&"));
+        assertTrue(wrapped.contains("&merId=8202106040000001&"));
+        assertTrue(wrapped.contains("&txnAmt=1&"));
+        assertTrue(wrapped.contains("&txnOrderBody=养老费&"));
+        assertFalse(wrapped.contains("&txnOrderDetail="));
+        assertTrue(wrapped.contains("&payChl=OBK&"));
+        assertTrue(wrapped.contains("&obkAppId=obk1298393&"));
+        assertTrue(wrapped.contains("&istest=1&"));
+        assertTrue(wrapped.contains("&dev=uata&"));
+        assertTrue(wrapped.contains("&backEndUrl=https://mz.dayushaiwang.com/api/bank/zzbank/notify/payment&"));
+        String reqData = java.util.Arrays.stream(query.split("&"))
+                .filter(value -> value.startsWith("reqData="))
+                .findFirst().orElseThrow(AssertionError::new).substring("reqData=".length());
         String decoded = new String(Base64.getDecoder().decode(reqData), StandardCharsets.UTF_8);
         JSONObject signature = JSON.parseObject(decoded);
         assertEquals(1, signature.size());
         // Same bank-confirmed sorting/exclusions as Alipay; independently calculated with Node crypto.
-        assertEquals("0060e078302ea7f92acee8a2ad6d5bb1", signature.getString("fivem"));
+        assertEquals("a3eeedfb5ee41175ed3a169e355e0c89", signature.getString("fivem"));
+    }
+
+    @Test
+    void shouldRejectWechatLaunchQueryLongerThan512Characters() throws Exception
+    {
+        ZhengzhouBankGateway gateway = new ZhengzhouBankGateway();
+        ReflectionTestUtils.setField(gateway, "appId", "APP001");
+        ReflectionTestUtils.setField(gateway, "obkAppId", "12345678901234567890123456789012");
+        ReflectionTestUtils.setField(gateway, "miniProgramMd5Key", "fixture-key");
+        ReflectionTestUtils.setField(gateway, "callbackUrl", "https://mz.dayushaiwang.com/"
+                + new String(new char[100]).replace('\0', 'x'));
+        ReflectionTestUtils.setField(gateway, "wechatEnvVersion", "release");
+        BankPaymentRequest request = new BankPaymentRequest();
+        request.setRequestNo("BP123456789012345678901234567890");
+        request.setMerId("82021060400000011234567890123456");
+        request.setAmount(new BigDecimal("0.01"));
+        request.setChannelType("微信");
+        request.setSubject("测试订单");
+        request.setRequestTime(new java.text.SimpleDateFormat("yyyyMMddHHmmss").parse("20260909160000"));
+
+        ServiceException exception = assertThrows(ServiceException.class, () -> gateway.createPayment(request));
+        assertTrue(exception.getMessage().contains("512"));
     }
 
     @Test

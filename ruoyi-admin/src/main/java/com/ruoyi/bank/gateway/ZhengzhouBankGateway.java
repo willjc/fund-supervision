@@ -128,8 +128,11 @@ public class ZhengzhouBankGateway implements BankGateway
                 .setScale(0, RoundingMode.UNNECESSARY).toPlainString());
         query.put("subAppId", wechat ? WECHAT_MINI_APP_ID : ALIPAY_MINI_APP_ID);
         // 银行确认微信 openId 由小程序内部获取，拉起参数不传。
-        query.put("txnOrderBody", truncate(request.getSubject(), wechat ? 128 : 64));
-        query.put("txnOrderDetail", truncate(request.getSubject(), 128));
+        query.put("txnOrderBody", wechat ? "养老费" : truncate(request.getSubject(), 64));
+        if (!wechat)
+        {
+            query.put("txnOrderDetail", truncate(request.getSubject(), 128));
+        }
         query.put("txnCcyType", "156");
         query.put("payChl", "OBK");
         query.put("obkAppId", isBlank(obkAppId) ? appId : obkAppId);
@@ -155,11 +158,16 @@ public class ZhengzhouBankGateway implements BankGateway
             try
             {
                 // 对齐银行示例的 encodeURIComponent：空格编码为 %20 而非 +。
-                encodedQuery = URLEncoder.encode("zyzf=" + JSON.toJSONString(query), "UTF-8").replace("+", "%20");
+                encodedQuery = URLEncoder.encode(queryString, "UTF-8").replace("+", "%20");
             }
             catch (UnsupportedEncodingException e)
             {
                 throw new ServiceException("微信小程序启动参数编码失败");
+            }
+            // 微信明文 Scheme 的 query 编码后最多 512 字符。
+            if (encodedQuery.length() > 512)
+            {
+                throw new ServiceException("微信支付拉起参数超过微信512字符限制，请缩短参数或联系银行提供短链接");
             }
             return BankResult.pending(null, "weixin://dl/business/?appid=" + WECHAT_MINI_APP_ID
                     + "&path=pages/index/index&query=" + encodedQuery + "&env_version=" + wechatEnvVersion);
