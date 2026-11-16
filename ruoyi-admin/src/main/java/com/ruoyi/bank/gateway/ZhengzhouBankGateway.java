@@ -129,10 +129,7 @@ public class ZhengzhouBankGateway implements BankGateway
         query.put("subAppId", wechat ? WECHAT_MINI_APP_ID : ALIPAY_MINI_APP_ID);
         // 银行确认微信 openId 由小程序内部获取，拉起参数不传。
         query.put("txnOrderBody", wechat ? "养老费" : truncate(request.getSubject(), 64));
-        if (!wechat)
-        {
-            query.put("txnOrderDetail", truncate(request.getSubject(), 128));
-        }
+        query.put("txnOrderDetail", truncate(request.getSubject(), 128));
         query.put("txnCcyType", "156");
         query.put("payChl", "OBK");
         query.put("obkAppId", isBlank(obkAppId) ? appId : obkAppId);
@@ -160,8 +157,11 @@ public class ZhengzhouBankGateway implements BankGateway
                 // 嵌套 query 的中文值先编码一次，再随整体编码；签名仍使用原始中文。
                 String rawOrderBody = query.getString("txnOrderBody");
                 String encodedOrderBody = URLEncoder.encode(rawOrderBody, "UTF-8").replace("+", "%20");
+                String rawOrderDetail = query.getString("txnOrderDetail");
+                String encodedOrderDetail = URLEncoder.encode(rawOrderDetail, "UTF-8").replace("+", "%20");
                 String launchQuery = queryString.replace("txnOrderBody=" + rawOrderBody,
-                        "txnOrderBody=" + encodedOrderBody);
+                        "txnOrderBody=" + encodedOrderBody).replace("txnOrderDetail=" + rawOrderDetail,
+                        "txnOrderDetail=" + encodedOrderDetail);
                 // 对齐银行示例的 encodeURIComponent：空格编码为 %20 而非 +。
                 encodedQuery = URLEncoder.encode(launchQuery, "UTF-8").replace("+", "%20");
             }
